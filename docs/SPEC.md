@@ -57,6 +57,9 @@ Build an open-source macOS app that records:
 - Language/UI: Swift + SwiftUI
 - **Development environment:** Cursor IDE + SweetPad (no Xcode project workflow).
 - **Build system:** SwiftPM (`Package.swift` is the source of truth; no `.xcodeproj`).
+- **App identity:**
+  - Display name: **guerillaglass**
+  - Bundle identifier: **com.okikeSolutions.guerillaglass**
 - **Code quality tooling (no‑Xcode workflow):**
   - Formatter: **SwiftFormat** with a repo‑level `.swiftformat` config.
   - Linting: **SwiftLint** with `.swiftlint.yml` (editor plugin + CI checks).
@@ -265,7 +268,7 @@ Versioning policy:
 
 ```
 
-guerillglass/
+guerillaglass/
 ├─ README.md
 ├─ LICENSE
 ├─ Package.swift
@@ -284,7 +287,7 @@ guerillglass/
 ├─ docs/
 │ └─ SPEC.md
 ├─ app/
-│ ├─ GuerillglassApp.swift
+│ ├─ GuerillaglassApp.swift
 │ ├─ AppDelegate.swift
 │ ├─ Info.plist
 │ └─ Entitlements.entitlements
