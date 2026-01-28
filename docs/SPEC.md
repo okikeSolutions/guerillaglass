@@ -1,4 +1,4 @@
-# Spec.md — Open-source “Screen Studio–style” Recorder for macOS
+# Spec.md — guerillglass (Open‑source “Screen Studio–style” Recorder for macOS)
 
 ## 1) Goal
 
@@ -265,7 +265,7 @@ Versioning policy:
 
 ```
 
-screenstudio-oss/
+guerillglass/
 ├─ README.md
 ├─ LICENSE
 ├─ Package.swift
@@ -284,7 +284,7 @@ screenstudio-oss/
 ├─ docs/
 │ └─ SPEC.md
 ├─ app/
-│ ├─ ScreenStudioApp.swift
+│ ├─ GuerillglassApp.swift
 │ ├─ AppDelegate.swift
 │ ├─ Info.plist
 │ └─ Entitlements.entitlements
