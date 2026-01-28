@@ -25,6 +25,9 @@ Build an open-source macOS app that records:
 
 - **Input Monitoring** permission is required for apps that monitor keyboard/mouse/trackpad input globally.
 - **Accessibility** permission is required only if the app controls the Mac via accessibility APIs; it is **not required** for passive cursor/click timestamping.
+- Implementation notes:
+  - Use `IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)` to check Input Monitoring status and guide users to System Settings when needed.
+  - Use `AXIsProcessTrusted/AXIsProcessTrustedWithOptions` only if Accessibility-based UI inspection or control is added.
 
 ### iOS Simulator recording
 
@@ -53,6 +56,13 @@ Build an open-source macOS app that records:
   - Stretch: validate whether **12.3+ video-only** support is feasible; keep runtime availability checks either way.
 - Language/UI: Swift + SwiftUI
 - **Development environment:** Cursor IDE + SweetPad (no Xcode project workflow).
+- **Build system:** SwiftPM (`Package.swift` is the source of truth; no `.xcodeproj`).
+- **Code quality tooling (no‑Xcode workflow):**
+  - Formatter: **SwiftFormat** with a repo‑level `.swiftformat` config.
+  - Linting: **SwiftLint** with `.swiftlint.yml` (editor plugin + CI checks).
+  - Optional: **Periphery** for dead‑code detection in later phases.
+  - Build logs: **xcbeautify** for readable CLI output.
+  - LSP: **xcode-build-server** to support Cursor/SweetPad indexing.
 - Capture:
   - ScreenCaptureKit (video + system audio where supported)
   - AVFoundation (microphone capture, universally)
@@ -92,9 +102,11 @@ Notes:
 
 - Display capture (single display v1)
 - Window capture (including iOS Simulator)
+- Capture at native display resolution; downscale only in preview/export.
 - Audio:
   - Microphone via AVFoundation (all supported OS versions)
   - System/app audio via ScreenCaptureKit (macOS 13+ only)
+- Unified timebase: all streams (screen, system audio, mic, events) are timestamped against a single `CaptureClock` to prevent drift.
 - Optional event tracking:
   - Cursor positions (timestamped)
   - Mouse clicks (down/up, button, position)
@@ -131,6 +143,10 @@ Required permissions:
 2. Microphone (if enabled)
 3. **Input Monitoring** (only if event tracking enabled)
 
+Preferred consent flow (macOS 14+):
+
+- Use `SCContentSharingPicker` for privacy-aligned capture selection.
+
 Optional / future:
 
 - **Accessibility** (only if AX-based automation or UI inspection is added)
@@ -141,6 +157,7 @@ Fallback behavior:
   - Recording continues
   - Auto-zoom triggers and click highlights disabled
   - UI clearly indicates degraded automation mode
+- If bypassing the system picker on macOS 15+: users may see periodic re‑authorization prompts; design UX to explain and re‑request access.
 
 ---
 
@@ -185,6 +202,7 @@ Fallback behavior:
 
 - Default: **H.264 mezzanine**, high bitrate, **short GOP / frequent keyframes**
 - Rationale: smaller files, simpler pipeline
+- Store mezzanine at capture (native) resolution to preserve detail for zoom; downscale on export.
 - v2 option: ProRes 422 LT mezzanine for higher-quality reframes
 
 ---
@@ -208,6 +226,7 @@ Fallback behavior:
 - Min visible area: ≥ 40% of source
 - Safe margin: 8–12% frame
 - Dwell threshold: cursor speed < V for ≥ 350 ms
+- Cursor velocity filter (EMA or Kalman) before dwell/pan evaluation to reduce jitter.
 - Max pan speed & acceleration capped (“no nausea” rule)
 - If no events: mild center framing only
 
@@ -249,6 +268,8 @@ Versioning policy:
 screenstudio-oss/
 ├─ README.md
 ├─ LICENSE
+├─ Package.swift
+├─ PrivacyInfo.xcprivacy
 ├─ CONTRIBUTING.md
 ├─ CODE_OF_CONDUCT.md
 ├─ SECURITY.md
@@ -366,6 +387,7 @@ License hygiene:
 
 - Keep a rolling third‑party inventory; automated checks recommended (e.g., license scanning in CI).
 - Add attribution for bundled assets/fonts.
+- Maintain `PrivacyInfo.xcprivacy` for any required‑reason APIs used by the app or dependencies.
 
 ---
 
@@ -389,6 +411,11 @@ License hygiene:
 - Apple Support: Accessibility access on macOS — https://support.apple.com/en-afri/guide/mac-help/mh43185/mac
 - Apple Developer Docs: `xcrun simctl io … recordVideo` — https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/InteractingwiththeiOSSimulator/InteractingwiththeiOSSimulator.html
 - Apple Design: HIG entry point — https://developer.apple.com/design/get-started/
+- Apple Developer Docs: SCContentSharingPicker — https://developer.apple.com/documentation/screencapturekit/sccontentsharingpicker
+- Apple Developer Docs: Privacy manifest — https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk
+- Gannon Lawlor: Input Monitoring & AX trust checks — https://gannonlawlor.com/2022/07/02/accessing-mouse-events-on-macos/
+- macOS Sequoia screen recording re‑authorization prompt (reports) — https://www.macrumors.com/2024/08/15/macos-sequoia-screen-recording-app-permissions/
+- macOS Sequoia prompt details (reports) — https://9to5mac.com/2024/08/14/macos-sequoia-screen-recording-prompt-monthly/
 
 ```
 
