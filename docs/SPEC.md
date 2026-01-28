@@ -52,6 +52,7 @@ Build an open-source macOS app that records:
 - **macOS baseline (v1):** 13.0+
   - Stretch: validate whether **12.3+ video-only** support is feasible; keep runtime availability checks either way.
 - Language/UI: Swift + SwiftUI
+- **Development environment:** Cursor IDE + SweetPad (no Xcode project workflow).
 - Capture:
   - ScreenCaptureKit (video + system audio where supported)
   - AVFoundation (microphone capture, universally)
@@ -64,8 +65,8 @@ Build an open-source macOS app that records:
 
 | Capture mode    | Video (13+) |    System audio | Mic (AVF) | Cursor pos | Click events |
 | --------------- | ----------: | --------------: | --------: | ---------: | -----------: |
-| Display capture |        Yes |        13+ only |       Yes |   Optional |     Optional |
-| Window capture  |        Yes | 13+ best-effort |       Yes |   Optional |     Optional |
+| Display capture |         Yes |        13+ only |       Yes |   Optional |     Optional |
+| Window capture  |         Yes | 13+ best-effort |       Yes |   Optional |     Optional |
 
 Notes:
 
@@ -242,6 +243,7 @@ Versioning policy:
 ---
 
 ## 17) Project structure (proposed)
+
 ```
 
 screenstudio-oss/
@@ -310,19 +312,23 @@ screenstudio-oss/
 ---
 
 ## 18) Phased delivery
+
 **Phase 1 — Recorder MVP**
+
 - Display/window capture
 - Mic audio (AVFoundation)
 - Trim + export
 - Project save/load + versioning
 
 **Phase 2 — Cinematic defaults**
+
 - Input Monitoring–gated event tracking
 - Auto-zoom planning + constraints
 - Background framing
 - Vertical export with re-planned camera
 
 **Phase 3 — Polish**
+
 - Motion blur controls
 - Per-segment overrides
 - Simulator auto-crop
@@ -331,6 +337,7 @@ screenstudio-oss/
 ---
 
 ## 19) Licensing
+
 - Code: choose **MIT** or **Apache-2.0** and document the rationale.
 - Assets: license-compatible or optional download; all assets must have explicit licenses.
 - Third-party dependencies: list in `THIRD_PARTY_NOTICES.md` (or `NOTICE` if Apache-2.0).
@@ -382,6 +389,8 @@ License hygiene:
 - Apple Support: Accessibility access on macOS — https://support.apple.com/en-afri/guide/mac-help/mh43185/mac
 - Apple Developer Docs: `xcrun simctl io … recordVideo` — https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/InteractingwiththeiOSSimulator/InteractingwiththeiOSSimulator.html
 - Apple Design: HIG entry point — https://developer.apple.com/design/get-started/
+
 ```
 
 This version incorporates all verified corrections (OS baselines, permissions precision, audio reality, determinism scope) while keeping the spec tight, testable, and build-oriented.
+```
