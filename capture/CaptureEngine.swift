@@ -1,24 +1,39 @@
 import AVFoundation
 import CoreGraphics
 import CoreImage
+import Export
 import Foundation
 import ScreenCaptureKit
 
 public final class CaptureEngine: NSObject, ObservableObject {
     @Published public private(set) var latestFrame: CGImage?
     @Published public private(set) var isRunning: Bool = false
-    @Published public private(set) var lastError: String?
+    @Published public internal(set) var lastError: String?
     @Published public private(set) var availableWindows: [ShareableWindow] = []
+    @Published public internal(set) var isRecording: Bool = false
+    @Published public internal(set) var recordingURL: URL?
+    @Published public internal(set) var recordingDuration: TimeInterval = 0
 
     private let ciContext = CIContext(options: nil)
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
+    let recordingQueue = DispatchQueue(label: "gg.capture.recording")
     private var stream: SCStream?
-    private let audioCapture = AudioCapture()
+    private lazy var audioCapture = AudioCapture { [weak self] buffer, time in
+        self?.handleAudioBuffer(buffer, time: time)
+    }
+
     private var windowsByID: [CGWindowID: SCWindow] = [:]
+    var recordingState = RecordingState()
     @MainActor private var pickerContinuation: CheckedContinuation<SCContentFilter, Error>?
 
     override public init() {
         super.init()
+    }
+
+    struct RecordingState {
+        var isRecording: Bool = false
+        var writer: AssetWriter?
+        var outputURL: URL?
     }
 
     public func startDisplayCapture(enableMic: Bool = false) async throws {
@@ -110,6 +125,9 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @MainActor
     public func stopCapture() async {
         guard let stream else { return }
+        if isRecording {
+            await stopRecording()
+        }
         try? await stream.stopCapture()
         audioCapture.stop()
         isRunning = false
@@ -125,18 +143,6 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @MainActor
     public func setErrorMessage(_ message: String?) {
         lastError = message
-    }
-
-    public func refreshShareableContent() async {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
-            let windows = Self.filteredWindows(from: content.windows)
-            await cacheShareableWindows(windows)
-        } catch {
-            await MainActor.run {
-                self.lastError = error.localizedDescription
-            }
-        }
     }
 
     private func ensureScreenCaptureAccess() async throws {
@@ -239,8 +245,22 @@ public final class CaptureEngine: NSObject, ObservableObject {
             continuation.resume(throwing: error)
         }
     }
+}
 
-    private func resolveWindow(windowID: CGWindowID) async throws -> SCWindow {
+extension CaptureEngine {
+    public func refreshShareableContent() async {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+            let windows = Self.filteredWindows(from: content.windows)
+            await cacheShareableWindows(windows)
+        } catch {
+            await MainActor.run {
+                self.lastError = error.localizedDescription
+            }
+        }
+    }
+
+    func resolveWindow(windowID: CGWindowID) async throws -> SCWindow {
         if let cached = await cachedWindow(for: windowID) {
             return cached
         }
@@ -293,6 +313,8 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
         guard outputType == .screen,
               let imageBuffer = sampleBuffer.imageBuffer else { return }
 
+        appendVideoSample(sampleBuffer)
+
         let ciImage = CIImage(cvImageBuffer: imageBuffer)
         guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
 
@@ -341,6 +363,7 @@ public enum CaptureError: LocalizedError {
     case windowNotFound
     case pickerCancelled
     case pickerAlreadyActive
+    case captureNotRunning
 
     public var errorDescription: String? {
         switch self {
@@ -354,6 +377,8 @@ public enum CaptureError: LocalizedError {
             String(localized: "Content selection was cancelled.")
         case .pickerAlreadyActive:
             String(localized: "Content picker is already active.")
+        case .captureNotRunning:
+            String(localized: "Start a capture before recording.")
         }
     }
 }

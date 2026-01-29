@@ -29,7 +29,7 @@ let package = Package(
         ),
         .target(
             name: "Capture",
-            dependencies: [],
+            dependencies: ["Export"],
             path: "capture"
         ),
         .target(

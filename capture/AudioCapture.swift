@@ -4,8 +4,11 @@ import Foundation
 public final class AudioCapture {
     private let engine = AVAudioEngine()
     private var isRunning = false
+    private let onBuffer: (AVAudioPCMBuffer, AVAudioTime) -> Void
 
-    public init() {}
+    public init(onBuffer: @escaping (AVAudioPCMBuffer, AVAudioTime) -> Void = { _, _ in }) {
+        self.onBuffer = onBuffer
+    }
 
     public func start() async throws {
         guard !isRunning else { return }
@@ -13,8 +16,8 @@ public final class AudioCapture {
 
         let input = engine.inputNode
         let format = input.inputFormat(forBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { _, _ in
-            // Placeholder: audio buffers will be routed to AssetWriter in Phase 1.
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [onBuffer] buffer, time in
+            onBuffer(buffer, time)
         }
 
         engine.prepare()
