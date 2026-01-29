@@ -1,2 +1,3 @@
 --swiftversion 5.10
 --indent 4
+--disable trailingCommas

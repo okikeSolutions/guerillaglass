@@ -1,5 +1,5 @@
-import XCTest
 @testable import Rendering
+import XCTest
 
 final class RenderingDeterminismTests: XCTestCase {
     func testRendererInitialization() {

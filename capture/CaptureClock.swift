@@ -1,5 +1,5 @@
-import Foundation
 import CoreMedia
+import Foundation
 import QuartzCore
 
 public struct CaptureClock {

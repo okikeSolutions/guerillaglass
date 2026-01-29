@@ -1,5 +1,5 @@
-import XCTest
 @testable import Automation
+import XCTest
 
 final class AutomationTests: XCTestCase {
     func testPlannerInitialization() {

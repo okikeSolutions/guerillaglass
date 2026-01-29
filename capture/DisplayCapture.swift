@@ -1,5 +1,5 @@
-import Foundation
 import CoreGraphics
+import Foundation
 import ScreenCaptureKit
 
 public struct DisplayCapture {
