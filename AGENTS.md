@@ -30,7 +30,7 @@ This project is an open-source macOS app that records displays/windows (includin
 
 ## Project structure (from spec)
 
-Code lives under `App/`, `UI/`, `Capture/`, `InputTracking/`, `Project/`, `Automation/`, `Rendering/`, `Export/`, `Diagnostics/`. Tests under `Tests/` with subdirs for Automation, ProjectMigration, RenderingDeterminism. See `docs/SPEC.md` §17 for the full tree.
+Code lives under `app/`, `ui/`, `capture/`, `inputTracking/`, `project/`, `automation/`, `rendering/`, `export/`, `diagnostics/`. Tests under `Tests/` with subdirs `automationTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`. See `docs/SPEC.md` §17 for the full tree.
 
 ---
 

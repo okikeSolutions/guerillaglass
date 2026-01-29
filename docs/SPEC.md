@@ -293,10 +293,10 @@ guerillaglass/
 │ └─ Entitlements.entitlements
 ├─ ui/
 │ ├─ RootView.swift
-│ ├─ Capture/
-│ ├─ Library/
-│ ├─ Editor/
-│ └─ Components/
+│ ├─ capture/
+│ ├─ library/
+│ ├─ editor/
+│ └─ components/
 ├─ capture/
 │ ├─ CaptureEngine.swift
 │ ├─ DisplayCapture.swift
@@ -311,7 +311,7 @@ guerillaglass/
 │ ├─ Project.swift
 │ ├─ ProjectStore.swift
 │ ├─ ProjectMigration.swift
-│ └─ Schema/
+│ └─ schema/
 ├─ automation/
 │ ├─ VirtualCameraPlanner.swift
 │ ├─ AttentionModel.swift
@@ -319,7 +319,7 @@ guerillaglass/
 ├─ rendering/
 │ ├─ PreviewRenderer.swift
 │ ├─ ExportRenderer.swift
-│ └─ Metal/
+│ └─ metal/
 ├─ export/
 │ ├─ ExportPipeline.swift
 │ ├─ Presets.swift
@@ -327,9 +327,9 @@ guerillaglass/
 ├─ diagnostics/
 │ └─ PerformanceMetrics.swift
 └─ Tests/
-├─ AutomationTests/
-├─ ProjectMigrationTests/
-└─ RenderingDeterminismTests/
+├─ automationTests/
+├─ projectMigrationTests/
+└─ renderingDeterminismTests/
 
 ```
 
@@ -343,6 +343,14 @@ guerillaglass/
 - Mic audio (AVFoundation)
 - Trim + export
 - Project save/load + versioning
+- Build/run packaged app via `Scripts/compile_and_run.sh`
+
+Progress (current repo)
+- [x] Display capture preview (ScreenCaptureKit)
+- [x] Mic capture skeleton (permission + AVAudioEngine tap)
+- [ ] Window capture UI + preview
+- [ ] Trim + export
+- [ ] Project save/load + versioning
 
 **Phase 2 — Cinematic defaults**
 
@@ -351,12 +359,24 @@ guerillaglass/
 - Background framing
 - Vertical export with re-planned camera
 
+Progress (current repo)
+- [ ] Input Monitoring permission flow + event tracking
+- [ ] Auto-zoom planning + constraints
+- [ ] Background framing
+- [ ] Vertical export with re-planned camera
+
 **Phase 3 — Polish**
 
 - Motion blur controls
 - Per-segment overrides
 - Simulator auto-crop
 - Optional ProRes mezzanine
+
+Progress (current repo)
+- [ ] Motion blur controls
+- [ ] Per-segment overrides
+- [ ] Simulator auto-crop
+- [ ] Optional ProRes mezzanine
 
 ---
 
