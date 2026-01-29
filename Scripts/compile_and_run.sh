@@ -13,6 +13,8 @@ DEBUG_PROCESS_PATTERN="${ROOT_DIR}/.build/debug/${APP_NAME}"
 RELEASE_PROCESS_PATTERN="${ROOT_DIR}/.build/release/${APP_NAME}"
 RUN_TESTS=0
 RELEASE_ARCHES=""
+SIGNING_MODE=${SIGNING_MODE:-}
+APP_IDENTITY=${APP_IDENTITY:-}
 
 log() { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -47,7 +49,24 @@ if [[ -n "${RELEASE_ARCHES}" ]]; then
 fi
 
 log "==> package app"
-SIGNING_MODE=adhoc ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/Scripts/package_app.sh" release
+if [[ -z "${APP_IDENTITY}" ]]; then
+  APP_IDENTITY=$(
+    security find-identity -v -p codesigning 2>/dev/null \
+      | awk -F'"' '/Apple Development: /{print $2; exit} /Developer ID Application: /{print $2; exit}'
+  )
+fi
+
+if [[ -n "${APP_IDENTITY}" ]]; then
+  log "==> Using signing identity: ${APP_IDENTITY}"
+  SIGNING_MODE=""
+else
+  SIGNING_MODE="adhoc"
+  log "WARN: No code signing identity found; using ad-hoc signing."
+  log "WARN: macOS privacy prompts may reappear until a stable signing identity is used."
+fi
+
+SIGNING_MODE="${SIGNING_MODE}" APP_IDENTITY="${APP_IDENTITY}" ARCHES="${ARCHES_VALUE}" \
+  "${ROOT_DIR}/Scripts/package_app.sh" release
 
 log "==> launch app"
 if ! open "${APP_BUNDLE}"; then
