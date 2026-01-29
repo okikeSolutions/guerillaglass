@@ -17,6 +17,9 @@ let package = Package(
             exclude: [
                 "Info.plist",
                 "Entitlements.entitlements"
+            ],
+            resources: [
+                .process("Resources")
             ]
         ),
         .target(

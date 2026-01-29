@@ -344,13 +344,18 @@ guerillaglass/
 - Trim + export
 - Project save/load + versioning
 - Build/run packaged app via `Scripts/compile_and_run.sh`
+- Localization: keep `.xcstrings` updated for all new user-facing strings
+- Post‑localization polish audit (UI/UX, performance, accessibility)
 
 Progress (current repo)
+
 - [x] Display capture preview (ScreenCaptureKit)
 - [x] Mic capture skeleton (permission + AVAudioEngine tap)
-- [ ] Window capture UI + preview
+- [x] Window capture UI + preview
 - [ ] Trim + export
 - [ ] Project save/load + versioning
+- [x] Localization catalog exists and is wired into the app target
+- [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
 **Phase 2 — Cinematic defaults**
 
@@ -358,12 +363,17 @@ Progress (current repo)
 - Auto-zoom planning + constraints
 - Background framing
 - Vertical export with re-planned camera
+- Localization: add/refresh localized strings for all new UI and errors
+- Post‑localization polish audit (UI/UX, performance, accessibility)
 
 Progress (current repo)
+
 - [ ] Input Monitoring permission flow + event tracking
 - [ ] Auto-zoom planning + constraints
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
+- [ ] Localization updated for Phase 2 UI
+- [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
 **Phase 3 — Polish**
 
@@ -371,12 +381,17 @@ Progress (current repo)
 - Per-segment overrides
 - Simulator auto-crop
 - Optional ProRes mezzanine
+- Localization: update strings for new controls, settings, and export options
+- Post‑localization polish audit (UI/UX, performance, accessibility)
 
 Progress (current repo)
+
 - [ ] Motion blur controls
 - [ ] Per-segment overrides
 - [ ] Simulator auto-crop
 - [ ] Optional ProRes mezzanine
+- [ ] Localization updated for Phase 3 UI
+- [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
 ---
 
@@ -418,9 +433,34 @@ License hygiene:
 
 - Follow Apple’s Human Interface Guidelines for macOS layout, navigation patterns, and control behavior.
 - Use **system typography (SF)**, standard controls, and native menus/shortcuts.
+
+---
+
+## 22) Localization & internationalization
+
+- **String catalogs:** Use `.xcstrings` (Xcode 15+) as the source of truth for localized strings.
+- **Internationalize first:** All user-facing strings must be localizable. In SwiftUI, prefer `Text("…")` with localization keys. For non-View strings (errors/status), use `String(localized:)`.
+- **Pluralization:** Use string catalog variations (or `.stringsdict` if ever needed) for plural nouns/verbs.
+- **Formatting:** Use `Date.FormatStyle`, `NumberFormatStyle`, and `Measurement` formatting instead of manual string interpolation.
+- **No concatenation:** Avoid building sentences by concatenating fragments; use localized format strings instead.
+- **App Store:** Plan to localize App Store metadata per territory when shipping.
 - Respect system preferences: Reduce Motion, Increase Contrast, Reduce Transparency.
 - Adopt macOS windowing patterns: toolbar/inspector split, sidebar list, document-based workflow.
 - Accessibility baseline: VoiceOver labels, keyboard navigation, focus order, high-contrast checks.
+- Keep the standard macOS menu structure (App, File, Edit, View, Window, Help) with expected shortcuts.
+- Use standard open/save panels, document autosave, and clear file ownership (avoid custom file pickers).
+- Preserve native window chrome (title bar, toolbar, sidebar behaviors) and support window resizing/state restoration.
+- Provide in‑app permission explanations before triggering OS prompts; degrade gracefully when denied.
+
+### Must-haves (macOS compliance)
+
+- Hardened Runtime + code signing; notarization for non–App Store distribution.
+- App Sandbox enabled unless a documented, reviewed exception is required.
+- Request permissions only from direct user intent; never on launch.
+- Provide user-facing privacy/usage disclosures for any protected resources (e.g., mic, input monitoring).
+- Avoid private APIs and fragile behavior; document any OS‑version limitations with clear UX fallbacks.
+- Ensure accessibility coverage (labels, keyboard navigation, VoiceOver order) for all primary workflows.
+- Keep UI responsive under capture/export loads; avoid blocking the main thread.
 
 ---
 
@@ -434,6 +474,7 @@ License hygiene:
 - Apple Support: Accessibility access on macOS — https://support.apple.com/en-afri/guide/mac-help/mh43185/mac
 - Apple Developer Docs: `xcrun simctl io … recordVideo` — https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/InteractingwiththeiOSSimulator/InteractingwiththeiOSSimulator.html
 - Apple Design: HIG entry point — https://developer.apple.com/design/get-started/
+- Apple Developer: macOS get started — https://developer.apple.com/macos/get-started/
 - Apple Developer Docs: SCContentSharingPicker — https://developer.apple.com/documentation/screencapturekit/sccontentsharingpicker
 - Apple Developer Docs: Privacy manifest — https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk
 - Gannon Lawlor: Input Monitoring & AX trust checks — https://gannonlawlor.com/2022/07/02/accessing-mouse-events-on-macos/

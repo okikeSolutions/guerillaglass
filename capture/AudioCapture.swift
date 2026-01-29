@@ -1,5 +1,5 @@
-import Foundation
 import AVFoundation
+import Foundation
 
 public final class AudioCapture {
     private let engine = AVAudioEngine()
@@ -50,7 +50,7 @@ public enum AudioCaptureError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .microphoneDenied:
-            return "Microphone permission is required to capture audio."
+            String(localized: "Microphone permission is required to capture audio.")
         }
     }
 }
