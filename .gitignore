@@ -30,6 +30,8 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+.vscode/
+guerillaglass.app/
 
 # CocoaPods
 #
