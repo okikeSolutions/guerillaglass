@@ -1,0 +1,21 @@
+name: full_gate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  full_gate:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SwiftFormat and SwiftLint
+        run: |
+          brew update
+          brew install swiftformat swiftlint
+
+      - name: Run full gate
+        run: Scripts/full_gate.sh

@@ -32,3 +32,9 @@ swift test
 
 ## Style
 - SwiftFormat and SwiftLint configurations live at repo root.
+
+## Pull requests (agent-friendly)
+- Use small, scoped PRs (UI, capture, export, docs, tooling).
+- Run `Scripts/full_gate.sh` before opening a PR (format, lint, build).
+- Include screenshots for UI changes.
+- Split commits by feature area (follow existing `feat:`, `docs:`, `chore:` style).
