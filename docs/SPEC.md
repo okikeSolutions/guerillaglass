@@ -433,6 +433,12 @@ License hygiene:
 
 - Follow Apple’s Human Interface Guidelines for macOS layout, navigation patterns, and control behavior.
 - Use **system typography (SF)**, standard controls, and native menus/shortcuts.
+- UI layout guidance:
+  - Use **NavigationSplitView** with a left sidebar for navigation, an optional **navigator pane** (secondary lists), a center **preview canvas**, and a right **Inspector** pane for settings.
+  - Keep **primary actions in the toolbar** (avoid bottom‑edge critical actions).
+  - Maintain visible spacing between split panes and content; dividers should not visually merge with the preview frame.
+  - Support inspector section collapsing (DisclosureGroup) and selection‑driven inspector content (Preview vs Clips vs Notes).
+  - Preserve standard macOS toolbar/sidebar behaviors (show/hide sidebar, overflow handling, native menu equivalents).
 
 ---
 
