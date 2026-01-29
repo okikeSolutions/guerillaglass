@@ -1,20 +1,23 @@
-import Foundation
-import ScreenCaptureKit
 import AVFoundation
 import CoreGraphics
 import CoreImage
+import Foundation
+import ScreenCaptureKit
 
 public final class CaptureEngine: NSObject, ObservableObject {
     @Published public private(set) var latestFrame: CGImage?
     @Published public private(set) var isRunning: Bool = false
     @Published public private(set) var lastError: String?
+    @Published public private(set) var availableWindows: [ShareableWindow] = []
 
     private let ciContext = CIContext(options: nil)
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
     private var stream: SCStream?
     private let audioCapture = AudioCapture()
+    private var windowsByID: [CGWindowID: SCWindow] = [:]
+    @MainActor private var pickerContinuation: CheckedContinuation<SCContentFilter, Error>?
 
-    public override init() {
+    override public init() {
         super.init()
     }
 
@@ -26,28 +29,82 @@ public final class CaptureEngine: NSObject, ObservableObject {
             try await audioCapture.start()
         }
 
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let display = content.displays.first else {
-            throw CaptureError.noDisplayAvailable
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            guard let display = content.displays.first else {
+                throw CaptureError.noDisplayAvailable
+            }
+
+            let filter = SCContentFilter(display: display, excludingWindows: [])
+            let configuration = SCStreamConfiguration()
+            configuration.width = display.width
+            configuration.height = display.height
+            configuration.pixelFormat = kCVPixelFormatType_32BGRA
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+            configuration.showsCursor = true
+
+            let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+            try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
+
+            self.stream = stream
+            try await stream.startCapture()
+            await MainActor.run {
+                self.isRunning = true
+                self.lastError = nil
+            }
+        } catch {
+            audioCapture.stop()
+            throw error
+        }
+    }
+
+    public func startWindowCapture(windowID: CGWindowID, enableMic: Bool = false) async throws {
+        guard !isRunning else { return }
+
+        try await ensureScreenCaptureAccess()
+        if enableMic {
+            try await audioCapture.start()
         }
 
-        let filter = SCContentFilter(display: display, excludingWindows: [])
-        let configuration = SCStreamConfiguration()
-        configuration.width = display.width
-        configuration.height = display.height
-        configuration.pixelFormat = kCVPixelFormatType_32BGRA
-        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
-        configuration.showsCursor = true
+        do {
+            let window = try await resolveWindow(windowID: windowID)
+            let filter = SCContentFilter(desktopIndependentWindow: window)
+            let configuration = SCStreamConfiguration()
 
-        let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
-        try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
+            let scale: CGFloat = if #available(macOS 14.0, *) {
+                CGFloat(filter.pointPixelScale)
+            } else {
+                1
+            }
+            configuration.width = max(1, Int(round(window.frame.width * scale)))
+            configuration.height = max(1, Int(round(window.frame.height * scale)))
+            configuration.pixelFormat = kCVPixelFormatType_32BGRA
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+            configuration.showsCursor = true
+            configuration.scalesToFit = true
 
-        self.stream = stream
-        try await stream.startCapture()
-        await MainActor.run {
-            self.isRunning = true
-            self.lastError = nil
+            let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+            try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
+
+            self.stream = stream
+            try await stream.startCapture()
+            await MainActor.run {
+                self.isRunning = true
+                self.lastError = nil
+            }
+        } catch {
+            audioCapture.stop()
+            throw error
         }
+    }
+
+    @available(macOS 14.0, *)
+    public func startCaptureUsingPicker(
+        style: SCShareableContentStyle,
+        enableMic: Bool = false
+    ) async throws {
+        let filter = try await pickContent(style: style)
+        try await startCapture(using: filter, enableMic: enableMic)
     }
 
     @MainActor
@@ -70,6 +127,18 @@ public final class CaptureEngine: NSObject, ObservableObject {
         lastError = message
     }
 
+    public func refreshShareableContent() async {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+            let windows = Self.filteredWindows(from: content.windows)
+            await cacheShareableWindows(windows)
+        } catch {
+            await MainActor.run {
+                self.lastError = error.localizedDescription
+            }
+        }
+    }
+
     private func ensureScreenCaptureAccess() async throws {
         if CGPreflightScreenCaptureAccess() {
             return
@@ -81,11 +150,143 @@ public final class CaptureEngine: NSObject, ObservableObject {
             throw CaptureError.screenRecordingDenied
         }
     }
+
+    private func startCapture(using filter: SCContentFilter, enableMic: Bool) async throws {
+        guard !isRunning else { return }
+
+        try await ensureScreenCaptureAccess()
+        if enableMic {
+            try await audioCapture.start()
+        }
+
+        do {
+            let configuration = SCStreamConfiguration()
+            configuration.pixelFormat = kCVPixelFormatType_32BGRA
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+            configuration.showsCursor = true
+
+            if #available(macOS 14.0, *) {
+                let rect = filter.contentRect
+                let scale = CGFloat(filter.pointPixelScale)
+                if rect.width > 1, rect.height > 1 {
+                    configuration.width = max(1, Int(round(rect.width * scale)))
+                    configuration.height = max(1, Int(round(rect.height * scale)))
+                }
+                configuration.scalesToFit = filter.style == .window
+            }
+
+            let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+            try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
+
+            self.stream = stream
+            try await stream.startCapture()
+            await MainActor.run {
+                self.isRunning = true
+                self.lastError = nil
+            }
+        } catch {
+            audioCapture.stop()
+            throw error
+        }
+    }
+
+    @available(macOS 14.0, *)
+    @MainActor
+    private func pickContent(style: SCShareableContentStyle) async throws -> SCContentFilter {
+        if pickerContinuation != nil {
+            throw CaptureError.pickerAlreadyActive
+        }
+
+        let picker = SCContentSharingPicker.shared
+        var configuration = SCContentSharingPickerConfiguration()
+        configuration.allowedPickerModes = style == .display ? .singleDisplay : .singleWindow
+        configuration.excludedWindowIDs = []
+        if let bundleID = Bundle.main.bundleIdentifier {
+            configuration.excludedBundleIDs = [bundleID]
+        } else {
+            configuration.excludedBundleIDs = []
+        }
+        configuration.allowsChangingSelectedContent = true
+        picker.defaultConfiguration = configuration
+        picker.isActive = true
+        picker.add(self)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            pickerContinuation = continuation
+            picker.present(using: style)
+        }
+    }
+
+    @available(macOS 14.0, *)
+    @MainActor
+    private func finishPicker(
+        _ result: Result<SCContentFilter, Error>,
+        picker: SCContentSharingPicker
+    ) {
+        picker.remove(self)
+        picker.isActive = false
+        let continuation = pickerContinuation
+        pickerContinuation = nil
+
+        guard let continuation else {
+            return
+        }
+
+        switch result {
+        case let .success(filter):
+            continuation.resume(returning: filter)
+        case let .failure(error):
+            continuation.resume(throwing: error)
+        }
+    }
+
+    private func resolveWindow(windowID: CGWindowID) async throws -> SCWindow {
+        if let cached = await cachedWindow(for: windowID) {
+            return cached
+        }
+
+        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+        let windows = Self.filteredWindows(from: content.windows)
+        await cacheShareableWindows(windows)
+        if let match = windows.first(where: { $0.windowID == windowID }) {
+            return match
+        }
+        throw CaptureError.windowNotFound
+    }
+
+    private func cachedWindow(for windowID: CGWindowID) async -> SCWindow? {
+        await MainActor.run {
+            windowsByID[windowID]
+        }
+    }
+
+    private func cacheShareableWindows(_ windows: [SCWindow]) async {
+        let shareable = ShareableWindow.sorted(windows.map(ShareableWindow.init(window:)))
+        let mapped = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
+        await MainActor.run {
+            self.availableWindows = shareable
+            self.windowsByID = mapped
+        }
+    }
+
+    private static func filteredWindows(from windows: [SCWindow]) -> [SCWindow] {
+        windows
+            .filter { window in
+                guard window.isOnScreen else { return false }
+                guard window.frame.width > 1, window.frame.height > 1 else { return false }
+                guard let app = window.owningApplication else { return false }
+                let bundleID = app.bundleIdentifier
+                if bundleID == "com.apple.WindowServer" || bundleID == "com.apple.dock" {
+                    return false
+                }
+                return true
+            }
+    }
 }
 
 extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
     public func stream(
-        _ stream: SCStream,
+        _: SCStream,
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
         of outputType: SCStreamOutputType
     ) {
@@ -100,7 +301,8 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
         }
     }
 
-    public func stream(_ stream: SCStream, didStopWithError error: Error) {
+    public func stream(_: SCStream, didStopWithError error: Error) {
+        audioCapture.stop()
         Task { @MainActor in
             self.isRunning = false
             self.lastError = error.localizedDescription
@@ -108,16 +310,50 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
     }
 }
 
+@available(macOS 14.0, *)
+extension CaptureEngine: SCContentSharingPickerObserver {
+    public func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
+        Task { @MainActor in
+            self.finishPicker(.failure(CaptureError.pickerCancelled), picker: SCContentSharingPicker.shared)
+        }
+    }
+
+    public func contentSharingPicker(
+        _: SCContentSharingPicker,
+        didUpdateWith filter: SCContentFilter,
+        for _: SCStream?
+    ) {
+        Task { @MainActor in
+            self.finishPicker(.success(filter), picker: SCContentSharingPicker.shared)
+        }
+    }
+
+    public func contentSharingPickerStartDidFailWithError(_ error: Error) {
+        Task { @MainActor in
+            self.finishPicker(.failure(error), picker: SCContentSharingPicker.shared)
+        }
+    }
+}
+
 public enum CaptureError: LocalizedError {
     case noDisplayAvailable
     case screenRecordingDenied
+    case windowNotFound
+    case pickerCancelled
+    case pickerAlreadyActive
 
     public var errorDescription: String? {
         switch self {
         case .noDisplayAvailable:
-            return "No displays are available for capture."
+            String(localized: "No displays are available for capture.")
         case .screenRecordingDenied:
-            return "Screen Recording permission is required to capture your display."
+            String(localized: "Screen Recording permission is required to capture your display.")
+        case .windowNotFound:
+            String(localized: "The selected window is no longer available for capture.")
+        case .pickerCancelled:
+            String(localized: "Content selection was cancelled.")
+        case .pickerAlreadyActive:
+            String(localized: "Content picker is already active.")
         }
     }
 }

@@ -73,6 +73,11 @@ let package = Package(
             name: "RenderingDeterminismTests",
             dependencies: ["Rendering"],
             path: "Tests/renderingDeterminismTests"
+        ),
+        .testTarget(
+            name: "CaptureTests",
+            dependencies: ["Capture"],
+            path: "Tests/captureTests"
         )
     ]
 )
