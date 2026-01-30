@@ -352,7 +352,7 @@ Progress (current repo)
 - [x] Display capture preview (ScreenCaptureKit)
 - [x] Mic capture skeleton (permission + AVAudioEngine tap)
 - [x] Window capture UI + preview
-- [ ] Trim + export
+- [x] Trim + export
 - [ ] Project save/load + versioning
 - [x] Localization catalog exists and is wired into the app target
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
