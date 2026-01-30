@@ -34,6 +34,8 @@ public final class CaptureEngine: NSObject, ObservableObject {
         var isRecording: Bool = false
         var writer: AssetWriter?
         var outputURL: URL?
+        var videoBaseTime: CMTime?
+        var lastDurationUpdate: TimeInterval = 0
     }
 
     public func startDisplayCapture(enableMic: Bool = false) async throws {
