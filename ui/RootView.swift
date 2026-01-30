@@ -65,6 +65,14 @@ public struct RootView: View {
         .toolbar {
             rootToolbar
         }
+        .focusedValue(
+            \.exportCommandHandler,
+            ExportCommandHandler(canExport: canExport) { [self] in
+                Task {
+                    await exportRecording()
+                }
+            }
+        )
         .frame(minWidth: 900, minHeight: 520)
         .task {
             libraryModel.refresh()
