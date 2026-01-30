@@ -237,13 +237,24 @@ Fallback behavior:
 
 ## 15) Project format & versioning
 
-Project directory:
+Project container:
+
+- File extension: `.gglassproj`
+- macOS: treated as a **package** (single file in Finder, directory on disk)
+- Cross‑platform: other OSes see a folder with the same contents
+
+Project directory contents:
 
 - `project.json` (includes `projectVersion`)
 - `recording.mov`
 - `audio_system.m4a` (optional)
 - `audio_mic.m4a` (optional)
 - `events.json` (optional)
+
+Library & recents:
+
+- Maintain a private library index in Application Support for “Open Recent”
+- Index stores bookmarks/metadata only; actual projects live in user‑chosen locations
 
 Versioning policy:
 
@@ -342,7 +353,7 @@ guerillaglass/
 - Display/window capture
 - Mic audio (AVFoundation)
 - Trim + export
-- Project save/load + versioning
+- Project save/load + versioning (document-based open/save + recents)
 - Build/run packaged app via `Scripts/compile_and_run.sh`
 - Localization: keep `.xcstrings` updated for all new user-facing strings
 - Post‑localization polish audit (UI/UX, performance, accessibility)
@@ -353,7 +364,8 @@ Progress (current repo)
 - [x] Mic capture skeleton (permission + AVAudioEngine tap)
 - [x] Window capture UI + preview
 - [x] Trim + export
-- [ ] Project save/load + versioning
+- [x] Project schema + store (save/load on disk)
+- [x] Document-based open/save panels + recent library
 - [x] Localization catalog exists and is wired into the app target
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
