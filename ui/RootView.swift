@@ -88,12 +88,6 @@ public struct RootView: View {
         .onChange(of: playbackModel.duration) { _ in
             clampTrimValues()
         }
-        .onChange(of: trimInSeconds) { _ in
-            clampTrimValues()
-        }
-        .onChange(of: trimOutSeconds) { _ in
-            clampTrimValues()
-        }
         .onChange(of: studioMode) { newValue in
             if newValue == .capture {
                 playbackModel.pause()
