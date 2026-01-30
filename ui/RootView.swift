@@ -5,6 +5,7 @@ import SwiftUI
 
 public struct RootView: View {
     @StateObject var captureEngine = CaptureEngine()
+    @StateObject var playbackModel = RecordingPlaybackModel()
     @State var micEnabled = false
     @State var captureSource: CaptureSource = .display
     @State var selectedWindowID: CGWindowID = 0
@@ -16,9 +17,7 @@ public struct RootView: View {
     @State var trimOutSeconds: Double = 0
     @State var exportStatus: String?
     @State var isExporting = false
-    @State var showCaptureSetup = true
-    @State var showRecording = true
-    @State var showEditExport = true
+    @State var showDiagnostics = false
     @State var isNavigatorDropTarget = false
     @State var isPreviewDropTarget = false
     let exportPipeline = ExportPipeline()
@@ -83,5 +82,44 @@ public struct RootView: View {
                 trimOutSeconds = duration
             }
         }
+        .onChange(of: captureEngine.recordingURL) { newValue in
+            playbackModel.load(url: newValue)
+        }
+        .onChange(of: playbackModel.duration) { _ in
+            clampTrimValues()
+        }
+        .onChange(of: trimInSeconds) { _ in
+            clampTrimValues()
+        }
+        .onChange(of: trimOutSeconds) { _ in
+            clampTrimValues()
+        }
+        .onChange(of: studioMode) { newValue in
+            if newValue == .capture {
+                playbackModel.pause()
+            }
+        }
+    }
+
+    private func clampTrimValues() {
+        let duration = effectiveDuration
+        guard let clamped = TrimRangeCalculator.clamped(
+            start: trimInSeconds,
+            end: trimOutSeconds,
+            duration: duration
+        ) else { return }
+
+        if trimInSeconds != clamped.start {
+            trimInSeconds = clamped.start
+        }
+
+        if trimOutSeconds != clamped.end {
+            trimOutSeconds = clamped.end
+        }
+    }
+
+    var effectiveDuration: Double {
+        let playbackDuration = playbackModel.duration
+        return playbackDuration > 0 ? playbackDuration : captureEngine.recordingDuration
     }
 }

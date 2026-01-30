@@ -13,7 +13,12 @@ extension RootView {
         exportStatus = nil
 
         do {
-            let trimRange = makeTrimRange(duration: captureEngine.recordingDuration)
+            let duration = playbackModel.duration > 0 ? playbackModel.duration : captureEngine.recordingDuration
+            let trimRange = TrimRangeCalculator.timeRange(
+                start: trimInSeconds,
+                end: trimOutSeconds,
+                duration: duration
+            )
             _ = try await exportPipeline.export(
                 recordingURL: recordingURL,
                 preset: selectedPreset,
@@ -39,22 +44,6 @@ extension RootView {
         let result = panel.runModal()
         guard result == .OK else { return nil }
         return panel.url
-    }
-
-    private func makeTrimRange(duration: Double) -> CMTimeRange? {
-        guard duration > 0 else { return nil }
-        let start = max(0, min(trimInSeconds, duration))
-        var end = trimOutSeconds
-        if end <= 0 || end > duration {
-            end = duration
-        }
-        if end <= start {
-            return nil
-        }
-        return CMTimeRange(
-            start: CMTime(seconds: start, preferredTimescale: 600),
-            duration: CMTime(seconds: end - start, preferredTimescale: 600)
-        )
     }
 
     private func fileType(for fileType: AVFileType) -> UTType {
