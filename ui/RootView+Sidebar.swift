@@ -1,3 +1,4 @@
+import Project
 import SwiftUI
 
 extension RootView {
@@ -10,6 +11,23 @@ extension RootView {
                     .tag(SidebarItem.edit)
                 Label("Exports", systemImage: "square.and.arrow.up")
                     .tag(SidebarItem.exports)
+            }
+
+            Section("Open Recent") {
+                if libraryModel.recentProjects.isEmpty {
+                    Text("No Recent Projects")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(libraryModel.recentProjects) { item in
+                        Button {
+                            openRecentProject(item)
+                        } label: {
+                            Text(item.displayName)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
             Section("Library") {

@@ -1,9 +1,13 @@
 import Capture
 import CoreGraphics
 import Export
+import Project
 import SwiftUI
 
 public struct RootView: View {
+    @EnvironmentObject var libraryModel: ProjectLibraryModel
+    @Environment(\.openDocument) private var openDocument
+    @Binding var document: GuerillaglassDocument
     @StateObject var captureEngine = CaptureEngine()
     @StateObject var playbackModel = RecordingPlaybackModel()
     @State var micEnabled = false
@@ -20,9 +24,17 @@ public struct RootView: View {
     @State var showDiagnostics = false
     @State var isNavigatorDropTarget = false
     @State var isPreviewDropTarget = false
+    let fileURL: URL?
     let exportPipeline = ExportPipeline()
 
-    public init() {}
+    public init(document: Binding<GuerillaglassDocument>, fileURL: URL?) {
+        _document = document
+        self.fileURL = fileURL
+    }
+
+    public init() {
+        self.init(document: .constant(GuerillaglassDocument()), fileURL: nil)
+    }
 
     public var body: some View {
         NavigationSplitView {
@@ -55,6 +67,8 @@ public struct RootView: View {
         }
         .frame(minWidth: 900, minHeight: 520)
         .task {
+            libraryModel.refresh()
+            syncDocumentURL(fileURL)
             if captureSource == .window, !usesSystemPicker {
                 await captureEngine.refreshShareableContent()
             }
@@ -84,6 +98,10 @@ public struct RootView: View {
         }
         .onChange(of: captureEngine.recordingURL) { newValue in
             playbackModel.load(url: newValue)
+            document.updateRecordingSource(newValue)
+        }
+        .onChange(of: fileURL) { newValue in
+            syncDocumentURL(newValue)
         }
         .onChange(of: playbackModel.duration) { _ in
             clampTrimValues()
@@ -92,6 +110,9 @@ public struct RootView: View {
             if newValue == .capture {
                 playbackModel.pause()
             }
+        }
+        .onChange(of: document.projectDocument) { _ in
+            syncDocumentURL(fileURL)
         }
     }
 
@@ -115,5 +136,29 @@ public struct RootView: View {
     var effectiveDuration: Double {
         let playbackDuration = playbackModel.duration
         return playbackDuration > 0 ? playbackDuration : captureEngine.recordingDuration
+    }
+
+    var canExport: Bool {
+        captureEngine.recordingURL != nil && !isExporting
+    }
+
+    private func syncDocumentURL(_ url: URL?) {
+        document.updateProjectURL(url)
+        guard let url else { return }
+        libraryModel.recordRecent(url: url)
+
+        let recordingURL = url.appendingPathComponent(document.projectDocument.recordingFileName)
+        if FileManager.default.fileExists(atPath: recordingURL.path) {
+            captureEngine.loadRecording(from: recordingURL)
+        } else {
+            captureEngine.clearRecording()
+        }
+    }
+
+    func openRecentProject(_ item: ProjectLibraryItem) {
+        guard let url = libraryModel.resolveURL(for: item) else { return }
+        Task {
+            try? await openDocument(at: url)
+        }
     }
 }
