@@ -81,6 +81,11 @@ let package = Package(
             name: "CaptureTests",
             dependencies: ["Capture"],
             path: "Tests/captureTests"
+        ),
+        .testTarget(
+            name: "ExportTests",
+            dependencies: ["Export"],
+            path: "Tests/exportTests"
         )
     ]
 )
