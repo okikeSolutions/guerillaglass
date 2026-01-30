@@ -4,9 +4,17 @@ import UI
 
 struct GuerillaglassCommands: Commands {
     @Environment(\.openDocument) private var openDocument
+    @FocusedValue(\.exportCommandHandler) private var exportCommandHandler
     @ObservedObject var libraryModel: ProjectLibraryModel
 
     var body: some Commands {
+        CommandGroup(after: .saveItem) {
+            Button("Export…") {
+                exportCommandHandler?.perform()
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+            .disabled(exportCommandHandler?.canExport != true)
+        }
         CommandGroup(after: .newItem) {
             Menu("Open Recent") {
                 if libraryModel.recentProjects.isEmpty {
