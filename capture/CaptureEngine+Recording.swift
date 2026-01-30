@@ -3,10 +3,10 @@ import Export
 import Foundation
 import OSLog
 
-extension CaptureEngine {
+public extension CaptureEngine {
     private static let logger = Logger(subsystem: "com.guerillaglass", category: "recording")
 
-    final class WeakSelfBox: @unchecked Sendable {
+    internal final class WeakSelfBox: @unchecked Sendable {
         weak var value: CaptureEngine?
 
         init(_ value: CaptureEngine) {
@@ -14,7 +14,7 @@ extension CaptureEngine {
         }
     }
 
-    public func startRecording() async throws {
+    func startRecording() async throws {
         guard isRunning else {
             throw CaptureError.captureNotRunning
         }
@@ -62,7 +62,7 @@ extension CaptureEngine {
         }
     }
 
-    public func stopRecording() async {
+    func stopRecording() async {
         let queue = recordingQueue
         let box = WeakSelfBox(self)
         await withCheckedContinuation { continuation in
@@ -105,7 +105,26 @@ extension CaptureEngine {
         }
     }
 
-    func handleAudioBuffer(_ buffer: AVAudioPCMBuffer, time: AVAudioTime) {
+    func loadRecording(from url: URL) {
+        Task { @MainActor in
+            self.recordingURL = url
+        }
+        Task {
+            let duration = await Self.recordingDuration(for: url)
+            await MainActor.run {
+                self.recordingDuration = duration
+            }
+        }
+    }
+
+    func clearRecording() {
+        Task { @MainActor in
+            self.recordingURL = nil
+            self.recordingDuration = 0
+        }
+    }
+
+    internal func handleAudioBuffer(_ buffer: AVAudioPCMBuffer, time: AVAudioTime) {
         recordingQueue.async { [weak self] in
             guard let self else { return }
             guard recordingState.isRecording, let writer = recordingState.writer else { return }
@@ -113,7 +132,7 @@ extension CaptureEngine {
         }
     }
 
-    func appendVideoSample(_ sampleBuffer: CMSampleBuffer) {
+    internal func appendVideoSample(_ sampleBuffer: CMSampleBuffer) {
         recordingQueue.async { [weak self] in
             guard let self else { return }
             guard recordingState.isRecording, let writer = recordingState.writer else { return }

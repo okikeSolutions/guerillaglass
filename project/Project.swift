@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Project: Codable, Identifiable {
+public struct Project: Codable, Identifiable, Equatable {
     public let id: UUID
     public var createdAt: Date
 
