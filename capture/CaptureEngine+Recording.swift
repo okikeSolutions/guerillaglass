@@ -1,8 +1,11 @@
 import AVFoundation
 import Export
 import Foundation
+import OSLog
 
 extension CaptureEngine {
+    private static let logger = Logger(subsystem: "com.guerillaglass", category: "recording")
+
     final class WeakSelfBox: @unchecked Sendable {
         weak var value: CaptureEngine?
 
@@ -17,6 +20,7 @@ extension CaptureEngine {
         }
 
         let outputURL = makeRecordingURL()
+        Self.logger.info("Start recording to \(outputURL.path, privacy: .public)")
         let queue = recordingQueue
         let box = WeakSelfBox(self)
         try await withCheckedThrowingContinuation { continuation in
@@ -51,6 +55,7 @@ extension CaptureEngine {
                     }
                     continuation.resume()
                 } catch {
+                    Self.logger.error("Failed to start recording: \(error.localizedDescription, privacy: .public)")
                     continuation.resume(throwing: error)
                 }
             }
@@ -72,25 +77,29 @@ extension CaptureEngine {
                 }
                 let writer = engine.recordingState.writer
                 engine.recordingState = RecordingState()
-                writer?.finish { result in
-                    Task {
-                        await MainActor.run {
-                            engine.isRecording = false
-                        }
+                guard let writer else {
+                    Task { @MainActor in
+                        engine.isRecording = false
+                        Self.logger.error("Stop recording failed: writer missing")
+                        continuation.resume()
+                    }
+                    return
+                }
+                writer.finish { result in
+                    Task { @MainActor in
+                        engine.isRecording = false
                         switch result {
                         case let .success(url):
+                            Self.logger.info("Recording finished: \(url.path, privacy: .public)")
                             let duration = await Self.recordingDuration(for: url)
-                            await MainActor.run {
-                                engine.recordingURL = url
-                                engine.recordingDuration = duration
-                            }
+                            engine.recordingURL = url
+                            engine.recordingDuration = duration
                         case let .failure(error):
-                            await MainActor.run {
-                                engine.lastError = error.localizedDescription
-                            }
+                            Self.logger.error("Recording failed: \(error.localizedDescription, privacy: .public)")
+                            engine.lastError = error.localizedDescription
                         }
+                        continuation.resume()
                     }
-                    continuation.resume()
                 }
             }
         }
@@ -108,6 +117,22 @@ extension CaptureEngine {
         recordingQueue.async { [weak self] in
             guard let self else { return }
             guard recordingState.isRecording, let writer = recordingState.writer else { return }
+            let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+            if recordingState.videoBaseTime == nil {
+                recordingState.videoBaseTime = pts
+            }
+            if let baseTime = recordingState.videoBaseTime {
+                let elapsed = CMTimeSubtract(pts, baseTime)
+                if elapsed.isNumeric {
+                    let seconds = elapsed.seconds
+                    if seconds - recordingState.lastDurationUpdate >= 0.1 {
+                        recordingState.lastDurationUpdate = seconds
+                        Task { @MainActor in
+                            self.recordingDuration = seconds
+                        }
+                    }
+                }
+            }
             writer.appendVideo(sampleBuffer: sampleBuffer)
         }
     }
