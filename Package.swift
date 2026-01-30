@@ -86,6 +86,11 @@ let package = Package(
             name: "ExportTests",
             dependencies: ["Export"],
             path: "Tests/exportTests"
+        ),
+        .testTarget(
+            name: "UITests",
+            dependencies: ["UI"],
+            path: "Tests/uiTests"
         )
     ]
 )
