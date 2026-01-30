@@ -7,7 +7,23 @@ extension RootView {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.black.opacity(0.08))
 
-            if let image = captureEngine.latestFrame {
+            if studioMode == .edit {
+                if let recordingURL = captureEngine.recordingURL {
+                    RecordingPlaybackView(
+                        model: playbackModel,
+                        trimInSeconds: $trimInSeconds,
+                        trimOutSeconds: $trimOutSeconds
+                    )
+                    .padding(10)
+                    .onAppear {
+                        if playbackModel.player.currentItem == nil {
+                            playbackModel.load(url: recordingURL)
+                        }
+                    }
+                } else {
+                    editEmptyState
+                }
+            } else if let image = captureEngine.latestFrame {
                 let size = NSSize(width: image.width, height: image.height)
                 Image(nsImage: NSImage(cgImage: image, size: size))
                     .resizable()
@@ -38,5 +54,25 @@ extension RootView {
         .onDrop(of: [.fileURL], isTargeted: $isPreviewDropTarget) { _ in
             false
         }
+    }
+
+    private var editEmptyState: some View {
+        VStack(spacing: 10) {
+            Text(captureEngine.isRecording ? "Stop recording to edit." : "No recording yet.")
+                .font(.headline)
+            Text("Record a clip in Capture mode to preview and trim it here.")
+                .foregroundStyle(.secondary)
+            if let errorMessage = captureEngine.lastError {
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
+            Button("Go to Capture") {
+                studioMode = .capture
+                sidebarSelection = .capture
+            }
+        }
+        .padding(20)
+        .multilineTextAlignment(.center)
     }
 }

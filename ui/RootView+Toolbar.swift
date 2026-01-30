@@ -16,43 +16,13 @@ extension RootView {
 
         ToolbarItemGroup(placement: .primaryAction) {
             Button {
-                if captureEngine.isRunning {
-                    Task {
-                        await captureEngine.stopCapture()
-                    }
-                } else {
+                Task {
                     captureEngine.clearError()
-                    Task {
+                    if captureEngine.isRunning {
+                        await captureEngine.stopCapture()
+                    } else {
                         do {
-                            switch captureSource {
-                            case .display:
-                                if #available(macOS 14.0, *) {
-                                    try await captureEngine.startCaptureUsingPicker(
-                                        style: .display,
-                                        enableMic: micEnabled
-                                    )
-                                } else {
-                                    try await captureEngine.startDisplayCapture(enableMic: micEnabled)
-                                }
-                            case .window:
-                                if #available(macOS 14.0, *) {
-                                    try await captureEngine.startCaptureUsingPicker(
-                                        style: .window,
-                                        enableMic: micEnabled
-                                    )
-                                } else {
-                                    guard selectedWindowID != 0 else {
-                                        captureEngine.setErrorMessage(
-                                            String(localized: "Select a window to capture.")
-                                        )
-                                        return
-                                    }
-                                    try await captureEngine.startWindowCapture(
-                                        windowID: selectedWindowID,
-                                        enableMic: micEnabled
-                                    )
-                                }
-                            }
+                            try await startCaptureFlow()
                         } catch {
                             captureEngine.setErrorMessage(error.localizedDescription)
                         }
@@ -60,39 +30,42 @@ extension RootView {
                 }
             } label: {
                 Label(
-                    captureEngine.isRunning ? "Stop Capture" : "Start Capture",
-                    systemImage: captureEngine.isRunning ? "stop.circle.fill" : "record.circle"
+                    captureEngine.isRunning ? String(localized: "Stop Preview") : String(localized: "Preview"),
+                    systemImage: captureEngine.isRunning ? "stop.circle.fill" : "eye"
                 )
             }
             .labelStyle(.titleAndIcon)
-            .disabled(
-                !captureEngine.isRunning &&
-                    captureSource == .window &&
-                    !usesSystemPicker &&
-                    selectedWindowID == 0
-            )
-            .keyboardShortcut(.space, modifiers: [])
+            .disabled(!captureEngine.isRunning && !canStartCapture || captureEngine.isRecording)
 
             Button {
                 Task {
+                    captureEngine.clearError()
                     do {
                         if captureEngine.isRecording {
                             await captureEngine.stopRecording()
+                            await captureEngine.stopCapture()
                         } else {
+                            if !captureEngine.isRunning {
+                                try await startCaptureFlow()
+                            }
                             try await captureEngine.startRecording()
                         }
                     } catch {
                         captureEngine.setErrorMessage(error.localizedDescription)
+                        if captureEngine.isRunning, !captureEngine.isRecording {
+                            await captureEngine.stopCapture()
+                        }
                     }
                 }
             } label: {
                 Label(
-                    captureEngine.isRecording ? "Stop Recording" : "Start Recording",
-                    systemImage: captureEngine.isRecording ? "stop.fill" : "circle.fill"
+                    captureEngine.isRecording ? String(localized: "Stop") : String(localized: "Record"),
+                    systemImage: captureEngine.isRecording ? "stop.fill" : "record.circle"
                 )
             }
             .labelStyle(.titleAndIcon)
-            .disabled(!captureEngine.isRunning)
+            .disabled(!captureEngine.isRunning && !canStartCapture)
+            .keyboardShortcut(.space, modifiers: [])
 
             Button {
                 Task {
@@ -165,5 +138,44 @@ extension RootView {
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    private var canStartCapture: Bool {
+        if captureSource == .window, !usesSystemPicker, selectedWindowID == 0 {
+            return false
+        }
+        return true
+    }
+
+    private func startCaptureFlow() async throws {
+        switch captureSource {
+        case .display:
+            if #available(macOS 14.0, *) {
+                try await captureEngine.startCaptureUsingPicker(
+                    style: .display,
+                    enableMic: micEnabled
+                )
+            } else {
+                try await captureEngine.startDisplayCapture(enableMic: micEnabled)
+            }
+        case .window:
+            if #available(macOS 14.0, *) {
+                try await captureEngine.startCaptureUsingPicker(
+                    style: .window,
+                    enableMic: micEnabled
+                )
+            } else {
+                guard selectedWindowID != 0 else {
+                    captureEngine.setErrorMessage(
+                        String(localized: "Select a window to capture.")
+                    )
+                    return
+                }
+                try await captureEngine.startWindowCapture(
+                    windowID: selectedWindowID,
+                    enableMic: micEnabled
+                )
+            }
+        }
     }
 }

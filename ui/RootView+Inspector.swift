@@ -8,72 +8,120 @@ extension RootView {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            switch navigatorSelection ?? .preview {
-            case .preview:
-                inspectorSection("Capture Setup", isExpanded: $showCaptureSetup) {
-                    Picker("Source", selection: $captureSource) {
-                        ForEach(CaptureSource.allCases) { source in
-                            Text(source.title).tag(source)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .disabled(captureEngine.isRunning)
-
-                    if captureSource == .window, !usesSystemPicker {
-                        Picker("Window", selection: $selectedWindowID) {
-                            if captureEngine.availableWindows.isEmpty {
-                                Text("No windows available").tag(CGWindowID(0))
-                            } else {
-                                ForEach(captureEngine.availableWindows) { window in
-                                    Text(window.displayName).tag(window.id)
+            Form {
+                switch navigatorSelection ?? .preview {
+                case .preview:
+                    Section("Capture Setup") {
+                        inspectorRow("Source") {
+                            Picker("", selection: $captureSource) {
+                                ForEach(CaptureSource.allCases) { source in
+                                    Text(source.title).tag(source)
                                 }
                             }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(width: 180)
+                            .disabled(captureEngine.isRunning)
                         }
-                        .disabled(captureEngine.isRunning)
 
-                        Button("Refresh Windows") {
-                            Task {
-                                await captureEngine.refreshShareableContent()
+                        if captureSource == .window, !usesSystemPicker {
+                            inspectorRow("Window") {
+                                HStack(spacing: 6) {
+                                    Picker("", selection: $selectedWindowID) {
+                                        if captureEngine.availableWindows.isEmpty {
+                                            Text("No windows available").tag(CGWindowID(0))
+                                        } else {
+                                            ForEach(captureEngine.availableWindows) { window in
+                                                Text(window.displayName).tag(window.id)
+                                            }
+                                        }
+                                    }
+                                    .labelsHidden()
+                                    .frame(width: 160)
+                                    .disabled(captureEngine.isRunning)
+
+                                    Button("Refresh") {
+                                        Task {
+                                            await captureEngine.refreshShareableContent()
+                                        }
+                                    }
+                                    .disabled(captureEngine.isRunning)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                             }
                         }
-                        .disabled(captureEngine.isRunning)
-                    }
 
-                    Toggle("Microphone", isOn: $micEnabled)
-                        .toggleStyle(.switch)
-                        .disabled(captureEngine.isRunning)
-                }
-
-                inspectorSection("Recording", isExpanded: $showRecording) {
-                    Picker("Preset", selection: $selectedPreset) {
-                        ForEach(Presets.all) { preset in
-                            Text(preset.name).tag(preset)
+                        inspectorRow("Microphone") {
+                            Toggle("", isOn: $micEnabled)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                                .disabled(captureEngine.isRunning)
                         }
                     }
-                    .frame(maxWidth: .infinity)
+
+                    Section("Recording") {
+                        inspectorRow("Preset") {
+                            Picker("", selection: $selectedPreset) {
+                                ForEach(Presets.all) { preset in
+                                    Text(preset.name).tag(preset)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 180)
+                        }
+                    }
+
+                    if studioMode == .edit {
+                        Section("Edit") {
+                            trimControls
+                        }
+                    }
+
+                case .clips:
+                    Section("Clip Details") {
+                        Text("Select a clip to view details.")
+                            .foregroundStyle(.secondary)
+
+                        if studioMode == .edit {
+                            trimControls
+                        }
+                    }
+
+                case .notes:
+                    Section("Presenter Notes") {
+                        Text("Notes will appear here.")
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                inspectorSection("Edit & Export", isExpanded: $showEditExport) {
-                    trimControls
-                    exportButton
-                }
+                Section {
+                    DisclosureGroup("Diagnostics", isExpanded: $showDiagnostics) {
+                        inspectorRow("Recording") {
+                            Text(captureEngine.isRunning ? "Active" : "Idle")
+                                .foregroundStyle(.secondary)
+                        }
 
-            case .clips:
-                inspectorSection("Clip Details", isExpanded: $showEditExport) {
-                    Text("Select a clip to view details.")
-                        .foregroundStyle(.secondary)
-                    trimControls
-                    exportButton
-                }
+                        inspectorRow("Duration") {
+                            Text(effectiveDuration, format: .number.precision(.fractionLength(1)))
+                                .foregroundStyle(.secondary)
+                        }
 
-            case .notes:
-                inspectorSection("Presenter Notes", isExpanded: $showEditExport) {
-                    Text("Notes will appear here.")
-                        .foregroundStyle(.secondary)
+                        inspectorRow("Export") {
+                            Text(isExporting ? "In Progress" : "Idle")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            .formStyle(.grouped)
+            .controlSize(.small)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .frame(maxHeight: .infinity, alignment: .top)
 
-            Spacer()
+            if studioMode == .edit {
+                exportButton
+            }
 
             if isExporting {
                 Text("Exporting...")
@@ -92,45 +140,41 @@ extension RootView {
         .frame(minWidth: 260, idealWidth: 280, maxWidth: 320)
     }
 
-    private func inspectorSection(
+    private func inspectorRow(
         _ title: String,
-        isExpanded: Binding<Bool>,
-        @ViewBuilder content: @escaping () -> some View
+        @ViewBuilder content: () -> some View
     ) -> some View {
-        DisclosureGroup(title, isExpanded: isExpanded) {
-            VStack(alignment: .leading, spacing: 10) {
-                content()
-            }
-            .padding(.top, 6)
+        LabeledContent(title) {
+            content()
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.black.opacity(0.04))
-        )
+        .frame(minHeight: 24)
     }
 
     private var trimControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("Trim In")
-                TextField(
-                    "",
-                    value: $trimInSeconds,
-                    format: .number.precision(.fractionLength(2))
-                )
-                .frame(width: 70)
+        Group {
+            inspectorRow("Trim In") {
+                trimField(value: $trimInSeconds, range: 0 ... effectiveDuration)
             }
 
-            HStack(spacing: 8) {
-                Text("Trim Out")
-                TextField(
-                    "",
-                    value: $trimOutSeconds,
-                    format: .number.precision(.fractionLength(2))
-                )
-                .frame(width: 70)
+            inspectorRow("Trim Out") {
+                trimField(value: $trimOutSeconds, range: 0 ... effectiveDuration)
             }
+        }
+    }
+
+    private func trimField(value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+        HStack(spacing: 6) {
+            TextField(
+                "",
+                value: value,
+                format: .number.precision(.fractionLength(2))
+            )
+            .multilineTextAlignment(.trailing)
+            .frame(width: 64)
+
+            Stepper("", value: value, in: range, step: 0.1)
+                .labelsHidden()
         }
     }
 
