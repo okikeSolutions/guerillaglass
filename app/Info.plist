@@ -4,6 +4,23 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Guerillaglass Project</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.okikeSolutions.guerillaglass.project</string>
+            </array>
+            <key>LSTypeIsPackage</key>
+            <true/>
+        </dict>
+    </array>
     <key>CFBundleExecutable</key>
     <string>guerillaglass</string>
     <key>CFBundleIdentifier</key>
@@ -22,5 +39,25 @@
     <string>13.0</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Guerillaglass records microphone audio when enabled.</string>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>com.apple.package</string>
+            </array>
+            <key>UTTypeDescription</key>
+            <string>Guerillaglass Project</string>
+            <key>UTTypeIdentifier</key>
+            <string>com.okikeSolutions.guerillaglass.project</string>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>gglassproj</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
 </dict>
 </plist>
