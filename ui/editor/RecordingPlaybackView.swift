@@ -37,7 +37,11 @@ struct RecordingPlaybackView: View {
     }
 
     private var frameStride: Int {
-        2
+        let duration = max(model.duration, 0)
+        guard duration > 0 else { return 2 }
+        let targetCount: Double = 16
+        let samplePeriod = min(max(duration / targetCount, 0.5), 4.0)
+        return max(1, Int((samplePeriod * frameRate).rounded()))
     }
 
     private var totalFrames: Int {
@@ -45,7 +49,8 @@ struct RecordingPlaybackView: View {
     }
 
     private var currentFrame: Int {
-        frameIndex(from: model.currentTime)
+        let rawFrame = frameIndex(from: model.currentTime)
+        return min(max(rawFrame, 0), totalFrames)
     }
 
     private func frameIndex(from seconds: Double) -> Int {
@@ -54,11 +59,6 @@ struct RecordingPlaybackView: View {
 
     private func seconds(from frame: Int) -> Double {
         Double(frame) / frameRate
-    }
-
-    private func snapFrame(_ frame: Int) -> Int {
-        let step = frameStride
-        return Int((Double(frame) / Double(step)).rounded()) * step
     }
 
     private var timelinePanel: some View {
@@ -76,6 +76,8 @@ struct RecordingPlaybackView: View {
                     trimInSeconds: trimInSeconds,
                     trimOutSeconds: trimOutSeconds,
                     currentTime: model.currentTime,
+                    isPlaying: model.isPlaying,
+                    isScrubbing: model.isScrubbing,
                     highContrastEnabled: highContrastEnabled,
                     thumbnailProvider: thumbnailProvider,
                     onSeek: { seconds in
@@ -94,26 +96,46 @@ struct RecordingPlaybackView: View {
                     .frame(height: 60)
             }
 
-            HStack(spacing: 10) {
-                Button {
-                    model.togglePlayPause()
-                } label: {
-                    Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Button {
+                        model.togglePlayPause()
+                    } label: {
+                        Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel(model.isPlaying ? Text("Pause") : Text("Play"))
+                    .disabled(model.duration <= 0)
+
+                    Picker(
+                        selection: Binding(
+                            get: { model.playbackRate },
+                            set: { model.setPlaybackRate($0) }
+                        ),
+                        label: Text(rateLabel(model.playbackRate))
+                    ) {
+                        ForEach(playbackRates, id: \.self) { rate in
+                            Text(rateLabel(rate)).tag(rate)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(minWidth: 64)
+                    .accessibilityLabel(Text("Playback Speed"))
+                    .disabled(model.duration <= 0)
                 }
-                .buttonStyle(.bordered)
-                .accessibilityLabel(model.isPlaying ? Text("Pause") : Text("Play"))
-                .disabled(model.duration <= 0)
+
+                let sliderMax = max(Double(totalFrames), 1)
 
                 Slider(
                     value: Binding(
                         get: { Double(currentFrame) },
                         set: { value in
-                            let frame = snapFrame(Int(value))
+                            let frame = Int(value.rounded())
                             model.updateScrubbing(to: seconds(from: frame))
                         }
                     ),
-                    in: 0 ... max(Double(totalFrames), 1),
-                    step: Double(frameStride),
+                    in: 0 ... sliderMax,
+                    step: 1,
                     onEditingChanged: { isEditing in
                         if isEditing {
                             model.beginScrubbing()
@@ -167,6 +189,8 @@ private struct FilmstripTimelineView: View {
     let trimInSeconds: Double
     let trimOutSeconds: Double
     let currentTime: Double
+    let isPlaying: Bool
+    let isScrubbing: Bool
     let highContrastEnabled: Bool
     @ObservedObject var thumbnailProvider: FilmstripThumbnailProvider
     let onSeek: (Double) -> Void
@@ -177,46 +201,74 @@ private struct FilmstripTimelineView: View {
     private let cellHeight: CGFloat = 54
     private let spacing: CGFloat = 2
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var lastAutoScrollSlot: Int?
 
     var body: some View {
         let frames = frameIndices
         let totalWidth = max(0, CGFloat(frames.count)) * (cellWidth + spacing) - spacing
 
-        ScrollView(.horizontal) {
-            ZStack(alignment: .leading) {
-                LazyHStack(spacing: spacing) {
-                    ForEach(frames, id: \.self) { frameIndex in
-                        thumbnailView(frameIndex: frameIndex)
-                            .onAppear {
-                                thumbnailProvider.requestThumbnail(
-                                    frameIndex: frameIndex,
-                                    frameRate: frameRate
-                                )
-                            }
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                ZStack(alignment: .leading) {
+                    LazyHStack(spacing: spacing) {
+                        ForEach(frames, id: \.self) { frameIndex in
+                            thumbnailView(frameIndex: frameIndex)
+                                .id(frameIndex)
+                                .onAppear {
+                                    thumbnailProvider.requestThumbnail(
+                                        frameIndex: frameIndex,
+                                        frameRate: frameRate
+                                    )
+                                }
+                        }
+                    }
+
+                    trimOverlay()
+                    playheadOverlay()
+                }
+                .frame(width: totalWidth, height: cellHeight)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            onBeginScrub()
+                            let seconds = seconds(at: value.location.x, totalWidth: totalWidth)
+                            onSeek(seconds)
+                        }
+                        .onEnded { value in
+                            let seconds = seconds(at: value.location.x, totalWidth: totalWidth)
+                            onSeek(seconds)
+                            onEndScrub()
+                        }
+                )
+            }
+            .frame(height: cellHeight + 12)
+            .onChange(of: currentTime) { newValue in
+                guard isPlaying, !isScrubbing, !frames.isEmpty else { return }
+                let maxSlot = max(0, frames.count - 1)
+                let slot = slotIndex(for: frameIndex(from: newValue), maxIndex: maxSlot)
+                guard lastAutoScrollSlot != slot else { return }
+                lastAutoScrollSlot = slot
+                let targetFrame = frames[min(max(slot, 0), maxSlot)]
+                if reduceMotion {
+                    proxy.scrollTo(targetFrame, anchor: .center)
+                } else {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(targetFrame, anchor: .center)
                     }
                 }
-
-                trimOverlay()
-                playheadOverlay()
             }
-            .frame(width: totalWidth, height: cellHeight)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        onBeginScrub()
-                        let seconds = seconds(at: value.location.x, totalWidth: totalWidth)
-                        onSeek(seconds)
-                    }
-                    .onEnded { value in
-                        let seconds = seconds(at: value.location.x, totalWidth: totalWidth)
-                        onSeek(seconds)
-                        onEndScrub()
-                    }
-            )
+            .onChange(of: isPlaying) { playing in
+                guard playing, !isScrubbing, !frames.isEmpty else { return }
+                let maxSlot = max(0, frames.count - 1)
+                let slot = slotIndex(for: frameIndex(from: currentTime), maxIndex: maxSlot)
+                lastAutoScrollSlot = slot
+                let targetFrame = frames[min(max(slot, 0), maxSlot)]
+                proxy.scrollTo(targetFrame, anchor: .center)
+            }
         }
-        .frame(height: cellHeight + 12)
         .onAppear {
             thumbnailProvider.configure(
                 url: assetURL,

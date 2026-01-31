@@ -126,7 +126,7 @@ Notes:
 ### 7.3 Basic editing (v1)
 
 - Trim in/out
-- Preview playback + scrubber
+- Preview playback + scrubber + playback speed control
 
 ### 7.4 Export
 
