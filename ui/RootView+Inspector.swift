@@ -1,5 +1,6 @@
 import AppKit
 import Export
+import Project
 import SwiftUI
 
 extension RootView {
@@ -9,118 +10,181 @@ extension RootView {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Form {
-                switch navigatorSelection ?? .preview {
-                case .preview:
-                    Section("Capture Setup") {
-                        inspectorRow("Source") {
-                            Picker("", selection: $captureSource) {
-                                ForEach(CaptureSource.allCases) { source in
-                                    Text(source.title).tag(source)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    switch navigatorSelection ?? .preview {
+                    case .preview:
+                        inspectorCard("Capture Setup") {
+                            inspectorSection {
+                                inspectorRow("Source") {
+                                    Picker("", selection: $captureSource) {
+                                        ForEach(CaptureSource.allCases) { source in
+                                            Text(source.title).tag(source)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .labelsHidden()
+                                    .accessibilityLabel(Text("Source"))
+                                    .frame(maxWidth: .infinity)
+                                    .disabled(captureEngine.isRunning)
+                                }
+
+                                if captureSource == .window, !usesSystemPicker {
+                                    inspectorRow("Window") {
+                                        HStack(spacing: 6) {
+                                            Picker("", selection: $selectedWindowID) {
+                                                if captureEngine.availableWindows.isEmpty {
+                                                    Text("No windows available").tag(CGWindowID(0))
+                                                } else {
+                                                    ForEach(captureEngine.availableWindows) { window in
+                                                        Text(window.displayName).tag(window.id)
+                                                    }
+                                                }
+                                            }
+                                            .labelsHidden()
+                                            .accessibilityLabel(Text("Window"))
+                                            .frame(maxWidth: .infinity)
+                                            .disabled(captureEngine.isRunning)
+
+                                            Button("Refresh") {
+                                                Task {
+                                                    await captureEngine.refreshShareableContent()
+                                                }
+                                            }
+                                            .disabled(captureEngine.isRunning)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                    }
+                                }
+
+                                inspectorRow("Microphone") {
+                                    Toggle("", isOn: $micEnabled)
+                                        .toggleStyle(.switch)
+                                        .labelsHidden()
+                                        .accessibilityLabel(Text("Microphone"))
+                                        .disabled(captureEngine.isRunning)
+                                }
+
+                                inspectorRow("Cursor + Clicks") {
+                                    Toggle(
+                                        "",
+                                        isOn: Binding(
+                                            get: { inputTrackingModel.isEnabled },
+                                            set: { inputTrackingModel.setEnabled($0) }
+                                        )
+                                    )
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                                    .accessibilityLabel(Text("Cursor + Clicks"))
+                                    .disabled(captureEngine.isRecording)
+                                }
+
+                                if inputTrackingModel.permissionStatus == .denied {
+                                    inspectorFootnote(
+                                        "Input Monitoring permission is required to track cursor and clicks."
+                                    )
                                 }
                             }
-                            .pickerStyle(.segmented)
-                            .labelsHidden()
-                            .accessibilityLabel(Text("Source"))
-                            .frame(width: 180)
-                            .disabled(captureEngine.isRunning)
                         }
 
-                        if captureSource == .window, !usesSystemPicker {
-                            inspectorRow("Window") {
-                                HStack(spacing: 6) {
-                                    Picker("", selection: $selectedWindowID) {
-                                        if captureEngine.availableWindows.isEmpty {
-                                            Text("No windows available").tag(CGWindowID(0))
-                                        } else {
-                                            ForEach(captureEngine.availableWindows) { window in
-                                                Text(window.displayName).tag(window.id)
-                                            }
+                        inspectorCard("Recording") {
+                            inspectorSection {
+                                inspectorRow("Preset") {
+                                    Picker("", selection: $selectedPreset) {
+                                        ForEach(Presets.all) { preset in
+                                            Text(preset.name).tag(preset)
                                         }
                                     }
                                     .labelsHidden()
-                                    .accessibilityLabel(Text("Window"))
-                                    .frame(width: 160)
-                                    .disabled(captureEngine.isRunning)
+                                    .accessibilityLabel(Text("Preset"))
+                                    .frame(maxWidth: .infinity)
+                                }
+                            }
+                        }
 
-                                    Button("Refresh") {
-                                        Task {
-                                            await captureEngine.refreshShareableContent()
-                                        }
+                        inspectorCard("Auto-Zoom") {
+                            inspectorSection {
+                                inspectorRow("Enabled") {
+                                    Toggle("", isOn: autoZoomEnabledBinding)
+                                        .toggleStyle(.switch)
+                                        .labelsHidden()
+                                        .accessibilityLabel(Text("Auto-Zoom"))
+                                }
+
+                                inspectorRow("Intensity") {
+                                    HStack(spacing: 8) {
+                                        Slider(
+                                            value: autoZoomIntensityBinding,
+                                            in: AutoZoomSettings.intensityRange
+                                        )
+                                        .frame(maxWidth: .infinity)
+                                        .accessibilityLabel(Text("Auto-Zoom Intensity"))
+
+                                        Text(autoZoomIntensityLabel)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 44, alignment: .trailing)
+                                            .lineLimit(1)
                                     }
-                                    .disabled(captureEngine.isRunning)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            }
-                        }
+                                .disabled(!autoZoomSettings.isEnabled)
 
-                        inspectorRow("Microphone") {
-                            Toggle("", isOn: $micEnabled)
-                                .toggleStyle(.switch)
-                                .labelsHidden()
-                                .accessibilityLabel(Text("Microphone"))
-                                .disabled(captureEngine.isRunning)
-                        }
+                                inspectorRow("Keyframe Interval") {
+                                    HStack(spacing: 8) {
+                                        Slider(
+                                            value: autoZoomKeyframeIntervalBinding,
+                                            in: AutoZoomSettings.minimumKeyframeIntervalRange
+                                        )
+                                        .frame(maxWidth: .infinity)
+                                        .accessibilityLabel(Text("Auto-Zoom Keyframe Interval"))
 
-                        inspectorRow("Cursor + Clicks") {
-                            Toggle(
-                                "",
-                                isOn: Binding(
-                                    get: { inputTrackingModel.isEnabled },
-                                    set: { inputTrackingModel.setEnabled($0) }
-                                )
-                            )
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                            .accessibilityLabel(Text("Cursor + Clicks"))
-                            .disabled(captureEngine.isRecording)
-                        }
+                                        Text(autoZoomKeyframeIntervalLabel)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 44, alignment: .trailing)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .disabled(!autoZoomSettings.isEnabled)
 
-                        if inputTrackingModel.permissionStatus == .denied {
-                            Text("Input Monitoring permission is required to track cursor and clicks.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Section("Recording") {
-                        inspectorRow("Preset") {
-                            Picker("", selection: $selectedPreset) {
-                                ForEach(Presets.all) { preset in
-                                    Text(preset.name).tag(preset)
+                                if autoZoomSettings.isEnabled, inputTrackingModel.permissionStatus == .denied {
+                                    inspectorFootnote(
+                                        "Enable Input Monitoring to capture cursor and click events for Auto-Zoom."
+                                    )
                                 }
                             }
-                            .labelsHidden()
-                            .accessibilityLabel(Text("Preset"))
-                            .frame(width: 180)
                         }
-                    }
-
-                    if studioMode == .edit {
-                        Section("Edit") {
-                            trimControls
-                        }
-                    }
-
-                case .clips:
-                    Section("Clip Details") {
-                        Text("Select a clip to view details.")
-                            .foregroundStyle(.secondary)
 
                         if studioMode == .edit {
-                            trimControls
+                            inspectorCard("Edit") {
+                                inspectorSection {
+                                    trimControls
+                                }
+                            }
+                        }
+
+                    case .clips:
+                        inspectorCard("Clip Details") {
+                            inspectorSection {
+                                Text("Select a clip to view details.")
+                                    .foregroundStyle(.secondary)
+
+                                if studioMode == .edit {
+                                    trimControls
+                                }
+                            }
+                        }
+
+                    case .notes:
+                        inspectorCard("Presenter Notes") {
+                            inspectorSection {
+                                Text("Notes will appear here.")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
 
-                case .notes:
-                    Section("Presenter Notes") {
-                        Text("Notes will appear here.")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Section {
-                    DisclosureGroup("Diagnostics", isExpanded: $showDiagnostics) {
+                    inspectorDisclosureCard("Diagnostics", isExpanded: $showDiagnostics) {
                         inspectorRow("Recording") {
                             let status: LocalizedStringKey = captureEngine.isRunning ? "Active" : "Idle"
                             Text(status)
@@ -139,11 +203,11 @@ extension RootView {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
             }
-            .formStyle(.grouped)
             .controlSize(.small)
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
             .frame(maxHeight: .infinity, alignment: .top)
 
             if studioMode == .edit {
@@ -158,22 +222,32 @@ extension RootView {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.leading, 10)
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(inspectorBorderColor, lineWidth: inspectorBorderLineWidth)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
         .frame(minWidth: 260, idealWidth: 280, maxWidth: 320)
     }
 
     private func inspectorRow(
         _ title: LocalizedStringKey,
-        @ViewBuilder content: () -> some View
+        @ViewBuilder content: @escaping () -> some View
     ) -> some View {
-        LabeledContent(title) {
-            content()
-                .frame(maxWidth: .infinity, alignment: .trailing)
+        GeometryReader { proxy in
+            let spacing: CGFloat = 10
+            let totalWidth = proxy.size.width
+            let labelWidth = min(inspectorLabelWidth, totalWidth * 0.45)
+            let contentWidth = max(0, totalWidth - labelWidth - spacing)
+            HStack(alignment: .center, spacing: spacing) {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(width: labelWidth, alignment: .leading)
+                content()
+                    .frame(width: contentWidth, alignment: .trailing)
+            }
         }
         .frame(minHeight: 24)
     }
@@ -209,6 +283,88 @@ extension RootView {
                 .labelsHidden()
                 .accessibilityLabel(Text(label))
         }
+    }
+
+    private func inspectorCard(
+        _ title: LocalizedStringKey,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            inspectorCardHeader(title)
+            content()
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(cardBackgroundColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(cardBorderColor, lineWidth: cardBorderLineWidth)
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func inspectorDisclosureCard(
+        _ title: LocalizedStringKey,
+        isExpanded: Binding<Bool>,
+        @ViewBuilder content: @escaping () -> some View
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup(isExpanded: isExpanded) {
+                VStack(alignment: .leading, spacing: 8) {
+                    content()
+                }
+                .padding(.top, 4)
+            } label: {
+                inspectorCardHeader(title)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(cardBackgroundColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(cardBorderColor, lineWidth: cardBorderLineWidth)
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func inspectorCardHeader(_ title: LocalizedStringKey) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Spacer()
+        }
+    }
+
+    private func inspectorSection(@ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8, content: content)
+    }
+
+    private func inspectorFootnote(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var inspectorLabelWidth: CGFloat {
+        90
+    }
+
+    private var cardBackgroundColor: Color {
+        reduceTransparency ? Color(nsColor: .controlBackgroundColor) : Color.black.opacity(0.04)
+    }
+
+    private var cardBorderColor: Color {
+        highContrastEnabled ? Color(nsColor: .separatorColor) : Color.black.opacity(0.08)
+    }
+
+    private var cardBorderLineWidth: CGFloat {
+        highContrastEnabled ? 2 : 1
     }
 
     private var exportButton: some View {
