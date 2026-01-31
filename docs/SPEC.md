@@ -367,7 +367,7 @@ Progress (current repo)
 - [x] Project schema + store (save/load on disk)
 - [x] Document-based open/save panels + recent library
 - [x] Localization catalog exists and is wired into the app target
-- [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
+- [x] Post‑localization polish audit (UI/UX, performance, accessibility)
 
 **Phase 2 — Cinematic defaults**
 
