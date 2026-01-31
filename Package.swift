@@ -24,7 +24,7 @@ let package = Package(
         ),
         .target(
             name: "UI",
-            dependencies: ["Capture", "Project", "Rendering", "Automation", "Export"],
+            dependencies: ["Capture", "Project", "Rendering", "Automation", "Export", "InputTracking"],
             path: "ui"
         ),
         .target(

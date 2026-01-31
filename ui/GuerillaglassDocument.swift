@@ -105,4 +105,8 @@ public struct GuerillaglassDocument: FileDocument {
     public mutating func updateRecordingSource(_ url: URL?) {
         assets.recordingURL = url
     }
+
+    public mutating func updateEventsSource(_ url: URL?) {
+        assets.eventsURL = url
+    }
 }

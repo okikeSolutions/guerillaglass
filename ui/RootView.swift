@@ -12,6 +12,7 @@ public struct RootView: View {
     @Binding var document: GuerillaglassDocument
     @StateObject var captureEngine = CaptureEngine()
     @StateObject var playbackModel = RecordingPlaybackModel()
+    @StateObject var inputTrackingModel = InputTrackingModel()
     @State var micEnabled = false
     @State var captureSource: CaptureSource = .display
     @State var selectedWindowID: CGWindowID = 0
@@ -102,6 +103,7 @@ public struct RootView: View {
         .task {
             libraryModel.refresh()
             syncDocumentURL(fileURL)
+            inputTrackingModel.refreshPermissionStatus()
             if captureSource == .window, !usesSystemPicker {
                 await captureEngine.refreshShareableContent()
             }
@@ -112,6 +114,9 @@ public struct RootView: View {
             )
         ) { _ in
             highContrastEnabled = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            inputTrackingModel.refreshPermissionStatus()
         }
         .onChange(of: captureSource) { newValue in
             if newValue == .window, !usesSystemPicker {
@@ -140,6 +145,13 @@ public struct RootView: View {
             playbackModel.load(url: newValue)
             document.updateRecordingSource(newValue)
         }
+        .onChange(of: captureEngine.isRunning) { isRunning in
+            guard !isRunning else { return }
+            let eventsURL = inputTrackingModel.stopAndPersist()
+            if let eventsURL {
+                document.updateEventsSource(eventsURL)
+            }
+        }
         .onChange(of: fileURL) { newValue in
             syncDocumentURL(newValue)
         }
@@ -153,6 +165,17 @@ public struct RootView: View {
         }
         .onChange(of: document.projectDocument) { _ in
             syncDocumentURL(fileURL)
+        }
+        .alert(
+            "Input Monitoring Required",
+            isPresented: $inputTrackingModel.showPermissionAlert
+        ) {
+            Button("Open System Settings") {
+                inputTrackingModel.openSystemSettings()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enable Input Monitoring to capture cursor and click events.")
         }
     }
 

@@ -1,4 +1,5 @@
 import AppKit
+import Capture
 import SwiftUI
 
 extension RootView {
@@ -44,11 +45,23 @@ extension RootView {
                         if captureEngine.isRecording {
                             await captureEngine.stopRecording()
                             await captureEngine.stopCapture()
+                            let eventsURL = await MainActor.run {
+                                inputTrackingModel.stopAndPersist()
+                            }
+                            if let eventsURL {
+                                await MainActor.run {
+                                    document.updateEventsSource(eventsURL)
+                                }
+                            }
                         } else {
                             if !captureEngine.isRunning {
                                 try await startCaptureFlow()
                             }
                             try await captureEngine.startRecording()
+                            let referenceTime = CaptureClock().now().seconds
+                            await MainActor.run {
+                                inputTrackingModel.startIfPermitted(referenceTime: referenceTime)
+                            }
                         }
                     } catch {
                         captureEngine.setErrorMessage(error.localizedDescription)
