@@ -7,13 +7,14 @@ final class RecordingPlaybackModel: ObservableObject {
     @Published var isPlaying: Bool = false
     @Published var frameRate: Double = 30
     @Published var currentURL: URL?
+    @Published private(set) var isScrubbing = false
+    @Published var playbackRate: Double = 1.0
 
     let player = AVPlayer()
 
     private var timeObserverToken: Any?
     private var endObserver: NSObjectProtocol?
     private var wasPlayingBeforeScrub = false
-    private var isScrubbing = false
     private var loadToken = UUID()
 
     init() {
@@ -42,6 +43,7 @@ final class RecordingPlaybackModel: ObservableObject {
 
         let asset = AVAsset(url: url)
         let item = AVPlayerItem(asset: asset)
+        item.videoComposition = nil
         player.replaceCurrentItem(with: item)
         let token = loadToken
         endObserver = NotificationCenter.default.addObserver(
@@ -72,6 +74,10 @@ final class RecordingPlaybackModel: ObservableObject {
         }
     }
 
+    func applyVideoComposition(_ composition: AVVideoComposition?) {
+        player.currentItem?.videoComposition = composition
+    }
+
     func togglePlayPause() {
         if isPlaying {
             player.pause()
@@ -80,7 +86,7 @@ final class RecordingPlaybackModel: ObservableObject {
             if duration > 0, currentTime >= max(0, duration - 0.05) {
                 seek(to: 0)
             }
-            player.play()
+            player.playImmediately(atRate: Float(playbackRate))
             isPlaying = true
         }
     }
@@ -102,7 +108,7 @@ final class RecordingPlaybackModel: ObservableObject {
         seek(to: seconds)
         isScrubbing = false
         if wasPlayingBeforeScrub {
-            player.play()
+            player.playImmediately(atRate: Float(playbackRate))
             isPlaying = true
         }
     }
@@ -117,6 +123,14 @@ final class RecordingPlaybackModel: ObservableObject {
         let clamped = max(0, seconds)
         currentTime = clamped
         seek(to: clamped)
+    }
+
+    func setPlaybackRate(_ rate: Double) {
+        let clamped = max(0.25, min(rate, 3.0))
+        playbackRate = clamped
+        if isPlaying {
+            player.rate = Float(clamped)
+        }
     }
 
     private func addTimeObserver() {
