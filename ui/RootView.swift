@@ -147,9 +147,13 @@ public struct RootView: View {
         }
         .onChange(of: captureEngine.isRunning) { isRunning in
             guard !isRunning else { return }
-            let eventsURL = inputTrackingModel.stopAndPersist()
-            if let eventsURL {
-                document.updateEventsSource(eventsURL)
+            do {
+                let eventsURL = try inputTrackingModel.stopAndPersist()
+                if let eventsURL {
+                    document.updateEventsSource(eventsURL)
+                }
+            } catch {
+                captureEngine.setErrorMessage(error.localizedDescription)
             }
         }
         .onChange(of: fileURL) { newValue in
