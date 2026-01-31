@@ -5,7 +5,7 @@ extension RootView {
     var previewPanel: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.black.opacity(0.08))
+                .fill(previewBackgroundColor)
 
             if studioMode == .edit {
                 if let recordingURL = captureEngine.recordingURL {
@@ -31,7 +31,8 @@ extension RootView {
                     .padding(10)
             } else {
                 VStack(spacing: 6) {
-                    Text(captureEngine.isRunning ? "Waiting for frames…" : "Preview")
+                    let statusText: LocalizedStringKey = captureEngine.isRunning ? "Waiting for frames…" : "Preview"
+                    Text(statusText)
                         .foregroundStyle(.secondary)
                     if let errorMessage = captureEngine.lastError {
                         Text(errorMessage)
@@ -43,7 +44,10 @@ extension RootView {
 
             if isPreviewDropTarget {
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.accentColor.opacity(0.7), style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .strokeBorder(
+                        dropTargetStrokeColor,
+                        style: StrokeStyle(lineWidth: dropTargetLineWidth, dash: [6])
+                    )
                     .padding(8)
                 Text("Drop media to add")
                     .foregroundStyle(.secondary)
@@ -58,7 +62,9 @@ extension RootView {
 
     private var editEmptyState: some View {
         VStack(spacing: 10) {
-            Text(captureEngine.isRecording ? "Stop recording to edit." : "No recording yet.")
+            let titleText: LocalizedStringKey =
+                captureEngine.isRecording ? "Stop recording to edit." : "No recording yet."
+            Text(titleText)
                 .font(.headline)
             Text("Record a clip in Capture mode to preview and trim it here.")
                 .foregroundStyle(.secondary)
@@ -74,5 +80,17 @@ extension RootView {
         }
         .padding(20)
         .multilineTextAlignment(.center)
+    }
+
+    private var previewBackgroundColor: Color {
+        reduceTransparency ? Color(nsColor: .controlBackgroundColor) : Color.black.opacity(0.08)
+    }
+
+    private var dropTargetStrokeColor: Color {
+        highContrastEnabled ? Color.accentColor : Color.accentColor.opacity(0.7)
+    }
+
+    private var dropTargetLineWidth: CGFloat {
+        highContrastEnabled ? 3 : 2
     }
 }

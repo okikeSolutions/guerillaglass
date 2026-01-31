@@ -9,6 +9,7 @@ struct PlayerView: NSViewRepresentable {
         view.controlsStyle = .none
         view.videoGravity = .resizeAspect
         view.player = player
+        view.setAccessibilityLabel(String(localized: "Recording Preview"))
         return view
     }
 

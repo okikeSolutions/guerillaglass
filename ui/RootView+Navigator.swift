@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 extension RootView {
@@ -22,12 +23,15 @@ extension RootView {
             .padding(8)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.black.opacity(0.08))
+                    .strokeBorder(navigatorBorderColor, lineWidth: navigatorBorderLineWidth)
             )
 
             if isNavigatorDropTarget {
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.accentColor.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .strokeBorder(
+                        dropTargetStrokeColor,
+                        style: StrokeStyle(lineWidth: dropTargetLineWidth, dash: [6])
+                    )
                     .padding(6)
                 Text("Drop items here")
                     .foregroundStyle(.secondary)
@@ -36,5 +40,21 @@ extension RootView {
         .onDrop(of: [.fileURL], isTargeted: $isNavigatorDropTarget) { _ in
             false
         }
+    }
+
+    private var navigatorBorderColor: Color {
+        highContrastEnabled ? Color(nsColor: .separatorColor) : Color.black.opacity(0.08)
+    }
+
+    private var navigatorBorderLineWidth: CGFloat {
+        highContrastEnabled ? 2 : 1
+    }
+
+    private var dropTargetStrokeColor: Color {
+        highContrastEnabled ? Color.accentColor : Color.accentColor.opacity(0.6)
+    }
+
+    private var dropTargetLineWidth: CGFloat {
+        highContrastEnabled ? 3 : 2
     }
 }
