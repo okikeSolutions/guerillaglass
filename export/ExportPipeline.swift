@@ -1,5 +1,7 @@
+import Automation
 import AVFoundation
 import Foundation
+import Rendering
 
 public final class ExportPipeline {
     private final class ExportSessionBox: @unchecked Sendable {
@@ -9,6 +11,8 @@ public final class ExportPipeline {
             self.session = session
         }
     }
+
+    private let renderer = ExportRenderer()
 
     public enum ExportError: LocalizedError {
         case missingVideoTrack
@@ -33,7 +37,8 @@ public final class ExportPipeline {
         recordingURL: URL,
         preset: ExportPreset,
         trimRange: CMTimeRange?,
-        outputURL: URL
+        outputURL: URL,
+        cameraPlan: CameraPlan? = nil
     ) async throws -> URL {
         let asset = AVAsset(url: recordingURL)
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
@@ -59,7 +64,13 @@ public final class ExportPipeline {
             session.timeRange = trimRange
         }
 
-        if let composition = try await makeVideoComposition(asset: asset, preset: preset) {
+        let renderSize = CGSize(width: preset.width, height: preset.height)
+        if let composition = try await renderer.makeVideoComposition(
+            asset: asset,
+            renderSize: renderSize,
+            frameRate: Double(preset.fps),
+            plan: cameraPlan
+        ) {
             session.videoComposition = composition
         }
 
@@ -77,45 +88,5 @@ public final class ExportPipeline {
         }
 
         return outputURL
-    }
-
-    private func makeVideoComposition(
-        asset: AVAsset,
-        preset: ExportPreset
-    ) async throws -> AVVideoComposition? {
-        let tracks = try await asset.loadTracks(withMediaType: .video)
-        guard let track = tracks.first else {
-            return nil
-        }
-
-        let targetSize = CGSize(width: preset.width, height: preset.height)
-        let naturalSize = try await track.load(.naturalSize)
-        if naturalSize.width == targetSize.width, naturalSize.height == targetSize.height {
-            return nil
-        }
-
-        let scale = min(targetSize.width / naturalSize.width, targetSize.height / naturalSize.height)
-        let scaledSize = CGSize(width: naturalSize.width * scale, height: naturalSize.height * scale)
-        let translateX = (targetSize.width - scaledSize.width) / 2
-        let translateY = (targetSize.height - scaledSize.height) / 2
-
-        var transform = try await track.load(.preferredTransform)
-        transform = transform.scaledBy(x: scale, y: scale)
-        transform = transform.translatedBy(x: translateX, y: translateY)
-
-        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)
-        layerInstruction.setTransform(transform, at: .zero)
-
-        let instruction = AVMutableVideoCompositionInstruction()
-        let duration = try await asset.load(.duration)
-        instruction.timeRange = CMTimeRange(start: .zero, duration: duration)
-        instruction.layerInstructions = [layerInstruction]
-
-        let composition = AVMutableVideoComposition()
-        composition.renderSize = targetSize
-        composition.frameDuration = CMTime(value: 1, timescale: CMTimeScale(preset.fps))
-        composition.instructions = [instruction]
-
-        return composition
     }
 }

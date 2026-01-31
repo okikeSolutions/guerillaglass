@@ -1,8 +1,10 @@
 import AppKit
+import Automation
 import Capture
 import CoreGraphics
 import Export
 import Project
+import Rendering
 import SwiftUI
 
 public struct RootView: View {
@@ -29,8 +31,12 @@ public struct RootView: View {
     @State var isPreviewDropTarget = false
     @State var highContrastEnabled = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
     @State private var splitPaneFrames: [SplitPane: CGRect] = [:]
+    @State var cameraPlanCache: CameraPlanCache?
+    @State var previewRefreshTask: Task<Void, Never>?
     let fileURL: URL?
     let exportPipeline = ExportPipeline()
+    let previewRenderer = PreviewRenderer()
+    let cameraPlanner = VirtualCameraPlanner()
 
     public init(document: Binding<GuerillaglassDocument>, fileURL: URL?) {
         _document = document
@@ -144,6 +150,7 @@ public struct RootView: View {
         .onChange(of: captureEngine.recordingURL) { newValue in
             playbackModel.load(url: newValue)
             document.updateRecordingSource(newValue)
+            refreshPreviewComposition(for: newValue)
         }
         .onChange(of: captureEngine.isRunning) { isRunning in
             guard !isRunning else { return }
@@ -166,6 +173,12 @@ public struct RootView: View {
             if newValue == .capture {
                 playbackModel.pause()
             }
+        }
+        .onChange(of: autoZoomSettings) { _ in
+            refreshPreviewComposition(for: captureEngine.recordingURL)
+        }
+        .onChange(of: document.assets.eventsURL) { _ in
+            refreshPreviewComposition(for: captureEngine.recordingURL)
         }
         .onChange(of: document.projectDocument) { _ in
             syncDocumentURL(fileURL)

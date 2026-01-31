@@ -10,6 +10,20 @@ public enum ProjectMigration {
         let projectVersion: Int
     }
 
+    private struct ProjectDocumentV1: Decodable {
+        let projectVersion: Int
+        let project: ProjectV1
+        let recordingFileName: String
+        let systemAudioFileName: String?
+        let micAudioFileName: String?
+        let eventsFileName: String?
+    }
+
+    private struct ProjectV1: Decodable {
+        let id: UUID
+        let createdAt: Date
+    }
+
     public static func migrateIfNeeded(_ data: Data) throws -> Data {
         let decoder = ProjectStore.makeDefaultDecoder()
         guard let probe = try? decoder.decode(VersionProbe.self, from: data) else {
@@ -17,10 +31,41 @@ public enum ProjectMigration {
         }
 
         switch probe.projectVersion {
+        case 1:
+            return try migrateV1ToV3(data, decoder: decoder)
+        case 2:
+            return try migrateV2ToV3(data, decoder: decoder)
         case ProjectSchemaVersion.current:
             return data
         default:
             throw MigrationError.unknownVersion
         }
+    }
+
+    private static func migrateV1ToV3(_ data: Data, decoder: JSONDecoder) throws -> Data {
+        let documentV1 = try decoder.decode(ProjectDocumentV1.self, from: data)
+        let project = Project(
+            id: documentV1.project.id,
+            createdAt: documentV1.project.createdAt,
+            autoZoom: AutoZoomSettings(),
+            captureMetadata: nil
+        )
+        let document = ProjectDocument(
+            projectVersion: ProjectSchemaVersion.current,
+            project: project,
+            recordingFileName: documentV1.recordingFileName,
+            systemAudioFileName: documentV1.systemAudioFileName,
+            micAudioFileName: documentV1.micAudioFileName,
+            eventsFileName: documentV1.eventsFileName
+        )
+        let encoder = ProjectStore.makeDefaultEncoder()
+        return try encoder.encode(document)
+    }
+
+    private static func migrateV2ToV3(_ data: Data, decoder: JSONDecoder) throws -> Data {
+        var document = try decoder.decode(ProjectDocument.self, from: data)
+        document.projectVersion = ProjectSchemaVersion.current
+        let encoder = ProjectStore.makeDefaultEncoder()
+        return try encoder.encode(document)
     }
 }

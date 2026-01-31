@@ -13,6 +13,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @Published public internal(set) var isRecording: Bool = false
     @Published public internal(set) var recordingURL: URL?
     @Published public internal(set) var recordingDuration: TimeInterval = 0
+    @Published public private(set) var captureDescriptor: CaptureDescriptor?
 
     private let ciContext = CIContext(options: nil)
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
@@ -68,6 +69,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             await MainActor.run {
                 self.isRunning = true
                 self.lastError = nil
+                self.captureDescriptor = makeDisplayDescriptor(display: display)
             }
         } catch {
             audioCapture.stop()
@@ -108,6 +110,11 @@ public final class CaptureEngine: NSObject, ObservableObject {
             await MainActor.run {
                 self.isRunning = true
                 self.lastError = nil
+                self.captureDescriptor = CaptureDescriptor(
+                    source: .window,
+                    contentRect: window.frame,
+                    pixelScale: scale
+                )
             }
         } catch {
             audioCapture.stop()
@@ -135,6 +142,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         isRunning = false
         latestFrame = nil
         self.stream = nil
+        captureDescriptor = nil
     }
 
     @MainActor
@@ -191,6 +199,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             await MainActor.run {
                 self.isRunning = true
                 self.lastError = nil
+                self.captureDescriptor = makeDescriptor(filter: filter)
             }
         } catch {
             audioCapture.stop()

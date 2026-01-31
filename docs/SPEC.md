@@ -84,7 +84,7 @@ Build an open-source macOS app that records:
 Notes:
 
 - System audio is only exposed when OS + source support it; UI must disable otherwise with explanation.
-- Cursor/click tracking is optional and permission-gated.
+- Cursor/click tracking is optional and permission-gated; enabled by default with a toggle to disable.
 - If 12.3+ video-only support is validated, expand matrix and gate by OS at runtime.
 
 ---
@@ -121,6 +121,7 @@ Notes:
 - Motion blur (camera + cursor only; no optical-flow blur)
 - Background framing: padding, rounded corners, shadow
 - Aspect-ratio exports: 16:9, 9:16 (camera path re-planned per ratio)
+- Auto-zoom tuning: toggle, intensity, and minimum keyframe interval
 
 ### 7.3 Basic editing (v1)
 
@@ -227,10 +228,11 @@ Fallback behavior:
 
 - Max zoom-in: 2.5×
 - Min visible area: ≥ 40% of source
-- Safe margin: 8–12% frame
+- Safe margin: 8–12% of visible frame
 - Dwell threshold: cursor speed < V for ≥ 350 ms
 - Cursor velocity filter (EMA or Kalman) before dwell/pan evaluation to reduce jitter.
 - Max pan speed & acceleration capped (“no nausea” rule)
+- Minimum keyframe interval: 1/30 s (coalesce same-timestamp events; bucket to limit density)
 - If no events: mild center framing only
 
 ---
@@ -245,7 +247,7 @@ Project container:
 
 Project directory contents:
 
-- `project.json` (includes `projectVersion`)
+- `project.json` (includes `projectVersion` + capture metadata for event-to-capture mapping)
 - `recording.mov`
 - `audio_system.m4a` (optional)
 - `audio_mic.m4a` (optional)
@@ -390,7 +392,7 @@ Progress (current repo)
 Progress (current repo)
 
 - [x] Input Monitoring permission flow + event tracking
-- [ ] Auto-zoom planning + constraints
+- [x] Auto-zoom planning + constraints (planner + renderer wiring + UI tuning)
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
 - [ ] Localization updated for Phase 2 UI

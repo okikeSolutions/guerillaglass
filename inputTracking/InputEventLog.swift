@@ -16,9 +16,18 @@ public struct InputEventLog: Codable, Equatable {
         try data.write(to: url, options: [.atomic])
     }
 
+    public static func load(from url: URL, decoder: JSONDecoder = InputEventLog.makeDecoder()) throws -> InputEventLog {
+        let data = try Data(contentsOf: url)
+        return try decoder.decode(InputEventLog.self, from: data)
+    }
+
     public static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
+    }
+
+    public static func makeDecoder() -> JSONDecoder {
+        JSONDecoder()
     }
 }

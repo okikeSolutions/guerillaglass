@@ -44,17 +44,17 @@ let package = Package(
         ),
         .target(
             name: "Automation",
-            dependencies: [],
+            dependencies: ["InputTracking"],
             path: "automation"
         ),
         .target(
             name: "Rendering",
-            dependencies: [],
+            dependencies: ["Automation"],
             path: "rendering"
         ),
         .target(
             name: "Export",
-            dependencies: [],
+            dependencies: ["Automation", "Rendering"],
             path: "export"
         ),
         .target(
@@ -64,7 +64,7 @@ let package = Package(
         ),
         .testTarget(
             name: "AutomationTests",
-            dependencies: ["Automation"],
+            dependencies: ["Automation", "InputTracking"],
             path: "Tests/automationTests"
         ),
         .testTarget(
@@ -89,7 +89,7 @@ let package = Package(
         ),
         .testTarget(
             name: "UITests",
-            dependencies: ["UI"],
+            dependencies: ["UI", "InputTracking", "Project"],
             path: "Tests/uiTests"
         )
     ]
