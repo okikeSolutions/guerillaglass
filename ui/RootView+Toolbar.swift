@@ -45,14 +45,6 @@ extension RootView {
                         if captureEngine.isRecording {
                             await captureEngine.stopRecording()
                             await captureEngine.stopCapture()
-                            let eventsURL = await MainActor.run {
-                                inputTrackingModel.stopAndPersist()
-                            }
-                            if let eventsURL {
-                                await MainActor.run {
-                                    document.updateEventsSource(eventsURL)
-                                }
-                            }
                         } else {
                             if !captureEngine.isRunning {
                                 try await startCaptureFlow()
