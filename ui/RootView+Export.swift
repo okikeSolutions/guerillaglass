@@ -19,11 +19,14 @@ extension RootView {
                 end: trimOutSeconds,
                 duration: duration
             )
+            let asset = AVAsset(url: recordingURL)
+            let cameraPlan = await makeCameraPlan(for: asset)
             _ = try await exportPipeline.export(
                 recordingURL: recordingURL,
                 preset: selectedPreset,
                 trimRange: trimRange,
-                outputURL: outputURL
+                outputURL: outputURL,
+                cameraPlan: cameraPlan
             )
             exportStatus = String(localized: "Export complete.")
         } catch {

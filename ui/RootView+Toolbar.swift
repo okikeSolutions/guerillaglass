@@ -52,6 +52,9 @@ extension RootView {
                             let referenceTime = CaptureClock().now().seconds
                             try await captureEngine.startRecording()
                             await MainActor.run {
+                                syncCaptureMetadata()
+                            }
+                            await MainActor.run {
                                 inputTrackingModel.startIfPermitted(referenceTime: referenceTime)
                             }
                         }

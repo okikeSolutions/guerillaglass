@@ -109,4 +109,8 @@ public struct GuerillaglassDocument: FileDocument {
     public mutating func updateEventsSource(_ url: URL?) {
         assets.eventsURL = url
     }
+
+    public mutating func updateCaptureMetadata(_ metadata: CaptureMetadata?) {
+        projectDocument.project.captureMetadata = metadata
+    }
 }

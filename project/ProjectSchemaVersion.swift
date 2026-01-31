@@ -1,5 +1,5 @@
 import Foundation
 
 public enum ProjectSchemaVersion {
-    public static let current = 1
+    public static let current = 3
 }

@@ -3,7 +3,7 @@ import InputTracking
 
 @MainActor
 final class InputTrackingModel: ObservableObject {
-    @Published var isEnabled = false
+    @Published var isEnabled = true
     @Published private(set) var permissionStatus: InputMonitoringStatus
     @Published var showPermissionAlert = false
     @Published private(set) var lastEventsURL: URL?
@@ -44,7 +44,14 @@ final class InputTrackingModel: ObservableObject {
 
     func startIfPermitted(referenceTime: TimeInterval? = nil) {
         permissionStatus = permissionManager.status()
-        guard isEnabled, permissionStatus == .authorized else { return }
+        guard isEnabled else { return }
+        if permissionStatus == .notDetermined {
+            permissionStatus = permissionManager.requestAccess()
+        }
+        guard permissionStatus == .authorized else {
+            showPermissionAlert = true
+            return
+        }
         session.start(referenceTime: referenceTime)
     }
 
