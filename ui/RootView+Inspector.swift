@@ -61,6 +61,26 @@ extension RootView {
                                 .accessibilityLabel(Text("Microphone"))
                                 .disabled(captureEngine.isRunning)
                         }
+
+                        inspectorRow("Cursor + Clicks") {
+                            Toggle(
+                                "",
+                                isOn: Binding(
+                                    get: { inputTrackingModel.isEnabled },
+                                    set: { inputTrackingModel.setEnabled($0) }
+                                )
+                            )
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .accessibilityLabel(Text("Cursor + Clicks"))
+                            .disabled(captureEngine.isRecording)
+                        }
+
+                        if inputTrackingModel.permissionStatus == .denied {
+                            Text("Input Monitoring permission is required to track cursor and clicks.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Section("Recording") {
