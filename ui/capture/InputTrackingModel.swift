@@ -48,18 +48,14 @@ final class InputTrackingModel: ObservableObject {
         session.start(referenceTime: referenceTime)
     }
 
-    func stopAndPersist() -> URL? {
+    func stopAndPersist() throws -> URL? {
         guard session.isRunning else { return nil }
         let log = session.stop()
         guard !log.events.isEmpty else { return nil }
         let url = makeEventsURL()
-        do {
-            try log.write(to: url)
-            lastEventsURL = url
-            return url
-        } catch {
-            return nil
-        }
+        try log.write(to: url)
+        lastEventsURL = url
+        return url
     }
 
     private func makeEventsURL() -> URL {
