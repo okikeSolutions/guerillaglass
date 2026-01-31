@@ -251,6 +251,15 @@ Project directory contents:
 - `audio_mic.m4a` (optional)
 - `events.json` (optional)
 
+`events.json` schema (v1):
+
+- Root object: `schemaVersion` (Int), `events` (array)
+- Event fields:
+  - `type`: `cursorMoved` | `mouseDown` | `mouseUp`
+  - `timestamp`: seconds since recording start (Double)
+  - `position`: `{ "x": Double, "y": Double }` in global screen coordinates (points)
+  - `button`: optional `left` | `right` | `other` (for mouse down/up)
+
 Library & recents:
 
 - Maintain a private library index in Application Support for “Open Recent”
@@ -380,7 +389,7 @@ Progress (current repo)
 
 Progress (current repo)
 
-- [ ] Input Monitoring permission flow + event tracking
+- [x] Input Monitoring permission flow + event tracking
 - [ ] Auto-zoom planning + constraints
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
