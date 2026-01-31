@@ -9,7 +9,12 @@ enum CaptureSource: String, CaseIterable, Identifiable {
     }
 
     var title: LocalizedStringKey {
-        LocalizedStringKey(rawValue.capitalized)
+        switch self {
+        case .display:
+            "Display"
+        case .window:
+            "Window"
+        }
     }
 }
 
@@ -21,7 +26,7 @@ enum StudioMode: String, CaseIterable, Identifiable {
         rawValue
     }
 
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
         case .capture:
             "Capture"

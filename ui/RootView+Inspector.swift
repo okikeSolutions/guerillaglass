@@ -1,3 +1,4 @@
+import AppKit
 import Export
 import SwiftUI
 
@@ -20,6 +21,7 @@ extension RootView {
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
+                            .accessibilityLabel(Text("Source"))
                             .frame(width: 180)
                             .disabled(captureEngine.isRunning)
                         }
@@ -37,6 +39,7 @@ extension RootView {
                                         }
                                     }
                                     .labelsHidden()
+                                    .accessibilityLabel(Text("Window"))
                                     .frame(width: 160)
                                     .disabled(captureEngine.isRunning)
 
@@ -55,6 +58,7 @@ extension RootView {
                             Toggle("", isOn: $micEnabled)
                                 .toggleStyle(.switch)
                                 .labelsHidden()
+                                .accessibilityLabel(Text("Microphone"))
                                 .disabled(captureEngine.isRunning)
                         }
                     }
@@ -67,6 +71,7 @@ extension RootView {
                                 }
                             }
                             .labelsHidden()
+                            .accessibilityLabel(Text("Preset"))
                             .frame(width: 180)
                         }
                     }
@@ -97,7 +102,8 @@ extension RootView {
                 Section {
                     DisclosureGroup("Diagnostics", isExpanded: $showDiagnostics) {
                         inspectorRow("Recording") {
-                            Text(captureEngine.isRunning ? "Active" : "Idle")
+                            let status: LocalizedStringKey = captureEngine.isRunning ? "Active" : "Idle"
+                            Text(status)
                                 .foregroundStyle(.secondary)
                         }
 
@@ -107,7 +113,8 @@ extension RootView {
                         }
 
                         inspectorRow("Export") {
-                            Text(isExporting ? "In Progress" : "Idle")
+                            let status: LocalizedStringKey = isExporting ? "In Progress" : "Idle"
+                            Text(status)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -135,13 +142,13 @@ extension RootView {
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.black.opacity(0.08))
+                .strokeBorder(inspectorBorderColor, lineWidth: inspectorBorderLineWidth)
         )
         .frame(minWidth: 260, idealWidth: 280, maxWidth: 320)
     }
 
     private func inspectorRow(
-        _ title: String,
+        _ title: LocalizedStringKey,
         @ViewBuilder content: () -> some View
     ) -> some View {
         LabeledContent(title) {
@@ -154,16 +161,20 @@ extension RootView {
     private var trimControls: some View {
         Group {
             inspectorRow("Trim In") {
-                trimField(value: $trimInSeconds, range: 0 ... effectiveDuration)
+                trimField(value: $trimInSeconds, range: 0 ... effectiveDuration, label: "Trim In")
             }
 
             inspectorRow("Trim Out") {
-                trimField(value: $trimOutSeconds, range: 0 ... effectiveDuration)
+                trimField(value: $trimOutSeconds, range: 0 ... effectiveDuration, label: "Trim Out")
             }
         }
     }
 
-    private func trimField(value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+    private func trimField(
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        label: LocalizedStringKey
+    ) -> some View {
         HStack(spacing: 6) {
             TextField(
                 "",
@@ -172,9 +183,11 @@ extension RootView {
             )
             .multilineTextAlignment(.trailing)
             .frame(width: 64)
+            .accessibilityLabel(Text(label))
 
             Stepper("", value: value, in: range, step: 0.1)
                 .labelsHidden()
+                .accessibilityLabel(Text(label))
         }
     }
 
@@ -185,5 +198,13 @@ extension RootView {
             }
         }
         .disabled(captureEngine.recordingURL == nil || isExporting)
+    }
+
+    private var inspectorBorderColor: Color {
+        highContrastEnabled ? Color(nsColor: .separatorColor) : Color.black.opacity(0.08)
+    }
+
+    private var inspectorBorderLineWidth: CGFloat {
+        highContrastEnabled ? 2 : 1
     }
 }

@@ -6,21 +6,30 @@ struct RecordingPlaybackView: View {
     @Binding var trimInSeconds: Double
     @Binding var trimOutSeconds: Double
     @StateObject private var thumbnailProvider = FilmstripThumbnailProvider()
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @State private var highContrastEnabled = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
 
     var body: some View {
         VStack(spacing: 12) {
             PlayerView(player: model.player)
-                .background(Color.black.opacity(0.12))
+                .background(playerBackgroundColor)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .strokeBorder(Color.black.opacity(0.08))
+                        .strokeBorder(playerBorderColor, lineWidth: playerBorderLineWidth)
                 )
 
             timelinePanel
                 .frame(minHeight: 120, idealHeight: 140, maxHeight: 180)
         }
         .padding(10)
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification
+            )
+        ) { _ in
+            highContrastEnabled = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        }
     }
 
     private var frameRate: Double {
@@ -67,6 +76,7 @@ struct RecordingPlaybackView: View {
                     trimInSeconds: trimInSeconds,
                     trimOutSeconds: trimOutSeconds,
                     currentTime: model.currentTime,
+                    highContrastEnabled: highContrastEnabled,
                     thumbnailProvider: thumbnailProvider,
                     onSeek: { seconds in
                         model.updateScrubbing(to: seconds)
@@ -80,7 +90,7 @@ struct RecordingPlaybackView: View {
                 )
             } else {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.black.opacity(0.06))
+                    .fill(placeholderColor)
                     .frame(height: 60)
             }
 
@@ -113,8 +123,10 @@ struct RecordingPlaybackView: View {
                     }
                 )
                 .disabled(model.duration <= 0)
+                .accessibilityLabel(Text("Playback Position"))
+                .accessibilityValue(Text("Frame \(currentFrame) of \(totalFrames)"))
 
-                Text("\(String(localized: "Frame")) \(currentFrame) / \(totalFrames)")
+                Text("Frame \(currentFrame) / \(totalFrames)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
@@ -122,8 +134,28 @@ struct RecordingPlaybackView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.black.opacity(0.04))
+                .fill(panelBackgroundColor)
         )
+    }
+
+    private var playerBackgroundColor: Color {
+        reduceTransparency ? Color(nsColor: .controlBackgroundColor) : Color.black.opacity(0.12)
+    }
+
+    private var playerBorderColor: Color {
+        highContrastEnabled ? Color(nsColor: .separatorColor) : Color.black.opacity(0.08)
+    }
+
+    private var playerBorderLineWidth: CGFloat {
+        highContrastEnabled ? 2 : 1
+    }
+
+    private var panelBackgroundColor: Color {
+        reduceTransparency ? Color(nsColor: .controlBackgroundColor) : Color.black.opacity(0.04)
+    }
+
+    private var placeholderColor: Color {
+        reduceTransparency ? Color(nsColor: .controlBackgroundColor) : Color.black.opacity(0.06)
     }
 }
 
@@ -135,6 +167,7 @@ private struct FilmstripTimelineView: View {
     let trimInSeconds: Double
     let trimOutSeconds: Double
     let currentTime: Double
+    let highContrastEnabled: Bool
     @ObservedObject var thumbnailProvider: FilmstripThumbnailProvider
     let onSeek: (Double) -> Void
     let onBeginScrub: () -> Void
@@ -143,6 +176,7 @@ private struct FilmstripTimelineView: View {
     private let cellWidth: CGFloat = 48
     private let cellHeight: CGFloat = 54
     private let spacing: CGFloat = 2
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         let frames = frameIndices
@@ -231,7 +265,7 @@ private struct FilmstripTimelineView: View {
     private func thumbnailView(frameIndex: Int) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 4)
-                .fill(Color.black.opacity(0.08))
+                .fill(thumbnailBackgroundColor)
             if let image = thumbnailProvider.thumbnails[frameIndex] {
                 Image(nsImage: image)
                     .resizable()
@@ -243,7 +277,7 @@ private struct FilmstripTimelineView: View {
         .frame(width: cellWidth, height: cellHeight)
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(Color.black.opacity(0.1))
+                .strokeBorder(thumbnailBorderColor, lineWidth: thumbnailBorderLineWidth)
         )
     }
 
@@ -260,7 +294,7 @@ private struct FilmstripTimelineView: View {
             let width = CGFloat(endSlot - startSlot + 1) * (cellWidth + spacing) - spacing
 
             RoundedRectangle(cornerRadius: 4)
-                .fill(Color.accentColor.opacity(0.2))
+                .fill(trimOverlayColor)
                 .frame(width: width, height: cellHeight)
                 .offset(x: startX)
         }
@@ -277,8 +311,28 @@ private struct FilmstripTimelineView: View {
 
             Rectangle()
                 .fill(Color.accentColor)
-                .frame(width: 2, height: cellHeight)
+                .frame(width: playheadWidth, height: cellHeight)
                 .offset(x: playheadX)
         }
+    }
+
+    private var thumbnailBackgroundColor: Color {
+        reduceTransparency ? Color(nsColor: .controlBackgroundColor) : Color.black.opacity(0.08)
+    }
+
+    private var thumbnailBorderColor: Color {
+        highContrastEnabled ? Color(nsColor: .separatorColor) : Color.black.opacity(0.1)
+    }
+
+    private var thumbnailBorderLineWidth: CGFloat {
+        highContrastEnabled ? 2 : 1
+    }
+
+    private var trimOverlayColor: Color {
+        highContrastEnabled ? Color.accentColor.opacity(0.4) : Color.accentColor.opacity(0.2)
+    }
+
+    private var playheadWidth: CGFloat {
+        highContrastEnabled ? 3 : 2
     }
 }

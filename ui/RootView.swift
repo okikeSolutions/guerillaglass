@@ -1,3 +1,4 @@
+import AppKit
 import Capture
 import CoreGraphics
 import Export
@@ -7,6 +8,7 @@ import SwiftUI
 public struct RootView: View {
     @EnvironmentObject var libraryModel: ProjectLibraryModel
     @Environment(\.openDocument) private var openDocument
+    @Environment(\.accessibilityReduceTransparency) var reduceTransparency
     @Binding var document: GuerillaglassDocument
     @StateObject var captureEngine = CaptureEngine()
     @StateObject var playbackModel = RecordingPlaybackModel()
@@ -24,6 +26,8 @@ public struct RootView: View {
     @State var showDiagnostics = false
     @State var isNavigatorDropTarget = false
     @State var isPreviewDropTarget = false
+    @State var highContrastEnabled = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+    @State private var splitPaneFrames: [SplitPane: CGRect] = [:]
     let fileURL: URL?
     let exportPipeline = ExportPipeline()
 
@@ -45,15 +49,35 @@ public struct RootView: View {
                     navigatorPane
                         .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
                         .padding(.trailing, 12)
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: SplitPaneFramePreferenceKey.self,
+                                value: [.navigator: proxy.frame(in: .named("RootSplitView"))]
+                            )
+                        })
 
                     previewPanel
                         .frame(minWidth: 520)
                         .padding(.leading, 12)
                         .padding(.trailing, 12)
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: SplitPaneFramePreferenceKey.self,
+                                value: [.preview: proxy.frame(in: .named("RootSplitView"))]
+                            )
+                        })
 
                     inspectorPane
                         .padding(.leading, 12)
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: SplitPaneFramePreferenceKey.self,
+                                value: [.inspector: proxy.frame(in: .named("RootSplitView"))]
+                            )
+                        })
                 }
+                .coordinateSpace(name: "RootSplitView")
+                .onPreferenceChange(SplitPaneFramePreferenceKey.self) { splitPaneFrames = $0 }
                 .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -65,6 +89,7 @@ public struct RootView: View {
         .toolbar {
             rootToolbar
         }
+        .toolbarBackground(.hidden, for: .windowToolbar)
         .focusedValue(
             \.exportCommandHandler,
             ExportCommandHandler(canExport: canExport) { [self] in
@@ -80,6 +105,13 @@ public struct RootView: View {
             if captureSource == .window, !usesSystemPicker {
                 await captureEngine.refreshShareableContent()
             }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification
+            )
+        ) { _ in
+            highContrastEnabled = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         }
         .onChange(of: captureSource) { newValue in
             if newValue == .window, !usesSystemPicker {
@@ -168,5 +200,19 @@ public struct RootView: View {
         Task {
             try? await openDocument(at: url)
         }
+    }
+}
+
+private enum SplitPane: Hashable {
+    case navigator
+    case preview
+    case inspector
+}
+
+private struct SplitPaneFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [SplitPane: CGRect] = [:]
+
+    static func reduce(value: inout [SplitPane: CGRect], nextValue: () -> [SplitPane: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }

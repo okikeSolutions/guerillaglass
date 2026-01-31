@@ -82,10 +82,11 @@ extension RootView {
             HStack(spacing: 10) {
                 statusBadge
 
+                let statusLabel: LocalizedStringKey = captureEngine.isRecording ? "Recording" : "Ready"
                 HStack(spacing: 8) {
                     Text(timecodeText)
                         .font(.system(.subheadline, design: .monospaced))
-                    Text(captureEngine.isRecording ? "Recording" : "Ready")
+                    Text(statusLabel)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -105,12 +106,13 @@ extension RootView {
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
-            .help("More")
+            .help(String(localized: "More"))
+            .accessibilityLabel(Text("More"))
         }
     }
 
     private var statusBadge: some View {
-        let title: String
+        let title: LocalizedStringKey
         let color: Color
 
         if captureEngine.isRecording {
@@ -128,16 +130,22 @@ extension RootView {
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(color.opacity(0.15))
+            .background(color.opacity(statusBadgeOpacity))
             .clipShape(Capsule())
             .foregroundStyle(color)
     }
 
+    private var statusBadgeOpacity: Double {
+        if highContrastEnabled {
+            return reduceTransparency ? 0.4 : 0.25
+        }
+        return reduceTransparency ? 0.3 : 0.15
+    }
+
     private var timecodeText: String {
         let totalSeconds = max(0, Int(captureEngine.recordingDuration))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        let duration = Duration.seconds(Int64(totalSeconds))
+        return duration.formatted(.time(pattern: .minuteSecond))
     }
 
     private var canStartCapture: Bool {
