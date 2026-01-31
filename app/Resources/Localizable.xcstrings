@@ -17,6 +17,22 @@
         }
       }
     },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
     "Capture": {
       "localizations": {
         "de": {
@@ -129,6 +145,22 @@
         }
       }
     },
+    "Cursor + Clicks": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor + Klicks"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor + Clicks"
+          }
+        }
+      }
+    },
     "Devices": {
       "localizations": {
         "de": {
@@ -221,6 +253,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit"
+          }
+        }
+      }
+    },
+    "Enable Input Monitoring to capture cursor and click events.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivieren Sie das Eingabemonitoring, um Cursor- und Klickereignisse zu erfassen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Input Monitoring to capture cursor and click events."
           }
         }
       }
@@ -493,6 +541,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "In Progress"
+          }
+        }
+      }
+    },
+    "Input Monitoring Required": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingabemonitoring erforderlich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Monitoring Required"
+          }
+        }
+      }
+    },
+    "Input Monitoring permission is required to track cursor and clicks.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Eingabemonitoring-Berechtigung ist erforderlich, um Cursor und Klicks zu verfolgen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input Monitoring permission is required to track cursor and clicks."
           }
         }
       }
@@ -797,6 +877,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open Recent"
+          }
+        }
+      }
+    },
+    "Open System Settings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systemeinstellungen öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open System Settings"
           }
         }
       }
