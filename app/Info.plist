@@ -37,10 +37,10 @@
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Guerillaglass records microphone audio when enabled.</string>
-	<key>NSInputMonitoringUsageDescription</key>
-	<string>Guerillaglass uses input monitoring to capture cursor and click events.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Guerillaglass records microphone audio when enabled.</string>
+    <key>NSInputMonitoringUsageDescription</key>
+    <string>Guerillaglass uses input monitoring to capture cursor and click events.</string>
     <key>UTExportedTypeDeclarations</key>
     <array>
         <dict>
