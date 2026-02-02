@@ -1,0 +1,14 @@
+{
+  "name": "guerillaglass",
+  "private": true,
+  "scripts": {
+    "start": "./Scripts/compile_and_run.sh",
+    "start:debug": "./Scripts/compile_and_run.sh",
+    "start:release": "./Scripts/package_app.sh release",
+    "full_gate": "./Scripts/full_gate.sh",
+    "build": "swift build",
+    "test": "swift test",
+    "format": "swiftformat .",
+    "lint": "swiftlint"
+  }
+}
