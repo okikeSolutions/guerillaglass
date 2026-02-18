@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "engines/protocol-rust",
+  "engines/windows-native",
+  "engines/linux-native",
+]
+resolver = "2"

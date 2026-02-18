@@ -35,6 +35,8 @@ guerillaglass.app/
 node_modules/
 apps/*/dist/
 apps/*/build/
+target/
+Cargo.lock
 
 # CocoaPods
 #
