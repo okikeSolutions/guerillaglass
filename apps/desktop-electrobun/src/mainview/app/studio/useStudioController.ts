@@ -319,15 +319,6 @@ export function useStudioController() {
         project: project.data,
       };
     },
-    onSuccess: (data) => {
-      if (!data.ping) {
-        return;
-      }
-      setNotice({
-        kind: "info",
-        message: enUS.app.connectionMessage(data.ping.platform, data.ping.engineVersion),
-      });
-    },
     onError: (error) => {
       setNotice({
         kind: "error",

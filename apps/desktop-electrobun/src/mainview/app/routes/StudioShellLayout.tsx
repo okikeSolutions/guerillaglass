@@ -1,15 +1,26 @@
-import { FolderOpen, Keyboard, Pause, Play, RefreshCcw, Save, Scissors, Video } from "lucide-react";
+import {
+  AlertTriangle,
+  CircleDot,
+  FolderOpen,
+  Pause,
+  Play,
+  RefreshCcw,
+  Save,
+  Scissors,
+  ShieldAlert,
+  ShieldCheck,
+  Video,
+} from "lucide-react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStudio } from "../studio/context";
 import { TimelineSurface } from "./TimelineSurface";
 
 function modeTabClass(isActive: boolean): string {
   return isActive
-    ? "rounded-md bg-background px-3 py-1.5 text-xs font-medium text-foreground"
-    : "rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground";
+    ? "rounded bg-background px-2 py-1 text-[0.7rem] font-medium text-foreground"
+    : "rounded px-2 py-1 text-[0.7rem] font-medium text-muted-foreground hover:text-foreground";
 }
 
 export function StudioShellLayout() {
@@ -23,48 +34,12 @@ export function StudioShellLayout() {
   const deliverActive = pathname.startsWith("/deliver");
 
   return (
-    <div className="min-h-screen bg-background px-4 py-4 lg:px-6">
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-3">
-        <header className="gg-panel border-border/80 p-4">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <p className="text-[0.68rem] tracking-[0.2em] text-muted-foreground uppercase">
-                {studio.ui.app.shellState}
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">{studio.ui.app.title}</h1>
-              <p className="text-sm text-muted-foreground">{studio.ui.app.subtitle}</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={studio.permissionBadgeVariant(studio.permissionsQuery.data)}>
-                {studio.permissionsQuery.data?.screenRecordingGranted
-                  ? studio.ui.labels.permissionReady
-                  : studio.ui.labels.permissionRequired}
-              </Badge>
-              <Badge variant="secondary">{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</Badge>
-              {studio.inputMonitoringDenied && studio.settingsForm.state.values.trackInputEvents ? (
-                <Badge variant="destructive">{studio.ui.helper.degradedModeTitle}</Badge>
-              ) : null}
-              <Button
-                onClick={() => void studio.refreshAll()}
-                disabled={studio.isRunningAction || studio.isRefreshing}
-              >
-                <RefreshCcw className="mr-2 h-4 w-4" /> {studio.ui.actions.refresh}
-              </Button>
-              <Button
-                onClick={() => void studio.toggleRecordingMutation.mutateAsync()}
-                disabled={studio.isRunningAction}
-              >
-                <Video className="mr-2 h-4 w-4" />
-                {studio.captureStatusQuery.data?.isRecording
-                  ? studio.ui.actions.stopRecording
-                  : studio.ui.actions.startRecording}
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-md bg-secondary/50 p-1">
+    <div className="h-full overflow-hidden bg-background">
+      <div className="mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border border-border/80 bg-card shadow-[0_20px_50px_rgba(8,15,35,0.14)]">
+        <header className="border-b border-border/80 bg-background/80 px-4 py-2 backdrop-blur-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="mr-2 text-sm font-semibold tracking-tight">{studio.ui.app.title}</h1>
+            <div className="flex items-center gap-1 rounded bg-secondary/50 p-1">
               <Link to="/capture" className={modeTabClass(captureActive)}>
                 Capture
               </Link>
@@ -75,42 +50,93 @@ export function StudioShellLayout() {
                 Deliver
               </Link>
             </div>
-          </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-              <Keyboard className="h-3.5 w-3.5" /> {studio.ui.shortcuts.title}
-            </span>
-            <span className="gg-keycap">{studio.ui.shortcuts.playPause}</span>
-            <span className="gg-keycap">{studio.ui.shortcuts.record}</span>
-            <span className="gg-keycap">{studio.ui.shortcuts.trimIn}</span>
-            <span className="gg-keycap">{studio.ui.shortcuts.trimOut}</span>
-            <span className="gg-keycap">{studio.ui.shortcuts.save}</span>
-            <span className="gg-keycap">{studio.ui.shortcuts.saveAs}</span>
-            <span className="gg-keycap">{studio.ui.shortcuts.export}</span>
+            <span className="hidden h-5 w-px bg-border/80 lg:block" aria-hidden />
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Badge
+                className="h-6 px-1.5"
+                variant={studio.permissionBadgeVariant(studio.permissionsQuery.data)}
+                title={
+                  studio.permissionsQuery.data?.screenRecordingGranted
+                    ? studio.ui.labels.permissionReady
+                    : studio.ui.labels.permissionRequired
+                }
+              >
+                {studio.permissionsQuery.data?.screenRecordingGranted ? (
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                ) : (
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                )}
+                <span className="sr-only">
+                  {studio.permissionsQuery.data?.screenRecordingGranted
+                    ? studio.ui.labels.permissionReady
+                    : studio.ui.labels.permissionRequired}
+                </span>
+              </Badge>
+              <Badge
+                className="h-6 gap-1.5 px-2"
+                variant="secondary"
+                title={`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}
+              >
+                <CircleDot className="h-3.5 w-3.5" />
+                <span className="text-[0.65rem] tracking-[0.08em] uppercase">
+                  {studio.captureStatusLabel}
+                </span>
+              </Badge>
+              {studio.inputMonitoringDenied && studio.settingsForm.state.values.trackInputEvents ? (
+                <Badge
+                  className="h-6 px-1.5"
+                  variant="destructive"
+                  title={studio.ui.helper.degradedModeTitle}
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="sr-only">{studio.ui.helper.degradedModeTitle}</span>
+                </Badge>
+              ) : null}
+              <Button
+                size="sm"
+                onClick={() => void studio.refreshAll()}
+                disabled={studio.isRunningAction || studio.isRefreshing}
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" /> {studio.ui.actions.refresh}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void studio.toggleRecordingMutation.mutateAsync()}
+                disabled={studio.isRunningAction}
+              >
+                <Video className="mr-2 h-4 w-4" />
+                {studio.captureStatusQuery.data?.isRecording
+                  ? studio.ui.actions.stopRecording
+                  : studio.ui.actions.startRecording}
+              </Button>
+            </div>
           </div>
         </header>
 
         {studio.notice ? (
-          <Card
+          <div
             className={
-              studio.notice.kind === "error" ? "border-destructive/60" : "border-border/70"
+              studio.notice.kind === "error"
+                ? "border-b border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                : "border-b border-border/70 bg-muted/50 px-4 py-3 text-sm"
             }
           >
-            <CardContent className="pt-5 text-sm">{studio.notice.message}</CardContent>
-          </Card>
+            {studio.notice.message}
+          </div>
         ) : null}
 
-        <Outlet />
+        <div className="flex-1 min-h-0 overflow-auto">
+          <Outlet />
+        </div>
 
-        <Card className="gg-panel">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Scissors className="h-4 w-4" /> {studio.ui.sections.timeline}
-            </CardTitle>
-            <CardDescription>{studio.ui.helper.activePreviewBody}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <footer className="border-t border-border/80 bg-background/75 px-4 py-3 backdrop-blur-sm">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+            <Scissors className="h-4 w-4" /> {studio.ui.sections.timeline}
+          </div>
+
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" variant="secondary" onClick={studio.toggleTimelinePlayback}>
                 {studio.isTimelinePlaying ? (
@@ -178,8 +204,8 @@ export function StudioShellLayout() {
               <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
               <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </footer>
       </div>
     </div>
   );

@@ -1,34 +1,33 @@
 import { HardDriveDownload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStudio } from "../studio/context";
 
 export function DeliverRoute() {
   const studio = useStudio();
 
   return (
-    <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <Card className="gg-panel">
-        <CardHeader>
-          <CardTitle className="text-base">Delivery Summary</CardTitle>
-          <CardDescription>Final output settings and project metadata</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
+    <section className="gg-editor-shell">
+      <aside className="gg-pane gg-pane-left">
+        <div className="gg-pane-header">
+          <h2 className="text-sm font-semibold tracking-wide uppercase">Delivery Summary</h2>
+          <p className="gg-pane-subtitle">Final output settings and project metadata</p>
+        </div>
+        <div className="gg-pane-body space-y-3 text-sm">
           <div className="truncate">{`${studio.ui.labels.projectPath}: ${studio.projectQuery.data?.projectPath ?? studio.ui.labels.notSaved}`}</div>
           <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
           <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
           <div>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</div>
           <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</div>
           <div>{`${studio.ui.labels.preset}: ${studio.selectedPreset?.name ?? "-"}`}</div>
-        </CardContent>
-      </Card>
+        </div>
+      </aside>
 
-      <Card className="gg-panel">
-        <CardHeader>
-          <CardTitle className="text-base">Export</CardTitle>
-          <CardDescription>Type-safe delivery form with validation-ready shape</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
+      <section className="gg-pane gg-pane-center">
+        <div className="gg-pane-header">
+          <h2 className="text-sm font-semibold tracking-wide uppercase">Export</h2>
+          <p className="gg-pane-subtitle">Type-safe delivery form with validation-ready shape</p>
+        </div>
+        <div className="gg-pane-body space-y-3 text-sm">
           <studio.exportForm.Field name="presetId">
             {(field) => (
               <label className="grid gap-1">
@@ -115,8 +114,38 @@ export function DeliverRoute() {
           >
             <HardDriveDownload className="mr-2 h-4 w-4" /> {studio.ui.actions.exportNow}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      <aside className="gg-pane gg-pane-right">
+        <div className="gg-pane-header">
+          <h2 className="text-sm font-semibold tracking-wide uppercase">Inspector</h2>
+          <p className="gg-pane-subtitle">Export context and active preset</p>
+        </div>
+        <div className="gg-pane-body space-y-3 text-sm">
+          <div className="rounded-md border border-border/70 bg-background/70 p-3">
+            <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              Active Preset
+            </p>
+            <div>{studio.selectedPreset?.name ?? "-"}</div>
+            {studio.selectedPreset ? (
+              <div className="text-muted-foreground">
+                {studio.formatAspectRatio(
+                  studio.selectedPreset.width,
+                  studio.selectedPreset.height,
+                )}
+              </div>
+            ) : null}
+          </div>
+          <div className="rounded-md border border-border/70 bg-background/70 p-3">
+            <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              Trim Window
+            </p>
+            <div>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</div>
+            <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</div>
+          </div>
+        </div>
+      </aside>
     </section>
   );
 }

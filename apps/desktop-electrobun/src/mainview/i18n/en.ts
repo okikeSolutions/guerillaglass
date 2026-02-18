@@ -3,8 +3,6 @@ export const enUS = {
     title: "Guerillaglass",
     subtitle: "Desktop Editor Shell",
     shellState: "Spec-aligned capture and editing workflow",
-    connectionMessage: (platform: string, version: string) =>
-      `Connected to ${platform} engine v${version}.`,
   },
   notices: {
     refreshFailed: "Failed to refresh app state.",
