@@ -3,24 +3,24 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 42% 14%;
-    --card-foreground: 210 40% 98%;
-    --primary: 172 80% 44%;
-    --primary-foreground: 220 23% 8%;
-    --secondary: 219 20% 20%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 16% 24%;
-    --muted-foreground: 215 20% 76%;
-    --accent: 189 79% 46%;
-    --accent-foreground: 215 25% 12%;
-    --destructive: 0 72% 51%;
+    --background: 220 16% 8%;
+    --foreground: 210 20% 96%;
+    --card: 220 14% 10%;
+    --card-foreground: 210 20% 96%;
+    --primary: 201 84% 56%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 220 12% 18%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 220 12% 15%;
+    --muted-foreground: 214 14% 70%;
+    --accent: 195 80% 45%;
+    --accent-foreground: 220 20% 10%;
+    --destructive: 0 78% 58%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 19% 27%;
-    --input: 217 19% 27%;
-    --ring: 172 80% 44%;
-    --radius: 0.75rem;
+    --border: 220 14% 22%;
+    --input: 220 14% 20%;
+    --ring: 201 84% 56%;
+    --radius: 0.65rem;
   }
 
   * {
@@ -31,7 +31,31 @@
     @apply bg-background text-foreground antialiased;
     font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
     background-image:
-      radial-gradient(circle at 10% -10%, rgba(45, 212, 191, 0.16), transparent 35%),
-      radial-gradient(circle at 90% 0%, rgba(34, 211, 238, 0.12), transparent 35%);
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.05), rgba(2, 6, 23, 0)),
+      radial-gradient(circle at 20% -10%, rgba(56, 189, 248, 0.1), transparent 30%);
+  }
+
+  button,
+  input,
+  select {
+    @apply outline-none;
+  }
+}
+
+@layer components {
+  .gg-panel {
+    @apply ring-foreground/10 border bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
+  }
+
+  .gg-keycap {
+    @apply rounded border border-border/80 bg-muted/80 px-1.5 py-0.5 font-mono text-[0.66rem] text-foreground/90;
+  }
+
+  .gg-input {
+    @apply w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground;
+  }
+
+  .gg-preview-stage {
+    @apply flex min-h-[340px] items-center justify-center rounded-md border border-border/80 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-5;
   }
 }

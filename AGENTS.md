@@ -83,6 +83,7 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 ## Conventions to Follow
 
 - **Desktop UX:** Prioritize an Electrobun-first desktop UX with clear keyboard navigation, accessible semantics, and platform-appropriate shortcuts. Respect Reduce Motion, Increase Contrast, Reduce Transparency where available.
+- **Desktop layout contract:** Treat Guerilla Glass as an editor-first product, not a dashboard. Keep the primary shell anchored around transport + preview + timeline + inspector (with optional source/utility rail), and do not regress to card-dashboard-first layouts for core workflows.
 - **Determinism:** Pre-encode frame buffers must be deterministic (same project + version + settings + hardware class ⇒ pixel-identical frames). Encoding bytes are not guaranteed identical. Tests hash pre-encode frames; update rendering determinism tests when changing the pipeline.
 - **Permissions:** Screen Recording required; Microphone and Input Monitoring only when those features are enabled. If Input Monitoring is denied, recording continues but auto-zoom/click highlights are disabled—UI must show degraded mode clearly.
 - **Versioning:** Project schema always migrates forward on load; never write older schema versions.

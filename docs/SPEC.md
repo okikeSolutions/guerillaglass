@@ -139,6 +139,20 @@ Notes:
   - 1080×1920 30fps H.264
 - Output: MP4 or MOV
 
+### 7.5 Desktop editor layout contract (non-dashboard)
+
+- Guerilla Glass is a screen recording and editing tool. The primary shell must follow an editor-first layout (closer to pro NLE/recording tools) and must not ship as a generic settings dashboard.
+- Required primary regions:
+  - Top transport/status bar (record state, elapsed time, core actions)
+  - Center preview/stage as the dominant surface
+  - Bottom timeline with scrubber/playhead and trim controls
+  - Right inspector for contextual settings (capture/effects/export/project)
+  - Optional left utility panel for sources/scenes/session state
+- Timeline and preview are first-class workflow surfaces, not secondary cards.
+- Permission and diagnostics views are supportive panels; they must not become the app’s primary visual hierarchy.
+- Keyboard-first controls must be preserved for core actions (record toggle, play/pause, trim in/out, save, export).
+- Degraded-mode messaging (for denied Input Monitoring or similar capability gaps) must remain visible in context near preview/record controls.
+
 ---
 
 ## 8) Permissions & fallbacks
