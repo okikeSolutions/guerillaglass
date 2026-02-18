@@ -1,8 +1,8 @@
-# Spec.md — guerillglass (Open‑source “Screen Studio–style” Recorder for macOS)
+# Spec.md — guerillglass (Open‑source “Screen Studio–style” Recorder with Hybrid Desktop Architecture)
 
 ## 1) Goal
 
-Build an open-source macOS app that records:
+Build an open-source recorder that uses a cross-platform desktop shell with a native macOS media engine and records:
 
 - Entire display(s) or a single window (including iOS Simulator)
 - Optional system audio + microphone
@@ -46,15 +46,17 @@ Build an open-source macOS app that records:
 - Live streaming (RTMP)
 - Cloud sync/collaboration
 - Full NLE feature set
-- Cross-platform support
+- Native Windows/Linux capture backends in v1
 
 ---
 
 ## 4) Platform & stack
 
-- **macOS baseline (v1):** 13.0+
-  - Stretch: validate whether **12.3+ video-only** support is feasible; keep runtime availability checks either way.
-- Language/UI: Swift + SwiftUI
+- **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
+- **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec
+- **Native engine baseline (v1):** macOS 13.0+
+  - Stretch: validate whether **12.3+ video-only** support is feasible for engine-only paths.
+- Native engine language: Swift
 - **Development environment:** Cursor IDE + SweetPad (no Xcode project workflow).
 - **Build system:** SwiftPM (`Package.swift` is the source of truth; no `.xcodeproj`).
 - **App identity:**
@@ -66,11 +68,11 @@ Build an open-source macOS app that records:
   - Optional: **Periphery** for dead‑code detection in later phases.
   - Build logs: **xcbeautify** for readable CLI output.
   - LSP: **xcode-build-server** to support Cursor/SweetPad indexing.
-- Capture:
+- Native engine capture:
   - ScreenCaptureKit (video + system audio where supported)
   - AVFoundation (microphone capture, universally)
-- Encoding/muxing: AVFoundation
-- Rendering: Metal (preferred), Core Image acceptable for MVP
+- Native engine encoding/muxing: AVFoundation
+- Native engine rendering: Metal (preferred), Core Image acceptable for MVP
 
 ---
 
@@ -276,13 +278,15 @@ Versioning policy:
 
 ## 16) Architecture modules
 
-1. Capture Engine
-2. Event Tracker (permission-gated)
-3. Project Store (schema + migrations)
-4. Automation Planner (virtual camera)
-5. Renderer / Compositor
-6. Export Pipeline
-7. Diagnostics (performance + frame drops)
+1. Desktop Shell (Electrobun main + React/Tailwind renderer)
+2. Engine Protocol (typed request/response wire contract)
+3. Native Capture Engine (permission-gated)
+4. Native Event Tracker (permission-gated)
+5. Project Store (schema + migrations)
+6. Automation Planner (virtual camera)
+7. Renderer / Compositor
+8. Export Pipeline
+9. Diagnostics (performance + frame drops)
 
 ---
 
@@ -294,6 +298,7 @@ guerillaglass/
 ├─ README.md
 ├─ LICENSE
 ├─ Package.swift
+├─ package.json
 ├─ PrivacyInfo.xcprivacy
 ├─ CONTRIBUTING.md
 ├─ CODE_OF_CONDUCT.md
@@ -308,6 +313,20 @@ guerillaglass/
 │ └─ PULL_REQUEST_TEMPLATE.md
 ├─ docs/
 │ └─ SPEC.md
+├─ apps/
+│ └─ desktop-electrobun/
+│   ├─ src/
+│   │ ├─ bun/
+│   │ └─ mainview/
+│   ├─ electrobun.config.ts
+│   ├─ tailwind.config.js
+│   └─ vite.config.ts
+├─ packages/
+│ └─ engine-protocol/
+│   └─ src/
+├─ engines/
+│ ├─ macos-swift/
+│ └─ protocol-swift/
 ├─ app/
 │ ├─ GuerillaglassApp.swift
 │ ├─ AppDelegate.swift
@@ -358,6 +377,18 @@ guerillaglass/
 ---
 
 ## 18) Phased delivery
+
+**Phase 0 — Hybrid platform foundation**
+
+- Electrobun desktop shell with React/Tailwind UI
+- Typed protocol package shared across shell/runtime boundaries
+- Native Swift sidecar engine process for capture permissions/source discovery
+
+Progress (current repo)
+
+- [x] Electrobun shell scaffolded
+- [x] Zod protocol package added
+- [x] Native Swift `guerillaglass-engine` target added
 
 **Phase 1 — Recorder MVP**
 

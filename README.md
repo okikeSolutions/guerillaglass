@@ -1,18 +1,50 @@
 # guerillaglass
-The native, chaotic-fast "Screen Studio" alternative for macOS. Automatic cinematic zooms, buttery smooth cursor motion, and simulator-first recording. Built with Swift and SwiftUI.
+
+Guerillaglass is an open-source screen recording app with cinematic automation.
+
+The project now uses a hybrid architecture:
+
+- Cross-platform desktop shell: Electrobun + React + Tailwind (`/apps/desktop-electrobun`)
+- Native media engine: Swift (`/engines/macos-swift`) using ScreenCaptureKit/AVFoundation
+- Shared typed protocol: Zod schemas (`/packages/engine-protocol`)
 
 ## Requirements
-- macOS 13.0+
+
+- macOS 13+
 - Swift 5.10+
+- Bun 1.3+
 
-## Build
-```
+## Quick Start
+
+```bash
+# Install JS workspace dependencies
+bun install
+
+# Build native app + engine
 swift build
+
+# Run desktop shell (expects native engine binary)
+bun run desktop:dev
 ```
 
-## Run (packaged app)
+## Verification
+
+```bash
+# Swift format/lint/test/build gate
+Scripts/full_gate.sh
+
+# Desktop protocol + bridge tests
+bun run desktop:test:coverage
 ```
+
+## Legacy Native App Runner
+
+```bash
 Scripts/compile_and_run.sh
 ```
 
-Currently in the 'Move Fast and Break Things' phase. I am committing directly to main until we hit Phase 2. If you want to help, open an issue first so we don't accidentally write the same Metal shader at 2 AM.
+## Docs
+
+- Product spec: `/docs/SPEC.md`
+- Hybrid architecture: `/docs/ARCHITECTURE.md`
+- Agent repo conventions: `/AGENTS.md`

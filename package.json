@@ -1,6 +1,10 @@
 {
   "name": "guerillaglass",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "start": "./Scripts/compile_and_run.sh",
     "start:debug": "./Scripts/compile_and_run.sh",
@@ -9,6 +13,11 @@
     "build": "swift build",
     "test": "swift test",
     "format": "swiftformat .",
-    "lint": "swiftlint"
+    "lint": "swiftlint",
+    "desktop:dev": "cd apps/desktop-electrobun && bun run dev",
+    "desktop:dev:hmr": "cd apps/desktop-electrobun && bun run dev:hmr",
+    "desktop:build": "cd apps/desktop-electrobun && bun run build",
+    "desktop:test": "cd apps/desktop-electrobun && bun test",
+    "desktop:test:coverage": "cd apps/desktop-electrobun && bun test --coverage"
   }
 }

@@ -7,9 +7,15 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "guerillaglass", targets: ["guerillaglass"])
+        .executable(name: "guerillaglass", targets: ["guerillaglass"]),
+        .executable(name: "guerillaglass-engine", targets: ["guerillaglass-engine"])
     ],
     targets: [
+        .target(
+            name: "EngineProtocol",
+            dependencies: [],
+            path: "engines/protocol-swift"
+        ),
         .executableTarget(
             name: "guerillaglass",
             dependencies: ["UI"],
@@ -21,6 +27,11 @@ let package = Package(
             resources: [
                 .process("Resources")
             ]
+        ),
+        .executableTarget(
+            name: "guerillaglass-engine",
+            dependencies: ["EngineProtocol", "Capture", "InputTracking"],
+            path: "engines/macos-swift"
         ),
         .target(
             name: "UI",
@@ -91,6 +102,11 @@ let package = Package(
             name: "UITests",
             dependencies: ["UI", "InputTracking", "Project"],
             path: "Tests/uiTests"
+        ),
+        .testTarget(
+            name: "EngineProtocolTests",
+            dependencies: ["EngineProtocol"],
+            path: "Tests/engineProtocolTests"
         )
     ]
 )
