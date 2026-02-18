@@ -153,6 +153,55 @@ Notes:
 - Keyboard-first controls must be preserved for core actions (record toggle, play/pause, trim in/out, save, export).
 - Degraded-mode messaging (for denied Input Monitoring or similar capability gaps) must remain visible in context near preview/record controls.
 
+### 7.6 Creator Studio shell guide (manual implementation + tracking)
+
+This section operationalizes the non-dashboard contract into an implementation plan that can be shipped incrementally while preserving working capture, recording, project open/save, and export behavior.
+
+Design baseline (from pro-tool patterns):
+
+- Workflow-first shell: prioritize throughput and editing clarity over decorative UI chrome.
+- Persistent workstation panes: top transport/status, left utility panel, center viewer, right inspector, bottom timeline.
+- Contextual controls: inspector content changes by selection/mode; avoid showing unrelated settings by default.
+- Keyboard-first operations: all core actions remain available without pointer dependency.
+- Capture-first telemetry: record state, elapsed time, and health indicators stay visible while recording/editing.
+
+Creator Studio implementation requirements:
+
+- Top transport/status bar must always show:
+  - record state
+  - elapsed duration/timecode
+  - quick actions (`record`, `play/pause`, `save`, `export`)
+- Left panel provides session/source access (`sources`, `media`, optional `projects/recent`).
+- Center viewer is the dominant stage; permission or diagnostics UI is supportive, not primary.
+- Right inspector is contextual (`capture`, `effects`, `export`, `project`) and selection-aware.
+- Bottom timeline is always present and treated as a first-class editing surface.
+- Project lifecycle remains first-class in shell:
+  - open existing project
+  - save/save as
+  - preserve project state for repeat exports
+
+Creator Studio tracking checklist (current repo):
+
+- [ ] Replace card-dashboard shell with contiguous editor panes
+- [ ] Add explicit mode switch (`Capture`, `Edit`, `Deliver`) with stable navigation state
+- [ ] Keep timeline permanently visible in primary layout across desktop breakpoints
+- [ ] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
+- [ ] Make inspector fully contextual to selection and mode
+- [ ] Add project utility panel support for recent projects + active project metadata
+- [ ] Add layout persistence (pane sizes/collapse/workspace restore)
+- [ ] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
+- [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
+- [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
+- [x] Keep degraded-mode messaging visible near preview/recording context
+- [ ] Complete accessibility pass for focus visibility, contrast, and reduced-motion behavior
+
+Suggested rollout order:
+
+1. Studio pane scaffold (no protocol changes)
+2. Timeline lanes + contextual inspector behavior
+3. Project utility panel + layout persistence
+4. Capture telemetry expansion + final accessibility polish
+
 ---
 
 ## 8) Permissions & fallbacks
@@ -394,6 +443,7 @@ Progress (current repo)
 - [x] Protocol-based project open/save flow in desktop shell
 - [x] Desktop shell strings are centralized in the React surface
 - [x] Post‑localization polish audit (UI/UX, performance, accessibility)
+- [ ] Creator Studio shell alignment (tracked in §7.6)
 
 **Phase 2 — Cinematic defaults**
 
