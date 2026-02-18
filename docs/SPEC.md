@@ -325,6 +325,8 @@ guerillaglass/
 │   └─ src/
 ├─ engines/
 │ ├─ macos-swift/
+│ ├─ windows-stub/
+│ ├─ linux-stub/
 │ └─ protocol-swift/
 ├─ capture/
 │ ├─ CaptureEngine.swift

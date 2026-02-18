@@ -20,10 +20,40 @@ type PendingRequest = {
   timeout: ReturnType<typeof setTimeout>;
 };
 
+type EngineTarget = "macos-swift" | "windows-stub" | "linux-stub";
+
 function resolveDefaultEnginePath(): string {
   if (process.env.GG_ENGINE_PATH) {
     return process.env.GG_ENGINE_PATH;
   }
+
+  const engineTarget = (process.env.GG_ENGINE_TARGET ?? "").trim() as EngineTarget | "";
+  if (engineTarget === "windows-stub") {
+    return path.resolve(
+      import.meta.dir,
+      "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
+    );
+  }
+  if (engineTarget === "linux-stub") {
+    return path.resolve(
+      import.meta.dir,
+      "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
+    );
+  }
+
+  if (process.platform === "win32") {
+    return path.resolve(
+      import.meta.dir,
+      "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
+    );
+  }
+  if (process.platform === "linux") {
+    return path.resolve(
+      import.meta.dir,
+      "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
+    );
+  }
+
   return path.resolve(import.meta.dir, "../../../.build/debug/guerillaglass-engine");
 }
 

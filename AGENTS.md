@@ -13,6 +13,7 @@
 - **Desktop shell UI:** `apps/desktop-electrobun/src/mainview/` — React app (`App.tsx`), UI components, styling.
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
+- **Platform stub engines:** `engines/windows-stub/`, `engines/linux-stub/` — protocol-compatible stubs for parallel engine work.
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
 - **Capture:** `capture/` — CaptureEngine, DisplayCapture, WindowCapture, AudioCapture, CaptureClock.
 - **Input tracking:** `inputTracking/` — InputPermissionManager, CursorTracker, ClickTracker (permission-gated).
@@ -35,6 +36,8 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **Desktop deps (workspace):** `bun install`
 - **Desktop shell dev:** `bun run desktop:dev`
 - **Desktop shell dev with HMR:** `bun run desktop:dev:hmr`
+- **Desktop shell (Windows stub):** `bun run desktop:dev:windows-stub`
+- **Desktop shell (Linux stub):** `bun run desktop:dev:linux-stub`
 - **Desktop shell test:** `bun run desktop:test`
 - **Desktop shell coverage:** `bun run desktop:test:coverage`
 - **Build:** `swift build`
