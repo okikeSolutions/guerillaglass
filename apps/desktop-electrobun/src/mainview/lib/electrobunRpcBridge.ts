@@ -69,6 +69,7 @@ export function initializeElectrobunRpcBridge(): void {
     rpc.request.ggEngineProjectSave(params);
   window.ggPickDirectory = (startingFolder?: string) =>
     rpc.request.ggPickDirectory({ startingFolder });
+  window.ggReadTextFile = (filePath: string) => rpc.request.ggReadTextFile({ filePath });
   window.ggHostSendMenuState = (state: HostMenuState) => rpc.send.hostMenuState(state);
 
   bridgeInitialized = true;

@@ -21,6 +21,21 @@ export const captureMetadataSchema = z
   })
   .nullable();
 
+export const inputEventSchema = z.object({
+  type: z.enum(["cursorMoved", "mouseDown", "mouseUp"]),
+  timestamp: z.number().nonnegative(),
+  position: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
+  button: z.enum(["left", "right", "other"]).optional(),
+});
+
+export const inputEventLogSchema = z.object({
+  schemaVersion: z.literal(1),
+  events: z.array(inputEventSchema),
+});
+
 export const pingResultSchema = z.object({
   app: z.string().min(1),
   engineVersion: z.string().min(1),
@@ -298,6 +313,8 @@ export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;
 export type ExportRunResult = z.infer<typeof exportRunResultSchema>;
 export type ProjectState = z.infer<typeof projectStateSchema>;
 export type AutoZoomSettings = z.infer<typeof autoZoomSettingsSchema>;
+export type InputEvent = z.infer<typeof inputEventSchema>;
+export type InputEventLog = z.infer<typeof inputEventLogSchema>;
 
 export function buildRequest<TMethod extends EngineRequest["method"]>(
   method: TMethod,

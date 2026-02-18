@@ -3,12 +3,14 @@ import {
   captureStatusResultSchema,
   exportInfoResultSchema,
   exportRunResultSchema,
+  inputEventLogSchema,
   permissionsResultSchema,
   pingResultSchema,
   projectStateSchema,
   sourcesResultSchema,
   type AutoZoomSettings,
   type CaptureStatusResult,
+  type InputEvent,
   type PermissionsResult,
   type PingResult,
   type ProjectState,
@@ -45,6 +47,7 @@ declare global {
       autoZoom?: AutoZoomSettings;
     }) => Promise<unknown>;
     ggPickDirectory?: (startingFolder?: string) => Promise<string | null>;
+    ggReadTextFile?: (filePath: string) => Promise<string>;
     ggHostSendMenuState?: (state: HostMenuState) => void;
   }
 }
@@ -200,4 +203,14 @@ export const desktopApi = {
   async pickDirectory(startingFolder?: string): Promise<string | null> {
     return await requireBridge(window.ggPickDirectory, "ggPickDirectory")(startingFolder);
   },
+
+  async readTextFile(filePath: string): Promise<string> {
+    return await requireBridge(window.ggReadTextFile, "ggReadTextFile")(filePath);
+  },
 };
+
+export function parseInputEventLog(raw: string): InputEvent[] {
+  const parsed = JSON.parse(raw) as unknown;
+  const log = inputEventLogSchema.parse(parsed);
+  return log.events;
+}

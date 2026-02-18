@@ -53,6 +53,10 @@ async function pickDirectory(startingFolder?: string): Promise<string | null> {
   return chosenPaths[0] ?? null;
 }
 
+async function readTextFile(filePath: string): Promise<string> {
+  return await Bun.file(filePath).text();
+}
+
 function applyShellMenus() {
   try {
     ApplicationMenu.setApplicationMenu(buildApplicationMenu(hostMenuState));
@@ -157,6 +161,7 @@ const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
         engineClient.projectSave(params),
       ggPickDirectory: async ({ startingFolder }: { startingFolder?: string }) =>
         pickDirectory(startingFolder),
+      ggReadTextFile: async ({ filePath }: { filePath: string }) => readTextFile(filePath),
     },
     messages: {
       hostMenuState: (nextState: HostMenuState) => {

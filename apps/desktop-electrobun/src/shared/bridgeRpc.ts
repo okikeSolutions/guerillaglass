@@ -72,6 +72,7 @@ type BridgeRequests = {
     response: ProjectState;
   };
   ggPickDirectory: { params: { startingFolder?: string }; response: string | null };
+  ggReadTextFile: { params: { filePath: string }; response: string };
 };
 
 export type DesktopBridgeRPC = {
