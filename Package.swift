@@ -18,37 +18,38 @@ let package = Package(
         .executableTarget(
             name: "guerillaglass-engine",
             dependencies: ["EngineProtocol", "Capture", "InputTracking", "Export", "Project"],
-            path: "engines/macos-swift"
+            path: "engines/macos-swift",
+            exclude: ["modules"]
         ),
         .target(
             name: "Capture",
             dependencies: ["Export"],
-            path: "capture"
+            path: "engines/macos-swift/modules/capture"
         ),
         .target(
             name: "InputTracking",
             dependencies: [],
-            path: "inputTracking"
+            path: "engines/macos-swift/modules/inputTracking"
         ),
         .target(
             name: "Project",
             dependencies: [],
-            path: "project"
+            path: "engines/macos-swift/modules/project"
         ),
         .target(
             name: "Automation",
             dependencies: ["InputTracking"],
-            path: "automation"
+            path: "engines/macos-swift/modules/automation"
         ),
         .target(
             name: "Rendering",
             dependencies: ["Automation"],
-            path: "rendering"
+            path: "engines/macos-swift/modules/rendering"
         ),
         .target(
             name: "Export",
             dependencies: ["Automation", "Rendering"],
-            path: "export"
+            path: "engines/macos-swift/modules/export"
         ),
         .testTarget(
             name: "AutomationTests",
