@@ -1,11 +1,17 @@
 import {
+  actionResultSchema,
   captureStatusResultSchema,
+  exportInfoResultSchema,
+  exportRunResultSchema,
   permissionsResultSchema,
   pingResultSchema,
+  projectStateSchema,
   sourcesResultSchema,
+  type AutoZoomSettings,
   type CaptureStatusResult,
   type PermissionsResult,
   type PingResult,
+  type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
 
@@ -13,12 +19,35 @@ declare global {
   interface Window {
     ggEnginePing?: () => Promise<unknown>;
     ggEngineGetPermissions?: () => Promise<unknown>;
+    ggEngineRequestScreenRecordingPermission?: () => Promise<unknown>;
+    ggEngineRequestMicrophonePermission?: () => Promise<unknown>;
+    ggEngineRequestInputMonitoringPermission?: () => Promise<unknown>;
+    ggEngineOpenInputMonitoringSettings?: () => Promise<unknown>;
     ggEngineListSources?: () => Promise<unknown>;
+    ggEngineStartDisplayCapture?: (enableMic: boolean) => Promise<unknown>;
+    ggEngineStartWindowCapture?: (windowId: number, enableMic: boolean) => Promise<unknown>;
+    ggEngineStopCapture?: () => Promise<unknown>;
+    ggEngineStartRecording?: (trackInputEvents: boolean) => Promise<unknown>;
+    ggEngineStopRecording?: () => Promise<unknown>;
     ggEngineCaptureStatus?: () => Promise<unknown>;
+    ggEngineExportInfo?: () => Promise<unknown>;
+    ggEngineRunExport?: (params: {
+      outputURL: string;
+      presetId: string;
+      trimStartSeconds?: number;
+      trimEndSeconds?: number;
+    }) => Promise<unknown>;
+    ggEngineProjectCurrent?: () => Promise<unknown>;
+    ggEngineProjectOpen?: (projectPath: string) => Promise<unknown>;
+    ggEngineProjectSave?: (params: {
+      projectPath?: string;
+      autoZoom?: AutoZoomSettings;
+    }) => Promise<unknown>;
+    ggPickDirectory?: (startingFolder?: string) => Promise<string | null>;
   }
 }
 
-function requireBridge<T extends (...args: never[]) => Promise<unknown>>(
+function requireBridge<T extends (...args: unknown[]) => Promise<unknown>>(
   bridge: T | undefined,
   name: string,
 ): T {
@@ -39,9 +68,69 @@ export const engineApi = {
     );
   },
 
+  async requestScreenRecordingPermission() {
+    return actionResultSchema.parse(
+      await requireBridge(
+        window.ggEngineRequestScreenRecordingPermission,
+        "ggEngineRequestScreenRecordingPermission",
+      )(),
+    );
+  },
+
+  async requestMicrophonePermission() {
+    return actionResultSchema.parse(
+      await requireBridge(window.ggEngineRequestMicrophonePermission, "ggEngineRequestMicrophonePermission")(),
+    );
+  },
+
+  async requestInputMonitoringPermission() {
+    return actionResultSchema.parse(
+      await requireBridge(
+        window.ggEngineRequestInputMonitoringPermission,
+        "ggEngineRequestInputMonitoringPermission",
+      )(),
+    );
+  },
+
+  async openInputMonitoringSettings() {
+    return actionResultSchema.parse(
+      await requireBridge(window.ggEngineOpenInputMonitoringSettings, "ggEngineOpenInputMonitoringSettings")(),
+    );
+  },
+
   async listSources(): Promise<SourcesResult> {
     return sourcesResultSchema.parse(
       await requireBridge(window.ggEngineListSources, "ggEngineListSources")(),
+    );
+  },
+
+  async startDisplayCapture(enableMic: boolean): Promise<CaptureStatusResult> {
+    return captureStatusResultSchema.parse(
+      await requireBridge(window.ggEngineStartDisplayCapture, "ggEngineStartDisplayCapture")(enableMic),
+    );
+  },
+
+  async startWindowCapture(windowId: number, enableMic: boolean): Promise<CaptureStatusResult> {
+    return captureStatusResultSchema.parse(
+      await requireBridge(window.ggEngineStartWindowCapture, "ggEngineStartWindowCapture")(windowId, enableMic),
+    );
+  },
+
+  async stopCapture(): Promise<CaptureStatusResult> {
+    return captureStatusResultSchema.parse(
+      await requireBridge(window.ggEngineStopCapture, "ggEngineStopCapture")(),
+    );
+  },
+
+  async startRecording(trackInputEvents: boolean): Promise<CaptureStatusResult> {
+    return captureStatusResultSchema.parse(
+      await requireBridge(window.ggEngineStartRecording, "ggEngineStartRecording")(trackInputEvents),
+    );
+  },
+
+  async stopRecording(): Promise<CaptureStatusResult> {
+    return captureStatusResultSchema.parse(
+      await requireBridge(window.ggEngineStopRecording, "ggEngineStopRecording")(),
     );
   },
 
@@ -49,5 +138,47 @@ export const engineApi = {
     return captureStatusResultSchema.parse(
       await requireBridge(window.ggEngineCaptureStatus, "ggEngineCaptureStatus")(),
     );
+  },
+
+  async exportInfo() {
+    return exportInfoResultSchema.parse(await requireBridge(window.ggEngineExportInfo, "ggEngineExportInfo")());
+  },
+
+  async runExport(params: {
+    outputURL: string;
+    presetId: string;
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+  }) {
+    return exportRunResultSchema.parse(
+      await requireBridge(window.ggEngineRunExport, "ggEngineRunExport")(params),
+    );
+  },
+
+  async projectCurrent(): Promise<ProjectState> {
+    return projectStateSchema.parse(
+      await requireBridge(window.ggEngineProjectCurrent, "ggEngineProjectCurrent")(),
+    );
+  },
+
+  async projectOpen(projectPath: string): Promise<ProjectState> {
+    return projectStateSchema.parse(
+      await requireBridge(window.ggEngineProjectOpen, "ggEngineProjectOpen")(projectPath),
+    );
+  },
+
+  async projectSave(params: {
+    projectPath?: string;
+    autoZoom?: AutoZoomSettings;
+  }): Promise<ProjectState> {
+    return projectStateSchema.parse(
+      await requireBridge(window.ggEngineProjectSave, "ggEngineProjectSave")(params),
+    );
+  },
+};
+
+export const desktopApi = {
+  async pickDirectory(startingFolder?: string): Promise<string | null> {
+    return await requireBridge(window.ggPickDirectory, "ggPickDirectory")(startingFolder);
   },
 };

@@ -1,11 +1,16 @@
 import path from "node:path";
 import {
+  actionResultSchema,
   buildRequest,
   captureStatusResultSchema,
+  exportInfoResultSchema,
+  exportRunResultSchema,
   parseResponse,
   permissionsResultSchema,
   pingResultSchema,
+  projectStateSchema,
   sourcesResultSchema,
+  type AutoZoomSettings,
   type EngineRequest,
 } from "@guerillaglass/engine-protocol";
 
@@ -84,12 +89,89 @@ export class EngineClient {
     return permissionsResultSchema.parse(await this.request("permissions.get", {}));
   }
 
+  async requestScreenRecordingPermission() {
+    return actionResultSchema.parse(await this.request("permissions.requestScreenRecording", {}));
+  }
+
+  async requestMicrophonePermission() {
+    return actionResultSchema.parse(await this.request("permissions.requestMicrophone", {}));
+  }
+
+  async requestInputMonitoringPermission() {
+    return actionResultSchema.parse(await this.request("permissions.requestInputMonitoring", {}));
+  }
+
+  async openInputMonitoringSettings() {
+    return actionResultSchema.parse(await this.request("permissions.openInputMonitoringSettings", {}));
+  }
+
   async listSources() {
     return sourcesResultSchema.parse(await this.request("sources.list", {}));
   }
 
+  async startDisplayCapture(enableMic: boolean) {
+    return captureStatusResultSchema.parse(
+      await this.request("capture.startDisplay", {
+        enableMic,
+      }),
+    );
+  }
+
+  async startWindowCapture(windowId: number, enableMic: boolean) {
+    return captureStatusResultSchema.parse(
+      await this.request("capture.startWindow", {
+        windowId,
+        enableMic,
+      }),
+    );
+  }
+
+  async stopCapture() {
+    return captureStatusResultSchema.parse(await this.request("capture.stop", {}));
+  }
+
+  async startRecording(trackInputEvents: boolean) {
+    return captureStatusResultSchema.parse(
+      await this.request("recording.start", {
+        trackInputEvents,
+      }),
+    );
+  }
+
+  async stopRecording() {
+    return captureStatusResultSchema.parse(await this.request("recording.stop", {}));
+  }
+
   async captureStatus() {
     return captureStatusResultSchema.parse(await this.request("capture.status", {}));
+  }
+
+  async exportInfo() {
+    return exportInfoResultSchema.parse(await this.request("export.info", {}));
+  }
+
+  async runExport(params: {
+    outputURL: string;
+    presetId: string;
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+  }) {
+    return exportRunResultSchema.parse(await this.request("export.run", params));
+  }
+
+  async projectCurrent() {
+    return projectStateSchema.parse(await this.request("project.current", {}));
+  }
+
+  async projectOpen(projectPath: string) {
+    return projectStateSchema.parse(await this.request("project.open", { projectPath }));
+  }
+
+  async projectSave(params: {
+    projectPath?: string;
+    autoZoom?: AutoZoomSettings;
+  }) {
+    return projectStateSchema.parse(await this.request("project.save", params));
   }
 
   private async request<TMethod extends EngineRequest["method"]>(
@@ -108,7 +190,7 @@ export class EngineClient {
       const timeout = setTimeout(() => {
         this.pending.delete(request.id);
         reject(new Error(`Engine request timed out: ${method}`));
-      }, 8_000);
+      }, 15_000);
 
       this.pending.set(request.id, { resolve, reject, timeout });
       this.writer

@@ -333,11 +333,11 @@ guerillaglass/
 │ ├─ Info.plist
 │ └─ Entitlements.entitlements
 ├─ ui/
-│ ├─ RootView.swift
+│ ├─ HybridShellView.swift
+│ ├─ GuerillaglassDocument.swift
+│ ├─ ProjectLibraryModel.swift
 │ ├─ capture/
-│ ├─ library/
-│ ├─ editor/
-│ └─ components/
+│ └─ editor/
 ├─ capture/
 │ ├─ CaptureEngine.swift
 │ ├─ DisplayCapture.swift
