@@ -30,14 +30,19 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+.swiftpm/
 .vscode/
 guerillaglass.app/
 node_modules/
 apps/*/dist/
 apps/*/build/
+coverage/
+apps/*/coverage/
 target/
 Cargo.lock
 .tmp/
+.DS_Store
+*.log
 
 # CocoaPods
 #
