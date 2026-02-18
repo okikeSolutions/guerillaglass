@@ -1,6 +1,6 @@
 import { Electroview } from "electrobun/view";
 import type { AutoZoomSettings } from "@guerillaglass/engine-protocol";
-import type { DesktopBridgeRPC } from "../../shared/bridgeRpc";
+import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;
@@ -22,7 +22,15 @@ export function initializeElectrobunRpcBridge(): void {
   const rpc = Electroview.defineRPC<DesktopBridgeRPC>({
     handlers: {
       requests: {},
-      messages: {},
+      messages: {
+        hostMenuCommand: ({ command }: { command: HostMenuCommand }) => {
+          window.dispatchEvent(
+            new CustomEvent("gg-host-menu-command", {
+              detail: { command },
+            }),
+          );
+        },
+      },
     },
   });
   new Electroview({ rpc });
@@ -61,6 +69,7 @@ export function initializeElectrobunRpcBridge(): void {
     rpc.request.ggEngineProjectSave(params);
   window.ggPickDirectory = (startingFolder?: string) =>
     rpc.request.ggPickDirectory({ startingFolder });
+  window.ggHostSendMenuState = (state: HostMenuState) => rpc.send.hostMenuState(state);
 
   bridgeInitialized = true;
 }
