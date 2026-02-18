@@ -6,6 +6,25 @@ export const inputMonitoringStatusSchema = z.enum([
   "authorized",
 ]);
 
+export const autoZoomSettingsSchema = z.object({
+  isEnabled: z.boolean(),
+  intensity: z.number().min(0).max(1),
+  minimumKeyframeInterval: z.number().positive(),
+});
+
+export const captureMetadataSchema = z
+  .object({
+    source: z.enum(["display", "window"]),
+    contentRect: z.object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().positive(),
+      height: z.number().positive(),
+    }),
+    pixelScale: z.number().positive(),
+  })
+  .nullable();
+
 export const pingResultSchema = z.object({
   app: z.string().min(1),
   engineVersion: z.string().min(1),
@@ -19,6 +38,11 @@ export const permissionsResultSchema = z.object({
   inputMonitoring: inputMonitoringStatusSchema,
 });
 
+export const actionResultSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+});
+
 export const displaySourceSchema = z.object({
   id: z.number().int().nonnegative(),
   width: z.number().int().positive(),
@@ -29,8 +53,8 @@ export const windowSourceSchema = z.object({
   id: z.number().int().nonnegative(),
   title: z.string(),
   appName: z.string(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
+  width: z.number().positive(),
+  height: z.number().positive(),
   isOnScreen: z.boolean(),
 });
 
@@ -45,6 +69,32 @@ export const captureStatusResultSchema = z.object({
   recordingDurationSeconds: z.number().nonnegative(),
   recordingURL: z.string().nullable(),
   lastError: z.string().nullable(),
+  eventsURL: z.string().nullable(),
+});
+
+export const exportPresetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  fps: z.number().int().positive(),
+  fileType: z.enum(["mp4", "mov"]),
+});
+
+export const exportInfoResultSchema = z.object({
+  presets: z.array(exportPresetSchema),
+});
+
+export const exportRunResultSchema = z.object({
+  outputURL: z.string().min(1),
+});
+
+export const projectStateSchema = z.object({
+  projectPath: z.string().nullable(),
+  recordingURL: z.string().nullable(),
+  eventsURL: z.string().nullable(),
+  autoZoom: autoZoomSettingsSchema,
+  captureMetadata: captureMetadataSchema,
 });
 
 const requestBaseSchema = z.object({
@@ -60,6 +110,26 @@ export const systemPingRequestSchema = requestBaseSchema.extend({
 
 export const permissionsGetRequestSchema = requestBaseSchema.extend({
   method: z.literal("permissions.get"),
+  params: emptyParamsSchema,
+});
+
+export const permissionsRequestScreenRequestSchema = requestBaseSchema.extend({
+  method: z.literal("permissions.requestScreenRecording"),
+  params: emptyParamsSchema,
+});
+
+export const permissionsRequestMicrophoneRequestSchema = requestBaseSchema.extend({
+  method: z.literal("permissions.requestMicrophone"),
+  params: emptyParamsSchema,
+});
+
+export const permissionsRequestInputMonitoringRequestSchema = requestBaseSchema.extend({
+  method: z.literal("permissions.requestInputMonitoring"),
+  params: emptyParamsSchema,
+});
+
+export const permissionsOpenInputSettingsRequestSchema = requestBaseSchema.extend({
+  method: z.literal("permissions.openInputMonitoringSettings"),
   params: emptyParamsSchema,
 });
 
@@ -90,7 +160,9 @@ export const captureStopRequestSchema = requestBaseSchema.extend({
 
 export const recordingStartRequestSchema = requestBaseSchema.extend({
   method: z.literal("recording.start"),
-  params: emptyParamsSchema,
+  params: z.object({
+    trackInputEvents: z.boolean().optional().default(false),
+  }),
 });
 
 export const recordingStopRequestSchema = requestBaseSchema.extend({
@@ -103,9 +175,48 @@ export const captureStatusRequestSchema = requestBaseSchema.extend({
   params: emptyParamsSchema,
 });
 
+export const exportInfoRequestSchema = requestBaseSchema.extend({
+  method: z.literal("export.info"),
+  params: emptyParamsSchema,
+});
+
+export const exportRunRequestSchema = requestBaseSchema.extend({
+  method: z.literal("export.run"),
+  params: z.object({
+    outputURL: z.string().min(1),
+    presetId: z.string().min(1),
+    trimStartSeconds: z.number().min(0).optional(),
+    trimEndSeconds: z.number().min(0).optional(),
+  }),
+});
+
+export const projectCurrentRequestSchema = requestBaseSchema.extend({
+  method: z.literal("project.current"),
+  params: emptyParamsSchema,
+});
+
+export const projectOpenRequestSchema = requestBaseSchema.extend({
+  method: z.literal("project.open"),
+  params: z.object({
+    projectPath: z.string().min(1),
+  }),
+});
+
+export const projectSaveRequestSchema = requestBaseSchema.extend({
+  method: z.literal("project.save"),
+  params: z.object({
+    projectPath: z.string().min(1).optional(),
+    autoZoom: autoZoomSettingsSchema.optional(),
+  }),
+});
+
 export const engineRequestSchema = z.discriminatedUnion("method", [
   systemPingRequestSchema,
   permissionsGetRequestSchema,
+  permissionsRequestScreenRequestSchema,
+  permissionsRequestMicrophoneRequestSchema,
+  permissionsRequestInputMonitoringRequestSchema,
+  permissionsOpenInputSettingsRequestSchema,
   sourcesListRequestSchema,
   captureStartDisplayRequestSchema,
   captureStartWindowRequestSchema,
@@ -113,6 +224,11 @@ export const engineRequestSchema = z.discriminatedUnion("method", [
   recordingStartRequestSchema,
   recordingStopRequestSchema,
   captureStatusRequestSchema,
+  exportInfoRequestSchema,
+  exportRunRequestSchema,
+  projectCurrentRequestSchema,
+  projectOpenRequestSchema,
+  projectSaveRequestSchema,
 ]);
 
 export const engineErrorCodeSchema = z.enum([
@@ -150,8 +266,14 @@ export type EngineResponse = z.infer<typeof engineResponseSchema>;
 export type EngineErrorCode = z.infer<typeof engineErrorCodeSchema>;
 export type PingResult = z.infer<typeof pingResultSchema>;
 export type PermissionsResult = z.infer<typeof permissionsResultSchema>;
+export type ActionResult = z.infer<typeof actionResultSchema>;
 export type SourcesResult = z.infer<typeof sourcesResultSchema>;
 export type CaptureStatusResult = z.infer<typeof captureStatusResultSchema>;
+export type ExportPreset = z.infer<typeof exportPresetSchema>;
+export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;
+export type ExportRunResult = z.infer<typeof exportRunResultSchema>;
+export type ProjectState = z.infer<typeof projectStateSchema>;
+export type AutoZoomSettings = z.infer<typeof autoZoomSettingsSchema>;
 
 export function buildRequest<TMethod extends EngineRequest["method"]>(
   method: TMethod,

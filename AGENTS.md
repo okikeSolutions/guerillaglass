@@ -15,7 +15,7 @@
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
 - **Legacy app entry:** `app/` — `GuerillaglassApp.swift`, `AppDelegate.swift`, `Info.plist`, `Entitlements.entitlements`.
-- **Legacy SwiftUI:** `ui/` — `RootView.swift` and extensions (`RootView+Sidebar`, `RootView+Navigator`, `RootView+Inspector`, etc.), `editor/`, shared components.
+- **Legacy SwiftUI fallback:** `ui/` — `HybridShellView.swift` (native fallback window), `GuerillaglassDocument.swift`, `ProjectLibraryModel.swift`, and shared helpers.
 - **Capture:** `capture/` — CaptureEngine, DisplayCapture, WindowCapture, AudioCapture, CaptureClock.
 - **Input tracking:** `inputTracking/` — InputPermissionManager, CursorTracker, ClickTracker (permission-gated).
 - **Project:** `project/` — Project, ProjectStore, ProjectMigration, Schema.

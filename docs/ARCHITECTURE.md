@@ -22,10 +22,14 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 4. Swift sidecar dispatches methods to native APIs (`ScreenCaptureKit`, `AVFoundation`, Input Monitoring checks).
 5. Response envelopes are validated in TypeScript with Zod before UI rendering.
 
-## Supported Engine Methods (v0.1)
+## Supported Engine Methods (Phase 1 parity)
 
 - `system.ping`
 - `permissions.get`
+- `permissions.requestScreenRecording`
+- `permissions.requestMicrophone`
+- `permissions.requestInputMonitoring`
+- `permissions.openInputMonitoringSettings`
 - `sources.list`
 - `capture.startDisplay`
 - `capture.startWindow`
@@ -33,6 +37,11 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 - `recording.start`
 - `recording.stop`
 - `capture.status`
+- `export.info`
+- `export.run`
+- `project.current`
+- `project.open`
+- `project.save`
 
 ## Why This Split
 

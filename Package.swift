@@ -30,7 +30,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "guerillaglass-engine",
-            dependencies: ["EngineProtocol", "Capture", "InputTracking"],
+            dependencies: ["EngineProtocol", "Capture", "InputTracking", "Export", "Project"],
             path: "engines/macos-swift"
         ),
         .target(
