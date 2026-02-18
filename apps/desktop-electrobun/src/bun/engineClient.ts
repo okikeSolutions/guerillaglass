@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   actionResultSchema,
+  capabilitiesResultSchema,
   buildRequest,
   captureStatusResultSchema,
   exportInfoResultSchema,
@@ -150,6 +151,10 @@ export class EngineClient {
 
   async ping() {
     return pingResultSchema.parse(await this.request("system.ping", {}));
+  }
+
+  async capabilities() {
+    return capabilitiesResultSchema.parse(await this.request("engine.capabilities", {}));
   }
 
   async getPermissions() {

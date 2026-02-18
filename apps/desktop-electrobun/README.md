@@ -8,6 +8,7 @@ It talks to the native Swift engine (`guerillaglass-engine`) over stdio with a t
 
 - Bun `1.3+`
 - Swift toolchain + macOS SDK (to build the native engine)
+- Rust toolchain (to build/test `windows-native`, `linux-native`, and `protocol-rust`)
 
 ## Setup
 
@@ -56,6 +57,7 @@ bun run desktop:build
 - UI shell: `/apps/desktop-electrobun/src/mainview`
 - Bun main process bridge: `/apps/desktop-electrobun/src/bun`
 - Shared Zod protocol: `/packages/engine-protocol/src/index.ts`
+- Shared Rust protocol: `/engines/protocol-rust`
 - Native engine target: `/engines/macos-swift`
 - Native engine foundations: `/engines/windows-native`, `/engines/linux-native`
 - Stub engines: `/engines/windows-stub`, `/engines/linux-stub`

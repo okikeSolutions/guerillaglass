@@ -16,6 +16,32 @@ extension EngineService {
         )
     }
 
+    func capabilitiesResponse(id: String) -> EngineResponse {
+        .success(
+            id: id,
+            result: .object([
+                "protocolVersion": .string("2"),
+                "platform": .string("macOS"),
+                "phase": .string("native"),
+                "capture": .object([
+                    "display": .bool(true),
+                    "window": .bool(true),
+                    "systemAudio": .bool(true),
+                    "microphone": .bool(true)
+                ]),
+                "recording": .object([
+                    "inputTracking": .bool(true)
+                ]),
+                "export": .object([
+                    "presets": .bool(true)
+                ]),
+                "project": .object([
+                    "openSave": .bool(true)
+                ])
+            ])
+        )
+    }
+
     func permissionsGet(id: String) -> EngineResponse {
         let screenRecordingGranted = CGPreflightScreenCaptureAccess()
         let microphoneStatus = AVCaptureDevice.authorizationStatus(for: .audio)

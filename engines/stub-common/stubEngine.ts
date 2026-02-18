@@ -131,6 +131,28 @@ function handleRequest(platform: string, request: Request): Response {
         platform,
       });
 
+    case "engine.capabilities":
+      return success(request.id, {
+        protocolVersion: "2",
+        platform,
+        phase: "stub",
+        capture: {
+          display: true,
+          window: true,
+          systemAudio: false,
+          microphone: true,
+        },
+        recording: {
+          inputTracking: true,
+        },
+        export: {
+          presets: true,
+        },
+        project: {
+          openSave: true,
+        },
+      });
+
     case "permissions.get":
       return success(request.id, {
         screenRecordingGranted: true,

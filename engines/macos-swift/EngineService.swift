@@ -31,6 +31,7 @@ final class EngineService {
     private func handle(_ request: EngineRequest) async -> EngineResponse {
         let handlers: [String: MethodHandler] = [
             "system.ping": { id, _ in self.pingResponse(id: id) },
+            "engine.capabilities": { id, _ in self.capabilitiesResponse(id: id) },
             "permissions.get": { id, _ in self.permissionsGet(id: id) },
             "permissions.requestScreenRecording": { id, _ in await self.permissionsRequestScreenRecording(id: id) },
             "permissions.requestMicrophone": { id, _ in await self.permissionsRequestMicrophone(id: id) },

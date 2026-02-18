@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, test } from "bun:test";
 import {
   buildRequest,
+  capabilitiesResultSchema,
   captureStatusResultSchema,
   engineRequestSchema,
   exportInfoResultSchema,
@@ -11,7 +14,23 @@ import {
 } from "@guerillaglass/engine-protocol";
 
 describe("engine protocol", () => {
+  test("parses shared contract fixtures", () => {
+    const fixtureDir = path.resolve(import.meta.dir, "../../../packages/engine-protocol/fixtures");
+    const capabilitiesRaw = fs.readFileSync(
+      path.join(fixtureDir, "engine-capabilities.request.json"),
+      "utf8",
+    );
+    const saveRaw = fs.readFileSync(path.join(fixtureDir, "project-save.request.json"), "utf8");
+
+    const capabilitiesRequest = JSON.parse(capabilitiesRaw);
+    const saveRequest = JSON.parse(saveRaw);
+
+    expect(engineRequestSchema.parse(capabilitiesRequest).method).toBe("engine.capabilities");
+    expect(engineRequestSchema.parse(saveRequest).method).toBe("project.save");
+  });
+
   test("builds and validates parity method requests", () => {
+    const capabilitiesRequest = buildRequest("engine.capabilities", {});
     const startRecordingRequest = buildRequest("recording.start", { trackInputEvents: true });
     const saveProjectRequest = buildRequest("project.save", {
       projectPath: "/tmp/test.gglassproj",
@@ -22,11 +41,33 @@ describe("engine protocol", () => {
       },
     });
 
+    expect(engineRequestSchema.parse(capabilitiesRequest).method).toBe("engine.capabilities");
     expect(engineRequestSchema.parse(startRecordingRequest).method).toBe("recording.start");
     expect(engineRequestSchema.parse(saveProjectRequest).method).toBe("project.save");
   });
 
   test("validates critical result payloads", () => {
+    const capabilities = capabilitiesResultSchema.parse({
+      protocolVersion: "2",
+      platform: "linux",
+      phase: "foundation",
+      capture: {
+        display: true,
+        window: true,
+        systemAudio: true,
+        microphone: true,
+      },
+      recording: {
+        inputTracking: true,
+      },
+      export: {
+        presets: true,
+      },
+      project: {
+        openSave: true,
+      },
+    });
+
     const permissions = permissionsResultSchema.parse({
       screenRecordingGranted: true,
       microphoneGranted: false,
@@ -81,6 +122,7 @@ describe("engine protocol", () => {
       captureMetadata: null,
     });
 
+    expect(capabilities.capture.display).toBe(true);
     expect(permissions.inputMonitoring).toBe("notDetermined");
     expect(sources.windows[0]?.appName).toBe("Xcode");
     expect(captureStatus.eventsURL).toBeNull();
