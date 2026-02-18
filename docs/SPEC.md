@@ -286,7 +286,6 @@ Versioning policy:
 6. Automation Planner (virtual camera)
 7. Renderer / Compositor
 8. Export Pipeline
-9. Diagnostics (performance + frame drops)
 
 ---
 
@@ -327,17 +326,6 @@ guerillaglass/
 ├─ engines/
 │ ├─ macos-swift/
 │ └─ protocol-swift/
-├─ app/
-│ ├─ GuerillaglassApp.swift
-│ ├─ AppDelegate.swift
-│ ├─ Info.plist
-│ └─ Entitlements.entitlements
-├─ ui/
-│ ├─ HybridShellView.swift
-│ ├─ GuerillaglassDocument.swift
-│ ├─ ProjectLibraryModel.swift
-│ ├─ capture/
-│ └─ editor/
 ├─ capture/
 │ ├─ CaptureEngine.swift
 │ ├─ DisplayCapture.swift
@@ -365,8 +353,6 @@ guerillaglass/
 │ ├─ ExportPipeline.swift
 │ ├─ Presets.swift
 │ └─ AssetWriter.swift
-├─ diagnostics/
-│ └─ PerformanceMetrics.swift
 └─ Tests/
 ├─ automationTests/
 ├─ projectMigrationTests/
@@ -395,9 +381,8 @@ Progress (current repo)
 - Display/window capture
 - Mic audio (AVFoundation)
 - Trim + export
-- Project save/load + versioning (document-based open/save + recents)
-- Build/run packaged app via `Scripts/compile_and_run.sh`
-- Localization: keep `.xcstrings` updated for all new user-facing strings
+- Project save/load + versioning (protocol-based open/save)
+- Localization: keep desktop shell strings localizable
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
 Progress (current repo)
@@ -407,8 +392,8 @@ Progress (current repo)
 - [x] Window capture UI + preview
 - [x] Trim + export
 - [x] Project schema + store (save/load on disk)
-- [x] Document-based open/save panels + recent library
-- [x] Localization catalog exists and is wired into the app target
+- [x] Protocol-based project open/save flow in desktop shell
+- [x] Desktop shell strings are centralized in the React surface
 - [x] Post‑localization polish audit (UI/UX, performance, accessibility)
 
 **Phase 2 — Cinematic defaults**
@@ -498,8 +483,8 @@ License hygiene:
 
 ## 22) Localization & internationalization
 
-- **String catalogs:** Use `.xcstrings` (Xcode 15+) as the source of truth for localized strings.
-- **Internationalize first:** All user-facing strings must be localizable. In SwiftUI, prefer `Text("…")` with localization keys. For non-View strings (errors/status), use `String(localized:)`.
+- **String catalogs:** Use a single desktop-shell localization source of truth (e.g. locale JSON catalogs in the React app).
+- **Internationalize first:** All user-facing strings must be localizable. Avoid hardcoded UI copy in components.
 - **Pluralization:** Use string catalog variations (or `.stringsdict` if ever needed) for plural nouns/verbs.
 - **Formatting:** Use `Date.FormatStyle`, `NumberFormatStyle`, and `Measurement` formatting instead of manual string interpolation.
 - **No concatenation:** Avoid building sentences by concatenating fragments; use localized format strings instead.

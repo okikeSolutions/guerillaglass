@@ -6,9 +6,9 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "./Scripts/compile_and_run.sh",
-    "start:debug": "./Scripts/compile_and_run.sh",
-    "start:release": "./Scripts/package_app.sh release",
+    "start": "bun run desktop:dev",
+    "start:debug": "bun run desktop:dev:hmr",
+    "start:release": "bun run desktop:build",
     "full_gate": "./Scripts/full_gate.sh",
     "build": "swift build",
     "test": "swift test",

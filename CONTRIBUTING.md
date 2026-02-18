@@ -1,24 +1,25 @@
 # Contributing to guerillaglass
 
-Thanks for your interest in contributing. This repository uses SwiftPM (no Xcode project). More detailed build and run steps will be added as the MVP stabilizes.
+Thanks for your interest in contributing. This repository uses a hybrid setup: Electrobun desktop shell + Swift native engine.
 
 ## Development
 - macOS 13.0+
 - Swift 5.10+
+- Bun 1.3+
 
 ## Build
 ```
 swift build
 ```
 
-## Run (packaged .app)
+## Run desktop shell
 ```
-Scripts/compile_and_run.sh
+bun run desktop:dev
 ```
 
-## Package only
+## Build desktop shell bundle
 ```
-Scripts/package_app.sh release
+bun run desktop:build
 ```
 
 ## Permissions
