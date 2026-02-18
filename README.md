@@ -8,6 +8,7 @@ The project now uses a hybrid architecture:
 - Native media engine: Swift (`/engines/macos-swift`) using ScreenCaptureKit/AVFoundation
 - Shared typed protocol: Zod schemas (`/packages/engine-protocol`)
 - Parallel stubs for non-mac engine development: `/engines/windows-stub`, `/engines/linux-stub`
+- Native engine foundations for non-mac platforms: `/engines/windows-native`, `/engines/linux-native`
 
 ## Requirements
 
@@ -21,7 +22,7 @@ The project now uses a hybrid architecture:
 # Install JS workspace dependencies
 bun install
 
-# Build native app + engine
+# Build native engine
 swift build
 
 # Run desktop shell (expects native engine binary)
@@ -30,6 +31,10 @@ bun run desktop:dev
 # Use protocol stubs while native Windows/Linux engines are under development
 GG_ENGINE_TARGET=windows-stub bun run desktop:dev
 GG_ENGINE_TARGET=linux-stub bun run desktop:dev
+
+# Prefer native Windows/Linux engines when binaries are available
+GG_ENGINE_TARGET=windows-native bun run desktop:dev
+GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ```
 
 ## Verification
@@ -40,6 +45,9 @@ Scripts/full_gate.sh
 
 # Desktop protocol + bridge tests
 bun run desktop:test:coverage
+
+# Desktop parity e2e flow tests (stub/native engine targets)
+bun run desktop:test:e2e
 ```
 
 ## Docs

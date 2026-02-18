@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   actionResultSchema,
@@ -20,52 +21,85 @@ type PendingRequest = {
   timeout: ReturnType<typeof setTimeout>;
 };
 
-type EngineTarget = "macos-swift" | "windows-stub" | "linux-stub";
+export type EngineTarget =
+  | "macos-swift"
+  | "windows-native"
+  | "linux-native"
+  | "windows-stub"
+  | "linux-stub";
 
-function resolveDefaultEnginePath(): string {
-  if (process.env.GG_ENGINE_PATH) {
-    return process.env.GG_ENGINE_PATH;
+const WINDOWS_NATIVE_BINARY = "guerillaglass-engine-windows.exe";
+const LINUX_NATIVE_BINARY = "guerillaglass-engine-linux";
+
+function resolveByTarget(engineTarget: EngineTarget, baseDir: string): string {
+  switch (engineTarget) {
+    case "macos-swift":
+      return path.resolve(baseDir, "../../../.build/debug/guerillaglass-engine");
+    case "windows-native":
+      return path.resolve(baseDir, "../../../../engines/windows-native/bin", WINDOWS_NATIVE_BINARY);
+    case "linux-native":
+      return path.resolve(baseDir, "../../../../engines/linux-native/bin", LINUX_NATIVE_BINARY);
+    case "windows-stub":
+      return path.resolve(baseDir, "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts");
+    case "linux-stub":
+      return path.resolve(baseDir, "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts");
+  }
+}
+
+function firstExisting(...paths: string[]): string {
+  for (const candidate of paths) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return paths[0] ?? "";
+}
+
+export function resolveEnginePath(options?: {
+  env?: NodeJS.ProcessEnv;
+  platform?: NodeJS.Platform;
+  baseDir?: string;
+}): string {
+  const env = options?.env ?? process.env;
+  const platform = options?.platform ?? process.platform;
+  const baseDir = options?.baseDir ?? import.meta.dir;
+
+  if (env.GG_ENGINE_PATH) {
+    return env.GG_ENGINE_PATH;
   }
 
-  const engineTarget = (process.env.GG_ENGINE_TARGET ?? "").trim() as EngineTarget | "";
-  if (engineTarget === "windows-stub") {
-    return path.resolve(
-      import.meta.dir,
-      "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
+  const engineTarget = (env.GG_ENGINE_TARGET ?? "").trim() as EngineTarget | "";
+  if (engineTarget) {
+    return resolveByTarget(engineTarget, baseDir);
+  }
+
+  if (platform === "win32") {
+    return firstExisting(
+      resolveByTarget("windows-native", baseDir),
+      resolveByTarget("windows-stub", baseDir),
     );
   }
-  if (engineTarget === "linux-stub") {
-    return path.resolve(
-      import.meta.dir,
-      "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
+  if (platform === "linux") {
+    return firstExisting(
+      resolveByTarget("linux-native", baseDir),
+      resolveByTarget("linux-stub", baseDir),
     );
   }
 
-  if (process.platform === "win32") {
-    return path.resolve(
-      import.meta.dir,
-      "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
-    );
-  }
-  if (process.platform === "linux") {
-    return path.resolve(
-      import.meta.dir,
-      "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
-    );
-  }
-
-  return path.resolve(import.meta.dir, "../../../.build/debug/guerillaglass-engine");
+  return resolveByTarget("macos-swift", baseDir);
 }
 
 export class EngineClient {
   private process: ReturnType<typeof Bun.spawn> | null = null;
-  private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private stdin: FileSink | null = null;
   private pending = new Map<string, PendingRequest>();
   private startPromise: Promise<void> | null = null;
   private readonly enginePath: string;
+  private readonly requestTimeoutMs: number;
 
-  constructor(enginePath = resolveDefaultEnginePath()) {
+  constructor(enginePath = resolveEnginePath(), requestTimeoutMs = 15_000) {
     this.enginePath = enginePath;
+    this.requestTimeoutMs = requestTimeoutMs;
   }
 
   async start(): Promise<void> {
@@ -77,14 +111,17 @@ export class EngineClient {
     }
 
     this.startPromise = (async () => {
+      const command = this.enginePath.endsWith(".ts")
+        ? ["bun", this.enginePath]
+        : [this.enginePath];
       this.process = Bun.spawn({
-        cmd: [this.enginePath],
+        cmd: command,
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
       });
 
-      this.writer = this.process.stdin.getWriter();
+      this.stdin = this.process.stdin;
       void this.readStdout();
       void this.readStderr();
     })();
@@ -103,9 +140,9 @@ export class EngineClient {
     }
     this.pending.clear();
 
-    if (this.writer) {
-      await this.writer.close();
-      this.writer = null;
+    if (this.stdin) {
+      this.stdin.end();
+      this.stdin = null;
     }
     this.process?.kill();
     this.process = null;
@@ -209,7 +246,7 @@ export class EngineClient {
     params: Extract<EngineRequest, { method: TMethod }>["params"],
   ): Promise<unknown> {
     await this.start();
-    if (!this.writer) {
+    if (!this.stdin) {
       throw new Error("Engine process unavailable");
     }
 
@@ -220,16 +257,16 @@ export class EngineClient {
       const timeout = setTimeout(() => {
         this.pending.delete(request.id);
         reject(new Error(`Engine request timed out: ${method}`));
-      }, 15_000);
+      }, this.requestTimeoutMs);
 
       this.pending.set(request.id, { resolve, reject, timeout });
-      this.writer
-        ?.write(new TextEncoder().encode(payload))
-        .catch((error: Error) => {
-          clearTimeout(timeout);
-          this.pending.delete(request.id);
-          reject(error);
-        });
+      try {
+        this.stdin.write(new TextEncoder().encode(payload));
+      } catch (error) {
+        clearTimeout(timeout);
+        this.pending.delete(request.id);
+        reject(error as Error);
+      }
     });
   }
 

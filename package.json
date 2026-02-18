@@ -16,10 +16,13 @@
     "lint": "swiftlint",
     "desktop:dev": "cd apps/desktop-electrobun && bun run dev",
     "desktop:dev:hmr": "cd apps/desktop-electrobun && bun run dev:hmr",
+    "desktop:dev:windows-native": "GG_ENGINE_TARGET=windows-native bun run desktop:dev",
+    "desktop:dev:linux-native": "GG_ENGINE_TARGET=linux-native bun run desktop:dev",
     "desktop:dev:windows-stub": "GG_ENGINE_TARGET=windows-stub bun run desktop:dev",
     "desktop:dev:linux-stub": "GG_ENGINE_TARGET=linux-stub bun run desktop:dev",
     "desktop:build": "cd apps/desktop-electrobun && bun run build",
     "desktop:test": "cd apps/desktop-electrobun && bun test",
-    "desktop:test:coverage": "cd apps/desktop-electrobun && bun test --coverage"
+    "desktop:test:coverage": "cd apps/desktop-electrobun && bun test --coverage",
+    "desktop:test:e2e": "cd apps/desktop-electrobun && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts"
   }
 }

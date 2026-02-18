@@ -31,6 +31,10 @@ bun run desktop:dev:hmr
 # Force Windows/Linux protocol stubs (for parallel engine development)
 GG_ENGINE_TARGET=windows-stub bun run desktop:dev
 GG_ENGINE_TARGET=linux-stub bun run desktop:dev
+
+# Prefer native Windows/Linux engines when their binaries exist
+GG_ENGINE_TARGET=windows-native bun run desktop:dev
+GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ```
 
 ## Test & Coverage
@@ -38,6 +42,7 @@ GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 ```bash
 bun run desktop:test
 bun run desktop:test:coverage
+bun run desktop:test:e2e
 ```
 
 ## Build
@@ -52,4 +57,5 @@ bun run desktop:build
 - Bun main process bridge: `/apps/desktop-electrobun/src/bun`
 - Shared Zod protocol: `/packages/engine-protocol/src/index.ts`
 - Native engine target: `/engines/macos-swift`
+- Native engine foundations: `/engines/windows-native`, `/engines/linux-native`
 - Stub engines: `/engines/windows-stub`, `/engines/linux-stub`

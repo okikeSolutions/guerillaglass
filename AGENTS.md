@@ -14,6 +14,8 @@
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
 - **Native engine modules:** `engines/macos-swift/modules/` — capture, input tracking, project, automation, rendering, export.
+- **Native Windows engine foundation:** `engines/windows-native/` — Rust sidecar foundation with protocol parity handlers.
+- **Native Linux engine foundation:** `engines/linux-native/` — Rust sidecar foundation with protocol parity handlers.
 - **Platform stub engines:** `engines/windows-stub/`, `engines/linux-stub/` — protocol-compatible stubs for parallel engine work.
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
 - **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `engineProtocolTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
@@ -31,10 +33,13 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **Desktop deps (workspace):** `bun install`
 - **Desktop shell dev:** `bun run desktop:dev`
 - **Desktop shell dev with HMR:** `bun run desktop:dev:hmr`
+- **Desktop shell (Windows native):** `bun run desktop:dev:windows-native`
+- **Desktop shell (Linux native):** `bun run desktop:dev:linux-native`
 - **Desktop shell (Windows stub):** `bun run desktop:dev:windows-stub`
 - **Desktop shell (Linux stub):** `bun run desktop:dev:linux-stub`
 - **Desktop shell test:** `bun run desktop:test`
 - **Desktop shell coverage:** `bun run desktop:test:coverage`
+- **Desktop shell parity e2e:** `bun run desktop:test:e2e`
 - **Build:** `swift build`
 - **Test:** `swift test`
 - **Format:** `swiftformat .` (config: `.swiftformat`)
@@ -64,7 +69,7 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 
 ## Conventions to Follow
 
-- **Native macOS:** Follow Apple HIG; system typography (SF), standard controls, document-based workflow. Respect Reduce Motion, Increase Contrast, Reduce Transparency.
+- **Desktop UX:** Prioritize an Electrobun-first desktop UX with clear keyboard navigation, accessible semantics, and platform-appropriate shortcuts. Respect Reduce Motion, Increase Contrast, Reduce Transparency where available.
 - **Determinism:** Pre-encode frame buffers must be deterministic (same project + version + settings + hardware class ⇒ pixel-identical frames). Encoding bytes are not guaranteed identical. Tests hash pre-encode frames; update rendering determinism tests when changing the pipeline.
 - **Permissions:** Screen Recording required; Microphone and Input Monitoring only when those features are enabled. If Input Monitoring is denied, recording continues but auto-zoom/click highlights are disabled—UI must show degraded mode clearly.
 - **Versioning:** Project schema always migrates forward on load; never write older schema versions.

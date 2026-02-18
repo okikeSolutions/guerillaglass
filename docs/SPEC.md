@@ -332,6 +332,8 @@ guerillaglass/
 │ │   ├─ automation/
 │ │   ├─ rendering/
 │ │   └─ export/
+│ ├─ windows-native/
+│ ├─ linux-native/
 │ ├─ windows-stub/
 │ ├─ linux-stub/
 │ └─ protocol-swift/
@@ -452,14 +454,10 @@ License hygiene:
 
 ## 21) Human Interface Guidelines (HIG) & native feel
 
-- Follow Apple’s Human Interface Guidelines for macOS layout, navigation patterns, and control behavior.
-- Use **system typography (SF)**, standard controls, and native menus/shortcuts.
-- UI layout guidance:
-  - Use **NavigationSplitView** with a left sidebar for navigation, an optional **navigator pane** (secondary lists), a center **preview canvas**, and a right **Inspector** pane for settings.
-  - Keep **primary actions in the toolbar** (avoid bottom‑edge critical actions).
-  - Maintain visible spacing between split panes and content; dividers should not visually merge with the preview frame.
-  - Support inspector section collapsing (DisclosureGroup) and selection‑driven inspector content (Preview vs Clips vs Notes).
-  - Preserve standard macOS toolbar/sidebar behaviors (show/hide sidebar, overflow handling, native menu equivalents).
+- Follow platform HIG principles for desktop layout, navigation patterns, and control behavior.
+- Keep navigation and primary actions discoverable in the shell (keyboard-first paths for start/stop record, export, and project save/open).
+- Preserve accessibility defaults across platforms (focus order, readable contrast, reduced-motion behavior when available).
+- Prefer clear status surfaces for capture/record/export state over hidden modal-only feedback.
 
 ---
 
@@ -467,16 +465,13 @@ License hygiene:
 
 - **String catalogs:** Use a single desktop-shell localization source of truth (e.g. locale JSON catalogs in the React app).
 - **Internationalize first:** All user-facing strings must be localizable. Avoid hardcoded UI copy in components.
-- **Pluralization:** Use string catalog variations (or `.stringsdict` if ever needed) for plural nouns/verbs.
-- **Formatting:** Use `Date.FormatStyle`, `NumberFormatStyle`, and `Measurement` formatting instead of manual string interpolation.
+- **Pluralization:** Use locale-aware message formatting for plural nouns/verbs.
+- **Formatting:** Use locale-aware date/number/measurement formatting instead of manual string interpolation.
 - **No concatenation:** Avoid building sentences by concatenating fragments; use localized format strings instead.
 - **App Store:** Plan to localize App Store metadata per territory when shipping.
-- Respect system preferences: Reduce Motion, Increase Contrast, Reduce Transparency.
-- Adopt macOS windowing patterns: toolbar/inspector split, sidebar list, document-based workflow.
-- Accessibility baseline: VoiceOver labels, keyboard navigation, focus order, high-contrast checks.
-- Keep the standard macOS menu structure (App, File, Edit, View, Window, Help) with expected shortcuts.
-- Use standard open/save panels, document autosave, and clear file ownership (avoid custom file pickers).
-- Preserve native window chrome (title bar, toolbar, sidebar behaviors) and support window resizing/state restoration.
+- Respect system accessibility preferences where available (Reduce Motion, high contrast, reduced transparency).
+- Accessibility baseline: screen reader labels, keyboard navigation, focus order, high-contrast checks.
+- Preserve expected desktop menu/shortcut conventions per platform.
 - Provide in‑app permission explanations before triggering OS prompts; degrade gracefully when denied.
 
 ### Must-haves (macOS compliance)
