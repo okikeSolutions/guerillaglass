@@ -19,7 +19,10 @@ fn parses_engine_capabilities_fixture() {
         .expect("read engine-capabilities fixture");
     let request = decode_request_line(&fixture).expect("decode fixture");
 
-    assert_eq!(request.method_kind(), Some(EngineMethod::EngineCapabilities));
+    assert_eq!(
+        request.method_kind(),
+        Some(EngineMethod::EngineCapabilities)
+    );
     assert!(request.params.is_object());
 }
 

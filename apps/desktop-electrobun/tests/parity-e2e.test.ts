@@ -11,12 +11,18 @@ type EngineFixture = {
 const fixtures: EngineFixture[] = [
   {
     name: "windows-stub",
-    path: path.resolve(import.meta.dir, "../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts"),
+    path: path.resolve(
+      import.meta.dir,
+      "../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
+    ),
     expectedPlatform: "windows",
   },
   {
     name: "linux-stub",
-    path: path.resolve(import.meta.dir, "../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts"),
+    path: path.resolve(
+      import.meta.dir,
+      "../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
+    ),
     expectedPlatform: "linux",
   },
 ];
@@ -24,7 +30,7 @@ const fixtures: EngineFixture[] = [
 describe("phase-1 parity e2e", () => {
   for (const fixture of fixtures) {
     test(`runs capture->record->export->project flow (${fixture.name})`, async () => {
-      const client = new EngineClient(fixture.path, 2_000);
+      const client = new EngineClient(fixture.path, 2000);
       try {
         const ping = await client.ping();
         expect(ping.platform).toBe(fixture.expectedPlatform);

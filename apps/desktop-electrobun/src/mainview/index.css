@@ -29,7 +29,8 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
-    background-image: radial-gradient(circle at 10% -10%, rgba(45, 212, 191, 0.16), transparent 35%),
+    background-image:
+      radial-gradient(circle at 10% -10%, rgba(45, 212, 191, 0.16), transparent 35%),
       radial-gradient(circle at 90% 0%, rgba(34, 211, 238, 0.12), transparent 35%);
   }
 }

@@ -47,10 +47,10 @@ declare global {
   }
 }
 
-function requireBridge<T extends (...args: unknown[]) => Promise<unknown>>(
-  bridge: T | undefined,
+function requireBridge<TArgs extends unknown[], TResult>(
+  bridge: ((...args: TArgs) => Promise<TResult>) | undefined,
   name: string,
-): T {
+): (...args: TArgs) => Promise<TResult> {
   if (!bridge) {
     throw new Error(`Missing Electrobun bridge: ${name}`);
   }
@@ -79,7 +79,10 @@ export const engineApi = {
 
   async requestMicrophonePermission() {
     return actionResultSchema.parse(
-      await requireBridge(window.ggEngineRequestMicrophonePermission, "ggEngineRequestMicrophonePermission")(),
+      await requireBridge(
+        window.ggEngineRequestMicrophonePermission,
+        "ggEngineRequestMicrophonePermission",
+      )(),
     );
   },
 
@@ -94,7 +97,10 @@ export const engineApi = {
 
   async openInputMonitoringSettings() {
     return actionResultSchema.parse(
-      await requireBridge(window.ggEngineOpenInputMonitoringSettings, "ggEngineOpenInputMonitoringSettings")(),
+      await requireBridge(
+        window.ggEngineOpenInputMonitoringSettings,
+        "ggEngineOpenInputMonitoringSettings",
+      )(),
     );
   },
 
@@ -106,13 +112,19 @@ export const engineApi = {
 
   async startDisplayCapture(enableMic: boolean): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineStartDisplayCapture, "ggEngineStartDisplayCapture")(enableMic),
+      await requireBridge(
+        window.ggEngineStartDisplayCapture,
+        "ggEngineStartDisplayCapture",
+      )(enableMic),
     );
   },
 
   async startWindowCapture(windowId: number, enableMic: boolean): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineStartWindowCapture, "ggEngineStartWindowCapture")(windowId, enableMic),
+      await requireBridge(window.ggEngineStartWindowCapture, "ggEngineStartWindowCapture")(
+        windowId,
+        enableMic,
+      ),
     );
   },
 
@@ -124,7 +136,10 @@ export const engineApi = {
 
   async startRecording(trackInputEvents: boolean): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineStartRecording, "ggEngineStartRecording")(trackInputEvents),
+      await requireBridge(
+        window.ggEngineStartRecording,
+        "ggEngineStartRecording",
+      )(trackInputEvents),
     );
   },
 
@@ -141,7 +156,9 @@ export const engineApi = {
   },
 
   async exportInfo() {
-    return exportInfoResultSchema.parse(await requireBridge(window.ggEngineExportInfo, "ggEngineExportInfo")());
+    return exportInfoResultSchema.parse(
+      await requireBridge(window.ggEngineExportInfo, "ggEngineExportInfo")(),
+    );
   },
 
   async runExport(params: {

@@ -25,7 +25,7 @@ The project now uses a hybrid architecture:
 bun install
 
 # Build native engine
-swift build
+bun run swift:build
 
 # Run desktop shell (expects native engine binary)
 bun run desktop:dev
@@ -42,8 +42,18 @@ GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ## Verification
 
 ```bash
+# Rust gate (fmt + clippy + tests)
+bun run gate:rust
+
+# JS/TS format + lint
+bun run js:format:check
+bun run js:lint
+
+# TypeScript gate (oxfmt + oxlint + typecheck + desktop tests)
+bun run gate:typescript
+
 # Swift format/lint/test/build gate
-Scripts/full_gate.sh
+bun run gate
 
 # Desktop protocol + bridge tests
 bun run desktop:test:coverage
@@ -51,6 +61,11 @@ bun run desktop:test:coverage
 # Desktop parity e2e flow tests (stub/native engine targets)
 bun run desktop:test:e2e
 ```
+
+## Editor Setup
+
+- Recommended VS Code extension for Oxc tooling:
+  - `code --install-extension oxc.oxc-vscode`
 
 ## Docs
 

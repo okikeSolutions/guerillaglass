@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FolderOpen,
   HardDriveDownload,
@@ -41,7 +41,9 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${remainder}`;
 }
 
-function permissionBadgeVariant(permissions: PermissionsResult | null): "default" | "secondary" | "destructive" {
+function permissionBadgeVariant(
+  permissions: PermissionsResult | null,
+): "default" | "secondary" | "destructive" {
   if (!permissions) {
     return "secondary";
   }
@@ -79,7 +81,7 @@ export default function App() {
     [presets, selectedPresetId],
   );
 
-  const windowChoices = sources?.windows ?? [];
+  const windowChoices = useMemo(() => sources?.windows ?? [], [sources?.windows]);
 
   useEffect(() => {
     if (captureSource === "window") {
@@ -93,36 +95,26 @@ export default function App() {
     }
   }, [captureSource, selectedWindowId, windowChoices]);
 
-  useEffect(() => {
-    void refreshAll();
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      void refreshStatusOnly();
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  async function refreshStatusOnly() {
+  const refreshStatusOnly = useCallback(async () => {
     try {
       setStatus(await engineApi.captureStatus());
     } catch {
       // keep latest status
     }
-  }
+  }, []);
 
-  async function refreshAll() {
+  const refreshAll = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const [ping, nextPermissions, nextSources, nextStatus, exportInfo, currentProject] = await Promise.all([
-        engineApi.ping(),
-        engineApi.getPermissions(),
-        engineApi.listSources(),
-        engineApi.captureStatus(),
-        engineApi.exportInfo(),
-        engineApi.projectCurrent(),
-      ]);
+      const [ping, nextPermissions, nextSources, nextStatus, exportInfo, currentProject] =
+        await Promise.all([
+          engineApi.ping(),
+          engineApi.getPermissions(),
+          engineApi.listSources(),
+          engineApi.captureStatus(),
+          engineApi.exportInfo(),
+          engineApi.projectCurrent(),
+        ]);
 
       setPermissions(nextPermissions);
       setSources(nextSources);
@@ -130,7 +122,10 @@ export default function App() {
       setPresets(exportInfo.presets);
       setProject(currentProject);
       setAutoZoom(currentProject.autoZoom);
-      if (exportInfo.presets.length > 0 && !exportInfo.presets.some((preset) => preset.id === selectedPresetId)) {
+      if (
+        exportInfo.presets.length > 0 &&
+        !exportInfo.presets.some((preset) => preset.id === selectedPresetId)
+      ) {
         setSelectedPresetId(exportInfo.presets[0]!.id);
       }
       setNotice({
@@ -145,7 +140,18 @@ export default function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }
+  }, [selectedPresetId]);
+
+  useEffect(() => {
+    void refreshAll();
+  }, [refreshAll]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void refreshStatusOnly();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [refreshStatusOnly]);
 
   async function runAction(action: () => Promise<void>) {
     setIsRunningAction(true);
@@ -240,7 +246,8 @@ export default function App() {
       }
 
       const extension = selectedPreset.fileType;
-      const safeFileName = exportFileName.trim().length > 0 ? exportFileName.trim() : "guerillaglass-export";
+      const safeFileName =
+        exportFileName.trim().length > 0 ? exportFileName.trim() : "guerillaglass-export";
       const outputURL = `${targetDirectory.replace(/[\\/]$/, "")}/${safeFileName}.${extension}`;
 
       const trimEnd = trimEndSeconds > 0 ? trimEndSeconds : undefined;
@@ -275,7 +282,8 @@ export default function App() {
     await runAction(async () => {
       let projectPath = project?.projectPath ?? undefined;
       if (saveAs || !projectPath) {
-        projectPath = await desktopApi.pickDirectory(project?.projectPath ?? undefined) ?? undefined;
+        projectPath =
+          (await desktopApi.pickDirectory(project?.projectPath ?? undefined)) ?? undefined;
       }
       if (!projectPath) {
         return;
@@ -296,15 +304,20 @@ export default function App() {
         <header className="rounded-2xl border border-white/10 bg-gradient-to-r from-cyan-500/15 via-teal-500/10 to-sky-500/15 p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-cyan-300">Phase 1 parity migration</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-cyan-300">
+                Phase 1 parity migration
+              </p>
               <h1 className="mt-2 text-3xl font-semibold">Guerillaglass Desktop Shell</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Capture source picker, permission UX, recording controls, export flow, and project bridge.
+                Capture source picker, permission UX, recording controls, export flow, and project
+                bridge.
               </p>
             </div>
             <div className="flex items-center gap-3">
               <Badge variant={permissionBadgeVariant(permissions)}>
-                {permissions?.screenRecordingGranted ? "Screen permission ready" : "Screen permission required"}
+                {permissions?.screenRecordingGranted
+                  ? "Screen permission ready"
+                  : "Screen permission required"}
               </Badge>
               <Button onClick={() => void refreshAll()} disabled={isRefreshing || isRunningAction}>
                 <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
@@ -329,15 +342,40 @@ export default function App() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid gap-2 text-sm">
-                <div>Screen Recording: {permissions?.screenRecordingGranted ? "granted" : "not granted"}</div>
+                <div>
+                  Screen Recording:{" "}
+                  {permissions?.screenRecordingGranted ? "granted" : "not granted"}
+                </div>
                 <div>Microphone: {permissions?.microphoneGranted ? "granted" : "not granted"}</div>
                 <div>Input Monitoring: {permissions?.inputMonitoring ?? "unknown"}</div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" onClick={() => void handlePermissionRequest("screen")}>Request Screen</Button>
-                <Button size="sm" variant="secondary" onClick={() => void handlePermissionRequest("mic")}>Request Mic</Button>
-                <Button size="sm" variant="secondary" onClick={() => void handlePermissionRequest("input")}>Request Input</Button>
-                <Button size="sm" variant="outline" onClick={() => void engineApi.openInputMonitoringSettings()}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void handlePermissionRequest("screen")}
+                >
+                  Request Screen
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void handlePermissionRequest("mic")}
+                >
+                  Request Mic
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void handlePermissionRequest("input")}
+                >
+                  Request Input
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void engineApi.openInputMonitoringSettings()}
+                >
                   Open Settings
                 </Button>
               </div>
@@ -377,7 +415,9 @@ export default function App() {
                   value={selectedWindowId}
                   onChange={(event) => setSelectedWindowId(Number(event.target.value))}
                 >
-                  {windowChoices.length === 0 ? <option value={0}>No windows available</option> : null}
+                  {windowChoices.length === 0 ? (
+                    <option value={0}>No windows available</option>
+                  ) : null}
                   {windowChoices.map((window) => (
                     <option key={window.id} value={window.id}>
                       {window.appName} - {window.title || "(untitled)"}
@@ -388,7 +428,11 @@ export default function App() {
 
               <div className="grid gap-2 text-sm">
                 <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={micEnabled} onChange={(e) => setMicEnabled(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={micEnabled}
+                    onChange={(e) => setMicEnabled(e.target.checked)}
+                  />
                   <Mic className="h-4 w-4" /> Include microphone
                 </label>
                 <label className="inline-flex items-center gap-2">
@@ -402,10 +446,17 @@ export default function App() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => void startCapture()} disabled={isRunningAction || status?.isRunning}>
+                <Button
+                  onClick={() => void startCapture()}
+                  disabled={isRunningAction || status?.isRunning}
+                >
                   Start Preview
                 </Button>
-                <Button variant="secondary" onClick={() => void stopCapture()} disabled={isRunningAction || !status?.isRunning}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void stopCapture()}
+                  disabled={isRunningAction || !status?.isRunning}
+                >
                   Stop Preview
                 </Button>
               </div>
@@ -417,11 +468,16 @@ export default function App() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <Video className="h-4 w-4" /> Recording
               </CardTitle>
-              <CardDescription>Drive native capture + recording through protocol commands.</CardDescription>
+              <CardDescription>
+                Drive native capture + recording through protocol commands.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="text-sm">
-                <div>Status: {status?.isRecording ? "recording" : status?.isRunning ? "previewing" : "idle"}</div>
+                <div>
+                  Status:{" "}
+                  {status?.isRecording ? "recording" : status?.isRunning ? "previewing" : "idle"}
+                </div>
                 <div>Duration: {formatDuration(status?.recordingDurationSeconds ?? 0)}</div>
                 <div className="truncate">Recording URL: {recordingURL ?? "-"}</div>
               </div>
@@ -438,7 +494,9 @@ export default function App() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <HardDriveDownload className="h-4 w-4" /> Export
               </CardTitle>
-              <CardDescription>Export current recording through the native export pipeline.</CardDescription>
+              <CardDescription>
+                Export current recording through the native export pipeline.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid gap-2 text-sm">
@@ -498,12 +556,18 @@ export default function App() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <FolderOpen className="h-4 w-4" /> Project Bridge
               </CardTitle>
-              <CardDescription>Open/save `.gglassproj` directories via protocol-backed bridge.</CardDescription>
+              <CardDescription>
+                Open/save `.gglassproj` directories via protocol-backed bridge.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="text-sm">
-                <div className="truncate">Project path: {project?.projectPath ?? "(not saved)"}</div>
-                <div className="truncate">Events URL: {project?.eventsURL ?? status?.eventsURL ?? "-"}</div>
+                <div className="truncate">
+                  Project path: {project?.projectPath ?? "(not saved)"}
+                </div>
+                <div className="truncate">
+                  Events URL: {project?.eventsURL ?? status?.eventsURL ?? "-"}
+                </div>
               </div>
 
               <div className="grid gap-2 text-sm">
@@ -511,7 +575,9 @@ export default function App() {
                   <input
                     type="checkbox"
                     checked={autoZoom.isEnabled}
-                    onChange={(event) => setAutoZoom((prev) => ({ ...prev, isEnabled: event.target.checked }))}
+                    onChange={(event) =>
+                      setAutoZoom((prev) => ({ ...prev, isEnabled: event.target.checked }))
+                    }
                   />
                   Auto-zoom enabled
                 </label>
@@ -523,19 +589,33 @@ export default function App() {
                     max={1}
                     step={0.05}
                     value={autoZoom.intensity}
-                    onChange={(event) => setAutoZoom((prev) => ({ ...prev, intensity: Number(event.target.value) }))}
+                    onChange={(event) =>
+                      setAutoZoom((prev) => ({ ...prev, intensity: Number(event.target.value) }))
+                    }
                   />
                 </label>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => void openProject()} disabled={isRunningAction}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void openProject()}
+                  disabled={isRunningAction}
+                >
                   Open Project
                 </Button>
-                <Button variant="secondary" onClick={() => void saveProject(false)} disabled={isRunningAction || !recordingURL}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void saveProject(false)}
+                  disabled={isRunningAction || !recordingURL}
+                >
                   <Save className="mr-2 h-4 w-4" /> Save Project
                 </Button>
-                <Button variant="outline" onClick={() => void saveProject(true)} disabled={isRunningAction || !recordingURL}>
+                <Button
+                  variant="outline"
+                  onClick={() => void saveProject(true)}
+                  disabled={isRunningAction || !recordingURL}
+                >
                   Save Project As
                 </Button>
               </div>
@@ -546,7 +626,9 @@ export default function App() {
         <Card>
           <CardHeader>
             <CardTitle>Detected Windows</CardTitle>
-            <CardDescription>Live window list from ScreenCaptureKit through the native engine.</CardDescription>
+            <CardDescription>
+              Live window list from ScreenCaptureKit through the native engine.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-hidden rounded-md border">

@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-export const inputMonitoringStatusSchema = z.enum([
-  "notDetermined",
-  "denied",
-  "authorized",
-]);
+export const inputMonitoringStatusSchema = z.enum(["notDetermined", "denied", "authorized"]);
 
 export const autoZoomSettingsSchema = z.object({
   isEnabled: z.boolean(),
