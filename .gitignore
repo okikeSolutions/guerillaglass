@@ -32,6 +32,9 @@ playground.xcworkspace
 .build/
 .vscode/
 guerillaglass.app/
+node_modules/
+apps/*/dist/
+apps/*/build/
 
 # CocoaPods
 #

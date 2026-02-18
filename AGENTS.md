@@ -8,8 +8,14 @@
 
 ## Project Structure & Module Organization
 
-- **App entry:** `app/` — `GuerillaglassApp.swift`, `AppDelegate.swift`, `Info.plist`, `Entitlements.entitlements`.
-- **UI:** `ui/` — `RootView.swift` and extensions (`RootView+Sidebar`, `RootView+Navigator`, `RootView+Inspector`, etc.), `editor/`, shared components.
+- **Desktop shell (new):** `apps/desktop-electrobun/` — Electrobun main process, React/Tailwind UI, shadcn base components.
+- **Desktop shell bridge:** `apps/desktop-electrobun/src/bun/` — Electrobun `BrowserWindow` setup and native engine bridge.
+- **Desktop shell UI:** `apps/desktop-electrobun/src/mainview/` — React app (`App.tsx`), UI components, styling.
+- **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
+- **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
+- **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
+- **Legacy app entry:** `app/` — `GuerillaglassApp.swift`, `AppDelegate.swift`, `Info.plist`, `Entitlements.entitlements`.
+- **Legacy SwiftUI:** `ui/` — `RootView.swift` and extensions (`RootView+Sidebar`, `RootView+Navigator`, `RootView+Inspector`, etc.), `editor/`, shared components.
 - **Capture:** `capture/` — CaptureEngine, DisplayCapture, WindowCapture, AudioCapture, CaptureClock.
 - **Input tracking:** `inputTracking/` — InputPermissionManager, CursorTracker, ClickTracker (permission-gated).
 - **Project:** `project/` — Project, ProjectStore, ProjectMigration, Schema.
@@ -29,6 +35,11 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 
 - **Full gate (format, lint, test, build):** `Scripts/full_gate.sh`  
   Runs: SwiftFormat → SwiftLint → `swift test` → `swift build`. Use this to verify the project after changes.
+- **Desktop deps (workspace):** `bun install`
+- **Desktop shell dev:** `bun run desktop:dev`
+- **Desktop shell dev with HMR:** `bun run desktop:dev:hmr`
+- **Desktop shell test:** `bun run desktop:test`
+- **Desktop shell coverage:** `bun run desktop:test:coverage`
 - **Build:** `swift build`
 - **Test:** `swift test`
 - **Format:** `swiftformat .` (config: `.swiftformat`)
@@ -49,7 +60,9 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 ## Platform & Stack
 
 - **macOS baseline (v1):** 13.0+ (stretch: validate 12.3+ video-only).
-- **Language/UI:** Swift + SwiftUI.
+- **Desktop shell:** Electrobun + React + Tailwind + shadcn base components.
+- **Native media engine:** Swift.
+- **Protocol:** Zod (TypeScript) + Swift wire codec.
 - **Capture:** ScreenCaptureKit (video + system audio where supported), AVFoundation (microphone).
 - **Encoding/muxing:** AVFoundation.
 - **Rendering:** Metal preferred, Core Image acceptable for MVP.
@@ -81,7 +94,8 @@ When adding features, align with the current phase and the capability matrix in 
 - Determinism validated by hashing pre-encode frames; update `Tests/renderingDeterminismTests/` when changing the pipeline.
 - Baseline targets (Apple Silicon M1/M2): capture dropped frames ≤ 0.5%, avg CPU ≤ 20%; export ≤ 1.5× realtime for 1080p/60.
 - Tag issues/PRs appropriately: `bug`, `feature`, `good first issue`, `help wanted`, `design`, `performance`.
-- Run `Scripts/full_gate.sh` before pushing when you touch logic; CI runs the same gate (see `.github/workflows/full_gate.yml`).
+- Run `Scripts/full_gate.sh` before pushing when you touch Swift logic; CI runs the same gate (see `.github/workflows/full_gate.yml`).
+- Run `bun run desktop:test:coverage` when touching `apps/desktop-electrobun` or `packages/engine-protocol`.
 - Pure test additions/fixes generally do **not** need a changelog entry unless they alter user-facing behavior.
 
 ---
