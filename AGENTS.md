@@ -13,14 +13,9 @@
 - **Desktop shell UI:** `apps/desktop-electrobun/src/mainview/` — React app (`App.tsx`), UI components, styling.
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
+- **Native engine modules:** `engines/macos-swift/modules/` — capture, input tracking, project, automation, rendering, export.
 - **Platform stub engines:** `engines/windows-stub/`, `engines/linux-stub/` — protocol-compatible stubs for parallel engine work.
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
-- **Capture:** `capture/` — CaptureEngine, DisplayCapture, WindowCapture, AudioCapture, CaptureClock.
-- **Input tracking:** `inputTracking/` — InputPermissionManager, CursorTracker, ClickTracker (permission-gated).
-- **Project:** `project/` — Project, ProjectStore, ProjectMigration, Schema.
-- **Automation:** `automation/` — VirtualCameraPlanner, AttentionModel, ZoomConstraints.
-- **Rendering:** `rendering/` — PreviewRenderer, ExportRenderer, Metal.
-- **Export:** `export/` — ExportPipeline, Presets, AssetWriter, TrimRangeCalculator.
 - **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `engineProtocolTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
 - **Scripts:** `Scripts/` — `full_gate.sh`.
 - **Docs:** `docs/` — SPEC and other project docs.

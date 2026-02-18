@@ -325,36 +325,16 @@ guerillaglass/
 │   └─ src/
 ├─ engines/
 │ ├─ macos-swift/
+│ │ └─ modules/
+│ │   ├─ capture/
+│ │   ├─ inputTracking/
+│ │   ├─ project/
+│ │   ├─ automation/
+│ │   ├─ rendering/
+│ │   └─ export/
 │ ├─ windows-stub/
 │ ├─ linux-stub/
 │ └─ protocol-swift/
-├─ capture/
-│ ├─ CaptureEngine.swift
-│ ├─ DisplayCapture.swift
-│ ├─ WindowCapture.swift
-│ ├─ AudioCapture.swift
-│ └─ CaptureClock.swift
-├─ inputTracking/
-│ ├─ InputPermissionManager.swift
-│ ├─ CursorTracker.swift
-│ └─ ClickTracker.swift
-├─ project/
-│ ├─ Project.swift
-│ ├─ ProjectStore.swift
-│ ├─ ProjectMigration.swift
-│ └─ schema/
-├─ automation/
-│ ├─ VirtualCameraPlanner.swift
-│ ├─ AttentionModel.swift
-│ └─ ZoomConstraints.swift
-├─ rendering/
-│ ├─ PreviewRenderer.swift
-│ ├─ ExportRenderer.swift
-│ └─ metal/
-├─ export/
-│ ├─ ExportPipeline.swift
-│ ├─ Presets.swift
-│ └─ AssetWriter.swift
 └─ Tests/
 ├─ automationTests/
 ├─ projectMigrationTests/
