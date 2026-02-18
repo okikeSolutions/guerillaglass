@@ -126,6 +126,12 @@
     @apply font-sans bg-background text-foreground antialiased;
   }
 
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   button,
   input,
   select {
@@ -156,6 +162,42 @@
     @apply ring-foreground/10 border bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
   }
 
+  .gg-editor-shell {
+    @apply grid h-full min-h-0;
+    grid-template-columns: 260px minmax(0, 1fr) 340px;
+  }
+
+  .gg-pane {
+    @apply flex min-h-0 min-w-0 flex-col bg-card/45;
+  }
+
+  .gg-pane-left {
+    @apply border-r border-border/80;
+  }
+
+  .gg-pane-center {
+    @apply bg-background/35;
+  }
+
+  .gg-pane-right {
+    @apply border-l border-border/80;
+  }
+
+  .gg-pane-header {
+    @apply grid min-h-[74px] content-start gap-1 border-b border-border/80 bg-muted/35 px-4 py-3;
+    grid-template-rows: auto auto;
+  }
+
+  .gg-pane-subtitle {
+    @apply truncate text-xs text-muted-foreground;
+    min-height: 1rem;
+    line-height: 1rem;
+  }
+
+  .gg-pane-body {
+    @apply flex-1 min-h-0 overflow-y-auto p-4;
+  }
+
   .gg-keycap {
     @apply rounded border border-border/80 bg-muted/80 px-1.5 py-0.5 font-mono text-[0.66rem] text-foreground/90;
   }
@@ -173,6 +215,10 @@
         transparent 56%
       ),
       linear-gradient(140deg, var(--background), var(--card));
+  }
+
+  .gg-pane-center .gg-preview-stage {
+    min-height: clamp(240px, 44vh, 420px);
   }
 
   .gg-timeline-wrapper {
@@ -253,5 +299,27 @@
 
   .gg-timeline-playhead {
     @apply pointer-events-none absolute inset-y-0 z-30 w-0.5 -translate-x-1/2 bg-foreground/80;
+  }
+}
+
+@media (max-width: 1439px) {
+  .gg-editor-shell {
+    grid-template-columns: 220px minmax(0, 1fr) 300px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .gg-editor-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gg-pane-left,
+  .gg-pane-right {
+    @apply border-x-0;
+  }
+
+  .gg-pane-left,
+  .gg-pane-center {
+    @apply border-b border-border/80;
   }
 }
