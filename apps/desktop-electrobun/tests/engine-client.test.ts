@@ -56,6 +56,20 @@ describe("engine client path resolution", () => {
       true,
     );
   });
+
+  test("resolves macOS native engine from workspace root when running from app bundle path", () => {
+    const bundledBaseDir = path.resolve(
+      import.meta.dir,
+      "../build/dev-macos-arm64/Guerillaglass-dev.app/Contents/Resources/app/bun",
+    );
+    const resolved = resolveEnginePath({
+      env: {},
+      platform: "darwin",
+      baseDir: bundledBaseDir,
+    });
+
+    expect(resolved.endsWith(".build/debug/guerillaglass-engine")).toBe(true);
+  });
 });
 
 describe("engine client integration", () => {
