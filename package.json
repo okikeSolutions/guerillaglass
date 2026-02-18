@@ -23,6 +23,7 @@
     "desktop:build": "cd apps/desktop-electrobun && bun run build",
     "desktop:test": "cd apps/desktop-electrobun && bun test",
     "desktop:test:coverage": "cd apps/desktop-electrobun && bun test --coverage",
-    "desktop:test:e2e": "cd apps/desktop-electrobun && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts"
+    "desktop:test:e2e": "cd apps/desktop-electrobun && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts",
+    "protocol-rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
   }
 }

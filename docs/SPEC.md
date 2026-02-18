@@ -53,7 +53,7 @@ Build an open-source recorder that uses a cross-platform desktop shell with a na
 ## 4) Platform & stack
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
-- **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec
+- **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
 - **Native engine baseline (v1):** macOS 13.0+
   - Stretch: validate whether **12.3+ video-only** support is feasible for engine-only paths.
 - Native engine language: Swift
@@ -336,6 +336,7 @@ guerillaglass/
 │ ├─ linux-native/
 │ ├─ windows-stub/
 │ ├─ linux-stub/
+│ ├─ protocol-rust/
 │ └─ protocol-swift/
 └─ Tests/
 ├─ automationTests/

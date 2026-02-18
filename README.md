@@ -7,6 +7,7 @@ The project now uses a hybrid architecture:
 - Cross-platform desktop shell: Electrobun + React + Tailwind (`/apps/desktop-electrobun`)
 - Native media engine: Swift (`/engines/macos-swift`) using ScreenCaptureKit/AVFoundation
 - Shared typed protocol: Zod schemas (`/packages/engine-protocol`)
+- Shared Rust protocol implementation: `/engines/protocol-rust`
 - Parallel stubs for non-mac engine development: `/engines/windows-stub`, `/engines/linux-stub`
 - Native engine foundations for non-mac platforms: `/engines/windows-native`, `/engines/linux-native`
 
@@ -15,6 +16,7 @@ The project now uses a hybrid architecture:
 - macOS 13+
 - Swift 5.10+
 - Bun 1.3+
+- Rust toolchain (for `engines/windows-native`, `engines/linux-native`, and `engines/protocol-rust`)
 
 ## Quick Start
 

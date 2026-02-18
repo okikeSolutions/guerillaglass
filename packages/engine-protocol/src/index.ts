@@ -32,6 +32,27 @@ export const pingResultSchema = z.object({
   platform: z.string().min(1),
 });
 
+export const capabilitiesResultSchema = z.object({
+  protocolVersion: z.string().min(1),
+  platform: z.string().min(1),
+  phase: z.enum(["stub", "foundation", "native"]),
+  capture: z.object({
+    display: z.boolean(),
+    window: z.boolean(),
+    systemAudio: z.boolean(),
+    microphone: z.boolean(),
+  }),
+  recording: z.object({
+    inputTracking: z.boolean(),
+  }),
+  export: z.object({
+    presets: z.boolean(),
+  }),
+  project: z.object({
+    openSave: z.boolean(),
+  }),
+});
+
 export const permissionsResultSchema = z.object({
   screenRecordingGranted: z.boolean(),
   microphoneGranted: z.boolean(),
@@ -105,6 +126,11 @@ const emptyParamsSchema = z.object({}).passthrough().optional().default({});
 
 export const systemPingRequestSchema = requestBaseSchema.extend({
   method: z.literal("system.ping"),
+  params: emptyParamsSchema,
+});
+
+export const engineCapabilitiesRequestSchema = requestBaseSchema.extend({
+  method: z.literal("engine.capabilities"),
   params: emptyParamsSchema,
 });
 
@@ -212,6 +238,7 @@ export const projectSaveRequestSchema = requestBaseSchema.extend({
 
 export const engineRequestSchema = z.discriminatedUnion("method", [
   systemPingRequestSchema,
+  engineCapabilitiesRequestSchema,
   permissionsGetRequestSchema,
   permissionsRequestScreenRequestSchema,
   permissionsRequestMicrophoneRequestSchema,
@@ -265,6 +292,7 @@ export type EngineRequest = z.infer<typeof engineRequestSchema>;
 export type EngineResponse = z.infer<typeof engineResponseSchema>;
 export type EngineErrorCode = z.infer<typeof engineErrorCodeSchema>;
 export type PingResult = z.infer<typeof pingResultSchema>;
+export type CapabilitiesResult = z.infer<typeof capabilitiesResultSchema>;
 export type PermissionsResult = z.infer<typeof permissionsResultSchema>;
 export type ActionResult = z.infer<typeof actionResultSchema>;
 export type SourcesResult = z.infer<typeof sourcesResultSchema>;

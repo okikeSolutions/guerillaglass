@@ -29,6 +29,9 @@ describe("phase-1 parity e2e", () => {
         const ping = await client.ping();
         expect(ping.platform).toBe(fixture.expectedPlatform);
 
+        const capabilities = await client.capabilities();
+        expect(capabilities.platform).toBe(fixture.expectedPlatform);
+
         const sources = await client.listSources();
         expect(sources.displays.length).toBeGreaterThan(0);
 

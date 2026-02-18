@@ -15,5 +15,6 @@ Expected binary path:
 
 ## Notes
 
-- Protocol handlers are implemented for parity (`permissions`, `sources`, `capture`, `recording`, `export`, `project`).
+- Protocol handlers are implemented for parity (`engine.capabilities`, `permissions`, `sources`, `capture`, `recording`, `export`, `project`).
+- Wire request/response types come from `engines/protocol-rust`.
 - Capture/audio/input internals are currently foundation-level and need Linux compositor/audio integration for production capture quality.

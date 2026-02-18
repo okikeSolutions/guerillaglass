@@ -1,0 +1,5 @@
+{
+  "id": "fixture-capabilities",
+  "method": "engine.capabilities",
+  "params": {}
+}

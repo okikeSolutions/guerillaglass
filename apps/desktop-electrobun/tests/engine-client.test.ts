@@ -59,6 +59,9 @@ describe("engine client integration", () => {
       const ping = await client.ping();
       expect(ping.platform).toBe("linux");
 
+      const capabilities = await client.capabilities();
+      expect(capabilities.phase).toBe("stub");
+
       const permissions = await client.getPermissions();
       expect(permissions.screenRecordingGranted).toBe(true);
 

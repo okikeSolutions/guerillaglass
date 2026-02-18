@@ -13,6 +13,9 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 3. Protocol layer (`/packages/engine-protocol`)
    - Zod runtime schemas + TypeScript types
    - Wire contracts for request/response envelopes
+4. Rust protocol layer (`/engines/protocol-rust`)
+   - Shared Rust request/response envelope models
+   - Shared monotonic clock primitive for timing-critical engines
 
 ## Runtime Data Flow
 
@@ -25,6 +28,7 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 ## Supported Engine Methods (Phase 1 parity)
 
 - `system.ping`
+- `engine.capabilities`
 - `permissions.get`
 - `permissions.requestScreenRecording`
 - `permissions.requestMicrophone`

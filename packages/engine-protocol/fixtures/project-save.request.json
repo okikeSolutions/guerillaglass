@@ -1,0 +1,12 @@
+{
+  "id": "fixture-project-save",
+  "method": "project.save",
+  "params": {
+    "projectPath": "/tmp/fixture.gglassproj",
+    "autoZoom": {
+      "isEnabled": true,
+      "intensity": 0.65,
+      "minimumKeyframeInterval": 0.2
+    }
+  }
+}

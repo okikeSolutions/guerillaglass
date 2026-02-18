@@ -1,16 +1,21 @@
+use protocol_rust::{
+    decode_request_line, encode_response_line, failure, success, CaptureClock, EngineMethod,
+    EngineRequest, EngineResponse, ProtocolErrorCode, RunningDuration, PROTOCOL_VERSION,
+};
 use serde_json::{json, Value};
 use std::fs;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
-use std::time::Instant;
 
 const PLATFORM: &str = "windows";
+const ENGINE_VERSION: &str = "0.4.0-native-foundation";
+const ENGINE_PHASE: &str = "foundation";
 
 struct State {
+    clock: CaptureClock,
     is_running: bool,
     is_recording: bool,
-    recording_started_at: Option<Instant>,
-    recording_duration_seconds: f64,
+    recording_duration: RunningDuration,
     recording_url: Option<String>,
     events_url: Option<String>,
     last_error: Option<String>,
@@ -24,10 +29,10 @@ struct State {
 impl State {
     fn new() -> Self {
         Self {
+            clock: CaptureClock::default(),
             is_running: false,
             is_recording: false,
-            recording_started_at: None,
-            recording_duration_seconds: 0.0,
+            recording_duration: RunningDuration::default(),
             recording_url: None,
             events_url: None,
             last_error: None,
@@ -40,12 +45,7 @@ impl State {
     }
 
     fn current_duration(&self) -> f64 {
-        let live = if let Some(started) = self.recording_started_at {
-            started.elapsed().as_secs_f64()
-        } else {
-            0.0
-        };
-        self.recording_duration_seconds + live
+        self.recording_duration.current(&self.clock)
     }
 
     fn capture_status(&self) -> Value {
@@ -74,25 +74,6 @@ impl State {
     }
 }
 
-fn success(id: &str, result: Value) -> Value {
-    json!({
-        "id": id,
-        "ok": true,
-        "result": result,
-    })
-}
-
-fn failure(id: &str, code: &str, message: &str) -> Value {
-    json!({
-        "id": id,
-        "ok": false,
-        "error": {
-            "code": code,
-            "message": message,
-        },
-    })
-}
-
 fn get_string(params: &Value, key: &str) -> Option<String> {
     params.get(key).and_then(Value::as_str).map(String::from)
 }
@@ -101,48 +82,69 @@ fn get_f64(params: &Value, key: &str) -> Option<f64> {
     params.get(key).and_then(Value::as_f64)
 }
 
-fn handle_request(state: &mut State, request: &Value) -> Value {
-    let id = request
-        .get("id")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown");
-    let method = match request.get("method").and_then(Value::as_str) {
-        Some(value) => value,
-        None => return failure(id, "invalid_request", "Missing method"),
+fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse {
+    let Some(method) = request.method_kind() else {
+        return failure(
+            &request.id,
+            ProtocolErrorCode::UnsupportedMethod,
+            format!("Unsupported method: {}", request.method),
+        );
     };
-    let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
-
+    let params = &request.params;
     match method {
-        "system.ping" => success(
-            id,
+        EngineMethod::SystemPing => success(
+            &request.id,
             json!({
                 "app": "guerillaglass",
-                "engineVersion": "0.3.0-native-foundation",
-                "protocolVersion": "2",
+                "engineVersion": ENGINE_VERSION,
+                "protocolVersion": PROTOCOL_VERSION,
                 "platform": PLATFORM,
             }),
         ),
-        "permissions.get" => success(
-            id,
+        EngineMethod::EngineCapabilities => success(
+            &request.id,
+            json!({
+                "protocolVersion": PROTOCOL_VERSION,
+                "platform": PLATFORM,
+                "phase": ENGINE_PHASE,
+                "capture": {
+                    "display": true,
+                    "window": true,
+                    "systemAudio": true,
+                    "microphone": true,
+                },
+                "recording": {
+                    "inputTracking": true,
+                },
+                "export": {
+                    "presets": true,
+                },
+                "project": {
+                    "openSave": true,
+                }
+            }),
+        ),
+        EngineMethod::PermissionsGet => success(
+            &request.id,
             json!({
                 "screenRecordingGranted": true,
                 "microphoneGranted": true,
                 "inputMonitoring": "authorized",
             }),
         ),
-        "permissions.requestScreenRecording"
-        | "permissions.requestMicrophone"
-        | "permissions.requestInputMonitoring"
-        | "permissions.openInputMonitoringSettings" => success(
-            id,
+        EngineMethod::PermissionsRequestScreenRecording
+        | EngineMethod::PermissionsRequestMicrophone
+        | EngineMethod::PermissionsRequestInputMonitoring
+        | EngineMethod::PermissionsOpenInputMonitoringSettings => success(
+            &request.id,
             json!({
                 "success": true,
                 "message": "Permission flow wiring is active. Native policy integration pending.",
             }),
         ),
-        "sources.list" => {
+        EngineMethod::SourcesList => {
             success(
-                id,
+                &request.id,
                 json!({
                     "displays": [
                         { "id": 1, "width": 1920, "height": 1080 }
@@ -160,41 +162,40 @@ fn handle_request(state: &mut State, request: &Value) -> Value {
                 }),
             )
         }
-        "capture.startDisplay" => {
+        EngineMethod::CaptureStartDisplay => {
             state.is_running = true;
             state.capture_metadata = Some(json!({
                 "source": "display",
                 "contentRect": { "x": 0, "y": 0, "width": 1920, "height": 1080 },
                 "pixelScale": 1,
             }));
-            success(id, state.capture_status())
+            success(&request.id, state.capture_status())
         }
-        "capture.startWindow" => {
+        EngineMethod::CaptureStartWindow => {
             state.is_running = true;
             state.capture_metadata = Some(json!({
                 "source": "window",
                 "contentRect": { "x": 0, "y": 0, "width": 1280, "height": 720 },
                 "pixelScale": 1,
             }));
-            success(id, state.capture_status())
+            success(&request.id, state.capture_status())
         }
-        "capture.stop" => {
-            if state.is_recording {
-                if let Some(started) = state.recording_started_at {
-                    state.recording_duration_seconds += started.elapsed().as_secs_f64();
-                }
-            }
-            state.recording_started_at = None;
+        EngineMethod::CaptureStop => {
+            state.recording_duration.stop(&state.clock);
             state.is_recording = false;
             state.is_running = false;
-            success(id, state.capture_status())
+            success(&request.id, state.capture_status())
         }
-        "recording.start" => {
+        EngineMethod::RecordingStart => {
             if !state.is_running {
-                return failure(id, "invalid_params", "Start capture before recording");
+                return failure(
+                    &request.id,
+                    ProtocolErrorCode::InvalidParams,
+                    "Start capture before recording",
+                );
             }
             state.is_recording = true;
-            state.recording_started_at = Some(Instant::now());
+            state.recording_duration.start(&state.clock);
             state.recording_url = Some("native://recordings/session.mp4".to_string());
             if params
                 .get("trackInputEvents")
@@ -203,21 +204,16 @@ fn handle_request(state: &mut State, request: &Value) -> Value {
             {
                 state.events_url = Some("native://events/session-events.json".to_string());
             }
-            success(id, state.capture_status())
+            success(&request.id, state.capture_status())
         }
-        "recording.stop" => {
-            if state.is_recording {
-                if let Some(started) = state.recording_started_at {
-                    state.recording_duration_seconds += started.elapsed().as_secs_f64();
-                }
-            }
-            state.recording_started_at = None;
+        EngineMethod::RecordingStop => {
+            state.recording_duration.stop(&state.clock);
             state.is_recording = false;
-            success(id, state.capture_status())
+            success(&request.id, state.capture_status())
         }
-        "capture.status" => success(id, state.capture_status()),
-        "export.info" => success(
-            id,
+        EngineMethod::CaptureStatus => success(&request.id, state.capture_status()),
+        EngineMethod::ExportInfo => success(
+            &request.id,
             json!({
                 "presets": [
                     {
@@ -231,10 +227,16 @@ fn handle_request(state: &mut State, request: &Value) -> Value {
                 ]
             }),
         ),
-        "export.run" => {
+        EngineMethod::ExportRun => {
             let output_url = match get_string(&params, "outputURL") {
                 Some(value) => value,
-                None => return failure(id, "invalid_params", "outputURL is required"),
+                None => {
+                    return failure(
+                        &request.id,
+                        ProtocolErrorCode::InvalidParams,
+                        "outputURL is required",
+                    )
+                }
             };
 
             let output_path = PathBuf::from(&output_url);
@@ -243,18 +245,24 @@ fn handle_request(state: &mut State, request: &Value) -> Value {
             }
             let _ = fs::write(&output_path, b"guerillaglass-native-export");
 
-            success(id, json!({ "outputURL": output_url }))
+            success(&request.id, json!({ "outputURL": output_url }))
         }
-        "project.current" => success(id, state.project_state()),
-        "project.open" => {
+        EngineMethod::ProjectCurrent => success(&request.id, state.project_state()),
+        EngineMethod::ProjectOpen => {
             let project_path = match get_string(&params, "projectPath") {
                 Some(value) => value,
-                None => return failure(id, "invalid_params", "projectPath is required"),
+                None => {
+                    return failure(
+                        &request.id,
+                        ProtocolErrorCode::InvalidParams,
+                        "projectPath is required",
+                    )
+                }
             };
             state.project_path = Some(project_path);
-            success(id, state.project_state())
+            success(&request.id, state.project_state())
         }
-        "project.save" => {
+        EngineMethod::ProjectSave => {
             if let Some(project_path) = get_string(&params, "projectPath") {
                 state.project_path = Some(project_path);
             }
@@ -279,9 +287,15 @@ fn handle_request(state: &mut State, request: &Value) -> Value {
                 let _ = fs::write(snapshot_path, state.project_state().to_string());
             }
 
-            success(id, state.project_state())
+            success(&request.id, state.project_state())
         }
-        _ => failure(id, "unsupported_method", &format!("Unsupported method: {method}")),
+    }
+}
+
+fn write_response(stdout: &mut io::Stdout, response: EngineResponse) {
+    if let Ok(line) = encode_response_line(&response) {
+        let _ = writeln!(stdout, "{line}");
+        let _ = stdout.flush();
     }
 }
 
@@ -300,18 +314,22 @@ fn main() {
             continue;
         }
 
-        let request: Value = match serde_json::from_str(trimmed) {
+        let request = match decode_request_line(trimmed) {
             Ok(value) => value,
             Err(_) => {
-                let fallback = failure("unknown", "invalid_request", "Invalid JSON request");
-                let _ = writeln!(stdout, "{}", fallback);
-                let _ = stdout.flush();
+                write_response(
+                    &mut stdout,
+                    failure(
+                        "unknown",
+                        ProtocolErrorCode::InvalidRequest,
+                        "Invalid JSON request",
+                    ),
+                );
                 continue;
             }
         };
 
         let response = handle_request(&mut state, &request);
-        let _ = writeln!(stdout, "{}", response);
-        let _ = stdout.flush();
+        write_response(&mut stdout, response);
     }
 }
