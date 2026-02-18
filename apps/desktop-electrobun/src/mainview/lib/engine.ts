@@ -14,6 +14,7 @@ import {
   type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
+import type { HostMenuState } from "../../shared/bridgeRpc";
 
 declare global {
   interface Window {
@@ -44,6 +45,7 @@ declare global {
       autoZoom?: AutoZoomSettings;
     }) => Promise<unknown>;
     ggPickDirectory?: (startingFolder?: string) => Promise<string | null>;
+    ggHostSendMenuState?: (state: HostMenuState) => void;
   }
 }
 

@@ -11,6 +11,27 @@ import type {
 } from "@guerillaglass/engine-protocol";
 import type { RPCSchema } from "electrobun/bun";
 
+export const hostMenuCommandList = [
+  "app.refresh",
+  "capture.toggleRecording",
+  "capture.startPreview",
+  "capture.stopPreview",
+  "timeline.playPause",
+  "timeline.trimIn",
+  "timeline.trimOut",
+  "file.openProject",
+  "file.saveProject",
+  "file.saveProjectAs",
+  "file.export",
+] as const;
+export type HostMenuCommand = (typeof hostMenuCommandList)[number];
+
+export type HostMenuState = {
+  canSave: boolean;
+  canExport: boolean;
+  isRecording: boolean;
+};
+
 type BridgeRequests = {
   ggEnginePing: { params: undefined; response: PingResult };
   ggEngineGetPermissions: { params: undefined; response: PermissionsResult };
@@ -54,6 +75,6 @@ type BridgeRequests = {
 };
 
 export type DesktopBridgeRPC = {
-  bun: RPCSchema<{ requests: BridgeRequests; messages: {} }>;
-  webview: RPCSchema<{ requests: {}; messages: {} }>;
+  bun: RPCSchema<{ requests: BridgeRequests; messages: { hostMenuState: HostMenuState } }>;
+  webview: RPCSchema<{ requests: {}; messages: { hostMenuCommand: { command: HostMenuCommand } } }>;
 };
