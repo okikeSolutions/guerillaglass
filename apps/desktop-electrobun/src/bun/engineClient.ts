@@ -37,20 +37,57 @@ export type EngineTarget =
 const WINDOWS_NATIVE_BINARY = "guerillaglass-engine-windows.exe";
 const LINUX_NATIVE_BINARY = "guerillaglass-engine-linux";
 
+function findWorkspaceRoot(startDir: string): string | null {
+  let current = path.resolve(startDir);
+  while (true) {
+    const hasPackage = existsSync(path.join(current, "Package.swift"));
+    const hasDesktopApp = existsSync(path.join(current, "apps/desktop-electrobun"));
+    const hasEngines = existsSync(path.join(current, "engines"));
+    if (hasPackage && hasDesktopApp && hasEngines) {
+      return current;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
 function resolveByTarget(engineTarget: EngineTarget, baseDir: string): string {
+  const workspaceRoot = findWorkspaceRoot(baseDir);
   switch (engineTarget) {
     case "macos-swift":
+      if (workspaceRoot) {
+        return path.join(workspaceRoot, ".build/debug/guerillaglass-engine");
+      }
       return path.resolve(baseDir, "../../../.build/debug/guerillaglass-engine");
     case "windows-native":
+      if (workspaceRoot) {
+        return path.join(workspaceRoot, "engines/windows-native/bin", WINDOWS_NATIVE_BINARY);
+      }
       return path.resolve(baseDir, "../../../../engines/windows-native/bin", WINDOWS_NATIVE_BINARY);
     case "linux-native":
+      if (workspaceRoot) {
+        return path.join(workspaceRoot, "engines/linux-native/bin", LINUX_NATIVE_BINARY);
+      }
       return path.resolve(baseDir, "../../../../engines/linux-native/bin", LINUX_NATIVE_BINARY);
     case "windows-stub":
+      if (workspaceRoot) {
+        return path.join(
+          workspaceRoot,
+          "engines/windows-stub/guerillaglass-engine-windows-stub.ts",
+        );
+      }
       return path.resolve(
         baseDir,
         "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
       );
     case "linux-stub":
+      if (workspaceRoot) {
+        return path.join(workspaceRoot, "engines/linux-stub/guerillaglass-engine-linux-stub.ts");
+      }
       return path.resolve(
         baseDir,
         "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
@@ -123,6 +160,12 @@ export class EngineClient {
     }
 
     this.startPromise = (async () => {
+      if (!existsSync(this.enginePath)) {
+        throw new Error(
+          `Engine executable not found at ${this.enginePath}. Run bun run swift:build or set GG_ENGINE_PATH.`,
+        );
+      }
+
       const command = this.enginePath.endsWith(".ts")
         ? ["bun", this.enginePath]
         : [this.enginePath];

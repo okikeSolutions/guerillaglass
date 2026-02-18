@@ -1,0 +1,6 @@
+{
+  "ignorePatterns": [
+    "apps/desktop-electrobun/build/**",
+    "apps/desktop-electrobun/dist/**"
+  ]
+}
