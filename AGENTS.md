@@ -14,17 +14,14 @@
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
-- **Legacy app entry:** `app/` — `GuerillaglassApp.swift`, `AppDelegate.swift`, `Info.plist`, `Entitlements.entitlements`.
-- **Legacy SwiftUI fallback:** `ui/` — `HybridShellView.swift` (native fallback window), `GuerillaglassDocument.swift`, `ProjectLibraryModel.swift`, and shared helpers.
 - **Capture:** `capture/` — CaptureEngine, DisplayCapture, WindowCapture, AudioCapture, CaptureClock.
 - **Input tracking:** `inputTracking/` — InputPermissionManager, CursorTracker, ClickTracker (permission-gated).
 - **Project:** `project/` — Project, ProjectStore, ProjectMigration, Schema.
 - **Automation:** `automation/` — VirtualCameraPlanner, AttentionModel, ZoomConstraints.
 - **Rendering:** `rendering/` — PreviewRenderer, ExportRenderer, Metal.
 - **Export:** `export/` — ExportPipeline, Presets, AssetWriter, TrimRangeCalculator.
-- **Diagnostics:** `diagnostics/` — PerformanceMetrics.
-- **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
-- **Scripts:** `Scripts/` — `full_gate.sh`, `compile_and_run.sh`, `launch.sh`, `package_app.sh`.
+- **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `engineProtocolTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
+- **Scripts:** `Scripts/` — `full_gate.sh`.
 - **Docs:** `docs/` — SPEC and other project docs.
 
 When adding modules or moving code, keep the spec’s architecture (§16–17) and update `AGENTS.md` / `docs/SPEC.md` if the tree changes.
@@ -44,8 +41,6 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **Test:** `swift test`
 - **Format:** `swiftformat .` (config: `.swiftformat`)
 - **Lint:** `swiftlint` (config: `.swiftlint.yml`)
-- **Run app:** use `Scripts/compile_and_run.sh` or `Scripts/launch.sh` as documented.
-- **Package app:** `Scripts/package_app.sh` (defaults to current arch).
 
 ---
 

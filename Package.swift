@@ -7,7 +7,6 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "guerillaglass", targets: ["guerillaglass"]),
         .executable(name: "guerillaglass-engine", targets: ["guerillaglass-engine"])
     ],
     targets: [
@@ -17,26 +16,9 @@ let package = Package(
             path: "engines/protocol-swift"
         ),
         .executableTarget(
-            name: "guerillaglass",
-            dependencies: ["UI"],
-            path: "app",
-            exclude: [
-                "Info.plist",
-                "Entitlements.entitlements"
-            ],
-            resources: [
-                .process("Resources")
-            ]
-        ),
-        .executableTarget(
             name: "guerillaglass-engine",
             dependencies: ["EngineProtocol", "Capture", "InputTracking", "Export", "Project"],
             path: "engines/macos-swift"
-        ),
-        .target(
-            name: "UI",
-            dependencies: ["Capture", "Project", "Rendering", "Automation", "Export", "InputTracking"],
-            path: "ui"
         ),
         .target(
             name: "Capture",
@@ -68,11 +50,6 @@ let package = Package(
             dependencies: ["Automation", "Rendering"],
             path: "export"
         ),
-        .target(
-            name: "Diagnostics",
-            dependencies: [],
-            path: "diagnostics"
-        ),
         .testTarget(
             name: "AutomationTests",
             dependencies: ["Automation", "InputTracking"],
@@ -97,11 +74,6 @@ let package = Package(
             name: "ExportTests",
             dependencies: ["Export"],
             path: "Tests/exportTests"
-        ),
-        .testTarget(
-            name: "UITests",
-            dependencies: ["UI", "InputTracking", "Project"],
-            path: "Tests/uiTests"
         ),
         .testTarget(
             name: "EngineProtocolTests",

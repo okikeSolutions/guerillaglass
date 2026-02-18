@@ -37,12 +37,6 @@ Scripts/full_gate.sh
 bun run desktop:test:coverage
 ```
 
-## Legacy Native App Runner
-
-```bash
-Scripts/compile_and_run.sh
-```
-
 ## Docs
 
 - Product spec: `/docs/SPEC.md`
