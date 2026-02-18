@@ -27,6 +27,10 @@ bun run desktop:dev
 
 # Desktop shell with Vite HMR
 bun run desktop:dev:hmr
+
+# Force Windows/Linux protocol stubs (for parallel engine development)
+GG_ENGINE_TARGET=windows-stub bun run desktop:dev
+GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 ```
 
 ## Test & Coverage
@@ -48,3 +52,4 @@ bun run desktop:build
 - Bun main process bridge: `/apps/desktop-electrobun/src/bun`
 - Shared Zod protocol: `/packages/engine-protocol/src/index.ts`
 - Native engine target: `/engines/macos-swift`
+- Stub engines: `/engines/windows-stub`, `/engines/linux-stub`

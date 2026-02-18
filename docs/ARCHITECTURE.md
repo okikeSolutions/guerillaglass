@@ -56,5 +56,6 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 
 ## Future Platform Targets
 
-- Add `engines/windows-*` and `engines/linux-*` with the same protocol.
+- Add native `engines/windows-*` and `engines/linux-*` implementations with the same protocol.
 - Keep `.gglassproj` as the shared project contract across engines.
+- Current scaffold stubs live in `engines/windows-stub` and `engines/linux-stub` for parallel UI/protocol work.

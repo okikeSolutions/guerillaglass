@@ -7,6 +7,7 @@ The project now uses a hybrid architecture:
 - Cross-platform desktop shell: Electrobun + React + Tailwind (`/apps/desktop-electrobun`)
 - Native media engine: Swift (`/engines/macos-swift`) using ScreenCaptureKit/AVFoundation
 - Shared typed protocol: Zod schemas (`/packages/engine-protocol`)
+- Parallel stubs for non-mac engine development: `/engines/windows-stub`, `/engines/linux-stub`
 
 ## Requirements
 
@@ -25,6 +26,10 @@ swift build
 
 # Run desktop shell (expects native engine binary)
 bun run desktop:dev
+
+# Use protocol stubs while native Windows/Linux engines are under development
+GG_ENGINE_TARGET=windows-stub bun run desktop:dev
+GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 ```
 
 ## Verification
