@@ -52,10 +52,10 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 ## Testing
 
 - Desktop protocol and bridge tests: `bun run desktop:test:coverage`
-- Native engine + existing app stack: `Scripts/full_gate.sh`
+- Native engine stack: `Scripts/full_gate.sh`
 
 ## Future Platform Targets
 
-- Add native `engines/windows-*` and `engines/linux-*` implementations with the same protocol.
+- Evolve `engines/windows-native` and `engines/linux-native` from protocol-complete foundations into production capture/audio/export engines.
 - Keep `.gglassproj` as the shared project contract across engines.
 - Current scaffold stubs live in `engines/windows-stub` and `engines/linux-stub` for parallel UI/protocol work.
