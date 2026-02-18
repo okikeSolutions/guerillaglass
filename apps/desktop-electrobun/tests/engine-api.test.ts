@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { desktopApi, engineApi } from "../src/mainview/lib/engine";
+import { desktopApi, engineApi, parseInputEventLog } from "../src/mainview/lib/engine";
 
 beforeEach(() => {
   delete (globalThis as { window?: unknown }).window;
@@ -103,6 +103,17 @@ describe("renderer engine bridge", () => {
         captureMetadata: null,
       }),
       ggPickDirectory: async () => "/tmp",
+      ggReadTextFile: async () =>
+        JSON.stringify({
+          schemaVersion: 1,
+          events: [
+            {
+              type: "cursorMoved",
+              timestamp: 0.15,
+              position: { x: 100, y: 120 },
+            },
+          ],
+        }),
     };
 
     const ping = await engineApi.ping();
@@ -121,6 +132,8 @@ describe("renderer engine bridge", () => {
     });
     const savedProject = await engineApi.projectSave({ projectPath: "/tmp/project.gglassproj" });
     const picked = await desktopApi.pickDirectory();
+    const eventsRaw = await desktopApi.readTextFile("/tmp/events.json");
+    const events = parseInputEventLog(eventsRaw);
 
     expect(ping.protocolVersion).toBe("2");
     expect(permissions.inputMonitoring).toBe("authorized");
@@ -133,5 +146,7 @@ describe("renderer engine bridge", () => {
     expect(exportResult.outputURL).toContain("out.mp4");
     expect(savedProject.projectPath).toContain("project.gglassproj");
     expect(picked).toBe("/tmp");
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe("cursorMoved");
   });
 });

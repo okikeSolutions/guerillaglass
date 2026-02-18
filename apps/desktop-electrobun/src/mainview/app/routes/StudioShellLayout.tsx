@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStudio } from "../studio/context";
+import { TimelineSurface } from "./TimelineSurface";
 
 function modeTabClass(isActive: boolean): string {
   return isActive
@@ -159,23 +160,23 @@ export function StudioShellLayout() {
               </label>
             </div>
 
-            <div className="space-y-2">
-              <input
-                type="range"
-                min={0}
-                max={studio.timelineDuration}
-                step={0.01}
-                value={studio.playheadSeconds}
-                onChange={(event) => studio.setPlayheadSeconds(Number(event.target.value))}
-                className="w-full"
-                aria-label={studio.ui.labels.playhead}
-              />
+            <TimelineSurface
+              durationSeconds={studio.timelineDuration}
+              playheadSeconds={studio.playheadSeconds}
+              trimStartSeconds={studio.exportForm.state.values.trimStartSeconds}
+              trimEndSeconds={studio.exportForm.state.values.trimEndSeconds}
+              lanes={studio.timelineLanes}
+              labels={studio.ui.labels}
+              onSetPlayheadSeconds={studio.setPlayheadSeconds}
+              onSetTrimStartSeconds={studio.setTrimStartSeconds}
+              onSetTrimEndSeconds={studio.setTrimEndSeconds}
+              onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
+            />
 
-              <div className="grid grid-cols-3 text-xs text-muted-foreground">
-                <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
-                <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
-                <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
-              </div>
+            <div className="grid grid-cols-3 text-xs text-muted-foreground">
+              <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
+              <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
+              <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
             </div>
           </CardContent>
         </Card>

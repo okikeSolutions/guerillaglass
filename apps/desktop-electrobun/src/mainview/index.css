@@ -174,4 +174,84 @@
       ),
       linear-gradient(140deg, var(--background), var(--card));
   }
+
+  .gg-timeline-wrapper {
+    @apply space-y-2;
+  }
+
+  .gg-timeline-ruler {
+    @apply relative h-6 rounded-md border border-border/70 bg-muted/50 px-2;
+  }
+
+  .gg-timeline-ruler-tick {
+    @apply absolute bottom-0 border-l border-border/70 pb-0.5 pl-1 text-[0.65rem] text-muted-foreground;
+    transform: translateX(-50%);
+    height: 100%;
+  }
+
+  .gg-timeline-surface {
+    @apply relative overflow-hidden rounded-md border border-border/70 bg-background/80 p-2 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none;
+    user-select: none;
+  }
+
+  .gg-timeline-lanes {
+    @apply space-y-1.5;
+  }
+
+  .gg-timeline-lane-row {
+    @apply grid items-center gap-2;
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .gg-timeline-lane-label {
+    @apply text-[0.68rem] font-semibold tracking-[0.1em] text-muted-foreground uppercase;
+  }
+
+  .gg-timeline-lane-track {
+    @apply relative h-9 rounded border border-border/70 bg-muted/40;
+  }
+
+  .gg-timeline-clip {
+    @apply absolute top-1/2 h-5 -translate-y-1/2 rounded;
+  }
+
+  .gg-timeline-clip-video {
+    @apply bg-primary/45;
+  }
+
+  .gg-timeline-clip-audio {
+    @apply bg-secondary-foreground/35;
+  }
+
+  .gg-timeline-marker {
+    @apply absolute bottom-0 w-0.5 -translate-x-1/2 rounded-t;
+  }
+
+  .gg-timeline-marker-move {
+    @apply bg-primary/55;
+  }
+
+  .gg-timeline-marker-click {
+    @apply bg-destructive/70;
+  }
+
+  .gg-timeline-marker-mixed {
+    background: linear-gradient(
+      to top,
+      color-mix(in oklab, var(--destructive) 80%, transparent),
+      color-mix(in oklab, var(--primary) 75%, transparent)
+    );
+  }
+
+  .gg-timeline-trim-window {
+    @apply pointer-events-none absolute inset-y-2 rounded border border-primary/70 bg-primary/10;
+  }
+
+  .gg-timeline-trim-handle {
+    @apply absolute inset-y-2 z-20 w-2 -translate-x-1/2 cursor-ew-resize rounded bg-primary shadow;
+  }
+
+  .gg-timeline-playhead {
+    @apply pointer-events-none absolute inset-y-0 z-30 w-0.5 -translate-x-1/2 bg-foreground/80;
+  }
 }

@@ -5,14 +5,16 @@ import type {
   AutoZoomSettings,
   CaptureStatusResult,
   ExportPreset,
+  InputEvent,
   PermissionsResult,
   PingResult,
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
 import { enUS } from "@/i18n/en";
-import { desktopApi, engineApi } from "@/lib/engine";
+import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
+import { buildTimelineLanes } from "./timelineModel";
 
 const hostMenuCommandEventName = "gg-host-menu-command";
 const playbackRates = [0.5, 1, 1.5, 2] as const;
@@ -33,6 +35,7 @@ const studioQueryKeys = {
   captureStatus: () => ["studio", "captureStatus"] as const,
   exportInfo: () => ["studio", "exportInfo"] as const,
   projectCurrent: () => ["studio", "projectCurrent"] as const,
+  eventsLog: (eventsURL: string | null) => ["studio", "eventsLog", eventsURL] as const,
 };
 
 function formatError(error: unknown): string {
@@ -195,6 +198,24 @@ export function useStudioController() {
 
   const recordingURL =
     captureStatusQuery.data?.recordingURL ?? projectQuery.data?.recordingURL ?? null;
+  const eventsURL = captureStatusQuery.data?.eventsURL ?? projectQuery.data?.eventsURL ?? null;
+
+  const eventsQuery = useQuery<InputEvent[]>({
+    queryKey: studioQueryKeys.eventsLog(eventsURL),
+    enabled:
+      Boolean(eventsURL) &&
+      !eventsURL?.startsWith("stub://") &&
+      !eventsURL?.startsWith("native://"),
+    queryFn: async () => {
+      if (!eventsURL) {
+        return [];
+      }
+      const raw = await desktopApi.readTextFile(eventsURL);
+      return parseInputEventLog(raw);
+    },
+    staleTime: 10_000,
+    retry: false,
+  });
 
   const timelineDuration = useMemo(
     () =>
@@ -216,6 +237,27 @@ export function useStudioController() {
   useEffect(() => {
     setPlayheadSeconds((current) => clamp(current, 0, timelineDuration));
   }, [timelineDuration]);
+
+  const timelineEvents = useMemo(
+    () => (eventsQuery.isSuccess ? eventsQuery.data : []),
+    [eventsQuery.data, eventsQuery.isSuccess],
+  );
+
+  const laneRecordingDurationSeconds = useMemo(() => {
+    if (!recordingURL) {
+      return 0;
+    }
+    return Math.max(captureStatusQuery.data?.recordingDurationSeconds ?? 0, timelineDuration);
+  }, [captureStatusQuery.data?.recordingDurationSeconds, recordingURL, timelineDuration]);
+
+  const timelineLanes = useMemo(
+    () =>
+      buildTimelineLanes({
+        recordingDurationSeconds: laneRecordingDurationSeconds,
+        events: timelineEvents,
+      }),
+    [laneRecordingDurationSeconds, timelineEvents],
+  );
 
   useEffect(() => {
     if (!isTimelinePlaying) {
@@ -265,6 +307,7 @@ export function useStudioController() {
         captureStatusQuery.refetch(),
         exportInfoQuery.refetch(),
         projectQuery.refetch(),
+        eventsQuery.refetch(),
       ]);
 
       return {
@@ -508,26 +551,53 @@ export function useStudioController() {
   const isRunningAction = busyMutations.some((mutation) => mutation.isPending);
   const isRefreshing = refreshMutation.isPending || pingQuery.isPending;
 
-  const setTrimInFromPlayhead = useCallback(() => {
-    const nextTrimStart = clamp(playheadSeconds, 0, timelineDuration);
-    exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
+  const setPlayheadSecondsClamped = useCallback(
+    (seconds: number) => {
+      setPlayheadSeconds(clamp(seconds, 0, timelineDuration));
+    },
+    [timelineDuration],
+  );
 
-    if (
-      exportForm.state.values.trimEndSeconds > 0 &&
-      nextTrimStart > exportForm.state.values.trimEndSeconds
-    ) {
-      exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
-    }
-  }, [exportForm, exportForm.state.values.trimEndSeconds, playheadSeconds, timelineDuration]);
+  const setTrimStartSeconds = useCallback(
+    (seconds: number) => {
+      const nextTrimStart = clamp(seconds, 0, timelineDuration);
+      exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
+
+      const trimEndSeconds = exportForm.state.values.trimEndSeconds;
+      if (trimEndSeconds > 0 && nextTrimStart > trimEndSeconds) {
+        exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
+      }
+    },
+    [exportForm, exportForm.state.values.trimEndSeconds, timelineDuration],
+  );
+
+  const setTrimEndSeconds = useCallback(
+    (seconds: number) => {
+      const nextTrimEnd = clamp(seconds, 0, timelineDuration);
+      exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
+
+      const trimStartSeconds = exportForm.state.values.trimStartSeconds;
+      if (trimStartSeconds > nextTrimEnd) {
+        exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
+      }
+    },
+    [exportForm, exportForm.state.values.trimStartSeconds, timelineDuration],
+  );
+
+  const setTrimInFromPlayhead = useCallback(() => {
+    setTrimStartSeconds(playheadSeconds);
+  }, [playheadSeconds, setTrimStartSeconds]);
 
   const setTrimOutFromPlayhead = useCallback(() => {
-    const nextTrimEnd = clamp(playheadSeconds, 0, timelineDuration);
-    exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
+    setTrimEndSeconds(playheadSeconds);
+  }, [playheadSeconds, setTrimEndSeconds]);
 
-    if (exportForm.state.values.trimStartSeconds > nextTrimEnd) {
-      exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
-    }
-  }, [exportForm, exportForm.state.values.trimStartSeconds, playheadSeconds, timelineDuration]);
+  const nudgePlayheadSeconds = useCallback(
+    (deltaSeconds: number) => {
+      setPlayheadSeconds((current) => clamp(current + deltaSeconds, 0, timelineDuration));
+    },
+    [timelineDuration],
+  );
 
   const toggleTimelinePlayback = useCallback(() => {
     setIsTimelinePlaying((previous) => !previous);
@@ -708,6 +778,7 @@ export function useStudioController() {
     isRunningAction,
     isTimelinePlaying,
     notice,
+    nudgePlayheadSeconds,
     openProjectMutation,
     permissionBadgeVariant,
     permissionsQuery,
@@ -724,15 +795,18 @@ export function useStudioController() {
     saveProjectMutation,
     selectedPreset,
     setNotice,
-    setPlayheadSeconds,
+    setPlayheadSeconds: setPlayheadSecondsClamped,
     setPlaybackRate,
+    setTrimEndSeconds,
     setTrimInFromPlayhead,
+    setTrimStartSeconds,
     setTrimOutFromPlayhead,
     settingsForm,
     sourcesQuery,
     startPreviewMutation,
     stopPreviewMutation,
     timelineDuration,
+    timelineLanes,
     toggleRecordingMutation,
     toggleTimelinePlayback,
     ui: enUS,
