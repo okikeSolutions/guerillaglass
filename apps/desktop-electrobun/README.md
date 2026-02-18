@@ -17,7 +17,7 @@ It talks to the native Swift engine (`guerillaglass-engine`) over stdio with a t
 bun install
 
 # Build native engine once (required for runtime wiring)
-swift build --product guerillaglass-engine
+bun run swift:build
 ```
 
 ## Development
@@ -41,6 +41,11 @@ GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ## Test & Coverage
 
 ```bash
+# JS/TS format + lint (workspace-level Oxc tooling)
+bun run js:format:check
+bun run js:lint
+
+# Desktop tests
 bun run desktop:test
 bun run desktop:test:coverage
 bun run desktop:test:e2e

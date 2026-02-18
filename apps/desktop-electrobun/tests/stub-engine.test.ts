@@ -44,12 +44,12 @@ function createLineClient(stubPath: string) {
 
   return {
     async send(rawLine: string): Promise<WireResponse> {
-      stdin.write(encoder.encode(`${rawLine}\n`));
+      await stdin.write(encoder.encode(`${rawLine}\n`));
       const line = await readLine();
       return JSON.parse(line) as WireResponse;
     },
     async close() {
-      stdin.end();
+      await stdin.end();
       reader.releaseLock();
       process.kill();
     },

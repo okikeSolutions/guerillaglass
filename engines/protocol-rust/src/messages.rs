@@ -43,7 +43,9 @@ impl EngineMethod {
             Self::PermissionsRequestScreenRecording => "permissions.requestScreenRecording",
             Self::PermissionsRequestMicrophone => "permissions.requestMicrophone",
             Self::PermissionsRequestInputMonitoring => "permissions.requestInputMonitoring",
-            Self::PermissionsOpenInputMonitoringSettings => "permissions.openInputMonitoringSettings",
+            Self::PermissionsOpenInputMonitoringSettings => {
+                "permissions.openInputMonitoringSettings"
+            }
             Self::SourcesList => "sources.list",
             Self::CaptureStartDisplay => "capture.startDisplay",
             Self::CaptureStartWindow => "capture.startWindow",
@@ -183,14 +185,17 @@ mod tests {
         .expect("decode request");
 
         assert_eq!(request.id, "r1");
-        assert_eq!(request.method_kind(), Some(EngineMethod::EngineCapabilities));
+        assert_eq!(
+            request.method_kind(),
+            Some(EngineMethod::EngineCapabilities)
+        );
         assert_eq!(request.params.get("verbose"), Some(&Value::Bool(true)));
     }
 
     #[test]
     fn defaults_params_when_missing() {
-        let request = decode_request_line(r#"{"id":"r2","method":"system.ping"}"#)
-            .expect("decode request");
+        let request =
+            decode_request_line(r#"{"id":"r2","method":"system.ping"}"#).expect("decode request");
         assert_eq!(request.params, json!({}));
     }
 

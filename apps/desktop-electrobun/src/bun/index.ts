@@ -47,42 +47,44 @@ const mainWindow = new BrowserWindow({
   },
 });
 
-mainWindow.webview.expose("ggEnginePing", async () => engineClient.ping());
-mainWindow.webview.expose("ggEngineGetPermissions", async () => engineClient.getPermissions());
-mainWindow.webview.expose(
-  "ggEngineRequestScreenRecordingPermission",
-  async () => engineClient.requestScreenRecordingPermission(),
+type ExposedWebview = {
+  expose: <TArgs extends unknown[], TResult>(
+    name: string,
+    handler: (...args: TArgs) => Promise<TResult> | TResult,
+  ) => void;
+};
+
+const exposedWebview = mainWindow.webview as unknown as ExposedWebview;
+
+exposedWebview.expose("ggEnginePing", async () => engineClient.ping());
+exposedWebview.expose("ggEngineGetPermissions", async () => engineClient.getPermissions());
+exposedWebview.expose("ggEngineRequestScreenRecordingPermission", async () =>
+  engineClient.requestScreenRecordingPermission(),
 );
-mainWindow.webview.expose(
-  "ggEngineRequestMicrophonePermission",
-  async () => engineClient.requestMicrophonePermission(),
+exposedWebview.expose("ggEngineRequestMicrophonePermission", async () =>
+  engineClient.requestMicrophonePermission(),
 );
-mainWindow.webview.expose(
-  "ggEngineRequestInputMonitoringPermission",
-  async () => engineClient.requestInputMonitoringPermission(),
+exposedWebview.expose("ggEngineRequestInputMonitoringPermission", async () =>
+  engineClient.requestInputMonitoringPermission(),
 );
-mainWindow.webview.expose(
-  "ggEngineOpenInputMonitoringSettings",
-  async () => engineClient.openInputMonitoringSettings(),
+exposedWebview.expose("ggEngineOpenInputMonitoringSettings", async () =>
+  engineClient.openInputMonitoringSettings(),
 );
-mainWindow.webview.expose("ggEngineListSources", async () => engineClient.listSources());
-mainWindow.webview.expose(
-  "ggEngineStartDisplayCapture",
-  async (enableMic: boolean) => engineClient.startDisplayCapture(enableMic),
+exposedWebview.expose("ggEngineListSources", async () => engineClient.listSources());
+exposedWebview.expose("ggEngineStartDisplayCapture", async (enableMic: boolean) =>
+  engineClient.startDisplayCapture(enableMic),
 );
-mainWindow.webview.expose(
-  "ggEngineStartWindowCapture",
-  async (windowId: number, enableMic: boolean) => engineClient.startWindowCapture(windowId, enableMic),
+exposedWebview.expose("ggEngineStartWindowCapture", async (windowId: number, enableMic: boolean) =>
+  engineClient.startWindowCapture(windowId, enableMic),
 );
-mainWindow.webview.expose("ggEngineStopCapture", async () => engineClient.stopCapture());
-mainWindow.webview.expose(
-  "ggEngineStartRecording",
-  async (trackInputEvents: boolean) => engineClient.startRecording(trackInputEvents),
+exposedWebview.expose("ggEngineStopCapture", async () => engineClient.stopCapture());
+exposedWebview.expose("ggEngineStartRecording", async (trackInputEvents: boolean) =>
+  engineClient.startRecording(trackInputEvents),
 );
-mainWindow.webview.expose("ggEngineStopRecording", async () => engineClient.stopRecording());
-mainWindow.webview.expose("ggEngineCaptureStatus", async () => engineClient.captureStatus());
-mainWindow.webview.expose("ggEngineExportInfo", async () => engineClient.exportInfo());
-mainWindow.webview.expose(
+exposedWebview.expose("ggEngineStopRecording", async () => engineClient.stopRecording());
+exposedWebview.expose("ggEngineCaptureStatus", async () => engineClient.captureStatus());
+exposedWebview.expose("ggEngineExportInfo", async () => engineClient.exportInfo());
+exposedWebview.expose(
   "ggEngineRunExport",
   async (params: {
     outputURL: string;
@@ -91,13 +93,18 @@ mainWindow.webview.expose(
     trimEndSeconds?: number;
   }) => engineClient.runExport(params),
 );
-mainWindow.webview.expose("ggEngineProjectCurrent", async () => engineClient.projectCurrent());
-mainWindow.webview.expose("ggEngineProjectOpen", async (projectPath: string) => engineClient.projectOpen(projectPath));
-mainWindow.webview.expose(
-  "ggEngineProjectSave",
-  async (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) => engineClient.projectSave(params),
+exposedWebview.expose("ggEngineProjectCurrent", async () => engineClient.projectCurrent());
+exposedWebview.expose("ggEngineProjectOpen", async (projectPath: string) =>
+  engineClient.projectOpen(projectPath),
 );
-mainWindow.webview.expose("ggPickDirectory", async (startingFolder?: string) => pickDirectory(startingFolder));
+exposedWebview.expose(
+  "ggEngineProjectSave",
+  async (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) =>
+    engineClient.projectSave(params),
+);
+exposedWebview.expose("ggPickDirectory", async (startingFolder?: string) =>
+  pickDirectory(startingFolder),
+);
 
 mainWindow.on("close", async () => {
   await engineClient.stop();

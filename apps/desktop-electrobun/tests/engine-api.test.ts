@@ -8,11 +8,17 @@ beforeEach(() => {
 describe("renderer engine bridge", () => {
   test("throws a clear error when bridge is missing", async () => {
     (globalThis as { window: unknown }).window = {};
-    await expect(engineApi.ping()).rejects.toThrow("Missing Electrobun bridge");
+    try {
+      await engineApi.ping();
+      throw new Error("Expected ping to fail when bridge is missing");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("Missing Electrobun bridge");
+    }
   });
 
   test("parses parity command payloads", async () => {
-    (globalThis as { window: Record<string, unknown> }).window = {
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
       ggEnginePing: async () => ({
         app: "guerillaglass",
         engineVersion: "0.2.0",

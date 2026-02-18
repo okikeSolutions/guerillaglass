@@ -31,7 +31,9 @@ describe("engine client path resolution", () => {
       baseDir: BUN_BASE_DIR,
     });
 
-    expect(windowsStub.endsWith("engines/windows-stub/guerillaglass-engine-windows-stub.ts")).toBe(true);
+    expect(windowsStub.endsWith("engines/windows-stub/guerillaglass-engine-windows-stub.ts")).toBe(
+      true,
+    );
     expect(linuxNative.endsWith("engines/linux-native/bin/guerillaglass-engine-linux")).toBe(true);
   });
 
@@ -47,14 +49,18 @@ describe("engine client path resolution", () => {
       baseDir: BUN_BASE_DIR,
     });
 
-    expect(winDefault.endsWith("engines/windows-stub/guerillaglass-engine-windows-stub.ts")).toBe(true);
-    expect(linuxDefault.endsWith("engines/linux-stub/guerillaglass-engine-linux-stub.ts")).toBe(true);
+    expect(winDefault.endsWith("engines/windows-stub/guerillaglass-engine-windows-stub.ts")).toBe(
+      true,
+    );
+    expect(linuxDefault.endsWith("engines/linux-stub/guerillaglass-engine-linux-stub.ts")).toBe(
+      true,
+    );
   });
 });
 
 describe("engine client integration", () => {
   test("executes a phase-1 parity flow against the stub engine", async () => {
-    const client = new EngineClient(LINUX_STUB_PATH, 2_000);
+    const client = new EngineClient(LINUX_STUB_PATH, 2000);
     try {
       const ping = await client.ping();
       expect(ping.platform).toBe("linux");

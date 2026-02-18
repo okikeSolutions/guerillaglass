@@ -142,26 +142,24 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
                 "message": "Permission flow wiring is active. Native policy integration pending.",
             }),
         ),
-        EngineMethod::SourcesList => {
-            success(
-                &request.id,
-                json!({
-                    "displays": [
-                        { "id": 1, "width": 1920, "height": 1080 }
-                    ],
-                    "windows": [
-                        {
-                            "id": 101,
-                            "title": "Desktop",
-                            "appName": "System",
-                            "width": 1280,
-                            "height": 720,
-                            "isOnScreen": true
-                        }
-                    ]
-                }),
-            )
-        }
+        EngineMethod::SourcesList => success(
+            &request.id,
+            json!({
+                "displays": [
+                    { "id": 1, "width": 1920, "height": 1080 }
+                ],
+                "windows": [
+                    {
+                        "id": 101,
+                        "title": "Desktop",
+                        "appName": "System",
+                        "width": 1280,
+                        "height": 720,
+                        "isOnScreen": true
+                    }
+                ]
+            }),
+        ),
         EngineMethod::CaptureStartDisplay => {
             state.is_running = true;
             state.capture_metadata = Some(json!({
@@ -228,7 +226,7 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
             }),
         ),
         EngineMethod::ExportRun => {
-            let output_url = match get_string(&params, "outputURL") {
+            let output_url = match get_string(params, "outputURL") {
                 Some(value) => value,
                 None => {
                     return failure(
@@ -249,7 +247,7 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
         }
         EngineMethod::ProjectCurrent => success(&request.id, state.project_state()),
         EngineMethod::ProjectOpen => {
-            let project_path = match get_string(&params, "projectPath") {
+            let project_path = match get_string(params, "projectPath") {
                 Some(value) => value,
                 None => {
                     return failure(
@@ -263,7 +261,7 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
             success(&request.id, state.project_state())
         }
         EngineMethod::ProjectSave => {
-            if let Some(project_path) = get_string(&params, "projectPath") {
+            if let Some(project_path) = get_string(params, "projectPath") {
                 state.project_path = Some(project_path);
             }
 
@@ -275,9 +273,10 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
                 state.auto_zoom_intensity = get_f64(auto_zoom, "intensity")
                     .unwrap_or(state.auto_zoom_intensity)
                     .clamp(0.0, 1.0);
-                state.auto_zoom_min_keyframe_interval = get_f64(auto_zoom, "minimumKeyframeInterval")
-                    .unwrap_or(state.auto_zoom_min_keyframe_interval)
-                    .max(0.0001);
+                state.auto_zoom_min_keyframe_interval =
+                    get_f64(auto_zoom, "minimumKeyframeInterval")
+                        .unwrap_or(state.auto_zoom_min_keyframe_interval)
+                        .max(0.0001);
             }
 
             if let Some(project_path) = &state.project_path {

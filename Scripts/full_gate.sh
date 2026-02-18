@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Run Rust gate
+echo "==> rust gate"
+Scripts/rust_gate.sh
+
+# Run TypeScript gate
+echo "==> typescript gate"
+Scripts/typescript_gate.sh
+
 # Run SwiftFormat
 echo "==> swiftformat"
 swiftformat .

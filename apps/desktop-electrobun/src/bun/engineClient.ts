@@ -22,6 +22,11 @@ type PendingRequest = {
   timeout: ReturnType<typeof setTimeout>;
 };
 
+type EngineStdin = {
+  write: (chunk: Uint8Array) => unknown;
+  end: () => unknown;
+};
+
 export type EngineTarget =
   | "macos-swift"
   | "windows-native"
@@ -41,9 +46,15 @@ function resolveByTarget(engineTarget: EngineTarget, baseDir: string): string {
     case "linux-native":
       return path.resolve(baseDir, "../../../../engines/linux-native/bin", LINUX_NATIVE_BINARY);
     case "windows-stub":
-      return path.resolve(baseDir, "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts");
+      return path.resolve(
+        baseDir,
+        "../../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
+      );
     case "linux-stub":
-      return path.resolve(baseDir, "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts");
+      return path.resolve(
+        baseDir,
+        "../../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
+      );
   }
 }
 
@@ -92,7 +103,7 @@ export function resolveEnginePath(options?: {
 
 export class EngineClient {
   private process: ReturnType<typeof Bun.spawn> | null = null;
-  private stdin: FileSink | null = null;
+  private stdin: EngineStdin | null = null;
   private pending = new Map<string, PendingRequest>();
   private startPromise: Promise<void> | null = null;
   private readonly enginePath: string;
@@ -122,7 +133,7 @@ export class EngineClient {
         stderr: "pipe",
       });
 
-      this.stdin = this.process.stdin;
+      this.stdin = this.process.stdin as unknown as EngineStdin;
       void this.readStdout();
       void this.readStderr();
     })();
@@ -174,7 +185,9 @@ export class EngineClient {
   }
 
   async openInputMonitoringSettings() {
-    return actionResultSchema.parse(await this.request("permissions.openInputMonitoringSettings", {}));
+    return actionResultSchema.parse(
+      await this.request("permissions.openInputMonitoringSettings", {}),
+    );
   }
 
   async listSources() {
@@ -239,10 +252,7 @@ export class EngineClient {
     return projectStateSchema.parse(await this.request("project.open", { projectPath }));
   }
 
-  async projectSave(params: {
-    projectPath?: string;
-    autoZoom?: AutoZoomSettings;
-  }) {
+  async projectSave(params: { projectPath?: string; autoZoom?: AutoZoomSettings }) {
     return projectStateSchema.parse(await this.request("project.save", params));
   }
 
@@ -255,7 +265,10 @@ export class EngineClient {
       throw new Error("Engine process unavailable");
     }
 
-    const request = buildRequest(method, params);
+    const request = buildRequest(
+      method as EngineRequest["method"],
+      params as never,
+    ) as EngineRequest;
     const payload = `${JSON.stringify(request)}\n`;
 
     return new Promise<unknown>((resolve, reject) => {
@@ -265,8 +278,15 @@ export class EngineClient {
       }, this.requestTimeoutMs);
 
       this.pending.set(request.id, { resolve, reject, timeout });
+      const stdin = this.stdin;
+      if (!stdin) {
+        clearTimeout(timeout);
+        this.pending.delete(request.id);
+        reject(new Error("Engine process unavailable"));
+        return;
+      }
       try {
-        this.stdin.write(new TextEncoder().encode(payload));
+        stdin.write(new TextEncoder().encode(payload));
       } catch (error) {
         clearTimeout(timeout);
         this.pending.delete(request.id);

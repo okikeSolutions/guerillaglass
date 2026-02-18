@@ -6,14 +6,16 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "bun run desktop:dev",
-    "start:debug": "bun run desktop:dev:hmr",
-    "start:release": "bun run desktop:build",
-    "full_gate": "./Scripts/full_gate.sh",
-    "build": "swift build",
-    "test": "swift test",
-    "format": "swiftformat .",
-    "lint": "swiftlint",
+    "gate": "./Scripts/full_gate.sh",
+    "gate:rust": "./Scripts/rust_gate.sh",
+    "gate:typescript": "./Scripts/typescript_gate.sh",
+    "js:format": "bunx oxfmt --write apps packages",
+    "js:format:check": "bunx oxfmt --check apps packages",
+    "js:lint": "bunx oxlint --deny-warnings --type-aware apps packages",
+    "swift:build": "swift build",
+    "swift:test": "swift test",
+    "swift:format": "swiftformat .",
+    "swift:lint": "swiftlint",
     "desktop:dev": "cd apps/desktop-electrobun && bun run dev",
     "desktop:dev:hmr": "cd apps/desktop-electrobun && bun run dev:hmr",
     "desktop:dev:windows-native": "GG_ENGINE_TARGET=windows-native bun run desktop:dev",
@@ -22,8 +24,23 @@
     "desktop:dev:linux-stub": "GG_ENGINE_TARGET=linux-stub bun run desktop:dev",
     "desktop:build": "cd apps/desktop-electrobun && bun run build",
     "desktop:test": "cd apps/desktop-electrobun && bun test",
+    "desktop:typecheck": "cd apps/desktop-electrobun && bun run typecheck",
     "desktop:test:coverage": "cd apps/desktop-electrobun && bun test --coverage",
     "desktop:test:e2e": "cd apps/desktop-electrobun && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts",
-    "protocol-rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
+    "protocol:typecheck": "cd packages/engine-protocol && bun run typecheck",
+    "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
+  },
+  "devDependencies": {
+    "@nkzw/eslint-plugin": "^2.0.0",
+    "@nkzw/oxlint-config": "^1.0.1",
+    "eslint-plugin-no-only-tests": "^3.3.0",
+    "eslint-plugin-perfectionist": "^5.6.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "oxfmt": "^0.33.0",
+    "oxlint": "^1.48.0",
+    "oxlint-tsgolint": "^0.14.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.0"
   }
 }
