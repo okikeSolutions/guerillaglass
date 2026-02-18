@@ -37,6 +37,7 @@ apps/*/dist/
 apps/*/build/
 target/
 Cargo.lock
+.tmp/
 
 # CocoaPods
 #

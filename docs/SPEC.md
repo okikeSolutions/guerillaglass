@@ -164,6 +164,10 @@ Design baseline (from pro-tool patterns):
 - Contextual controls: inspector content changes by selection/mode; avoid showing unrelated settings by default.
 - Keyboard-first operations: all core actions remain available without pointer dependency.
 - Capture-first telemetry: record state, elapsed time, and health indicators stay visible while recording/editing.
+- Desktop renderer state architecture:
+  - TanStack Router for explicit mode navigation (`Capture`, `Edit`, `Deliver`)
+  - TanStack Query for typed engine RPC query/mutation flows
+  - TanStack Form for typed studio settings and export form state
 
 Creator Studio implementation requirements:
 
@@ -183,8 +187,8 @@ Creator Studio implementation requirements:
 Creator Studio tracking checklist (current repo):
 
 - [ ] Replace card-dashboard shell with contiguous editor panes
-- [ ] Add explicit mode switch (`Capture`, `Edit`, `Deliver`) with stable navigation state
-- [ ] Keep timeline permanently visible in primary layout across desktop breakpoints
+- [x] Add explicit mode switch (`Capture`, `Edit`, `Deliver`) with stable navigation state
+- [x] Keep timeline permanently visible in primary layout across desktop breakpoints
 - [ ] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
 - [ ] Make inspector fully contextual to selection and mode
 - [ ] Add project utility panel support for recent projects + active project metadata
@@ -193,6 +197,11 @@ Creator Studio tracking checklist (current repo):
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
 - [x] Keep degraded-mode messaging visible near preview/recording context
+- [x] Add host command bus between Bun shell menu/tray and renderer actions
+- [x] Add cross-platform native shell actions (application menu on macOS/Windows, tray fallback on Linux)
+- [x] Add menu-state synchronization (`canSave`, `canExport`, `isRecording`) for dynamic labels/enablement
+- [x] Align macOS application menu template + wiring with Electrobun guidance (native app menu + command routing)
+- [x] Modularize shell menu code into builders/actions/router units with tests
 - [ ] Complete accessibility pass for focus visibility, contrast, and reduced-motion behavior
 
 Suggested rollout order:
