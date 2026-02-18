@@ -3,6 +3,10 @@ import { defineConfig } from "oxlint";
 
 export default defineConfig({
   extends: [nkzw],
+  ignorePatterns: [
+    "apps/desktop-electrobun/build/**",
+    "apps/desktop-electrobun/dist/**",
+  ],
   rules: {
     "import-x/no-namespace": "off",
     "perfectionist/sort-enums": "off",
