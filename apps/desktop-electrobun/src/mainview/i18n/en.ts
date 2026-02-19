@@ -88,6 +88,9 @@ export const enUS = {
     inputMonitoring: "Input Monitoring",
     status: "Status",
     duration: "Duration",
+    droppedFrames: "Dropped Frames",
+    audioLevel: "Audio Level",
+    health: "Health",
     recordingURL: "Recording URL",
     projectPath: "Project Path",
     eventsURL: "Events URL",
@@ -135,6 +138,9 @@ export const enUS = {
     granted: "granted",
     notGranted: "not granted",
     unknown: "unknown",
+    good: "good",
+    warning: "warning",
+    critical: "critical",
     untitled: "(untitled)",
     on: "on",
     off: "off",
@@ -220,6 +226,10 @@ export const enUS = {
     phaseScaffoldTitle: "Future Controls Scaffolded",
     phaseScaffoldBody:
       "Background framing, motion blur, per-segment overrides, and Simulator auto-crop are surfaced here for phased native wiring.",
+    healthReasonEngineError: "Engine reported a capture error",
+    healthReasonHighDroppedFrameRate: "High dropped-frame rate",
+    healthReasonElevatedDroppedFrameRate: "Elevated dropped-frame rate",
+    healthReasonLowMicrophoneLevel: "Low microphone level",
   },
 } as const;
 
