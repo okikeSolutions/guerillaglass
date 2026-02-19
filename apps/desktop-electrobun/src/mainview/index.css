@@ -261,6 +261,10 @@
     @apply absolute top-1/2 h-5 -translate-y-1/2 rounded;
   }
 
+  .gg-timeline-entity-button {
+    @apply cursor-pointer border-0 p-0 focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:outline-none;
+  }
+
   .gg-timeline-clip-video {
     @apply bg-primary/45;
   }
@@ -269,8 +273,20 @@
     @apply bg-secondary-foreground/35;
   }
 
-  .gg-timeline-marker {
-    @apply absolute bottom-0 w-0.5 -translate-x-1/2 rounded-t;
+  .gg-timeline-marker-hit {
+    @apply absolute bottom-0 w-3 -translate-x-1/2 cursor-pointer border-0 bg-transparent p-0;
+  }
+
+  .gg-timeline-marker-line {
+    @apply pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 rounded-t;
+  }
+
+  .gg-timeline-clip-selected {
+    @apply ring-2 ring-primary/80;
+  }
+
+  .gg-timeline-marker-selected {
+    @apply ring-2 ring-primary/70;
   }
 
   .gg-timeline-marker-move {

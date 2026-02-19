@@ -1,6 +1,7 @@
-import { Mic, MonitorCog, MousePointer, ScreenShare, ShieldCheck } from "lucide-react";
+import { ScreenShare, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { engineApi } from "@/lib/engine";
+import { InspectorPanel } from "./InspectorPanel";
 import { useStudio } from "../studio/context";
 
 export function CaptureRoute() {
@@ -63,7 +64,12 @@ export function CaptureRoute() {
                     <input
                       type="radio"
                       checked={field.state.value === "display"}
-                      onChange={() => field.handleChange("display")}
+                      onChange={() => {
+                        field.handleChange("display");
+                        if (studio.inspectorSelection.kind === "captureWindow") {
+                          studio.clearInspectorSelection();
+                        }
+                      }}
                     />
                     {studio.ui.labels.display}
                   </label>
@@ -71,7 +77,21 @@ export function CaptureRoute() {
                     <input
                       type="radio"
                       checked={field.state.value === "window"}
-                      onChange={() => field.handleChange("window")}
+                      onChange={() => {
+                        field.handleChange("window");
+                        const selectedWindow = studio.windowChoices.find(
+                          (windowItem) =>
+                            windowItem.id === studio.settingsForm.state.values.selectedWindowId,
+                        );
+                        if (!selectedWindow) {
+                          return;
+                        }
+                        studio.selectCaptureWindow({
+                          windowId: selectedWindow.id,
+                          appName: selectedWindow.appName,
+                          title: selectedWindow.title,
+                        });
+                      }}
                     />
                     {studio.ui.labels.window}
                   </label>
@@ -85,7 +105,22 @@ export function CaptureRoute() {
                   <select
                     className="gg-input"
                     value={field.state.value}
-                    onChange={(event) => field.handleChange(Number(event.target.value))}
+                    onChange={(event) => {
+                      const windowId = Number(event.target.value);
+                      field.handleChange(windowId);
+                      const selectedWindow = studio.windowChoices.find(
+                        (windowItem) => windowItem.id === windowId,
+                      );
+                      if (!selectedWindow) {
+                        studio.clearInspectorSelection();
+                        return;
+                      }
+                      studio.selectCaptureWindow({
+                        windowId: selectedWindow.id,
+                        appName: selectedWindow.appName,
+                        title: selectedWindow.title,
+                      });
+                    }}
                   >
                     {studio.windowChoices.length === 0 ? (
                       <option value={0}>{studio.ui.labels.noWindows}</option>
@@ -164,95 +199,7 @@ export function CaptureRoute() {
         </div>
       </section>
 
-      <aside className="gg-pane gg-pane-right">
-        <div className="gg-pane-header">
-          <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
-            <MonitorCog className="h-4 w-4" /> Capture Settings
-          </h2>
-          <p className="gg-pane-subtitle">Mic, input tracking, and auto-zoom</p>
-        </div>
-        <div className="gg-pane-body space-y-3 text-sm">
-          <studio.settingsForm.Field name="micEnabled">
-            {(field) => (
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.checked)}
-                />
-                <Mic className="h-4 w-4" /> {studio.ui.labels.includeMic}
-              </label>
-            )}
-          </studio.settingsForm.Field>
-
-          <studio.settingsForm.Field name="trackInputEvents">
-            {(field) => (
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.checked)}
-                />
-                <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
-              </label>
-            )}
-          </studio.settingsForm.Field>
-
-          <studio.settingsForm.Field name="autoZoom">
-            {(field) => (
-              <div className="space-y-3 rounded-md border border-border/70 bg-background/70 p-3">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={field.state.value.isEnabled}
-                    onChange={(event) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        isEnabled: event.target.checked,
-                      })
-                    }
-                  />
-                  {studio.ui.labels.autoZoomEnabled}
-                </label>
-                <label className="grid gap-1">
-                  {studio.ui.labels.autoZoomIntensity(
-                    Math.round(field.state.value.intensity * 100),
-                  )}
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={field.state.value.intensity}
-                    onChange={(event) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        intensity: Number(event.target.value),
-                      })
-                    }
-                  />
-                </label>
-                <label className="grid gap-1">
-                  {studio.ui.labels.minimumKeyframeInterval}
-                  <input
-                    className="gg-input"
-                    type="number"
-                    min={0.01}
-                    step={0.01}
-                    value={field.state.value.minimumKeyframeInterval}
-                    onChange={(event) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        minimumKeyframeInterval: Math.max(0.01, Number(event.target.value) || 0.01),
-                      })
-                    }
-                  />
-                </label>
-              </div>
-            )}
-          </studio.settingsForm.Field>
-        </div>
-      </aside>
+      <InspectorPanel mode="capture" />
     </section>
   );
 }

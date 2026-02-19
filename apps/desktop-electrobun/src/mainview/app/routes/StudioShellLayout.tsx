@@ -14,6 +14,7 @@ import {
   Video,
 } from "lucide-react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useStudio } from "../studio/context";
@@ -34,6 +35,21 @@ export function StudioShellLayout() {
   const captureActive = pathname.startsWith("/capture");
   const editActive = pathname.startsWith("/edit");
   const deliverActive = pathname.startsWith("/deliver");
+  const setActiveMode = studio.setActiveMode;
+
+  useEffect(() => {
+    if (pathname.startsWith("/capture")) {
+      setActiveMode("capture");
+      return;
+    }
+    if (pathname.startsWith("/edit")) {
+      setActiveMode("edit");
+      return;
+    }
+    if (pathname.startsWith("/deliver")) {
+      setActiveMode("deliver");
+    }
+  }, [pathname, setActiveMode]);
 
   return (
     <div className="h-full overflow-hidden bg-background">
@@ -235,6 +251,21 @@ export function StudioShellLayout() {
               onSetTrimStartSeconds={studio.setTrimStartSeconds}
               onSetTrimEndSeconds={studio.setTrimEndSeconds}
               onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
+              selectedClip={
+                studio.inspectorSelection.kind === "timelineClip"
+                  ? {
+                      laneId: studio.inspectorSelection.laneId,
+                      clipId: studio.inspectorSelection.clipId,
+                    }
+                  : null
+              }
+              selectedMarkerId={
+                studio.inspectorSelection.kind === "timelineMarker"
+                  ? studio.inspectorSelection.markerId
+                  : null
+              }
+              onSelectClip={studio.selectTimelineClip}
+              onSelectMarker={studio.selectTimelineMarker}
             />
 
             <div className="grid grid-cols-3 text-xs text-muted-foreground">

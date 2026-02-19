@@ -112,6 +112,68 @@ export const enUS = {
     project: "Project",
     advanced: "Advanced",
   },
+  inspector: {
+    views: {
+      timelineClipVideo: {
+        title: "Video Clip Inspector",
+        subtitle: "Selection-aware timing and trim controls",
+      },
+      timelineClipAudio: {
+        title: "Audio Clip Inspector",
+        subtitle: "Selection-aware timing and trim controls",
+      },
+      timelineMarker: {
+        title: "Event Marker Inspector",
+        subtitle: "Input event selection details and quick actions",
+      },
+      captureWindow: {
+        title: "Window Inspector",
+        subtitle: "Selected source details and capture controls",
+      },
+      exportPreset: {
+        title: "Preset Inspector",
+        subtitle: "Selected export preset details and delivery context",
+      },
+      captureDefault: {
+        title: "Capture Inspector",
+        subtitle: "Mic, input tracking, and automation controls",
+      },
+      editDefault: {
+        title: "Edit Inspector",
+        subtitle: "Selection-aware editing controls",
+      },
+      deliverDefault: {
+        title: "Deliver Inspector",
+        subtitle: "Export context and active preset",
+      },
+    },
+    cards: {
+      selectedClip: "Selected Clip",
+      selectedEventMarker: "Selected Event Marker",
+      selectedWindow: "Selected Window",
+      selectedPreset: "Selected Preset",
+      activePreset: "Active Preset",
+      trimWindow: "Trim Window",
+    },
+    fields: {
+      lane: "Lane",
+      start: "Start",
+      end: "End",
+      duration: "Duration",
+      type: "Type",
+      time: "Time",
+      density: "Density",
+      app: "App",
+      title: "Title",
+      windowId: "Window ID",
+      fileType: "File Type",
+    },
+    actions: {
+      setTrimInToClipStart: "Set Trim In To Clip Start",
+      setTrimOutToClipEnd: "Set Trim Out To Clip End",
+      jumpPlayheadToMarker: "Jump Playhead To Marker",
+    },
+  },
   helper: {
     degradedModeTitle: "Degraded Automation Mode",
     degradedModeBody:

@@ -19,6 +19,20 @@ type TimelineSurfaceProps = {
   onSetTrimStartSeconds: (seconds: number) => void;
   onSetTrimEndSeconds: (seconds: number) => void;
   onNudgePlayheadSeconds: (deltaSeconds: number) => void;
+  selectedClip: { laneId: "video" | "audio"; clipId: string } | null;
+  selectedMarkerId: string | null;
+  onSelectClip: (params: {
+    laneId: "video" | "audio";
+    clipId: string;
+    startSeconds: number;
+    endSeconds: number;
+  }) => void;
+  onSelectMarker: (params: {
+    markerId: string;
+    markerKind: "move" | "click" | "mixed";
+    density: number;
+    timestampSeconds: number;
+  }) => void;
 };
 
 type DragMode = "playhead" | "trimStart" | "trimEnd";
@@ -41,6 +55,10 @@ export function TimelineSurface({
   onSetTrimStartSeconds,
   onSetTrimEndSeconds,
   onNudgePlayheadSeconds,
+  selectedClip,
+  selectedMarkerId,
+  onSelectClip,
+  onSelectMarker,
 }: TimelineSurfaceProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const dragModeRef = useRef<DragMode | null>(null);
@@ -141,7 +159,8 @@ export function TimelineSurface({
           }
         }}
         onPointerDown={(event) => {
-          if ((event.target as HTMLElement).dataset.dragHandle) {
+          const target = event.target as HTMLElement;
+          if (target.dataset.dragHandle || target.closest("[data-timeline-selectable='true']")) {
             return;
           }
           beginDrag(event, "playhead");
@@ -178,20 +197,34 @@ export function TimelineSurface({
           onPointerDown={(event) => beginDrag(event, "trimEnd")}
         />
 
-        <div className="gg-timeline-lanes" aria-hidden>
+        <div className="gg-timeline-lanes">
           {lanes.map((lane) => (
             <div key={lane.id} className="gg-timeline-lane-row">
               <div className="gg-timeline-lane-label">{lane.label}</div>
               <div className="gg-timeline-lane-track">
-                {"clips" in lane
+                {lane.id === "video" || lane.id === "audio"
                   ? lane.clips.map((clip) => {
                       const left = toPercent(clip.startSeconds, durationSeconds);
                       const width = toPercent(clip.endSeconds, durationSeconds) - left;
+                      const isSelected =
+                        selectedClip?.laneId === lane.id && selectedClip?.clipId === clip.id;
                       return (
-                        <div
+                        <button
                           key={clip.id}
-                          className={`gg-timeline-clip gg-timeline-clip-${lane.id}`}
+                          type="button"
+                          data-timeline-selectable="true"
+                          className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id}${isSelected ? " gg-timeline-clip-selected" : ""}`}
                           style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
+                          aria-label={`${lane.label} clip ${clip.startSeconds.toFixed(2)} to ${clip.endSeconds.toFixed(2)} seconds`}
+                          aria-pressed={isSelected}
+                          onClick={() =>
+                            onSelectClip({
+                              laneId: lane.id,
+                              clipId: clip.id,
+                              startSeconds: clip.startSeconds,
+                              endSeconds: clip.endSeconds,
+                            })
+                          }
                         />
                       );
                     })
@@ -199,14 +232,30 @@ export function TimelineSurface({
 
                 {"markers" in lane
                   ? lane.markers.map((marker) => (
-                      <div
+                      <button
                         key={marker.id}
-                        className={`gg-timeline-marker gg-timeline-marker-${marker.kind}`}
+                        type="button"
+                        data-timeline-selectable="true"
+                        className={`gg-timeline-marker-hit gg-timeline-entity-button${selectedMarkerId === marker.id ? " gg-timeline-marker-selected" : ""}`}
                         style={{
                           left: `${toPercent(marker.timestampSeconds, durationSeconds)}%`,
                           height: `${Math.min(22, 8 + marker.density)}px`,
                         }}
-                      />
+                        aria-label={`Event marker ${marker.kind} at ${marker.timestampSeconds.toFixed(2)} seconds`}
+                        aria-pressed={selectedMarkerId === marker.id}
+                        onClick={() =>
+                          onSelectMarker({
+                            markerId: marker.id,
+                            markerKind: marker.kind,
+                            density: marker.density,
+                            timestampSeconds: marker.timestampSeconds,
+                          })
+                        }
+                      >
+                        <span
+                          className={`gg-timeline-marker-line gg-timeline-marker-${marker.kind}`}
+                        />
+                      </button>
                     ))
                   : null}
               </div>
