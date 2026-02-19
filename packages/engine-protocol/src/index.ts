@@ -129,6 +129,16 @@ export const projectStateSchema = z.object({
   captureMetadata: captureMetadataSchema,
 });
 
+export const projectRecentItemSchema = z.object({
+  projectPath: z.string().min(1),
+  displayName: z.string().min(1),
+  lastOpenedAt: z.string().datetime(),
+});
+
+export const projectRecentsResultSchema = z.object({
+  items: z.array(projectRecentItemSchema),
+});
+
 const requestBaseSchema = z.object({
   id: z.string().min(1),
 });
@@ -247,6 +257,16 @@ export const projectSaveRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+export const projectRecentsRequestSchema = requestBaseSchema.extend({
+  method: z.literal("project.recents"),
+  params: z
+    .object({
+      limit: z.number().int().positive().max(100).optional(),
+    })
+    .optional()
+    .default({}),
+});
+
 export const engineRequestSchema = z.discriminatedUnion("method", [
   systemPingRequestSchema,
   engineCapabilitiesRequestSchema,
@@ -267,6 +287,7 @@ export const engineRequestSchema = z.discriminatedUnion("method", [
   projectCurrentRequestSchema,
   projectOpenRequestSchema,
   projectSaveRequestSchema,
+  projectRecentsRequestSchema,
 ]);
 
 export const engineErrorCodeSchema = z.enum([
@@ -312,6 +333,8 @@ export type ExportPreset = z.infer<typeof exportPresetSchema>;
 export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;
 export type ExportRunResult = z.infer<typeof exportRunResultSchema>;
 export type ProjectState = z.infer<typeof projectStateSchema>;
+export type ProjectRecentItem = z.infer<typeof projectRecentItemSchema>;
+export type ProjectRecentsResult = z.infer<typeof projectRecentsResultSchema>;
 export type AutoZoomSettings = z.infer<typeof autoZoomSettingsSchema>;
 export type InputEvent = z.infer<typeof inputEventSchema>;
 export type InputEventLog = z.infer<typeof inputEventLogSchema>;

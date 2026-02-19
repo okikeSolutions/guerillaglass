@@ -67,6 +67,7 @@ export function initializeElectrobunRpcBridge(): void {
     rpc.request.ggEngineProjectOpen({ projectPath });
   window.ggEngineProjectSave = (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) =>
     rpc.request.ggEngineProjectSave(params);
+  window.ggEngineProjectRecents = (limit?: number) => rpc.request.ggEngineProjectRecents({ limit });
   window.ggPickDirectory = (startingFolder?: string) =>
     rpc.request.ggPickDirectory({ startingFolder });
   window.ggReadTextFile = (filePath: string) => rpc.request.ggReadTextFile({ filePath });

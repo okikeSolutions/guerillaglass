@@ -1,0 +1,7 @@
+{
+  "id": "fixture-project-recents",
+  "method": "project.recents",
+  "params": {
+    "limit": 5
+  }
+}

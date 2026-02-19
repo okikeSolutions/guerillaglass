@@ -102,6 +102,15 @@ describe("renderer engine bridge", () => {
         },
         captureMetadata: null,
       }),
+      ggEngineProjectRecents: async () => ({
+        items: [
+          {
+            projectPath: "/tmp/project.gglassproj",
+            displayName: "project",
+            lastOpenedAt: "2026-02-19T10:00:00.000Z",
+          },
+        ],
+      }),
       ggPickDirectory: async () => "/tmp",
       ggReadTextFile: async () =>
         JSON.stringify({
@@ -131,6 +140,7 @@ describe("renderer engine bridge", () => {
       trimEndSeconds: 10,
     });
     const savedProject = await engineApi.projectSave({ projectPath: "/tmp/project.gglassproj" });
+    const recentProjects = await engineApi.projectRecents(5);
     const picked = await desktopApi.pickDirectory();
     const eventsRaw = await desktopApi.readTextFile("/tmp/events.json");
     const events = parseInputEventLog(eventsRaw);
@@ -145,6 +155,7 @@ describe("renderer engine bridge", () => {
     expect(recording.isRecording).toBe(true);
     expect(exportResult.outputURL).toContain("out.mp4");
     expect(savedProject.projectPath).toContain("project.gglassproj");
+    expect(recentProjects.items).toHaveLength(1);
     expect(picked).toBe("/tmp");
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("cursorMoved");
