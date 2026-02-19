@@ -24,6 +24,7 @@ let hostMenuState: HostMenuState = {
   canSave: false,
   canExport: false,
   isRecording: false,
+  locale: "en-US",
 };
 let currentProjectPath: string | null = null;
 
@@ -91,7 +92,8 @@ function updateHostMenuState(nextState: HostMenuState) {
   const hasChange =
     hostMenuState.canSave !== nextState.canSave ||
     hostMenuState.canExport !== nextState.canExport ||
-    hostMenuState.isRecording !== nextState.isRecording;
+    hostMenuState.isRecording !== nextState.isRecording ||
+    hostMenuState.locale !== nextState.locale;
   if (!hasChange) {
     return;
   }

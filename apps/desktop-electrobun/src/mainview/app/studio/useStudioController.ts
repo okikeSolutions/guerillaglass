@@ -13,7 +13,7 @@ import type {
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import { getStudioMessages, type StudioLocale } from "@/i18n";
+import { getStudioMessages, type StudioLocale } from "@guerillaglass/localization";
 import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
 import {
@@ -357,8 +357,19 @@ export function useStudioController() {
       buildTimelineLanes({
         recordingDurationSeconds: laneRecordingDurationSeconds,
         events: timelineEvents,
+        labels: {
+          video: ui.labels.timelineLaneVideo,
+          audio: ui.labels.timelineLaneAudio,
+          events: ui.labels.timelineLaneEvents,
+        },
       }),
-    [laneRecordingDurationSeconds, timelineEvents],
+    [
+      laneRecordingDurationSeconds,
+      timelineEvents,
+      ui.labels.timelineLaneAudio,
+      ui.labels.timelineLaneEvents,
+      ui.labels.timelineLaneVideo,
+    ],
   );
 
   useEffect(() => {
@@ -1061,8 +1072,9 @@ export function useStudioController() {
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
+      locale,
     });
-  }, [captureStatusQuery.data?.isRecording, isRunningAction, recordingURL]);
+  }, [captureStatusQuery.data?.isRecording, isRunningAction, locale, recordingURL]);
 
   useEffect(() => {
     const onHostMenuCommand = (event: Event) => {

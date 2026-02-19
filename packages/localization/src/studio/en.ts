@@ -131,6 +131,16 @@ export const enUS = {
     sourceWindowApp: "App",
     sourceWindowTitle: "Title",
     sourceWindowSize: "Size",
+    timelineLaneVideo: "Video",
+    timelineLaneAudio: "Audio",
+    timelineLaneEvents: "Events",
+    timelineMarkerMove: "move",
+    timelineMarkerClick: "click",
+    timelineMarkerMixed: "mixed",
+    timelineClipAria: (laneLabel: string, startSeconds: number, endSeconds: number) =>
+      `${laneLabel} clip ${startSeconds.toFixed(2)} to ${endSeconds.toFixed(2)} seconds`,
+    timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) =>
+      `Event marker ${markerKindLabel} at ${timestampSeconds.toFixed(2)} seconds`,
     resizeTimeline: "Resize timeline",
     resizeLeftPane: "Resize left panel",
     resizeRightPane: "Resize right panel",

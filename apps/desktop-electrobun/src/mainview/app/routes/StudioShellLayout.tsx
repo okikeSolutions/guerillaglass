@@ -17,7 +17,7 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import { useThrottler } from "@tanstack/react-pacer";
 import { useCallback, type PointerEvent as ReactPointerEvent, useRef } from "react";
 import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
-import { normalizeStudioLocale } from "@/i18n";
+import { normalizeStudioLocale } from "@guerillaglass/localization";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useStudio } from "../studio/context";

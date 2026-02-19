@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ProjectUtilityPanel } from "../src/mainview/app/routes/ProjectUtilityPanel";
 import { StudioProvider } from "../src/mainview/app/studio/context";
 import type { StudioController } from "../src/mainview/app/studio/useStudioController";
-import { enUS } from "../src/mainview/i18n/en";
+import { enUS } from "@guerillaglass/localization";
 
 type PanelOptions = {
   pendingRecents?: boolean;

@@ -25,6 +25,9 @@ export function normalizeStudioLocale(locale: string | null | undefined): Studio
   return defaultStudioLocale;
 }
 
-export function getStudioMessages(locale: StudioLocale): StudioMessages {
-  return studioMessagesByLocale[locale];
+export function getStudioMessages(locale: string | null | undefined): StudioMessages {
+  return studioMessagesByLocale[normalizeStudioLocale(locale)];
 }
+
+export { deDE, enUS };
+export type { StudioMessages };

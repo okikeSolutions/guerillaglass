@@ -33,6 +33,7 @@ describe("shell menu helpers", () => {
         canSave: true,
         canExport: false,
         isRecording: true,
+        locale: "en-US",
       },
       "darwin",
     );
@@ -41,6 +42,7 @@ describe("shell menu helpers", () => {
         canSave: false,
         canExport: true,
         isRecording: false,
+        locale: "en-US",
       },
       "win32",
     );
@@ -65,6 +67,7 @@ describe("shell menu helpers", () => {
       canSave: true,
       canExport: true,
       isRecording: false,
+      locale: "en-US",
     });
 
     expect(trayMenu[0]).toEqual(
@@ -77,6 +80,30 @@ describe("shell menu helpers", () => {
       (item) => item.type === "normal" && item.label === "Export...",
     );
     expect(exportItem).toEqual(expect.objectContaining({ enabled: true }));
+  });
+
+  test("menu labels localize to German", () => {
+    const menu = buildApplicationMenu(
+      {
+        canSave: true,
+        canExport: true,
+        isRecording: false,
+        locale: "de-DE",
+      },
+      "win32",
+    );
+
+    expect(menu[0]).toEqual(expect.objectContaining({ label: "Datei" }));
+    const trayMenu = buildLinuxTrayMenu(
+      {
+        canSave: true,
+        canExport: true,
+        isRecording: false,
+        locale: "de-DE",
+      },
+      "de-DE",
+    );
+    expect(trayMenu[0]).toEqual(expect.objectContaining({ label: "Projekt öffnen..." }));
   });
 
   test("routeMenuAction dispatches host/system actions", () => {
