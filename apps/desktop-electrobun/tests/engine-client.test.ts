@@ -16,6 +16,12 @@ function wait(milliseconds: number): Promise<void> {
   });
 }
 
+function endsWithPathSegments(value: string, segments: string[]): boolean {
+  const normalizedValue = path.normalize(value);
+  const normalizedSuffix = path.normalize(path.join(...segments));
+  return normalizedValue.endsWith(normalizedSuffix);
+}
+
 describe("engine client path resolution", () => {
   test("honors GG_ENGINE_PATH override", () => {
     const explicit = "/tmp/custom-engine";
@@ -39,10 +45,21 @@ describe("engine client path resolution", () => {
       baseDir: BUN_BASE_DIR,
     });
 
-    expect(windowsStub.endsWith("engines/windows-stub/guerillaglass-engine-windows-stub.ts")).toBe(
-      true,
-    );
-    expect(linuxNative.endsWith("engines/linux-native/bin/guerillaglass-engine-linux")).toBe(true);
+    expect(
+      endsWithPathSegments(windowsStub, [
+        "engines",
+        "windows-stub",
+        "guerillaglass-engine-windows-stub.ts",
+      ]),
+    ).toBe(true);
+    expect(
+      endsWithPathSegments(linuxNative, [
+        "engines",
+        "linux-native",
+        "bin",
+        "guerillaglass-engine-linux",
+      ]),
+    ).toBe(true);
   });
 
   test("falls back to stubs on non-mac platforms when native binary is absent", () => {
@@ -57,12 +74,20 @@ describe("engine client path resolution", () => {
       baseDir: BUN_BASE_DIR,
     });
 
-    expect(winDefault.endsWith("engines/windows-stub/guerillaglass-engine-windows-stub.ts")).toBe(
-      true,
-    );
-    expect(linuxDefault.endsWith("engines/linux-stub/guerillaglass-engine-linux-stub.ts")).toBe(
-      true,
-    );
+    expect(
+      endsWithPathSegments(winDefault, [
+        "engines",
+        "windows-stub",
+        "guerillaglass-engine-windows-stub.ts",
+      ]),
+    ).toBe(true);
+    expect(
+      endsWithPathSegments(linuxDefault, [
+        "engines",
+        "linux-stub",
+        "guerillaglass-engine-linux-stub.ts",
+      ]),
+    ).toBe(true);
   });
 
   test("resolves macOS native engine from workspace root when running from app bundle path", () => {
@@ -76,7 +101,7 @@ describe("engine client path resolution", () => {
       baseDir: bundledBaseDir,
     });
 
-    expect(resolved.endsWith(".build/debug/guerillaglass-engine")).toBe(true);
+    expect(endsWithPathSegments(resolved, [".build", "debug", "guerillaglass-engine"])).toBe(true);
   });
 });
 
