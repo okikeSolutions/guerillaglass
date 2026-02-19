@@ -8,7 +8,7 @@
   "scripts": {
     "gate": "./Scripts/full_gate.sh",
     "gate:rust": "./Scripts/rust_gate.sh",
-    "gate:typescript": "./Scripts/typescript_gate.sh",
+    "gate:typescript": "bun run js:format:check && bun run js:lint && bun run desktop:typecheck && bun run protocol:typecheck && bun run desktop:test",
     "js:format": "bunx oxfmt --write apps packages",
     "js:format:check": "bunx oxfmt --check apps packages",
     "js:lint": "bunx oxlint -c oxlint.config.mjs --deny-warnings --type-aware apps packages",

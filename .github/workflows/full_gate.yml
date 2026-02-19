@@ -4,13 +4,20 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   full_gate:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -29,4 +36,4 @@ jobs:
           brew install swiftformat swiftlint
 
       - name: Run full gate
-        run: Scripts/full_gate.sh
+        run: bun run gate

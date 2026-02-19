@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   parity-e2e:
@@ -16,7 +20,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -25,6 +29,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install
+
+      - name: Run TypeScript gate
+        run: bun run gate:typescript
 
       - name: Run desktop parity e2e tests
         run: bun run desktop:test:e2e
