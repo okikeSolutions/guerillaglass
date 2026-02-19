@@ -1,4 +1,4 @@
-import { Mic, MonitorCog, MousePointer, Sparkles } from "lucide-react";
+import { Keyboard, Mic, MonitorCog, MousePointer, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useStudio } from "../studio/context";
@@ -105,6 +105,22 @@ function CaptureInspectorContent() {
             />
             <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
           </label>
+        )}
+      </studio.settingsForm.Field>
+
+      <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
+        {(field) => (
+          <div className="space-y-1">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={field.state.value}
+                onChange={(event) => field.handleChange(event.target.checked)}
+              />
+              <Keyboard className="h-4 w-4" /> {studio.ui.labels.singleKeyShortcuts}
+            </label>
+            <p className="text-xs text-muted-foreground">{studio.ui.helper.singleKeyShortcuts}</p>
+          </div>
         )}
       </studio.settingsForm.Field>
 

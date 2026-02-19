@@ -87,6 +87,7 @@ export const deDE: StudioMessages = {
     noWindows: "Keine Fenster verfügbar",
     includeMic: "Mikrofon einschließen",
     trackInput: "Cursor + Klicks erfassen",
+    singleKeyShortcuts: "Single-Key-Kurzbefehle aktivieren",
     inputMonitoring: "Input Monitoring",
     status: "Status",
     duration: "Dauer",
@@ -232,5 +233,7 @@ export const deDE: StudioMessages = {
     healthReasonHighDroppedFrameRate: "Hohe Frame-Verwurfrate",
     healthReasonElevatedDroppedFrameRate: "Erhöhte Frame-Verwurfrate",
     healthReasonLowMicrophoneLevel: "Niedriger Mikrofonpegel",
+    singleKeyShortcuts:
+      "Single-Key-Kurzbefehle (R/I/O/Leertaste) greifen nur, wenn der Fokus nicht auf interaktiven Steuerelementen liegt.",
   },
 };

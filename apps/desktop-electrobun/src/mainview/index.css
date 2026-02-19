@@ -132,10 +132,9 @@
     height: 100%;
   }
 
-  button,
-  input,
-  select {
-    @apply outline-none;
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--ring) 75%, var(--primary) 25%);
+    outline-offset: 2px;
   }
 
   input[type="checkbox"],
@@ -202,6 +201,7 @@
 
   .gg-pane-resize-handle {
     @apply relative cursor-col-resize bg-border/60 transition-colors duration-150 hover:bg-primary/35;
+    touch-action: none;
   }
 
   .gg-pane-resize-handle[data-disabled="true"] {
@@ -211,6 +211,11 @@
   .gg-pane-resize-handle::after {
     content: "";
     @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/90;
+  }
+
+  .gg-pane-resize-handle:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
   }
 
   .gg-pane-header {
@@ -233,7 +238,7 @@
   }
 
   .gg-input {
-    @apply w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground;
+    @apply w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-primary/75 focus-visible:ring-2 focus-visible:ring-primary/60;
   }
 
   .gg-preview-stage {
@@ -267,6 +272,7 @@
 
   .gg-timeline-surface {
     @apply relative overflow-hidden rounded-md border border-border/70 bg-background/80 p-2 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none;
+    touch-action: none;
     user-select: none;
   }
 
@@ -349,6 +355,12 @@
 
   .gg-timeline-resize-handle {
     @apply h-1.5 cursor-row-resize border-t border-border/70 bg-muted/40 hover:bg-primary/35;
+    touch-action: none;
+  }
+
+  .gg-timeline-resize-handle:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 60%, transparent);
   }
 }
 
@@ -377,5 +389,70 @@
   .gg-pane-resize-handle,
   .gg-timeline-resize-handle {
     @apply hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0ms !important;
+  }
+
+  .backdrop-blur-sm {
+    backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted-foreground: oklch(0.34 0.02 260);
+    --border: oklch(0.78 0.01 264);
+    --ring: oklch(0.52 0.05 250);
+  }
+
+  .dark {
+    --muted-foreground: oklch(0.93 0.004 247.839);
+    --border: oklch(0.89 0 0 / 46%);
+    --ring: oklch(0.88 0.06 250);
+  }
+
+  .gg-panel,
+  .gg-preview-stage,
+  .gg-timeline-ruler,
+  .gg-timeline-surface,
+  .gg-timeline-lane-track {
+    box-shadow: none;
+  }
+
+  .gg-timeline-clip-video {
+    background-color: color-mix(in oklab, var(--primary) 72%, transparent);
+  }
+
+  .gg-timeline-clip-audio {
+    background-color: color-mix(in oklab, var(--foreground) 42%, transparent);
+  }
+
+  .gg-timeline-playhead,
+  .gg-timeline-marker-line {
+    opacity: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .gg-pane-resize-handle::after,
+  .gg-timeline-playhead,
+  .gg-timeline-marker-line {
+    background: CanvasText;
+  }
+
+  .gg-pane-resize-handle:focus-visible,
+  .gg-timeline-resize-handle:focus-visible,
+  .gg-timeline-entity-button:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
   }
 }
