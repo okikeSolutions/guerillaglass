@@ -92,6 +92,14 @@ function statusResult(): Json {
     recordingURL: state.recordingURL,
     lastError: state.lastError,
     eventsURL: state.eventsURL,
+    telemetry: {
+      totalFrames: 0,
+      droppedFrames: 0,
+      droppedFramePercent: 0,
+      audioLevelDbfs: null,
+      health: "good",
+      healthReason: null,
+    },
   };
 }
 

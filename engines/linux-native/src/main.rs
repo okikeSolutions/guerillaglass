@@ -67,6 +67,14 @@ impl State {
             "recordingURL": self.recording_url,
             "lastError": self.last_error,
             "eventsURL": self.events_url,
+            "telemetry": {
+                "totalFrames": 0,
+                "droppedFrames": 0,
+                "droppedFramePercent": 0.0,
+                "audioLevelDbfs": Value::Null,
+                "health": "good",
+                "healthReason": Value::Null,
+            },
         })
     }
 

@@ -95,6 +95,44 @@ export const sourcesResultSchema = z.object({
   windows: z.array(windowSourceSchema),
 });
 
+export const captureHealthSchema = z.enum(["good", "warning", "critical"]);
+export const captureHealthReasonSchema = z.enum([
+  "engine_error",
+  "high_dropped_frame_rate",
+  "elevated_dropped_frame_rate",
+  "low_microphone_level",
+]);
+
+export const defaultCaptureTelemetry = {
+  totalFrames: 0,
+  droppedFrames: 0,
+  droppedFramePercent: 0,
+  audioLevelDbfs: null,
+  health: "good",
+  healthReason: null,
+} satisfies {
+  totalFrames: number;
+  droppedFrames: number;
+  droppedFramePercent: number;
+  audioLevelDbfs: number | null;
+  health: "good" | "warning" | "critical";
+  healthReason:
+    | "engine_error"
+    | "high_dropped_frame_rate"
+    | "elevated_dropped_frame_rate"
+    | "low_microphone_level"
+    | null;
+};
+
+export const captureTelemetrySchema = z.object({
+  totalFrames: z.number().int().nonnegative(),
+  droppedFrames: z.number().int().nonnegative(),
+  droppedFramePercent: z.number().nonnegative(),
+  audioLevelDbfs: z.number().nullable(),
+  health: captureHealthSchema,
+  healthReason: captureHealthReasonSchema.nullable(),
+});
+
 export const captureStatusResultSchema = z.object({
   isRunning: z.boolean(),
   isRecording: z.boolean(),
@@ -102,6 +140,7 @@ export const captureStatusResultSchema = z.object({
   recordingURL: z.string().nullable(),
   lastError: z.string().nullable(),
   eventsURL: z.string().nullable(),
+  telemetry: captureTelemetrySchema.optional().default(defaultCaptureTelemetry),
 });
 
 export const exportPresetSchema = z.object({
@@ -328,6 +367,9 @@ export type CapabilitiesResult = z.infer<typeof capabilitiesResultSchema>;
 export type PermissionsResult = z.infer<typeof permissionsResultSchema>;
 export type ActionResult = z.infer<typeof actionResultSchema>;
 export type SourcesResult = z.infer<typeof sourcesResultSchema>;
+export type CaptureHealth = z.infer<typeof captureHealthSchema>;
+export type CaptureHealthReason = z.infer<typeof captureHealthReasonSchema>;
+export type CaptureTelemetry = z.infer<typeof captureTelemetrySchema>;
 export type CaptureStatusResult = z.infer<typeof captureStatusResultSchema>;
 export type ExportPreset = z.infer<typeof exportPresetSchema>;
 export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;

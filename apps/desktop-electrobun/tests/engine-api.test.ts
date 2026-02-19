@@ -50,6 +50,14 @@ describe("renderer engine bridge", () => {
         recordingURL: null,
         lastError: null,
         eventsURL: null,
+        telemetry: {
+          totalFrames: 0,
+          droppedFrames: 0,
+          droppedFramePercent: 0,
+          audioLevelDbfs: null,
+          health: "good",
+          healthReason: null,
+        },
       }),
       ggEngineExportInfo: async () => ({
         presets: [
@@ -81,6 +89,14 @@ describe("renderer engine bridge", () => {
         recordingURL: null,
         lastError: null,
         eventsURL: null,
+        telemetry: {
+          totalFrames: 0,
+          droppedFrames: 0,
+          droppedFramePercent: 0,
+          audioLevelDbfs: null,
+          health: "good",
+          healthReason: null,
+        },
       }),
       ggEngineStartRecording: async () => ({
         isRunning: true,
@@ -89,6 +105,14 @@ describe("renderer engine bridge", () => {
         recordingURL: null,
         lastError: null,
         eventsURL: null,
+        telemetry: {
+          totalFrames: 0,
+          droppedFrames: 0,
+          droppedFramePercent: 0,
+          audioLevelDbfs: null,
+          health: "good",
+          healthReason: null,
+        },
       }),
       ggEngineRunExport: async () => ({ outputURL: "/tmp/out.mp4" }),
       ggEngineProjectSave: async () => ({
