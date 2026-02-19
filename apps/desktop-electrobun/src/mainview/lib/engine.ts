@@ -6,6 +6,7 @@ import {
   inputEventLogSchema,
   permissionsResultSchema,
   pingResultSchema,
+  projectRecentsResultSchema,
   projectStateSchema,
   sourcesResultSchema,
   type AutoZoomSettings,
@@ -13,6 +14,7 @@ import {
   type InputEvent,
   type PermissionsResult,
   type PingResult,
+  type ProjectRecentsResult,
   type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
@@ -46,6 +48,7 @@ declare global {
       projectPath?: string;
       autoZoom?: AutoZoomSettings;
     }) => Promise<unknown>;
+    ggEngineProjectRecents?: (limit?: number) => Promise<unknown>;
     ggPickDirectory?: (startingFolder?: string) => Promise<string | null>;
     ggReadTextFile?: (filePath: string) => Promise<string>;
     ggHostSendMenuState?: (state: HostMenuState) => void;
@@ -195,6 +198,12 @@ export const engineApi = {
   }): Promise<ProjectState> {
     return projectStateSchema.parse(
       await requireBridge(window.ggEngineProjectSave, "ggEngineProjectSave")(params),
+    );
+  },
+
+  async projectRecents(limit?: number): Promise<ProjectRecentsResult> {
+    return projectRecentsResultSchema.parse(
+      await requireBridge(window.ggEngineProjectRecents, "ggEngineProjectRecents")(limit),
     );
   },
 };

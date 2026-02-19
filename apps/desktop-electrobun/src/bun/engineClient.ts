@@ -9,6 +9,7 @@ import {
   exportRunResultSchema,
   parseResponse,
   permissionsResultSchema,
+  projectRecentsResultSchema,
   pingResultSchema,
   projectStateSchema,
   sourcesResultSchema,
@@ -80,6 +81,7 @@ const defaultRequestTimeoutByMethod: Readonly<Record<EngineRequest["method"], nu
   "project.current": 5_000,
   "project.open": 20_000,
   "project.save": 20_000,
+  "project.recents": 5_000,
 };
 
 const retryableReadMethods = new Set<EngineRequest["method"]>([
@@ -90,6 +92,7 @@ const retryableReadMethods = new Set<EngineRequest["method"]>([
   "capture.status",
   "export.info",
   "project.current",
+  "project.recents",
 ]);
 
 const retryableTransportErrors = new Set<EngineClientErrorCode>([
@@ -415,6 +418,10 @@ export class EngineClient {
 
   async projectSave(params: { projectPath?: string; autoZoom?: AutoZoomSettings }) {
     return projectStateSchema.parse(await this.request("project.save", params));
+  }
+
+  async projectRecents(limit?: number) {
+    return projectRecentsResultSchema.parse(await this.request("project.recents", { limit }));
   }
 
   private async request<TMethod extends EngineRequest["method"]>(

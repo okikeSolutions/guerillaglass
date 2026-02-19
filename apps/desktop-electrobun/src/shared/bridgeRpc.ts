@@ -6,6 +6,7 @@ import type {
   ExportRunResult,
   PermissionsResult,
   PingResult,
+  ProjectRecentsResult,
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
@@ -70,6 +71,10 @@ type BridgeRequests = {
   ggEngineProjectSave: {
     params: { projectPath?: string; autoZoom?: AutoZoomSettings };
     response: ProjectState;
+  };
+  ggEngineProjectRecents: {
+    params: { limit?: number };
+    response: ProjectRecentsResult;
   };
   ggPickDirectory: { params: { startingFolder?: string }; response: string | null };
   ggReadTextFile: { params: { filePath: string }; response: string };

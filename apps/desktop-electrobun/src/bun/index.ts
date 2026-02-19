@@ -159,6 +159,8 @@ const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
         engineClient.projectOpen(projectPath),
       ggEngineProjectSave: async (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) =>
         engineClient.projectSave(params),
+      ggEngineProjectRecents: async ({ limit }: { limit?: number }) =>
+        engineClient.projectRecents(limit),
       ggPickDirectory: async ({ startingFolder }: { startingFolder?: string }) =>
         pickDirectory(startingFolder),
       ggReadTextFile: async ({ filePath }: { filePath: string }) => readTextFile(filePath),
