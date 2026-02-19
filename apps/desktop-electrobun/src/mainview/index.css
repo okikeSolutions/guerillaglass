@@ -164,7 +164,16 @@
 
   .gg-editor-shell {
     @apply grid h-full min-h-0;
-    grid-template-columns: 260px minmax(0, 1fr) 340px;
+    --gg-left-pane-width: 260px;
+    --gg-right-pane-width: 340px;
+    --gg-left-splitter-width: 6px;
+    --gg-right-splitter-width: 6px;
+    grid-template-columns:
+      var(--gg-left-pane-width)
+      var(--gg-left-splitter-width)
+      minmax(0, 1fr)
+      var(--gg-right-splitter-width)
+      var(--gg-right-pane-width);
   }
 
   .gg-pane {
@@ -181,6 +190,27 @@
 
   .gg-pane-right {
     @apply border-l border-border/80;
+  }
+
+  .gg-editor-shell[data-left-collapsed="true"] .gg-pane-left {
+    @apply invisible pointer-events-none border-r-0;
+  }
+
+  .gg-editor-shell[data-right-collapsed="true"] .gg-pane-right {
+    @apply invisible pointer-events-none border-l-0;
+  }
+
+  .gg-pane-resize-handle {
+    @apply relative cursor-col-resize bg-border/60 transition-colors duration-150 hover:bg-primary/35;
+  }
+
+  .gg-pane-resize-handle[data-disabled="true"] {
+    @apply pointer-events-none opacity-0;
+  }
+
+  .gg-pane-resize-handle::after {
+    content: "";
+    @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/90;
   }
 
   .gg-pane-header {
@@ -316,11 +346,16 @@
   .gg-timeline-playhead {
     @apply pointer-events-none absolute inset-y-0 z-30 w-0.5 -translate-x-1/2 bg-foreground/80;
   }
+
+  .gg-timeline-resize-handle {
+    @apply h-1.5 cursor-row-resize border-t border-border/70 bg-muted/40 hover:bg-primary/35;
+  }
 }
 
 @media (max-width: 1439px) {
   .gg-editor-shell {
-    grid-template-columns: 220px minmax(0, 1fr) 300px;
+    --gg-left-pane-width: clamp(180px, 20vw, 260px);
+    --gg-right-pane-width: clamp(260px, 24vw, 340px);
   }
 }
 
@@ -337,5 +372,10 @@
   .gg-pane-left,
   .gg-pane-center {
     @apply border-b border-border/80;
+  }
+
+  .gg-pane-resize-handle,
+  .gg-timeline-resize-handle {
+    @apply hidden;
   }
 }

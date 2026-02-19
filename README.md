@@ -73,6 +73,19 @@ bun run desktop:test:e2e
 - Recommended VS Code extension for Oxc tooling:
   - `code --install-extension oxc.oxc-vscode`
 
+## Studio Shell State & i18n
+
+- Creator Studio layout persists in `localStorage` (`gg.studio.layout.v1`):
+  - left/right pane widths
+  - pane collapse state
+  - timeline height
+  - last workspace route
+  - selected locale
+- Locale routing uses canonical BCP-47 codes:
+  - `en-US`
+  - `de-DE`
+- Shell routes are locale-scoped (`/:locale/capture`, `/:locale/edit`, `/:locale/deliver`), and unknown locales are normalized to the default locale.
+
 ## Docs
 
 - Product spec: `/docs/SPEC.md`

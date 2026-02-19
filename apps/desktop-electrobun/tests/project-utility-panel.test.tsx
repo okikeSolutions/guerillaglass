@@ -30,7 +30,10 @@ function makeStudioMock(options?: PanelOptions): StudioController {
         eventsURL: "/tmp/alpha.gglassproj/events.json",
       },
     },
+    formatDateTime: (value: string) => value,
+    formatDecimal: (value: number) => value.toFixed(2),
     formatDuration: () => "00:00:12",
+    formatInteger: (value: number) => `${Math.round(value)}`,
     isRunningAction: false,
     openProjectMutation: {
       mutateAsync: async () => null,
