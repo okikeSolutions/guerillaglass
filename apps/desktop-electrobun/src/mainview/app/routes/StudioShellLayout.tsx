@@ -1,7 +1,9 @@
 import {
   AlertTriangle,
+  Clock3,
   CircleDot,
   FolderOpen,
+  HardDriveDownload,
   Pause,
   Play,
   RefreshCcw,
@@ -84,6 +86,20 @@ export function StudioShellLayout() {
                   {studio.captureStatusLabel}
                 </span>
               </Badge>
+              <Badge
+                className="h-6 gap-1.5 px-2"
+                variant="secondary"
+                title={`${studio.ui.labels.duration}: ${studio.formatDuration(
+                  studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+                )}`}
+              >
+                <Clock3 className="h-3.5 w-3.5" />
+                <span className="text-[0.65rem] tracking-[0.08em] uppercase">
+                  {studio.formatDuration(
+                    studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+                  )}
+                </span>
+              </Badge>
               {studio.inputMonitoringDenied && studio.settingsForm.state.values.trackInputEvents ? (
                 <Badge
                   className="h-6 px-1.5"
@@ -103,6 +119,19 @@ export function StudioShellLayout() {
               </Button>
               <Button
                 size="sm"
+                variant="secondary"
+                onClick={studio.toggleTimelinePlayback}
+                disabled={studio.timelineDuration <= 0}
+              >
+                {studio.isTimelinePlaying ? (
+                  <Pause className="mr-2 h-4 w-4" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                {studio.ui.actions.playPause}
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => void studio.toggleRecordingMutation.mutateAsync()}
                 disabled={studio.isRunningAction}
               >
@@ -110,6 +139,22 @@ export function StudioShellLayout() {
                 {studio.captureStatusQuery.data?.isRecording
                   ? studio.ui.actions.stopRecording
                   : studio.ui.actions.startRecording}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void studio.saveProjectMutation.mutateAsync(false)}
+                disabled={studio.isRunningAction || !studio.recordingURL}
+              >
+                <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProject}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void studio.exportMutation.mutateAsync()}
+                disabled={studio.isRunningAction || !studio.recordingURL}
+              >
+                <HardDriveDownload className="mr-2 h-4 w-4" /> {studio.ui.actions.exportNow}
               </Button>
             </div>
           </div>
@@ -138,14 +183,6 @@ export function StudioShellLayout() {
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={studio.toggleTimelinePlayback}>
-                {studio.isTimelinePlaying ? (
-                  <Pause className="mr-2 h-4 w-4" />
-                ) : (
-                  <Play className="mr-2 h-4 w-4" />
-                )}
-                {studio.ui.actions.playPause}
-              </Button>
               <Button size="sm" variant="outline" onClick={studio.setTrimInFromPlayhead}>
                 {studio.ui.actions.setTrimIn}
               </Button>
@@ -163,12 +200,13 @@ export function StudioShellLayout() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void studio.saveProjectMutation.mutateAsync(false)}
+                className="ml-auto"
+                onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
                 disabled={studio.isRunningAction || !studio.recordingURL}
               >
-                <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProject}
+                <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProjectAs}
               </Button>
-              <label className="ml-auto inline-flex items-center gap-2 text-sm">
+              <label className="inline-flex items-center gap-2 text-sm">
                 {studio.ui.labels.playbackRate}
                 <select
                   className="gg-input w-28"

@@ -186,7 +186,7 @@ Creator Studio implementation requirements:
 
 Creator Studio tracking checklist (current repo):
 
-- [ ] Replace card-dashboard shell with contiguous editor panes
+- [x] Replace card-dashboard shell with contiguous editor panes
 - [x] Add explicit mode switch (`Capture`, `Edit`, `Deliver`) with stable navigation state
 - [x] Keep timeline permanently visible in primary layout across desktop breakpoints
 - [x] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
