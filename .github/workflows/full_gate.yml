@@ -4,6 +4,13 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   full_gate:
@@ -29,4 +36,4 @@ jobs:
           brew install swiftformat swiftlint
 
       - name: Run full gate
-        run: Scripts/full_gate.sh
+        run: bun run gate
