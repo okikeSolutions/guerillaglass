@@ -1,8 +1,9 @@
-const { defineConfig, devices } = require("@playwright/test");
+import process from "node:process";
+import { defineConfig, devices } from "@playwright/test";
 
-module.exports = defineConfig({
+export default defineConfig({
   testDir: "./playwright/tests",
-  testMatch: "**/*.smoke.js",
+  testMatch: "**/*.smoke.ts",
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   timeout: 30_000,

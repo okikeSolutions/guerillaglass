@@ -1,8 +1,13 @@
-const { mkdirSync } = require("node:fs");
-const path = require("node:path");
-const { expect, test } = require("@playwright/test");
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { expect, test } from "@playwright/test";
 
 function installMockBridge() {
+  const browserWindow = globalThis as unknown as Record<string, unknown> & {
+    localStorage: Storage;
+    ggEngineProjectCurrent: () => Promise<unknown>;
+  };
   const state = {
     isRunning: false,
     isRecording: false,
@@ -38,39 +43,39 @@ function installMockBridge() {
     eventsURL: state.eventsURL,
   });
 
-  window.ggEnginePing = async () => ({
+  browserWindow.ggEnginePing = async () => ({
     app: "guerillaglass-engine",
     engineVersion: "0.1.0",
     protocolVersion: "1.0.0",
     platform: "darwin",
   });
 
-  window.ggEngineGetPermissions = async () => ({
+  browserWindow.ggEngineGetPermissions = async () => ({
     screenRecordingGranted: true,
     microphoneGranted: true,
     inputMonitoring: "authorized",
   });
 
-  window.ggEngineRequestScreenRecordingPermission = async () => ({
+  browserWindow.ggEngineRequestScreenRecordingPermission = async () => ({
     success: true,
     message: "Granted",
   });
 
-  window.ggEngineRequestMicrophonePermission = async () => ({
+  browserWindow.ggEngineRequestMicrophonePermission = async () => ({
     success: true,
     message: "Granted",
   });
 
-  window.ggEngineRequestInputMonitoringPermission = async () => ({
+  browserWindow.ggEngineRequestInputMonitoringPermission = async () => ({
     success: true,
     message: "Granted",
   });
 
-  window.ggEngineOpenInputMonitoringSettings = async () => ({
+  browserWindow.ggEngineOpenInputMonitoringSettings = async () => ({
     success: true,
   });
 
-  window.ggEngineListSources = async () => ({
+  browserWindow.ggEngineListSources = async () => ({
     displays: [{ id: 1, width: 1920, height: 1080 }],
     windows: [
       {
@@ -84,25 +89,25 @@ function installMockBridge() {
     ],
   });
 
-  window.ggEngineStartDisplayCapture = async () => {
+  browserWindow.ggEngineStartDisplayCapture = async () => {
     state.isRunning = true;
     state.lastError = null;
     return captureStatus();
   };
 
-  window.ggEngineStartWindowCapture = async () => {
+  browserWindow.ggEngineStartWindowCapture = async () => {
     state.isRunning = true;
     state.lastError = null;
     return captureStatus();
   };
 
-  window.ggEngineStopCapture = async () => {
+  browserWindow.ggEngineStopCapture = async () => {
     state.isRunning = false;
     state.isRecording = false;
     return captureStatus();
   };
 
-  window.ggEngineStartRecording = async () => {
+  browserWindow.ggEngineStartRecording = async () => {
     state.isRecording = true;
     state.isRunning = true;
     state.recordingDurationSeconds = 12.5;
@@ -111,15 +116,15 @@ function installMockBridge() {
     return captureStatus();
   };
 
-  window.ggEngineStopRecording = async () => {
+  browserWindow.ggEngineStopRecording = async () => {
     state.isRecording = false;
     state.recordingDurationSeconds = 18.25;
     return captureStatus();
   };
 
-  window.ggEngineCaptureStatus = async () => captureStatus();
+  browserWindow.ggEngineCaptureStatus = async () => captureStatus();
 
-  window.ggEngineExportInfo = async () => ({
+  browserWindow.ggEngineExportInfo = async () => ({
     presets: [
       {
         id: "preset-1080p",
@@ -140,11 +145,11 @@ function installMockBridge() {
     ],
   });
 
-  window.ggEngineRunExport = async () => ({
+  browserWindow.ggEngineRunExport = async () => ({
     outputURL: "/tmp/guerillaglass-ui-smoke-export.mp4",
   });
 
-  window.ggEngineProjectCurrent = async () => ({
+  browserWindow.ggEngineProjectCurrent = async () => ({
     projectPath: state.projectPath,
     recordingURL: state.recordingURL,
     eventsURL: state.eventsURL,
@@ -152,12 +157,12 @@ function installMockBridge() {
     captureMetadata: state.recordingURL ? defaultCaptureMetadata : null,
   });
 
-  window.ggEngineProjectOpen = async (projectPath) => {
+  browserWindow.ggEngineProjectOpen = async (projectPath) => {
     state.projectPath = projectPath;
-    return window.ggEngineProjectCurrent();
+    return browserWindow.ggEngineProjectCurrent();
   };
 
-  window.ggEngineProjectSave = async ({ projectPath, autoZoom } = {}) => {
+  browserWindow.ggEngineProjectSave = async ({ projectPath, autoZoom } = {}) => {
     if (projectPath) {
       state.projectPath = projectPath;
     } else if (!state.projectPath) {
@@ -166,10 +171,10 @@ function installMockBridge() {
     if (autoZoom) {
       state.autoZoom = autoZoom;
     }
-    return window.ggEngineProjectCurrent();
+    return browserWindow.ggEngineProjectCurrent();
   };
 
-  window.ggEngineProjectRecents = async () => ({
+  browserWindow.ggEngineProjectRecents = async () => ({
     items: [
       {
         projectPath: "/tmp/alpha.gglassproj",
@@ -179,19 +184,19 @@ function installMockBridge() {
     ],
   });
 
-  window.ggPickDirectory = async () => "/tmp";
-  window.ggReadTextFile = async () =>
+  browserWindow.ggPickDirectory = async () => "/tmp";
+  browserWindow.ggReadTextFile = async () =>
     JSON.stringify({
       schemaVersion: 1,
       events: [],
     });
-  window.ggHostSendMenuState = () => {};
+  browserWindow.ggHostSendMenuState = () => {};
 }
 
 function screenshotPath(name) {
-  const artifactDir = path.join(process.cwd(), "test-results", "ui-smoke-snapshots");
+  const artifactDir = join(process.cwd(), "test-results", "ui-smoke-snapshots");
   mkdirSync(artifactDir, { recursive: true });
-  return path.join(artifactDir, name);
+  return join(artifactDir, name);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -220,6 +225,28 @@ test("renders shell and navigates capture/edit/deliver modes", async ({ page }) 
   await page.screenshot({ path: screenshotPath("deliver-mode.png"), fullPage: true });
 });
 
+test("switches locale and keeps locale-scoped routes for every mode", async ({ page }) => {
+  await page.goto("/");
+
+  const localeSelect = page.getByRole("combobox").first();
+  await localeSelect.selectOption("de-DE");
+  await expect(localeSelect).toHaveValue("de-DE");
+  await expect(page.getByRole("link", { name: "Aufnahme" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Bearbeiten" }).click();
+  await expect(page.getByRole("heading", { name: "Editor-Bereich" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Liefern" }).click();
+  await expect(localeSelect).toHaveValue("de-DE");
+  await expect(page.getByRole("heading", { name: "Lieferzusammenfassung" })).toBeVisible();
+});
+
+test("redirects unknown locale routes to the default locale", async ({ page }) => {
+  await page.goto("/fr-FR/edit");
+  await expect(page.getByText("Preview Stage")).toBeVisible();
+  await expect(page.getByRole("combobox").first()).toHaveValue("en-US");
+});
+
 test("starts preview and recording through the shell controls", async ({ page }) => {
   await page.goto("/");
 
@@ -234,4 +261,26 @@ test("starts preview and recording through the shell controls", async ({ page })
 
   await page.getByRole("link", { name: "Deliver" }).click();
   await expect(page.getByText("Recording URL: /tmp/guerillaglass-ui-smoke.mov")).toBeVisible();
+});
+
+test("restores workspace route and pane collapse from persisted layout", async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem(
+      "gg.studio.layout.v1",
+      JSON.stringify({
+        leftPaneWidthPx: 240,
+        rightPaneWidthPx: 320,
+        leftCollapsed: true,
+        rightCollapsed: false,
+        timelineHeightPx: 240,
+        lastRoute: "/deliver",
+        locale: "en-US",
+      }),
+    );
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Delivery Summary" })).toBeHidden();
 });
