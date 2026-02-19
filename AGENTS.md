@@ -12,6 +12,7 @@
 - **Desktop shell bridge:** `apps/desktop-electrobun/src/bun/` — Electrobun `BrowserWindow` setup and native engine bridge.
 - **Desktop shell UI:** `apps/desktop-electrobun/src/mainview/` — React app (`App.tsx`), UI components, styling.
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
+- **Localization (new):** `packages/localization/` — shared locale dictionaries + helpers consumed by renderer UI and desktop shell menus.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
 - **Native engine modules:** `engines/macos-swift/modules/` — capture, input tracking, project, automation, rendering, export.
 - **Native Windows engine foundation:** `engines/windows-native/` — Rust sidecar foundation with protocol parity handlers.
