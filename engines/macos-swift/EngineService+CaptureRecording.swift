@@ -43,8 +43,12 @@ extension EngineService {
                 try await captureEngine.startDisplayCapture(enableMic: false)
             }
             try await captureEngine.startRecording()
-            trackInputEventsWhileRecording = shouldTrackInputEvents
-            if shouldTrackInputEvents {
+            currentEventsURL = nil
+            currentProjectDocument.eventsFileName = nil
+
+            trackInputEventsWhileRecording = false
+            if shouldTrackInputEvents, inputPermissionManager.status() == .authorized {
+                trackInputEventsWhileRecording = true
                 let referenceTime = CaptureClock().now().seconds
                 await MainActor.run {
                     inputSession.start(referenceTime: referenceTime)

@@ -12,6 +12,7 @@ import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../shared
 import { extractMenuAction } from "./menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "./menu/builders";
 import { routeMenuAction } from "./menu/router";
+import { readAllowedTextFile } from "./fileAccess";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -24,6 +25,7 @@ let hostMenuState: HostMenuState = {
   canExport: false,
   isRecording: false,
 };
+let currentProjectPath: string | null = null;
 
 async function getMainViewURL(): Promise<string> {
   const channel = await Updater.localInfo.channel();
@@ -54,7 +56,10 @@ async function pickDirectory(startingFolder?: string): Promise<string | null> {
 }
 
 async function readTextFile(filePath: string): Promise<string> {
-  return await Bun.file(filePath).text();
+  return await readAllowedTextFile(filePath, {
+    currentProjectPath,
+    tempDirectory: process.env.TMPDIR,
+  });
 }
 
 function applyShellMenus() {
@@ -120,6 +125,12 @@ function handleShellAction(action: string) {
 
 const engineClient = new EngineClient();
 await engineClient.start();
+try {
+  const initialProject = await engineClient.projectCurrent();
+  currentProjectPath = initialProject.projectPath;
+} catch (error) {
+  console.warn("Failed to load initial project state for file-access policy", error);
+}
 
 const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
   handlers: {
@@ -154,11 +165,21 @@ const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
         trimStartSeconds?: number;
         trimEndSeconds?: number;
       }) => engineClient.runExport(params),
-      ggEngineProjectCurrent: async () => engineClient.projectCurrent(),
+      ggEngineProjectCurrent: async () => {
+        const projectState = await engineClient.projectCurrent();
+        currentProjectPath = projectState.projectPath;
+        return projectState;
+      },
       ggEngineProjectOpen: async ({ projectPath }: { projectPath: string }) =>
-        engineClient.projectOpen(projectPath),
+        engineClient.projectOpen(projectPath).then((projectState) => {
+          currentProjectPath = projectState.projectPath;
+          return projectState;
+        }),
       ggEngineProjectSave: async (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) =>
-        engineClient.projectSave(params),
+        engineClient.projectSave(params).then((projectState) => {
+          currentProjectPath = projectState.projectPath;
+          return projectState;
+        }),
       ggEngineProjectRecents: async ({ limit }: { limit?: number }) =>
         engineClient.projectRecents(limit),
       ggPickDirectory: async ({ startingFolder }: { startingFolder?: string }) =>

@@ -5,6 +5,7 @@ public final class ProjectStore {
         case invalidRecordingURL
         case projectJSONMissing
         case invalidProjectDirectory
+        case invalidAssetFileName(String)
     }
 
     public struct SavedProject: Equatable {
@@ -87,7 +88,8 @@ public final class ProjectStore {
 
         let data = try Data(contentsOf: projectJSONURL)
         let migratedData = try ProjectMigration.migrateIfNeeded(data)
-        let document = try decoder.decode(ProjectDocument.self, from: migratedData)
+        let decodedDocument = try decoder.decode(ProjectDocument.self, from: migratedData)
+        let document = try validatedDocument(decodedDocument)
 
         return SavedProject(url: url, document: document)
     }
@@ -138,13 +140,13 @@ public final class ProjectStore {
     ) throws -> ProjectDocument {
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
 
-        var writtenDocument = document
+        var writtenDocument = try validatedDocument(document)
 
         if let recordingURL = assets.recordingURL {
             guard fileManager.fileExists(atPath: recordingURL.path) else {
                 throw StoreError.invalidRecordingURL
             }
-            let destination = directoryURL.appendingPathComponent(document.recordingFileName)
+            let destination = directoryURL.appendingPathComponent(writtenDocument.recordingFileName)
             try copyItemReplacingIfNeeded(from: recordingURL, to: destination)
         }
 
@@ -208,6 +210,40 @@ public final class ProjectStore {
             try fileManager.removeItem(at: destinationURL)
         }
         try fileManager.copyItem(at: sourceURL, to: destinationURL)
+    }
+
+    private func validatedDocument(_ document: ProjectDocument) throws -> ProjectDocument {
+        var validated = document
+        validated.recordingFileName = try validatedAssetFileName(document.recordingFileName)
+        if let systemAudioFileName = document.systemAudioFileName {
+            validated.systemAudioFileName = try validatedAssetFileName(systemAudioFileName)
+        }
+        if let micAudioFileName = document.micAudioFileName {
+            validated.micAudioFileName = try validatedAssetFileName(micAudioFileName)
+        }
+        if let eventsFileName = document.eventsFileName {
+            validated.eventsFileName = try validatedAssetFileName(eventsFileName)
+        }
+        return validated
+    }
+
+    private func validatedAssetFileName(_ fileName: String) throws -> String {
+        let trimmed = fileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lastPathComponent = (trimmed as NSString).lastPathComponent
+        let isSinglePathComponent = lastPathComponent == trimmed
+        let hasIllegalSeparators = trimmed.contains("/") || trimmed.contains("\\")
+        let hasIllegalControlCharacters = trimmed.contains("\0")
+        let isInvalidReservedName = trimmed.isEmpty || trimmed == "." || trimmed == ".."
+
+        guard isSinglePathComponent,
+              !hasIllegalSeparators,
+              !hasIllegalControlCharacters,
+              !isInvalidReservedName
+        else {
+            throw StoreError.invalidAssetFileName(fileName)
+        }
+
+        return trimmed
     }
 
     private static func dateRoundedToMilliseconds(_ date: Date) -> Date {
