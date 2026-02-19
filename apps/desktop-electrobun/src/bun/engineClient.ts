@@ -61,27 +61,27 @@ class EngineClientError extends Error {
 }
 
 const defaultRequestTimeoutByMethod: Readonly<Record<EngineRequest["method"], number>> = {
-  "system.ping": 3_000,
-  "engine.capabilities": 5_000,
-  "permissions.get": 5_000,
+  "system.ping": 3000,
+  "engine.capabilities": 5000,
+  "permissions.get": 5000,
   "permissions.requestScreenRecording": 10_000,
   "permissions.requestMicrophone": 10_000,
   "permissions.requestInputMonitoring": 10_000,
-  "permissions.openInputMonitoringSettings": 5_000,
-  "sources.list": 8_000,
+  "permissions.openInputMonitoringSettings": 5000,
+  "sources.list": 8000,
   "capture.startDisplay": 15_000,
   "capture.startWindow": 15_000,
   "capture.stop": 10_000,
   "recording.start": 15_000,
   "recording.stop": 15_000,
-  "capture.status": 5_000,
+  "capture.status": 5000,
   "export.info": 10_000,
   // 0 disables timeout: exports can legitimately run for long recordings.
   "export.run": 0,
-  "project.current": 5_000,
+  "project.current": 5000,
   "project.open": 20_000,
   "project.save": 20_000,
-  "project.recents": 5_000,
+  "project.recents": 5000,
 };
 
 const retryableReadMethods = new Set<EngineRequest["method"]>([
@@ -253,8 +253,8 @@ export class EngineClient {
     this.restartBackoffMs = options.restartBackoffMs ?? 250;
     this.restartJitterMs = Math.max(0, options.restartJitterMs ?? 250);
     this.maxRestartAttemptsInWindow = Math.max(1, options.maxRestartAttemptsInWindow ?? 5);
-    this.restartWindowMs = Math.max(1_000, options.restartWindowMs ?? 30_000);
-    this.restartCircuitOpenMs = Math.max(1_000, options.restartCircuitOpenMs ?? 30_000);
+    this.restartWindowMs = Math.max(1000, options.restartWindowMs ?? 30_000);
+    this.restartCircuitOpenMs = Math.max(1000, options.restartCircuitOpenMs ?? 30_000);
     this.maxRetryAttempts = Math.max(0, options.maxRetryAttempts ?? 1);
   }
 

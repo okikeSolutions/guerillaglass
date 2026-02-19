@@ -144,7 +144,7 @@ describe("engine client resilience", () => {
   }
 
   test("applies method-specific timeout overrides", async () => {
-    const client = new EngineClient(HANGING_ENGINE_PATH, 5_000, {
+    const client = new EngineClient(HANGING_ENGINE_PATH, 5000, {
       requestTimeoutByMethod: {
         "system.ping": 75,
       },
@@ -156,7 +156,7 @@ describe("engine client resilience", () => {
       expect(error.message).toContain("Engine request timed out: system.ping");
       const elapsed = Date.now() - startedAt;
       expect(elapsed).toBeGreaterThanOrEqual(50);
-      expect(elapsed).toBeLessThan(1_000);
+      expect(elapsed).toBeLessThan(1000);
     } finally {
       await client.stop();
     }
@@ -180,7 +180,7 @@ describe("engine client resilience", () => {
       expect(error.message).toContain("Engine request timed out: export.run");
       const elapsed = Date.now() - startedAt;
       expect(elapsed).toBeGreaterThanOrEqual(175);
-      expect(elapsed).toBeLessThan(2_000);
+      expect(elapsed).toBeLessThan(2000);
     } finally {
       await client.stop();
     }
@@ -207,21 +207,21 @@ describe("engine client resilience", () => {
   });
 
   test("fails pending requests quickly when engine exits", async () => {
-    const client = new EngineClient(CRASHING_ENGINE_PATH, 5_000);
+    const client = new EngineClient(CRASHING_ENGINE_PATH, 5000);
     const startedAt = Date.now();
 
     try {
       const error = await captureError(client.ping());
       expect(error.message).toContain("Engine process exited unexpectedly");
       const elapsed = Date.now() - startedAt;
-      expect(elapsed).toBeLessThan(1_000);
+      expect(elapsed).toBeLessThan(1000);
     } finally {
       await client.stop();
     }
   });
 
   test("opens restart circuit after repeated crash loops", async () => {
-    const client = new EngineClient(CRASHING_ENGINE_PATH, 5_000, {
+    const client = new EngineClient(CRASHING_ENGINE_PATH, 5000, {
       maxRetryAttempts: 1,
       restartBackoffMs: 0,
       restartJitterMs: 0,

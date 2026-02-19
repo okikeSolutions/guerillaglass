@@ -82,5 +82,8 @@ type BridgeRequests = {
 
 export type DesktopBridgeRPC = {
   bun: RPCSchema<{ requests: BridgeRequests; messages: { hostMenuState: HostMenuState } }>;
-  webview: RPCSchema<{ requests: {}; messages: { hostMenuCommand: { command: HostMenuCommand } } }>;
+  webview: RPCSchema<{
+    requests: Record<string, never>;
+    messages: { hostMenuCommand: { command: HostMenuCommand } };
+  }>;
 };

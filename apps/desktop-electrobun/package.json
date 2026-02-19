@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "test:ui": "playwright test -c playwright.config.cjs",
-    "test:ui:headed": "playwright test -c playwright.config.cjs --headed",
+    "test:ui": "playwright test -c playwright.config.ts",
+    "test:ui:headed": "playwright test -c playwright.config.ts --headed",
     "test:ui:install": "playwright install chromium",
     "start": "bun run dev"
   },
