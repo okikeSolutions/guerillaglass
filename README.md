@@ -1,6 +1,12 @@
 # guerillaglass
 
-Guerillaglass is an open-source screen recording app with cinematic automation.
+Guerillaglass is an open-source, cross-platform creator recorder/editor with cinematic automation.
+
+North star:
+
+- Professional workflow: `Record -> Edit -> Deliver`
+- Editor-first workstation UI: transport, viewer, timeline, inspector
+- Beautiful-by-default motion design with manual control
 
 The project now uses a hybrid architecture:
 
@@ -13,10 +19,10 @@ The project now uses a hybrid architecture:
 
 ## Requirements
 
-- macOS 13+
-- Swift 5.10+
 - Bun 1.3+
 - Rust toolchain (for `engines/windows-native`, `engines/linux-native`, and `engines/protocol-rust`)
+- Swift 5.10+ (required for macOS native engine work)
+- macOS 13+ (required for full macOS capture/export path and running `bun run gate`)
 
 ## Quick Start
 

@@ -70,13 +70,14 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 
 ## Platform & Stack
 
-- **macOS baseline (v1):** 13.0+ (stretch: validate 12.3+ video-only).
+- **Product north star:** cross-platform creator studio with professional record/edit/deliver workflow and cinematic defaults.
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components.
-- **Native media engine:** Swift.
+- **Native engines:** macOS Swift engine (production baseline), Windows/Linux Rust native engines (parity expansion path), plus protocol-compatible stubs for parallel shell work.
+- **Current production capture baseline:** macOS 13.0+ (stretch: validate 12.3+ video-only).
 - **Protocol:** Zod (TypeScript) + Swift wire codec.
-- **Capture:** ScreenCaptureKit (video + system audio where supported), AVFoundation (microphone).
-- **Encoding/muxing:** AVFoundation.
-- **Rendering:** Metal preferred, Core Image acceptable for MVP.
+- **Capture:** macOS uses ScreenCaptureKit/AVFoundation; Windows/Linux evolve toward native parity.
+- **Encoding/muxing:** macOS AVFoundation baseline; equivalent native pipelines per platform.
+- **Rendering:** deterministic renderer contract across platforms; macOS uses Metal preferred, Core Image acceptable for MVP.
 
 ---
 
@@ -93,9 +94,9 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 
 ## Phased Delivery Context
 
-- **Phase 1:** Display/window capture, mic audio, trim + export, project save/load + versioning.
-- **Phase 2:** Input Monitoring–gated event tracking, auto-zoom, background framing, vertical export with re-planned camera.
-- **Phase 3:** Motion blur controls, per-segment overrides, Simulator auto-crop, optional ProRes mezzanine.
+- **Phase 1:** Production-grade macOS capture/export path + editor-first Creator Studio shell.
+- **Phase 2:** Cinematic defaults (event tracking, auto-zoom, framing, vertical export) + Windows/Linux parity expansion.
+- **Phase 3:** Motion blur/segment polish + cross-platform workflow polish parity.
 
 When adding features, align with the current phase and the capability matrix in the spec (§5).
 
