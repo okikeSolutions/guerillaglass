@@ -11,7 +11,7 @@
     "gate:typescript": "./Scripts/typescript_gate.sh",
     "js:format": "bunx oxfmt --write apps packages",
     "js:format:check": "bunx oxfmt --check apps packages",
-    "js:lint": "bunx oxlint --deny-warnings --type-aware --ignore-pattern 'apps/desktop-electrobun/build/**' --ignore-pattern 'apps/desktop-electrobun/dist/**' --ignore-pattern 'apps/desktop-electrobun/playwright-report/**' --ignore-pattern 'apps/desktop-electrobun/test-results/**' apps packages",
+    "js:lint": "bunx oxlint -c oxlint.config.mjs --deny-warnings --type-aware apps packages",
     "swift:build": "swift build",
     "swift:test": "swift test",
     "swift:format": "swiftformat .",

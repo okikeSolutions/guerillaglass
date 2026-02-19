@@ -6,8 +6,12 @@ export default defineConfig({
   ignorePatterns: [
     "apps/desktop-electrobun/build/**",
     "apps/desktop-electrobun/dist/**",
+    "apps/desktop-electrobun/playwright-report/**",
+    "apps/desktop-electrobun/test-results/**",
   ],
   rules: {
+    "react/exhaustive-deps": "deny",
+    "react/rules-of-hooks": "deny",
     "import-x/no-namespace": "off",
     "perfectionist/sort-enums": "off",
     "perfectionist/sort-heritage-clauses": "off",
