@@ -35,6 +35,8 @@ extension EngineService {
                 currentEventsURL = nil
             }
 
+            recordRecentProjectIfPossible(url: savedProject.url)
+
             return .success(id: id, result: projectStateJSON())
         } catch {
             return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
@@ -88,11 +90,28 @@ extension EngineService {
             if let eventsSource {
                 currentEventsURL = destinationURL.appendingPathComponent(eventsSource.lastPathComponent)
             }
+            recordRecentProjectIfPossible(url: destinationURL)
 
             return .success(id: id, result: projectStateJSON())
         } catch {
             return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
         }
+    }
+
+    func projectRecentsResponse(id: String, params: [String: JSONValue]) -> EngineResponse {
+        let requestedLimit = Int(params["limit"]?.doubleValue ?? 10)
+        let limit = max(1, min(requestedLimit, 100))
+        let items = projectLibraryStore.recentProjects(limit: limit).compactMap { item -> JSONValue? in
+            guard let resolvedURL = projectLibraryStore.resolveURL(for: item) else {
+                return nil
+            }
+            return .object([
+                "projectPath": .string(resolvedURL.path),
+                "displayName": .string(item.displayName),
+                "lastOpenedAt": .string(iso8601String(from: item.lastOpenedAt))
+            ])
+        }
+        return .success(id: id, result: .object(["items": .array(items)]))
     }
 
     func projectStateJSON() -> JSONValue {
@@ -159,5 +178,19 @@ extension EngineService {
             contentRect: CaptureRect(rect: descriptor.contentRect),
             pixelScale: Double(descriptor.pixelScale)
         )
+    }
+
+    private func recordRecentProjectIfPossible(url: URL) {
+        do {
+            try projectLibraryStore.recordRecentProject(url: url)
+        } catch {
+            // Recents index writes are best-effort and should not block project operations.
+        }
+    }
+
+    private func iso8601String(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 }

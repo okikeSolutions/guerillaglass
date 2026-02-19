@@ -73,6 +73,8 @@ describe("phase-1 parity e2e", () => {
           },
         });
         expect(saved.autoZoom.intensity).toBe(0.6);
+        const recents = await client.projectRecents(5);
+        expect(recents.items[0]?.projectPath).toBe(projectPath);
 
         const stopped = await client.stopCapture();
         expect(stopped.isRunning).toBe(false);

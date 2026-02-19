@@ -53,6 +53,11 @@ type State = {
     contentRect: { x: number; y: number; width: number; height: number };
     pixelScale: number;
   } | null;
+  recentProjects: Array<{
+    projectPath: string;
+    displayName: string;
+    lastOpenedAt: string;
+  }>;
 };
 
 const state: State = {
@@ -70,6 +75,7 @@ const state: State = {
     minimumKeyframeInterval: 0.15,
   },
   captureMetadata: null,
+  recentProjects: [],
 };
 
 function statusResult(): Json {
@@ -97,6 +103,23 @@ function projectState(): Json {
     autoZoom: state.autoZoom,
     captureMetadata: state.captureMetadata,
   };
+}
+
+function recordRecentProject(projectPath: string): void {
+  const normalizedPath = projectPath.trim();
+  if (!normalizedPath) {
+    return;
+  }
+  const displayName =
+    normalizedPath.split(/[\\/]/).pop()?.replace(/\.gglassproj$/i, "") || normalizedPath;
+  state.recentProjects = [
+    {
+      projectPath: normalizedPath,
+      displayName,
+      lastOpenedAt: new Date().toISOString(),
+    },
+    ...state.recentProjects.filter((item) => item.projectPath !== normalizedPath),
+  ].slice(0, 20);
 }
 
 function success(id: string, result: Json): Response {
@@ -266,6 +289,7 @@ function handleRequest(platform: string, request: Request): Response {
         return failure(request.id, "invalid_params", "projectPath is required");
       }
       state.projectPath = projectPath;
+      recordRecentProject(projectPath);
       return success(request.id, projectState());
     }
 
@@ -273,6 +297,7 @@ function handleRequest(platform: string, request: Request): Response {
       const projectPath = typeof params.projectPath === "string" ? params.projectPath : null;
       if (projectPath) {
         state.projectPath = projectPath;
+        recordRecentProject(projectPath);
       }
       const autoZoom = params.autoZoom;
       if (autoZoom && typeof autoZoom === "object" && !Array.isArray(autoZoom)) {
@@ -289,6 +314,12 @@ function handleRequest(platform: string, request: Request): Response {
         };
       }
       return success(request.id, projectState());
+    }
+
+    case "project.recents": {
+      const requestedLimit = typeof params.limit === "number" ? Math.floor(params.limit) : 10;
+      const limit = Math.min(Math.max(requestedLimit, 1), 100);
+      return success(request.id, { items: state.recentProjects.slice(0, limit) });
     }
 
     default:

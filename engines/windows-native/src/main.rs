@@ -3,13 +3,18 @@ use protocol_rust::{
     EngineRequest, EngineResponse, ProtocolErrorCode, RunningDuration, PROTOCOL_VERSION,
 };
 use serde_json::{json, Value};
+use std::env;
 use std::fs;
 use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 
 const PLATFORM: &str = "windows";
 const ENGINE_VERSION: &str = "0.4.0-native-foundation";
 const ENGINE_PHASE: &str = "foundation";
+const MAX_RECENT_PROJECTS: usize = 20;
+const DEFAULT_RECENTS_LIMIT: usize = 10;
 
 struct State {
     clock: CaptureClock,
@@ -24,10 +29,14 @@ struct State {
     auto_zoom_intensity: f64,
     auto_zoom_min_keyframe_interval: f64,
     capture_metadata: Option<Value>,
+    recent_projects: Vec<Value>,
+    recents_index_path: PathBuf,
 }
 
 impl State {
     fn new() -> Self {
+        let recents_index_path = default_recents_index_path();
+        let recent_projects = load_recent_projects(&recents_index_path);
         Self {
             clock: CaptureClock::default(),
             is_running: false,
@@ -41,6 +50,8 @@ impl State {
             auto_zoom_intensity: 0.55,
             auto_zoom_min_keyframe_interval: 0.15,
             capture_metadata: None,
+            recent_projects,
+            recents_index_path,
         }
     }
 
@@ -72,6 +83,97 @@ impl State {
             "captureMetadata": self.capture_metadata,
         })
     }
+}
+
+fn default_recents_index_path() -> PathBuf {
+    if let Some(app_data) = env::var_os("APPDATA") {
+        return PathBuf::from(app_data)
+            .join("guerillaglass")
+            .join("Library")
+            .join("library.native.json");
+    }
+    if let Some(user_profile) = env::var_os("USERPROFILE") {
+        return PathBuf::from(user_profile)
+            .join("AppData")
+            .join("Roaming")
+            .join("guerillaglass")
+            .join("Library")
+            .join("library.native.json");
+    }
+    PathBuf::from("guerillaglass-library.native.json")
+}
+
+fn now_iso8601() -> String {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+}
+
+fn load_recent_projects(index_path: &Path) -> Vec<Value> {
+    let data = match fs::read_to_string(index_path) {
+        Ok(data) => data,
+        Err(_) => return Vec::new(),
+    };
+    let parsed = match serde_json::from_str::<Value>(&data) {
+        Ok(value) => value,
+        Err(_) => return Vec::new(),
+    };
+    parsed
+        .get("items")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| is_valid_recent_project_item(item))
+                .take(MAX_RECENT_PROJECTS)
+                .cloned()
+                .collect::<Vec<Value>>()
+        })
+        .unwrap_or_default()
+}
+
+fn save_recent_projects(index_path: &Path, items: &[Value]) {
+    if let Some(parent) = index_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(index_path, json!({ "items": items }).to_string());
+}
+
+fn is_valid_recent_project_item(item: &Value) -> bool {
+    let project_path = item
+        .get("projectPath")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let display_name = item
+        .get("displayName")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let last_opened_at = item
+        .get("lastOpenedAt")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    !project_path.is_empty() && !display_name.is_empty() && !last_opened_at.is_empty()
+}
+
+fn record_recent_project(state: &mut State, project_path: &str) {
+    let display_name = PathBuf::from(project_path)
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or(project_path)
+        .to_string();
+    let item = json!({
+        "projectPath": project_path,
+        "displayName": display_name,
+        "lastOpenedAt": now_iso8601(),
+    });
+    state.recent_projects.retain(|existing| {
+        existing.get("projectPath") != Some(&Value::String(project_path.to_string()))
+    });
+    state.recent_projects.insert(0, item);
+    if state.recent_projects.len() > MAX_RECENT_PROJECTS {
+        state.recent_projects.truncate(MAX_RECENT_PROJECTS);
+    }
+    save_recent_projects(&state.recents_index_path, &state.recent_projects);
 }
 
 fn get_string(params: &Value, key: &str) -> Option<String> {
@@ -257,7 +359,8 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
                     )
                 }
             };
-            state.project_path = Some(project_path);
+            state.project_path = Some(project_path.clone());
+            record_recent_project(state, &project_path);
             success(&request.id, state.project_state())
         }
         EngineMethod::ProjectSave => {
@@ -279,14 +382,29 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
                         .max(0.0001);
             }
 
-            if let Some(project_path) = &state.project_path {
-                let directory = PathBuf::from(project_path);
+            if let Some(project_path) = state.project_path.clone() {
+                let directory = PathBuf::from(&project_path);
                 let _ = fs::create_dir_all(&directory);
                 let snapshot_path = directory.join("project.native.json");
                 let _ = fs::write(snapshot_path, state.project_state().to_string());
+                record_recent_project(state, &project_path);
             }
 
             success(&request.id, state.project_state())
+        }
+        EngineMethod::ProjectRecents => {
+            let limit = params
+                .get("limit")
+                .and_then(Value::as_u64)
+                .map(|value| value.min(100) as usize)
+                .unwrap_or(DEFAULT_RECENTS_LIMIT);
+            let items = state
+                .recent_projects
+                .iter()
+                .take(limit)
+                .cloned()
+                .collect::<Vec<Value>>();
+            success(&request.id, json!({ "items": items }))
         }
     }
 }

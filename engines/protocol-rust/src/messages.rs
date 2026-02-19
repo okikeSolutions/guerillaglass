@@ -32,6 +32,7 @@ pub enum EngineMethod {
     ProjectCurrent,
     ProjectOpen,
     ProjectSave,
+    ProjectRecents,
 }
 
 impl EngineMethod {
@@ -58,6 +59,7 @@ impl EngineMethod {
             Self::ProjectCurrent => "project.current",
             Self::ProjectOpen => "project.open",
             Self::ProjectSave => "project.save",
+            Self::ProjectRecents => "project.recents",
         }
     }
 }
@@ -88,6 +90,7 @@ impl TryFrom<&str> for EngineMethod {
             "project.current" => Ok(Self::ProjectCurrent),
             "project.open" => Ok(Self::ProjectOpen),
             "project.save" => Ok(Self::ProjectSave),
+            "project.recents" => Ok(Self::ProjectRecents),
             _ => Err(()),
         }
     }

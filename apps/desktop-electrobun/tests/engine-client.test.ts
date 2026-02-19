@@ -121,6 +121,8 @@ describe("engine client integration", () => {
         projectPath: "/tmp/guerillaglass-project.gglassproj",
       });
       expect(saved.projectPath).toContain("guerillaglass-project.gglassproj");
+      const recents = await client.projectRecents(5);
+      expect(recents.items[0]?.projectPath).toContain("guerillaglass-project.gglassproj");
 
       const halted = await client.stopCapture();
       expect(halted.isRunning).toBe(false);
