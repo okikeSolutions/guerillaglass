@@ -8,6 +8,7 @@ import type {
   InputEvent,
   PermissionsResult,
   PingResult,
+  ProjectRecentsResult,
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
@@ -42,6 +43,7 @@ const studioQueryKeys = {
   captureStatus: () => ["studio", "captureStatus"] as const,
   exportInfo: () => ["studio", "exportInfo"] as const,
   projectCurrent: () => ["studio", "projectCurrent"] as const,
+  projectRecents: (limit: number) => ["studio", "projectRecents", limit] as const,
   eventsLog: (eventsURL: string | null) => ["studio", "eventsLog", eventsURL] as const,
 };
 
@@ -156,6 +158,13 @@ export function useStudioController() {
   const projectQuery = useQuery<ProjectState>({
     queryKey: studioQueryKeys.projectCurrent(),
     queryFn: () => engineApi.projectCurrent(),
+    staleTime: 10_000,
+  });
+
+  const recentsLimit = 10;
+  const projectRecentsQuery = useQuery<ProjectRecentsResult>({
+    queryKey: studioQueryKeys.projectRecents(recentsLimit),
+    queryFn: () => engineApi.projectRecents(recentsLimit),
     staleTime: 10_000,
   });
 
@@ -310,15 +319,17 @@ export function useStudioController() {
 
   const refreshMutation = useMutation({
     mutationFn: async () => {
-      const [ping, permissions, sources, captureStatus, exportInfo, project] = await Promise.all([
-        pingQuery.refetch(),
-        permissionsQuery.refetch(),
-        sourcesQuery.refetch(),
-        captureStatusQuery.refetch(),
-        exportInfoQuery.refetch(),
-        projectQuery.refetch(),
-        eventsQuery.refetch(),
-      ]);
+      const [ping, permissions, sources, captureStatus, exportInfo, project, projectRecents] =
+        await Promise.all([
+          pingQuery.refetch(),
+          permissionsQuery.refetch(),
+          sourcesQuery.refetch(),
+          captureStatusQuery.refetch(),
+          exportInfoQuery.refetch(),
+          projectQuery.refetch(),
+          projectRecentsQuery.refetch(),
+          eventsQuery.refetch(),
+        ]);
 
       return {
         ping: ping.data,
@@ -327,6 +338,7 @@ export function useStudioController() {
         captureStatus: captureStatus.data,
         exportInfo: exportInfo.data,
         project: project.data,
+        projectRecents: projectRecents.data,
       };
     },
     onError: (error) => {
@@ -431,6 +443,12 @@ export function useStudioController() {
     },
   });
 
+  const openProjectAtPath = useCallback(async (projectPath: string) => {
+    const nextProject = await engineApi.projectOpen(projectPath);
+    const nextStatus = await engineApi.captureStatus();
+    return { nextProject, nextStatus };
+  }, []);
+
   const openProjectMutation = useMutation({
     mutationFn: async () => {
       const pickedPath = await desktopApi.pickDirectory(
@@ -439,9 +457,7 @@ export function useStudioController() {
       if (!pickedPath) {
         return null;
       }
-      const nextProject = await engineApi.projectOpen(pickedPath);
-      const nextStatus = await engineApi.captureStatus();
-      return { nextProject, nextStatus };
+      return await openProjectAtPath(pickedPath);
     },
     onSuccess: (data) => {
       if (!data) {
@@ -449,6 +465,24 @@ export function useStudioController() {
       }
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
       queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      void queryClient.invalidateQueries({
+        queryKey: studioQueryKeys.projectRecents(recentsLimit),
+      });
+      setNotice({ kind: "success", message: enUS.notices.projectOpened });
+    },
+    onError: (error) => {
+      setNotice({ kind: "error", message: formatError(error) });
+    },
+  });
+
+  const openRecentProjectMutation = useMutation({
+    mutationFn: async (projectPath: string) => await openProjectAtPath(projectPath),
+    onSuccess: (data) => {
+      queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
+      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      void queryClient.invalidateQueries({
+        queryKey: studioQueryKeys.projectRecents(recentsLimit),
+      });
       setNotice({ kind: "success", message: enUS.notices.projectOpened });
     },
     onError: (error) => {
@@ -478,6 +512,9 @@ export function useStudioController() {
         return;
       }
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), nextProject);
+      void queryClient.invalidateQueries({
+        queryKey: studioQueryKeys.projectRecents(recentsLimit),
+      });
       setNotice({
         kind: "success",
         message: enUS.notices.projectSaved(nextProject.projectPath ?? enUS.labels.notSaved),
@@ -545,6 +582,7 @@ export function useStudioController() {
     stopPreviewMutation,
     toggleRecordingMutation,
     openProjectMutation,
+    openRecentProjectMutation,
     saveProjectMutation,
     exportMutation,
   ];
@@ -716,6 +754,7 @@ export function useStudioController() {
     },
     [
       exportMutation,
+      openRecentProjectMutation,
       openProjectMutation,
       refreshMutation,
       saveProjectMutation,
@@ -850,6 +889,7 @@ export function useStudioController() {
     notice,
     nudgePlayheadSeconds,
     openProjectMutation,
+    openRecentProjectMutation,
     permissionBadgeVariant,
     permissionsQuery,
     pingQuery,
@@ -857,6 +897,7 @@ export function useStudioController() {
     playbackRate,
     playbackRates,
     projectQuery,
+    projectRecentsQuery,
     recordingURL,
     refreshAll,
     refreshMutation,
