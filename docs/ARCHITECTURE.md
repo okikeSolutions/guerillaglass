@@ -17,6 +17,12 @@ Guerillaglass now follows a hybrid multiplatform architecture:
    - Shared Rust request/response envelope models
    - Shared monotonic clock primitive for timing-critical engines
 
+North star:
+
+- Cross-platform creator workflow parity (`Record -> Edit -> Deliver`)
+- Native capture/audio/export quality per platform
+- Shared protocol contract so shell UX stays consistent across engines
+
 ## Runtime Data Flow
 
 1. Renderer calls `window.ggEngine*` functions.
@@ -71,7 +77,7 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 
 - UI iteration speed and styling improve with React/Tailwind.
 - Capture/audio/rendering stays native for quality and permissions correctness.
-- Cross-platform shell is ready now while additional native engines can be added later.
+- Cross-platform shell ships one product surface while native engines converge on capability parity over time.
 
 ## Testing
 

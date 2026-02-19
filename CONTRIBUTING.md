@@ -1,11 +1,17 @@
 # Contributing to guerillaglass
 
-Thanks for your interest in contributing. This repository uses a hybrid setup: Electrobun desktop shell + Swift native engine.
+Thanks for your interest in contributing. Guerillaglass is a cross-platform creator recorder/editor with a hybrid setup: Electrobun desktop shell + native per-OS engines behind a shared protocol.
+
+## Product direction
+- Professional creator workflow: `Record -> Edit -> Deliver`
+- Editor-first shell: transport, viewer, timeline, inspector
+- Cinematic defaults with manual overrides
 
 ## Development
-- macOS 13.0+
-- Swift 5.10+
 - Bun 1.3+
+- Rust toolchain
+- Swift 5.10+ (for macOS engine work)
+- macOS 13.0+ (required for full native macOS capture/export flow and full gate)
 
 ## Build
 ```
@@ -36,6 +42,6 @@ swift test
 
 ## Pull requests (agent-friendly)
 - Use small, scoped PRs (UI, capture, export, docs, tooling).
-- Run `Scripts/full_gate.sh` before opening a PR (format, lint, build).
+- Run `bun run gate` before opening a PR (format, lint, tests, build).
 - Include screenshots for UI changes.
 - Split commits by feature area (follow existing `feat:`, `docs:`, `chore:` style).

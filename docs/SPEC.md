@@ -1,14 +1,29 @@
-# Spec.md — guerillglass (Open‑source “Screen Studio–style” Recorder with Hybrid Desktop Architecture)
+# Spec.md — guerillglass (Open-source Cross-Platform Creator Recorder & Editor)
 
 ## 1) Goal
 
-Build an open-source recorder that uses a cross-platform desktop shell with a native macOS media engine and records:
+Build an open-source, cross-platform creator recording studio that helps users move from capture to polished delivery quickly.
+
+Core product outcome:
 
 - Entire display(s) or a single window (including iOS Simulator)
 - Optional system audio + microphone
 - Cursor + click metadata (when permitted)
 
 …and exports “beautiful by default” videos using automatic motion design (auto-zoom, cursor smoothing, motion blur, background framing, and vertical exports).
+
+Implementation strategy:
+
+- Cross-platform desktop shell (Electrobun + React/Tailwind)
+- Native per-OS media engines behind a shared typed protocol
+
+### 1.1) Product north star
+
+Guerilla Glass should feel like a professional creator tool:
+
+- Fast record entry and reliable source/audio control (OBS-style operational capture discipline)
+- Viewer/timeline/inspector-first editing ergonomics (Final Cut/Resolve-style workstation flow)
+- Automatic polish with manual override (Screen Studio-style cinematic defaults)
 
 ---
 
@@ -46,7 +61,6 @@ Build an open-source recorder that uses a cross-platform desktop shell with a na
 - Live streaming (RTMP)
 - Cloud sync/collaboration
 - Full NLE feature set
-- Native Windows/Linux capture backends in v1
 
 ---
 
@@ -54,9 +68,13 @@ Build an open-source recorder that uses a cross-platform desktop shell with a na
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
 - **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
-- **Native engine baseline (v1):** macOS 13.0+
+- **Native engines (per platform):**
+  - macOS: Swift sidecar (`engines/macos-swift`) as current production capture/export path
+  - Windows: Rust sidecar foundation (`engines/windows-native`) with protocol parity handlers
+  - Linux: Rust sidecar foundation (`engines/linux-native`) with protocol parity handlers
+  - Stubs: protocol-compatible Windows/Linux stubs for parallel shell/protocol iteration
+- **Current feature baseline:** macOS 13.0+ for full native capture/export path
   - Stretch: validate whether **12.3+ video-only** support is feasible for engine-only paths.
-- Native engine language: Swift
 - **Development environment:** Cursor IDE + SweetPad (no Xcode project workflow).
 - **Build system:** SwiftPM (`Package.swift` is the source of truth; no `.xcodeproj`).
 - **App identity:**
@@ -69,25 +87,35 @@ Build an open-source recorder that uses a cross-platform desktop shell with a na
   - Build logs: **xcbeautify** for readable CLI output.
   - LSP: **xcode-build-server** to support Cursor/SweetPad indexing.
 - Native engine capture:
-  - ScreenCaptureKit (video + system audio where supported)
-  - AVFoundation (microphone capture, universally)
-- Native engine encoding/muxing: AVFoundation
-- Native engine rendering: Metal (preferred), Core Image acceptable for MVP
+  - macOS: ScreenCaptureKit (video + system audio where supported), AVFoundation (microphone)
+  - Windows/Linux: evolving to native capture/audio parity via Rust sidecars
+- Native engine encoding/muxing:
+  - macOS: AVFoundation
+  - Windows/Linux: target equivalent native encode/mux pipelines
+- Native engine rendering:
+  - macOS: Metal preferred, Core Image acceptable for MVP
+  - Windows/Linux: target deterministic renderer parity with platform-native acceleration
 
 ---
 
-## 5) Capability matrix
+## 5) Capability matrix (cross-platform parity targets)
 
-| Capture mode    | Video (13+) |    System audio | Mic (AVF) | Cursor pos | Click events |
-| --------------- | ----------: | --------------: | --------: | ---------: | -----------: |
-| Display capture |         Yes |        13+ only |       Yes |   Optional |     Optional |
-| Window capture  |         Yes | 13+ best-effort |       Yes |   Optional |     Optional |
+| Capability                         | macOS (`macos-swift`)                       | Windows (`windows-native`) | Linux (`linux-native`) | Stub engines      |
+| ---------------------------------- | ------------------------------------------- | -------------------------- | ---------------------- | ----------------- |
+| Display capture                    | Production (13+)                            | In progress                | In progress            | Simulated         |
+| Window capture                     | Production (13+)                            | In progress                | In progress            | Simulated         |
+| System audio capture               | Supported where SCStream source supports it | Planned                    | Planned                | Simulated         |
+| Microphone capture                 | Production (AVFoundation)                   | In progress                | In progress            | Simulated         |
+| Cursor/click event tracking        | Production (Input Monitoring-gated)         | Planned parity             | Planned parity         | Simulated         |
+| Auto-zoom planner + effects model  | Production                                  | Planned parity             | Planned parity         | Protocol coverage |
+| Export presets + project save/load | Production                                  | In progress                | In progress            | Protocol coverage |
 
 Notes:
 
-- System audio is only exposed when OS + source support it; UI must disable otherwise with explanation.
-- Cursor/click tracking is optional and permission-gated; enabled by default with a toggle to disable.
-- If 12.3+ video-only support is validated, expand matrix and gate by OS at runtime.
+- Feature parity is a product requirement; exact rollout sequence is phased in §18.
+- UI must disclose capability differences by OS/engine target and degrade gracefully.
+- System audio is only exposed when OS + source support it.
+- Cursor/click tracking remains optional and permission-gated.
 
 ---
 
@@ -95,9 +123,13 @@ Notes:
 
 - Beautiful defaults, minimal configuration
 - Local-first and privacy-respecting
-- Project-based workflow (record once → export many)
+- Professional creator workflow (record → edit → deliver)
+- Project-based workflow (record once -> export many)
+- Fast time-to-first-recording
+- Automatic polish with manual override
+- Cross-platform parity via a shared protocol contract
 - Explicit determinism contract
-- Native macOS feel (HIG-aligned) and top-tier performance
+- Native-feeling UX per platform (HIG/OS conventions) and top-tier performance
 
 ---
 
@@ -105,12 +137,12 @@ Notes:
 
 ### 7.1 Capture
 
-- Display capture (single display v1)
+- Display capture
 - Window capture (including iOS Simulator)
 - Capture at native display resolution; downscale only in preview/export.
 - Audio:
-  - Microphone via AVFoundation (all supported OS versions)
-  - System/app audio via ScreenCaptureKit (macOS 13+ only)
+  - Microphone via native per-OS audio capture pipeline
+  - System/app audio where platform APIs and source types support it
 - Unified timebase: all streams (screen, system audio, mic, events) are timestamped against a single `CaptureClock` to prevent drift.
 - Optional event tracking:
   - Cursor positions (timestamped)
@@ -160,6 +192,7 @@ This section operationalizes the non-dashboard contract into an implementation p
 Design baseline (from pro-tool patterns):
 
 - Workflow-first shell: prioritize throughput and editing clarity over decorative UI chrome.
+- Fast entry into recording: users should be able to start recording in one focused flow with source/audio controls immediately visible.
 - Persistent workstation panes: top transport/status, left utility panel, center viewer, right inspector, bottom timeline.
 - Contextual controls: inspector content changes by selection/mode; avoid showing unrelated settings by default.
 - Keyboard-first operations: all core actions remain available without pointer dependency.
@@ -179,6 +212,7 @@ Creator Studio implementation requirements:
 - Center viewer is the dominant stage; permission or diagnostics UI is supportive, not primary.
 - Right inspector is contextual (`capture`, `effects`, `export`, `project`) and selection-aware.
 - Bottom timeline is always present and treated as a first-class editing surface.
+- Capture onboarding and permission prompts must be integrated into the workflow without turning the shell into a diagnostics dashboard.
 - Project lifecycle remains first-class in shell:
   - open existing project
   - save/save as
@@ -442,10 +476,12 @@ Progress (current repo)
 
 **Phase 1 — Recorder MVP**
 
+- Production-grade macOS capture/export path
 - Display/window capture
-- Mic audio (AVFoundation)
+- Mic audio
 - Trim + export
 - Project save/load + versioning (protocol-based open/save)
+- Creator Studio editor-first shell baseline (`Capture`/`Edit`/`Deliver`)
 - Localization: keep desktop shell strings localizable
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
@@ -463,10 +499,11 @@ Progress (current repo)
 
 **Phase 2 — Cinematic defaults**
 
-- Input Monitoring–gated event tracking
+- Input Monitoring-gated event tracking
 - Auto-zoom planning + constraints
 - Background framing
 - Vertical export with re-planned camera
+- Windows/Linux native engine parity expansion (capture/audio/export protocol coverage)
 - Localization: add/refresh localized strings for all new UI and errors
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
@@ -476,6 +513,8 @@ Progress (current repo)
 - [x] Auto-zoom planning + constraints (planner + renderer wiring + UI tuning)
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
+- [ ] Windows native capture/audio/export parity milestones
+- [ ] Linux native capture/audio/export parity milestones
 - [ ] Localization updated for Phase 2 UI
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
@@ -485,6 +524,7 @@ Progress (current repo)
 - Per-segment overrides
 - Simulator auto-crop
 - Optional ProRes mezzanine
+- Cross-platform creator-workflow polish parity (menu, shortcuts, diagnostics, onboarding)
 - Localization: update strings for new controls, settings, and export options
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
@@ -494,6 +534,7 @@ Progress (current repo)
 - [ ] Per-segment overrides
 - [ ] Simulator auto-crop
 - [ ] Optional ProRes mezzanine
+- [ ] Cross-platform creator-workflow polish parity
 - [ ] Localization updated for Phase 3 UI
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
@@ -567,7 +608,7 @@ License hygiene:
 
 ---
 
-## 22) Verification sources (links)
+## 23) Verification sources (links)
 
 - Apple WWDC22: “Meet ScreenCaptureKit” — https://developer.apple.com/videos/play/wwdc2022/10156/
 - Apple ScreenCaptureKit sample app (WWDC22) README — https://github.com/Fidetro/CapturingScreenContentInMacOS
@@ -583,6 +624,10 @@ License hygiene:
 - Gannon Lawlor: Input Monitoring & AX trust checks — https://gannonlawlor.com/2022/07/02/accessing-mouse-events-on-macos/
 - macOS Sequoia screen recording re‑authorization prompt (reports) — https://www.macrumors.com/2024/08/15/macos-sequoia-screen-recording-app-permissions/
 - macOS Sequoia prompt details (reports) — https://9to5mac.com/2024/08/14/macos-sequoia-screen-recording-prompt-monthly/
+- Screen Studio product site — https://screen.studio/
+- DaVinci Resolve product page — https://www.blackmagicdesign.com/products/davinciresolve
+- Final Cut Pro user guide (interface/workflow) — https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac
+- OBS knowledge base (sources/workflow) — https://obsproject.com/kb/sources-guide
 
 ```
 
