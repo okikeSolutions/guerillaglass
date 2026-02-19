@@ -190,7 +190,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Add explicit mode switch (`Capture`, `Edit`, `Deliver`) with stable navigation state
 - [x] Keep timeline permanently visible in primary layout across desktop breakpoints
 - [x] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
-- [ ] Make inspector fully contextual to selection and mode
+- [x] Make inspector fully contextual to selection and mode
 - [ ] Add project utility panel support for recent projects + active project metadata
 - [ ] Add layout persistence (pane sizes/collapse/workspace restore)
 - [ ] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
@@ -358,6 +358,13 @@ Versioning policy:
 6. Automation Planner (virtual camera)
 7. Renderer / Compositor
 8. Export Pipeline
+
+Desktop shell and sidecar reliability contract (current):
+
+- Engine transport errors are typed and surfaced explicitly (unavailable, timeout, sidecar exit/failure, circuit-open).
+- Request timeout policy is method-specific; `export.run` is non-timed by default to avoid aborting valid long exports.
+- Automatic retries are limited to read-only methods and transport failures.
+- Repeated crash loops open a restart circuit for a cooldown window before restart attempts resume.
 
 ---
 

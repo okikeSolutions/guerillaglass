@@ -19,7 +19,7 @@ import {
 type PendingRequest = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
-  timeout: ReturnType<typeof setTimeout>;
+  timeout?: ReturnType<typeof setTimeout>;
 };
 
 type EngineStdin = {
@@ -36,6 +36,85 @@ export type EngineTarget =
 
 const WINDOWS_NATIVE_BINARY = "guerillaglass-engine-windows.exe";
 const LINUX_NATIVE_BINARY = "guerillaglass-engine-linux";
+const textEncoder = new TextEncoder();
+
+type EngineClientErrorCode =
+  | "ENGINE_CLIENT_STOPPED"
+  | "ENGINE_PROCESS_UNAVAILABLE"
+  | "ENGINE_REQUEST_TIMEOUT"
+  | "ENGINE_STDIO_WRITE_FAILED"
+  | "ENGINE_PROCESS_EXITED"
+  | "ENGINE_PROCESS_FAILED"
+  | "ENGINE_RESTART_CIRCUIT_OPEN";
+
+class EngineClientError extends Error {
+  readonly code: EngineClientErrorCode;
+  override readonly cause: unknown;
+
+  constructor(code: EngineClientErrorCode, message: string, cause?: unknown) {
+    super(message);
+    this.code = code;
+    this.cause = cause;
+    this.name = "EngineClientError";
+  }
+}
+
+const defaultRequestTimeoutByMethod: Readonly<Record<EngineRequest["method"], number>> = {
+  "system.ping": 3_000,
+  "engine.capabilities": 5_000,
+  "permissions.get": 5_000,
+  "permissions.requestScreenRecording": 10_000,
+  "permissions.requestMicrophone": 10_000,
+  "permissions.requestInputMonitoring": 10_000,
+  "permissions.openInputMonitoringSettings": 5_000,
+  "sources.list": 8_000,
+  "capture.startDisplay": 15_000,
+  "capture.startWindow": 15_000,
+  "capture.stop": 10_000,
+  "recording.start": 15_000,
+  "recording.stop": 15_000,
+  "capture.status": 5_000,
+  "export.info": 10_000,
+  // 0 disables timeout: exports can legitimately run for long recordings.
+  "export.run": 0,
+  "project.current": 5_000,
+  "project.open": 20_000,
+  "project.save": 20_000,
+};
+
+const retryableReadMethods = new Set<EngineRequest["method"]>([
+  "system.ping",
+  "engine.capabilities",
+  "permissions.get",
+  "sources.list",
+  "capture.status",
+  "export.info",
+  "project.current",
+]);
+
+const retryableTransportErrors = new Set<EngineClientErrorCode>([
+  "ENGINE_PROCESS_UNAVAILABLE",
+  "ENGINE_REQUEST_TIMEOUT",
+  "ENGINE_STDIO_WRITE_FAILED",
+  "ENGINE_PROCESS_EXITED",
+  "ENGINE_PROCESS_FAILED",
+]);
+
+type EngineClientOptions = {
+  requestTimeoutByMethod?: Partial<Record<EngineRequest["method"], number>>;
+  restartBackoffMs?: number;
+  restartJitterMs?: number;
+  maxRestartAttemptsInWindow?: number;
+  restartWindowMs?: number;
+  restartCircuitOpenMs?: number;
+  maxRetryAttempts?: number;
+};
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
 
 function findWorkspaceRoot(startDir: string): string | null {
   let current = path.resolve(startDir);
@@ -145,10 +224,35 @@ export class EngineClient {
   private startPromise: Promise<void> | null = null;
   private readonly enginePath: string;
   private readonly requestTimeoutMs: number;
+  private readonly requestTimeoutByMethod: Readonly<Record<EngineRequest["method"], number>>;
+  private readonly restartBackoffMs: number;
+  private readonly restartJitterMs: number;
+  private readonly maxRestartAttemptsInWindow: number;
+  private readonly restartWindowMs: number;
+  private readonly restartCircuitOpenMs: number;
+  private readonly maxRetryAttempts: number;
+  private restartAllowedAtMs = 0;
+  private restartCircuitOpenUntilMs = 0;
+  private restartTimestampsMs: number[] = [];
+  private isStopping = false;
 
-  constructor(enginePath = resolveEnginePath(), requestTimeoutMs = 15_000) {
+  constructor(
+    enginePath = resolveEnginePath(),
+    requestTimeoutMs = 15_000,
+    options: EngineClientOptions = {},
+  ) {
     this.enginePath = enginePath;
     this.requestTimeoutMs = requestTimeoutMs;
+    this.requestTimeoutByMethod = Object.freeze({
+      ...defaultRequestTimeoutByMethod,
+      ...options.requestTimeoutByMethod,
+    });
+    this.restartBackoffMs = options.restartBackoffMs ?? 250;
+    this.restartJitterMs = Math.max(0, options.restartJitterMs ?? 250);
+    this.maxRestartAttemptsInWindow = Math.max(1, options.maxRestartAttemptsInWindow ?? 5);
+    this.restartWindowMs = Math.max(1_000, options.restartWindowMs ?? 30_000);
+    this.restartCircuitOpenMs = Math.max(1_000, options.restartCircuitOpenMs ?? 30_000);
+    this.maxRetryAttempts = Math.max(0, options.maxRetryAttempts ?? 1);
   }
 
   async start(): Promise<void> {
@@ -160,6 +264,11 @@ export class EngineClient {
     }
 
     this.startPromise = (async () => {
+      this.throwIfRestartCircuitOpen();
+      const now = Date.now();
+      if (this.restartAllowedAtMs > now) {
+        await delay(this.restartAllowedAtMs - now);
+      }
       if (!existsSync(this.enginePath)) {
         throw new Error(
           `Engine executable not found at ${this.enginePath}. Run bun run swift:build or set GG_ENGINE_PATH.`,
@@ -169,16 +278,19 @@ export class EngineClient {
       const command = this.enginePath.endsWith(".ts")
         ? ["bun", this.enginePath]
         : [this.enginePath];
-      this.process = Bun.spawn({
+      const process = Bun.spawn({
         cmd: command,
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
       });
+      this.process = process;
+      this.stdin = process.stdin as unknown as EngineStdin;
 
-      this.stdin = this.process.stdin as unknown as EngineStdin;
-      void this.readStdout();
-      void this.readStderr();
+      this.isStopping = false;
+      void this.watchProcessExit(process);
+      void this.readStdout(process);
+      void this.readStderr(process);
     })();
 
     try {
@@ -189,18 +301,24 @@ export class EngineClient {
   }
 
   async stop(): Promise<void> {
-    for (const [, pending] of this.pending) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error("Engine client stopped"));
-    }
-    this.pending.clear();
+    this.isStopping = true;
+    this.rejectAllPending(new EngineClientError("ENGINE_CLIENT_STOPPED", "Engine client stopped"));
 
-    if (this.stdin) {
-      this.stdin.end();
-      this.stdin = null;
-    }
-    this.process?.kill();
+    const stdin = this.stdin;
+    const process = this.process;
+    this.stdin = null;
     this.process = null;
+
+    if (stdin) {
+      try {
+        stdin.end();
+      } catch (error) {
+        console.warn("Failed to close engine stdin cleanly", error);
+      }
+    }
+
+    process?.kill();
+    this.isStopping = false;
   }
 
   async ping() {
@@ -303,11 +421,29 @@ export class EngineClient {
     method: TMethod,
     params: Extract<EngineRequest, { method: TMethod }>["params"],
   ): Promise<unknown> {
-    await this.start();
-    if (!this.stdin) {
-      throw new Error("Engine process unavailable");
+    let attempt = 0;
+    while (true) {
+      try {
+        await this.start();
+        return await this.dispatchRequest(method, params, this.resolveRequestTimeoutMs(method));
+      } catch (error) {
+        if (!this.shouldRetryRequest(method, error, attempt)) {
+          throw error;
+        }
+        attempt += 1;
+        this.resetForRetry();
+      }
     }
+  }
 
+  private async dispatchRequest(
+    method: EngineRequest["method"],
+    params: unknown,
+    timeoutMs: number,
+  ): Promise<unknown> {
+    if (!this.stdin) {
+      throw new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable");
+    }
     const request = buildRequest(
       method as EngineRequest["method"],
       params as never,
@@ -315,35 +451,53 @@ export class EngineClient {
     const payload = `${JSON.stringify(request)}\n`;
 
     return new Promise<unknown>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(request.id);
-        reject(new Error(`Engine request timed out: ${method}`));
-      }, this.requestTimeoutMs);
+      const timeout =
+        Number.isFinite(timeoutMs) && timeoutMs > 0
+          ? setTimeout(() => {
+              this.pending.delete(request.id);
+              reject(
+                new EngineClientError(
+                  "ENGINE_REQUEST_TIMEOUT",
+                  `Engine request timed out: ${method}`,
+                ),
+              );
+            }, timeoutMs)
+          : undefined;
 
       this.pending.set(request.id, { resolve, reject, timeout });
       const stdin = this.stdin;
       if (!stdin) {
-        clearTimeout(timeout);
+        if (timeout) {
+          clearTimeout(timeout);
+        }
         this.pending.delete(request.id);
-        reject(new Error("Engine process unavailable"));
+        reject(new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable"));
         return;
       }
       try {
-        stdin.write(new TextEncoder().encode(payload));
+        stdin.write(textEncoder.encode(payload));
       } catch (error) {
-        clearTimeout(timeout);
+        if (timeout) {
+          clearTimeout(timeout);
+        }
         this.pending.delete(request.id);
-        reject(error as Error);
+        reject(
+          new EngineClientError(
+            "ENGINE_STDIO_WRITE_FAILED",
+            "Failed to write request to engine stdin",
+            error,
+          ),
+        );
       }
     });
   }
 
-  private async readStdout(): Promise<void> {
-    if (!this.process?.stdout) {
+  private async readStdout(process: ReturnType<typeof Bun.spawn>): Promise<void> {
+    if (!process.stdout) {
       return;
     }
 
-    const reader = this.process.stdout.getReader();
+    const reader = process.stdout.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -365,19 +519,57 @@ export class EngineClient {
           newlineIndex = buffer.indexOf("\n");
         }
       }
+      const trailing = buffer.trim();
+      if (trailing.length > 0) {
+        this.handleResponseLine(trailing);
+      }
+    } catch (error) {
+      if (this.process === process && !this.isStopping) {
+        console.error("Engine stdout stream failed", error);
+      }
     } finally {
       reader.releaseLock();
     }
   }
 
-  private async readStderr(): Promise<void> {
-    if (!this.process?.stderr) {
+  private async readStderr(process: ReturnType<typeof Bun.spawn>): Promise<void> {
+    if (!process.stderr) {
       return;
     }
 
-    const stderrText = await new Response(this.process.stderr).text();
-    if (stderrText.trim().length > 0) {
-      console.error("[engine]", stderrText);
+    const reader = process.stderr.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        let newlineIndex = buffer.indexOf("\n");
+        while (newlineIndex >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim();
+          buffer = buffer.slice(newlineIndex + 1);
+          if (line.length > 0) {
+            console.error("[engine]", line);
+          }
+          newlineIndex = buffer.indexOf("\n");
+        }
+      }
+
+      const trailing = buffer.trim();
+      if (trailing.length > 0) {
+        console.error("[engine]", trailing);
+      }
+    } catch (error) {
+      if (this.process === process && !this.isStopping) {
+        console.error("Engine stderr stream failed", error);
+      }
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -388,7 +580,9 @@ export class EngineClient {
       if (!pending) {
         return;
       }
-      clearTimeout(pending.timeout);
+      if (pending.timeout) {
+        clearTimeout(pending.timeout);
+      }
       this.pending.delete(response.id);
 
       if (response.ok) {
@@ -399,5 +593,129 @@ export class EngineClient {
     } catch (error) {
       console.error("Failed to parse engine response", error);
     }
+  }
+
+  private async watchProcessExit(process: ReturnType<typeof Bun.spawn>): Promise<void> {
+    try {
+      const exitCode = await process.exited;
+      if (this.process !== process) {
+        return;
+      }
+
+      this.process = null;
+      this.stdin = null;
+      if (this.isStopping) {
+        return;
+      }
+
+      this.registerUnexpectedRestart();
+      this.rejectAllPending(
+        new EngineClientError(
+          "ENGINE_PROCESS_EXITED",
+          `Engine process exited unexpectedly (code ${exitCode})`,
+        ),
+      );
+    } catch (error) {
+      if (this.process !== process) {
+        return;
+      }
+
+      this.process = null;
+      this.stdin = null;
+      if (this.isStopping) {
+        return;
+      }
+
+      this.registerUnexpectedRestart();
+      this.rejectAllPending(
+        new EngineClientError(
+          "ENGINE_PROCESS_FAILED",
+          `Engine process failed: ${String(error)}`,
+          error,
+        ),
+      );
+    }
+  }
+
+  private rejectAllPending(error: Error): void {
+    for (const pending of this.pending.values()) {
+      if (pending.timeout) {
+        clearTimeout(pending.timeout);
+      }
+      pending.reject(error);
+    }
+    this.pending.clear();
+  }
+
+  private resolveRequestTimeoutMs(method: EngineRequest["method"]): number {
+    return this.requestTimeoutByMethod[method] ?? this.requestTimeoutMs;
+  }
+
+  private shouldRetryRequest(
+    method: EngineRequest["method"],
+    error: unknown,
+    attempt: number,
+  ): boolean {
+    if (attempt >= this.maxRetryAttempts || this.isStopping) {
+      return false;
+    }
+    if (!retryableReadMethods.has(method)) {
+      return false;
+    }
+    if (!(error instanceof EngineClientError)) {
+      return false;
+    }
+    return retryableTransportErrors.has(error.code);
+  }
+
+  private resetForRetry(): void {
+    this.registerUnexpectedRestart();
+
+    const stdin = this.stdin;
+    const process = this.process;
+    this.stdin = null;
+    this.process = null;
+
+    if (stdin) {
+      try {
+        stdin.end();
+      } catch {
+        // Best effort close before respawn.
+      }
+    }
+    process?.kill();
+  }
+
+  private registerUnexpectedRestart(): void {
+    const now = Date.now();
+    this.restartAllowedAtMs = now + this.computeRestartDelayMs();
+
+    this.restartTimestampsMs = this.restartTimestampsMs.filter(
+      (timestamp) => now - timestamp <= this.restartWindowMs,
+    );
+    this.restartTimestampsMs.push(now);
+
+    if (this.restartTimestampsMs.length > this.maxRestartAttemptsInWindow) {
+      this.restartCircuitOpenUntilMs = now + this.restartCircuitOpenMs;
+    }
+  }
+
+  private computeRestartDelayMs(): number {
+    if (this.restartJitterMs === 0) {
+      return this.restartBackoffMs;
+    }
+    return this.restartBackoffMs + Math.floor(Math.random() * (this.restartJitterMs + 1));
+  }
+
+  private throwIfRestartCircuitOpen(): void {
+    const now = Date.now();
+    if (this.restartCircuitOpenUntilMs <= now) {
+      return;
+    }
+
+    throw new EngineClientError(
+      "ENGINE_RESTART_CIRCUIT_OPEN",
+      `Engine restart circuit open until ${new Date(this.restartCircuitOpenUntilMs).toISOString()}`,
+    );
   }
 }
