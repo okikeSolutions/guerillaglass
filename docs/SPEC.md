@@ -68,6 +68,8 @@ Guerilla Glass should feel like a professional creator tool:
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
 - **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
+  - `capture.status` telemetry emits machine-stable reason codes (`engine_error`, `high_dropped_frame_rate`, `elevated_dropped_frame_rate`, `low_microphone_level`); renderer localizes these codes for UI.
+  - Additive protocol evolution rule: new response fields should be optional or renderer-derivable so older engines remain compatible during rollout.
 - **Native engines (per platform):**
   - macOS: Swift sidecar (`engines/macos-swift`) as current production capture/export path
   - Windows: Rust sidecar foundation (`engines/windows-native`) with protocol parity handlers
@@ -231,7 +233,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Make inspector fully contextual to selection and mode
 - [x] Add project utility panel support for recent projects + active project metadata
 - [x] Add layout persistence (pane sizes/collapse/workspace restore)
-- [ ] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
+- [x] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
 - [x] Keep degraded-mode messaging visible near preview/recording context

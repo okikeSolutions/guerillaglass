@@ -82,6 +82,27 @@ North star:
 - `project.open`
 - `project.save`
 
+## `capture.status` Telemetry Contract
+
+`capture.status` includes transport-safe capture telemetry for the desktop telemetry row:
+
+- `isRunning`, `isRecording`, `recordingDurationSeconds`, `recordingURL`, `lastError`, `eventsURL`
+- `telemetry`:
+  - `totalFrames`
+  - `droppedFrames`
+  - `droppedFramePercent`
+  - `audioLevelDbfs` (`null` when unavailable)
+  - `health` (`good` | `warning` | `critical`)
+  - `healthReason` (`engine_error` | `high_dropped_frame_rate` | `elevated_dropped_frame_rate` | `low_microphone_level` | `null`)
+
+Health reasons are protocol codes, not user-facing copy. Renderer surfaces localize these codes per active locale.
+
+Protocol compatibility policy for `capture.status`:
+
+- Additive fields must be optional/derivable in the renderer.
+- Renderer parsing defaults missing `telemetry` to a neutral payload so older engines do not break UI.
+- Engines should emit explicit `null` for unavailable telemetry fields instead of omitting keys.
+
 ## Why This Split
 
 - UI iteration speed and styling improve with React/Tailwind.
