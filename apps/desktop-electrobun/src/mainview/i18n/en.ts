@@ -85,6 +85,7 @@ export const enUS = {
     noWindows: "No windows available",
     includeMic: "Include microphone",
     trackInput: "Track cursor + clicks",
+    singleKeyShortcuts: "Enable single-key shortcuts",
     inputMonitoring: "Input Monitoring",
     status: "Status",
     duration: "Duration",
@@ -230,6 +231,8 @@ export const enUS = {
     healthReasonHighDroppedFrameRate: "High dropped-frame rate",
     healthReasonElevatedDroppedFrameRate: "Elevated dropped-frame rate",
     healthReasonLowMicrophoneLevel: "Low microphone level",
+    singleKeyShortcuts:
+      "Single-key shortcuts (R/I/O/Space) only fire when focus is outside interactive controls.",
   },
 } as const;
 

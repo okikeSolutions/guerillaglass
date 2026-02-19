@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -107,6 +108,33 @@ export function permissionBadgeVariant(
   return "default";
 }
 
+const interactiveGlobalHotkeySelector = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "a[href]",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[role='button']",
+  "[role='link']",
+  "[role='menuitem']",
+  "[role='tab']",
+  "[role='checkbox']",
+  "[role='radio']",
+  "[role='switch']",
+].join(",");
+
+function shouldBlockGlobalSingleKeyHotkey(target: EventTarget | null): boolean {
+  if (target == null || typeof target !== "object") {
+    return false;
+  }
+  const elementLike = target as { closest?: (selector: string) => Element | null };
+  if (typeof elementLike.closest !== "function") {
+    return false;
+  }
+  return elementLike.closest(interactiveGlobalHotkeySelector) != null;
+}
+
 export function useStudioController() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<Notice>(null);
@@ -178,6 +206,7 @@ export function useStudioController() {
       selectedWindowId: 0,
       micEnabled: false,
       trackInputEvents: true,
+      singleKeyShortcutsEnabled: true,
       autoZoom: defaultAutoZoom,
     },
   });
@@ -895,6 +924,133 @@ export function useStudioController() {
     ],
   );
 
+  useHotkey(
+    "Mod+S",
+    (event) => {
+      if (event.shiftKey) {
+        return;
+      }
+      event.preventDefault();
+      runHostCommand("file.saveProject");
+    },
+    {
+      ignoreInputs: false,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    "Mod+Shift+S",
+    (event) => {
+      event.preventDefault();
+      runHostCommand("file.saveProjectAs");
+    },
+    {
+      ignoreInputs: false,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    "Mod+E",
+    (event) => {
+      event.preventDefault();
+      runHostCommand("file.export");
+    },
+    {
+      ignoreInputs: false,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    "Escape",
+    () => {
+      clearInspectorSelection();
+      setNotice(null);
+    },
+    { ignoreInputs: false },
+  );
+
+  useHotkey(
+    "Space",
+    (event) => {
+      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
+        return;
+      }
+      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      runHostCommand("timeline.playPause");
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    "R",
+    (event) => {
+      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
+        return;
+      }
+      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      runHostCommand("capture.toggleRecording");
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    "I",
+    (event) => {
+      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
+        return;
+      }
+      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      runHostCommand("timeline.trimIn");
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    "O",
+    (event) => {
+      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
+        return;
+      }
+      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      runHostCommand("timeline.trimOut");
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
   useEffect(() => {
     const menuStateSender = window.ggHostSendMenuState;
     if (!menuStateSender) {
@@ -921,66 +1077,6 @@ export function useStudioController() {
     window.addEventListener(hostMenuCommandEventName, onHostMenuCommand as EventListener);
     return () =>
       window.removeEventListener(hostMenuCommandEventName, onHostMenuCommand as EventListener);
-  }, [runHostCommand]);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-
-      const key = event.key.toLowerCase();
-      const hasCommandModifier = event.metaKey || event.ctrlKey;
-
-      if (hasCommandModifier && key === "s") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          runHostCommand("file.saveProjectAs");
-        } else {
-          runHostCommand("file.saveProject");
-        }
-        return;
-      }
-
-      if (hasCommandModifier && key === "e") {
-        event.preventDefault();
-        runHostCommand("file.export");
-        return;
-      }
-
-      if (key === " ") {
-        event.preventDefault();
-        runHostCommand("timeline.playPause");
-        return;
-      }
-
-      if (key === "r") {
-        event.preventDefault();
-        runHostCommand("capture.toggleRecording");
-        return;
-      }
-
-      if (key === "i") {
-        event.preventDefault();
-        runHostCommand("timeline.trimIn");
-        return;
-      }
-
-      if (key === "o") {
-        event.preventDefault();
-        runHostCommand("timeline.trimOut");
-      }
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   }, [runHostCommand]);
 
   const captureStatusLabel = captureStatusQuery.data?.isRecording

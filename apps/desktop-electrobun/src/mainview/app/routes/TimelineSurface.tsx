@@ -1,4 +1,5 @@
 import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useThrottler } from "@tanstack/react-pacer";
 import type { TimelineLane } from "../studio/timelineModel";
 import { clampSeconds, pixelsToSeconds } from "../studio/timelineModel";
 
@@ -62,6 +63,7 @@ export function TimelineSurface({
 }: TimelineSurfaceProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const dragModeRef = useRef<DragMode | null>(null);
+  const pointerDragThrottleMs = 16;
 
   const effectiveTrimEnd = trimEndSeconds > 0 ? trimEndSeconds : durationSeconds;
   const clampedTrimStart = clampSeconds(trimStartSeconds, 0, durationSeconds);
@@ -88,16 +90,16 @@ export function TimelineSurface({
     });
   }, [durationSeconds]);
 
-  const timeFromPointerEvent = (event: ReactPointerEvent<HTMLDivElement>): number => {
+  const timeFromClientX = (clientX: number): number => {
     const rect = surfaceRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0) {
       return 0;
     }
-    return pixelsToSeconds(event.clientX - rect.left, durationSeconds, rect.width);
+    return pixelsToSeconds(clientX - rect.left, durationSeconds, rect.width);
   };
 
-  const updateFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const nextTime = timeFromPointerEvent(event);
+  const updateFromPointerClientX = (clientX: number) => {
+    const nextTime = timeFromClientX(clientX);
     switch (dragModeRef.current) {
       case "trimStart":
         onSetTrimStartSeconds(nextTime);
@@ -113,16 +115,45 @@ export function TimelineSurface({
     }
   };
 
-  const beginDrag = (event: ReactPointerEvent<HTMLDivElement>, mode: DragMode) => {
+  const pointerDragThrottler = useThrottler(
+    (clientX: number) => {
+      updateFromPointerClientX(clientX);
+    },
+    {
+      leading: true,
+      trailing: true,
+      wait: pointerDragThrottleMs,
+    },
+    () => null,
+  );
+
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>, mode: DragMode) => {
     if (durationSeconds <= 0) {
       return;
     }
     dragModeRef.current = mode;
+    pointerDragThrottler.cancel();
     event.currentTarget.setPointerCapture(event.pointerId);
-    updateFromPointer(event);
+    updateFromPointerClientX(event.clientX);
   };
 
   const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragModeRef.current) {
+      return;
+    }
+
+    pointerDragThrottler.maybeExecute(event.clientX);
+    pointerDragThrottler.flush();
+    pointerDragThrottler.cancel();
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragModeRef.current = null;
+  };
+
+  const cancelDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    pointerDragThrottler.cancel();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -169,10 +200,10 @@ export function TimelineSurface({
           if (!dragModeRef.current) {
             return;
           }
-          updateFromPointer(event);
+          pointerDragThrottler.maybeExecute(event.clientX);
         }}
         onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerCancel={cancelDrag}
       >
         <div
           className="gg-timeline-trim-window"
@@ -180,21 +211,47 @@ export function TimelineSurface({
         />
         <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />
 
-        <div
-          className="gg-timeline-trim-handle gg-timeline-trim-handle-start"
+        <button
+          type="button"
+          className="gg-timeline-trim-handle gg-timeline-trim-handle-start gg-timeline-entity-button"
           data-drag-handle="trim-start"
           style={{ left: `${trimStartPercent}%` }}
           aria-label={labels.trimInSeconds}
           title={labels.trimInSeconds}
           onPointerDown={(event) => beginDrag(event, "trimStart")}
+          onKeyDown={(event) => {
+            const delta = event.shiftKey ? 1 : 0.1;
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              onSetTrimStartSeconds(trimStartSeconds - delta);
+              return;
+            }
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              onSetTrimStartSeconds(trimStartSeconds + delta);
+            }
+          }}
         />
-        <div
-          className="gg-timeline-trim-handle gg-timeline-trim-handle-end"
+        <button
+          type="button"
+          className="gg-timeline-trim-handle gg-timeline-trim-handle-end gg-timeline-entity-button"
           data-drag-handle="trim-end"
           style={{ left: `${trimEndPercent}%` }}
           aria-label={labels.trimOutSeconds}
           title={labels.trimOutSeconds}
           onPointerDown={(event) => beginDrag(event, "trimEnd")}
+          onKeyDown={(event) => {
+            const delta = event.shiftKey ? 1 : 0.1;
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              onSetTrimEndSeconds(trimEndSeconds - delta);
+              return;
+            }
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              onSetTrimEndSeconds(trimEndSeconds + delta);
+            }
+          }}
         />
 
         <div className="gg-timeline-lanes">

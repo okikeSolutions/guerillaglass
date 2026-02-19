@@ -14,7 +14,8 @@ import {
   Video,
 } from "lucide-react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useCallback, type MouseEvent } from "react";
+import { useThrottler } from "@tanstack/react-pacer";
+import { useCallback, type PointerEvent as ReactPointerEvent, useRef } from "react";
 import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
 import { normalizeStudioLocale } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
@@ -23,14 +24,21 @@ import { useStudio } from "../studio/context";
 import {
   localizedRouteTargetFor,
   resolveStudioLocation,
+  studioLayoutBounds,
   type StudioLayoutRoute,
 } from "../studio/studioLayoutState";
 import { TimelineSurface } from "./TimelineSurface";
 
+type TimelineResizeDragState = {
+  initialHeight: number;
+  pointerId: number;
+  startY: number;
+};
+
 function modeTabClass(isActive: boolean): string {
   return isActive
-    ? "rounded bg-background px-2 py-1 text-[0.7rem] font-medium text-foreground"
-    : "rounded px-2 py-1 text-[0.7rem] font-medium text-muted-foreground hover:text-foreground";
+    ? "rounded bg-background px-2 py-1 text-[0.7rem] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/80"
+    : "rounded px-2 py-1 text-[0.7rem] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/80";
 }
 
 function telemetryHealthBadgeVariant(
@@ -100,6 +108,36 @@ export function StudioShellLayout() {
     telemetry?.healthReason ?? null,
     studio,
   );
+  const timelineResizeStepPx = 8;
+  const timelineResizeStepPxLarge = 32;
+  const timelineResizeThrottleMs = 16;
+  const activeTimelineResizeRef = useRef<TimelineResizeDragState | null>(null);
+
+  const applyTimelineResize = useCallback(
+    ({
+      clientY,
+      initialHeight,
+      startY,
+    }: {
+      clientY: number;
+      initialHeight: number;
+      startY: number;
+    }) => {
+      const delta = startY - clientY;
+      studio.setTimelineHeight(initialHeight + delta);
+    },
+    [studio],
+  );
+
+  const timelineResizeThrottler = useThrottler(
+    applyTimelineResize,
+    {
+      leading: true,
+      trailing: true,
+      wait: timelineResizeThrottleMs,
+    },
+    () => null,
+  );
 
   const setLocaleAndNavigate = useCallback(
     async (nextLocaleRaw: string, route: StudioLayoutRoute) => {
@@ -114,30 +152,85 @@ export function StudioShellLayout() {
     [navigate, setLastRoute, setLocale],
   );
 
-  const startTimelineResize = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
+  const beginTimelineResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!event.isPrimary || event.button !== 0) {
         return;
       }
 
       event.preventDefault();
       const startY = event.clientY;
       const initialHeight = studio.layout.timelineHeightPx;
-
-      const onMouseMove = (moveEvent: globalThis.MouseEvent) => {
-        const delta = startY - moveEvent.clientY;
-        studio.setTimelineHeight(initialHeight + delta);
+      activeTimelineResizeRef.current = {
+        initialHeight,
+        pointerId: event.pointerId,
+        startY,
       };
 
-      const onMouseUp = () => {
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", onMouseUp);
-      };
-
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
+      timelineResizeThrottler.cancel();
+      applyTimelineResize({
+        clientY: startY,
+        initialHeight,
+        startY,
+      });
+      event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [studio],
+    [applyTimelineResize, studio.layout.timelineHeightPx, timelineResizeThrottler],
+  );
+
+  const continueTimelineResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const activeDrag = activeTimelineResizeRef.current;
+      if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        return;
+      }
+
+      timelineResizeThrottler.maybeExecute({
+        clientY: event.clientY,
+        initialHeight: activeDrag.initialHeight,
+        startY: activeDrag.startY,
+      });
+    },
+    [timelineResizeThrottler],
+  );
+
+  const endTimelineResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const activeDrag = activeTimelineResizeRef.current;
+      if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        return;
+      }
+
+      timelineResizeThrottler.maybeExecute({
+        clientY: event.clientY,
+        initialHeight: activeDrag.initialHeight,
+        startY: activeDrag.startY,
+      });
+      timelineResizeThrottler.flush();
+      timelineResizeThrottler.cancel();
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      activeTimelineResizeRef.current = null;
+    },
+    [timelineResizeThrottler],
+  );
+
+  const cancelTimelineResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const activeDrag = activeTimelineResizeRef.current;
+      if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        return;
+      }
+
+      timelineResizeThrottler.cancel();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      activeTimelineResizeRef.current = null;
+    },
+    [timelineResizeThrottler],
   );
 
   return (
@@ -151,6 +244,7 @@ export function StudioShellLayout() {
                 to="/$locale/capture"
                 params={{ locale: activeLocale }}
                 className={modeTabClass(captureActive)}
+                aria-current={captureActive ? "page" : undefined}
                 onClick={() => setLastRoute("/capture")}
               >
                 {studio.ui.modes.capture}
@@ -159,6 +253,7 @@ export function StudioShellLayout() {
                 to="/$locale/edit"
                 params={{ locale: activeLocale }}
                 className={modeTabClass(editActive)}
+                aria-current={editActive ? "page" : undefined}
                 onClick={() => setLastRoute("/edit")}
               >
                 {studio.ui.modes.edit}
@@ -167,6 +262,7 @@ export function StudioShellLayout() {
                 to="/$locale/deliver"
                 params={{ locale: activeLocale }}
                 className={modeTabClass(deliverActive)}
+                aria-current={deliverActive ? "page" : undefined}
                 onClick={() => setLastRoute("/deliver")}
               >
                 {studio.ui.modes.deliver}
@@ -347,10 +443,39 @@ export function StudioShellLayout() {
           </div>
           <div
             className="gg-timeline-resize-handle"
-            onMouseDown={startTimelineResize}
+            onPointerDown={beginTimelineResize}
+            onPointerMove={continueTimelineResize}
+            onPointerUp={endTimelineResize}
+            onPointerCancel={cancelTimelineResize}
             role="separator"
             aria-label={studio.ui.labels.resizeTimeline}
             aria-orientation="horizontal"
+            tabIndex={0}
+            aria-valuemin={studioLayoutBounds.timelineMinHeightPx}
+            aria-valuemax={studioLayoutBounds.timelineMaxHeightPx}
+            aria-valuenow={studio.layout.timelineHeightPx}
+            onKeyDown={(event) => {
+              const step = event.shiftKey ? timelineResizeStepPxLarge : timelineResizeStepPx;
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                studio.setTimelineHeight(studio.layout.timelineHeightPx - step);
+                return;
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                studio.setTimelineHeight(studio.layout.timelineHeightPx + step);
+                return;
+              }
+              if (event.key === "Home") {
+                event.preventDefault();
+                studio.setTimelineHeight(studioLayoutBounds.timelineMinHeightPx);
+                return;
+              }
+              if (event.key === "End") {
+                event.preventDefault();
+                studio.setTimelineHeight(studioLayoutBounds.timelineMaxHeightPx);
+              }
+            }}
           />
           <footer
             className="shrink-0 overflow-hidden border-t border-border/80 bg-background/75 backdrop-blur-sm"

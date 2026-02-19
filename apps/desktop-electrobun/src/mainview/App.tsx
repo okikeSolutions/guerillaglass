@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
+import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { useState } from "react";
 import { appRouter } from "./app/router";
 import { StudioProvider } from "./app/studio/context";
@@ -29,7 +30,9 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StudioAppRouter />
+      <HotkeysProvider>
+        <StudioAppRouter />
+      </HotkeysProvider>
     </QueryClientProvider>
   );
 }
