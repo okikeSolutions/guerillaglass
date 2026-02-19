@@ -109,6 +109,7 @@ Guerilla Glass should feel like a professional creator tool:
 | Cursor/click event tracking        | Production (Input Monitoring-gated)         | Planned parity             | Planned parity         | Simulated         |
 | Auto-zoom planner + effects model  | Production                                  | Planned parity             | Planned parity         | Protocol coverage |
 | Export presets + project save/load | Production                                  | In progress                | In progress            | Protocol coverage |
+| Project recents index              | Production (bookmark-backed)                | In progress (native index) | In progress (native index) | Protocol coverage |
 
 Notes:
 
@@ -217,6 +218,9 @@ Creator Studio implementation requirements:
   - open existing project
   - save/save as
   - preserve project state for repeat exports
+- Project utility panel must provide:
+  - active project metadata (name/path, capture metadata, URLs, duration)
+  - recent projects list with one-action reopen from the utility rail
 
 Creator Studio tracking checklist (current repo):
 
@@ -225,7 +229,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Keep timeline permanently visible in primary layout across desktop breakpoints
 - [x] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
 - [x] Make inspector fully contextual to selection and mode
-- [ ] Add project utility panel support for recent projects + active project metadata
+- [x] Add project utility panel support for recent projects + active project metadata
 - [ ] Add layout persistence (pane sizes/collapse/workspace restore)
 - [ ] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
@@ -374,6 +378,11 @@ Library & recents:
 
 - Maintain a private library index in Application Support for “Open Recent”
 - Index stores bookmarks/metadata only; actual projects live in user‑chosen locations
+- Protocol method `project.recents` returns recent project metadata:
+  - `projectPath` (absolute path)
+  - `displayName` (user-facing name)
+  - `lastOpenedAt` (ISO 8601 timestamp)
+- Foundation Windows/Linux engines persist recents metadata to a native index file in the user data directory; production parity targets bookmark/security-scoped behavior equivalent to macOS.
 
 Versioning policy:
 
@@ -493,6 +502,7 @@ Progress (current repo)
 - [x] Trim + export
 - [x] Project schema + store (save/load on disk)
 - [x] Protocol-based project open/save flow in desktop shell
+- [x] Protocol-based project recents flow in desktop shell
 - [x] Desktop shell strings are centralized in the React surface
 - [x] Post‑localization polish audit (UI/UX, performance, accessibility)
 - [ ] Creator Studio shell alignment (tracked in §7.6)
