@@ -66,6 +66,9 @@ bun run desktop:test:coverage
 
 # Desktop parity e2e flow tests (stub/native engine targets)
 bun run desktop:test:e2e
+
+# Desktop shell UI smoke + accessibility checks (Playwright)
+bun run desktop:test:ui
 ```
 
 ## Editor Setup
@@ -90,4 +93,5 @@ bun run desktop:test:e2e
 
 - Product spec: `/docs/SPEC.md`
 - Hybrid architecture: `/docs/ARCHITECTURE.md`
+- Desktop accessibility + hotkey policy: `/docs/DESKTOP_ACCESSIBILITY.md`
 - Agent repo conventions: `/AGENTS.md`
