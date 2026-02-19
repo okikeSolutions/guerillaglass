@@ -242,7 +242,16 @@ Creator Studio tracking checklist (current repo):
 - [x] Add menu-state synchronization (`canSave`, `canExport`, `isRecording`) for dynamic labels/enablement
 - [x] Align macOS application menu template + wiring with Electrobun guidance (native app menu + command routing)
 - [x] Modularize shell menu code into builders/actions/router units with tests
-- [ ] Complete accessibility pass for focus visibility, contrast, and reduced-motion behavior
+- [x] Complete accessibility pass for focus visibility, contrast, and reduced-motion behavior
+
+Accessibility implementation notes:
+
+- Canonical focus treatment uses `:focus-visible` styles across shell controls and custom timeline entities.
+- Pane/timeline resize separators are keyboard-operable (`Arrow`, `Home`, `End`) with `role="separator"` value semantics.
+- Reduced-motion and increased-contrast/forced-colors media queries are implemented in shell CSS.
+- Single-key shortcuts (`R`, `I`, `O`, `Space`) can be disabled in-canvas and are scoped away from interactive control focus.
+- Separator/timeline drag interactions use Pointer Events + pointer capture with TanStack Pacer throttling (`wait: 16`) and explicit `flush`/`cancel` end-state handling.
+- Detailed policy and verification steps are documented in `docs/DESKTOP_ACCESSIBILITY.md`.
 
 Suggested rollout order:
 
@@ -507,7 +516,7 @@ Progress (current repo)
 - [x] Protocol-based project recents flow in desktop shell
 - [x] Desktop shell strings are centralized in the React surface
 - [x] Post‑localization polish audit (UI/UX, performance, accessibility)
-- [ ] Creator Studio shell alignment (tracked in §7.6)
+- [x] Creator Studio shell alignment (tracked in §7.6)
 
 **Phase 2 — Cinematic defaults**
 
