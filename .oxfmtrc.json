@@ -1,6 +1,8 @@
 {
   "ignorePatterns": [
     "apps/desktop-electrobun/build/**",
-    "apps/desktop-electrobun/dist/**"
+    "apps/desktop-electrobun/dist/**",
+    "apps/desktop-electrobun/playwright-report/**",
+    "apps/desktop-electrobun/test-results/**"
   ]
 }
