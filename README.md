@@ -95,3 +95,5 @@ bun run desktop:test:ui
 - Hybrid architecture: `/docs/ARCHITECTURE.md`
 - Desktop accessibility + hotkey policy: `/docs/DESKTOP_ACCESSIBILITY.md`
 - Agent repo conventions: `/AGENTS.md`
+- Support channels: `/SUPPORT.md`
+- Third-party notices: `/THIRD_PARTY_NOTICES.md`

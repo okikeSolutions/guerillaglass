@@ -425,7 +425,6 @@ Desktop shell and sidecar reliability contract (current):
 ## 17) Project structure (proposed)
 
 ```
-
 guerillaglass/
 ├─ README.md
 ├─ LICENSE
@@ -440,42 +439,56 @@ guerillaglass/
 ├─ THIRD_PARTY_NOTICES.md
 ├─ GOVERNANCE.md (optional)
 ├─ .github/
-│ ├─ CODEOWNERS
-│ ├─ ISSUE_TEMPLATE/
-│ └─ PULL_REQUEST_TEMPLATE.md
+│  ├─ CODEOWNERS
+│  ├─ ISSUE_TEMPLATE/
+│  └─ PULL_REQUEST_TEMPLATE.md
+├─ Scripts/
+│  ├─ full_gate.sh
+│  ├─ rust_gate.sh
+│  └─ typescript_gate.sh
 ├─ docs/
-│ └─ SPEC.md
+│  ├─ SPEC.md
+│  ├─ ARCHITECTURE.md
+│  └─ DESKTOP_ACCESSIBILITY.md
 ├─ apps/
-│ └─ desktop-electrobun/
-│   ├─ src/
-│   │ ├─ bun/
-│   │ └─ mainview/
-│   ├─ electrobun.config.ts
-│   ├─ tailwind.config.mjs
-│   └─ vite.config.ts
+│  └─ desktop-electrobun/
+│     ├─ src/
+│     │  ├─ bun/
+│     │  └─ mainview/
+│     ├─ tests/
+│     ├─ playwright/tests/
+│     ├─ electrobun.config.ts
+│     ├─ tailwind.config.mjs
+│     └─ vite.config.ts
 ├─ packages/
-│ └─ engine-protocol/
-│   └─ src/
+│  ├─ engine-protocol/
+│     ├─ src/
+│     └─ fixtures/
+│  └─ localization/
+│     └─ src/
 ├─ engines/
-│ ├─ macos-swift/
-│ │ └─ modules/
-│ │   ├─ capture/
-│ │   ├─ inputTracking/
-│ │   ├─ project/
-│ │   ├─ automation/
-│ │   ├─ rendering/
-│ │   └─ export/
-│ ├─ windows-native/
-│ ├─ linux-native/
-│ ├─ windows-stub/
-│ ├─ linux-stub/
-│ ├─ protocol-rust/
-│ └─ protocol-swift/
+│  ├─ macos-swift/
+│  │  └─ modules/
+│  │     ├─ capture/
+│  │     ├─ inputTracking/
+│  │     ├─ project/
+│  │     ├─ automation/
+│  │     ├─ rendering/
+│  │     └─ export/
+│  ├─ windows-native/
+│  ├─ linux-native/
+│  ├─ windows-stub/
+│  ├─ linux-stub/
+│  ├─ stub-common/
+│  ├─ protocol-rust/
+│  └─ protocol-swift/
 └─ Tests/
-├─ automationTests/
-├─ projectMigrationTests/
-└─ renderingDeterminismTests/
-
+   ├─ automationTests/
+   ├─ captureTests/
+   ├─ engineProtocolTests/
+   ├─ exportTests/
+   ├─ projectMigrationTests/
+   └─ renderingDeterminismTests/
 ```
 
 ---

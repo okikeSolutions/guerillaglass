@@ -26,10 +26,15 @@ North star:
 ## Runtime Data Flow
 
 1. Renderer calls `window.ggEngine*` functions.
-2. Electrobun main process handles these using `webview.expose`.
+2. Electrobun main process handles these via `BrowserView.defineRPC` request handlers.
 3. Bun `EngineClient` sends JSON line requests to the Swift sidecar.
 4. Swift sidecar dispatches methods to native APIs (`ScreenCaptureKit`, `AVFoundation`, Input Monitoring checks).
 5. Response envelopes are validated in TypeScript with Zod before UI rendering.
+
+Renderer hardening (current):
+
+- Desktop bridge text file reads are restricted to `.json` files under the active project directory or OS temp directories.
+- Renderer HTML ships with a restrictive Content Security Policy.
 
 ## Engine Client Reliability Policy
 
@@ -81,6 +86,7 @@ North star:
 - `project.current`
 - `project.open`
 - `project.save`
+- `project.recents`
 
 ## `capture.status` Telemetry Contract
 
@@ -112,7 +118,7 @@ Protocol compatibility policy for `capture.status`:
 ## Testing
 
 - Desktop protocol and bridge tests: `bun run desktop:test:coverage`
-- Native engine stack: `Scripts/full_gate.sh`
+- Full repository gate: `bun run gate`
 
 ## Future Platform Targets
 
