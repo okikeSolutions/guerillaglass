@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { enUS } from "../src/mainview/i18n/en";
+import { enUS } from "@guerillaglass/localization";
 import { InspectorPanel } from "../src/mainview/app/routes/InspectorPanel";
 import { StudioProvider } from "../src/mainview/app/studio/context";
 import type { InspectorSelection, StudioMode } from "../src/mainview/app/studio/inspectorContext";
@@ -59,7 +59,7 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Video Clip Inspector");
     expect(html).toContain("Selected Clip");
-    expect(html).toContain("Lane: video");
+    expect(html).toContain("Lane: Video");
   });
 
   test("renders preset-focused details for preset selection", () => {

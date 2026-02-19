@@ -60,6 +60,12 @@ type BucketAggregate = {
   clicks: number;
 };
 
+type TimelineLaneLabels = {
+  video: string;
+  audio: string;
+  events: string;
+};
+
 export function buildEventMarkers(
   events: InputEvent[],
   durationSeconds: number,
@@ -115,8 +121,14 @@ export function buildEventMarkers(
 export function buildTimelineLanes(params: {
   recordingDurationSeconds: number;
   events: InputEvent[];
+  labels?: TimelineLaneLabels;
 }): TimelineLane[] {
   const duration = Math.max(0, params.recordingDurationSeconds);
+  const labels = params.labels ?? {
+    video: "Video",
+    audio: "Audio",
+    events: "Events",
+  };
   const clip = {
     id: "clip-0",
     startSeconds: 0,
@@ -126,19 +138,19 @@ export function buildTimelineLanes(params: {
   return [
     {
       id: "video",
-      label: "Video",
+      label: labels.video,
       clips: duration > 0 ? [clip] : [],
       markers: [],
     },
     {
       id: "audio",
-      label: "Audio",
+      label: labels.audio,
       clips: duration > 0 ? [clip] : [],
       markers: [],
     },
     {
       id: "events",
-      label: "Events",
+      label: labels.events,
       clips: [],
       markers: buildEventMarkers(params.events, duration),
     },

@@ -133,6 +133,16 @@ export const deDE: StudioMessages = {
     sourceWindowApp: "App",
     sourceWindowTitle: "Titel",
     sourceWindowSize: "Größe",
+    timelineLaneVideo: "Video",
+    timelineLaneAudio: "Audio",
+    timelineLaneEvents: "Ereignisse",
+    timelineMarkerMove: "Bewegung",
+    timelineMarkerClick: "Klick",
+    timelineMarkerMixed: "Gemischt",
+    timelineClipAria: (laneLabel: string, startSeconds: number, endSeconds: number) =>
+      `${laneLabel}-Clip ${startSeconds.toFixed(2)} bis ${endSeconds.toFixed(2)} Sekunden`,
+    timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) =>
+      `Ereignismarker ${markerKindLabel} bei ${timestampSeconds.toFixed(2)} Sekunden`,
     resizeTimeline: "Zeitleiste in der Größe ändern",
     resizeLeftPane: "Linkes Panel in der Größe ändern",
     resizeRightPane: "Rechtes Panel in der Größe ändern",

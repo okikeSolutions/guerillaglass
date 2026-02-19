@@ -7,6 +7,11 @@ type TimelineSurfaceLabels = {
   playhead: string;
   trimInSeconds: string;
   trimOutSeconds: string;
+  timelineMarkerMove: string;
+  timelineMarkerClick: string;
+  timelineMarkerMixed: string;
+  timelineClipAria: (laneLabel: string, startSeconds: number, endSeconds: number) => string;
+  timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) => string;
 };
 
 type TimelineSurfaceProps = {
@@ -272,7 +277,11 @@ export function TimelineSurface({
                           data-timeline-selectable="true"
                           className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id}${isSelected ? " gg-timeline-clip-selected" : ""}`}
                           style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
-                          aria-label={`${lane.label} clip ${clip.startSeconds.toFixed(2)} to ${clip.endSeconds.toFixed(2)} seconds`}
+                          aria-label={labels.timelineClipAria(
+                            lane.label,
+                            clip.startSeconds,
+                            clip.endSeconds,
+                          )}
                           aria-pressed={isSelected}
                           onClick={() =>
                             onSelectClip({
@@ -298,7 +307,14 @@ export function TimelineSurface({
                           left: `${toPercent(marker.timestampSeconds, durationSeconds)}%`,
                           height: `${Math.min(22, 8 + marker.density)}px`,
                         }}
-                        aria-label={`Event marker ${marker.kind} at ${marker.timestampSeconds.toFixed(2)} seconds`}
+                        aria-label={labels.timelineMarkerAria(
+                          marker.kind === "click"
+                            ? labels.timelineMarkerClick
+                            : marker.kind === "mixed"
+                              ? labels.timelineMarkerMixed
+                              : labels.timelineMarkerMove,
+                          marker.timestampSeconds,
+                        )}
                         aria-pressed={selectedMarkerId === marker.id}
                         onClick={() =>
                           onSelectMarker({

@@ -1,4 +1,8 @@
-import { defaultStudioLocale, normalizeStudioLocale, type StudioLocale } from "@/i18n";
+import {
+  defaultStudioLocale,
+  normalizeStudioLocale,
+  type StudioLocale,
+} from "@guerillaglass/localization";
 import type { StudioMode } from "./inspectorContext";
 
 export const studioLayoutStorageKey = "gg.studio.layout.v1";

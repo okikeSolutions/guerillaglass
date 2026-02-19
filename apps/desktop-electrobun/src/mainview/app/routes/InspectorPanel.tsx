@@ -12,6 +12,29 @@ type InspectorPanelProps = {
   mode: StudioMode;
 };
 
+function localizeTimelineLaneId(
+  laneId: "video" | "audio",
+  studio: ReturnType<typeof useStudio>,
+): string {
+  if (laneId === "audio") {
+    return studio.ui.labels.timelineLaneAudio;
+  }
+  return studio.ui.labels.timelineLaneVideo;
+}
+
+function localizeTimelineMarkerKind(
+  markerKind: "move" | "click" | "mixed",
+  studio: ReturnType<typeof useStudio>,
+): string {
+  if (markerKind === "click") {
+    return studio.ui.labels.timelineMarkerClick;
+  }
+  if (markerKind === "mixed") {
+    return studio.ui.labels.timelineMarkerMixed;
+  }
+  return studio.ui.labels.timelineMarkerMove;
+}
+
 function SelectionDetails({ selection }: { selection: InspectorSelection }) {
   const studio = useStudio();
 
@@ -26,7 +49,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
           <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             {studio.ui.inspector.cards.selectedClip}
           </p>
-          <div>{`${studio.ui.inspector.fields.lane}: ${selection.laneId}`}</div>
+          <div>{`${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`}</div>
           <div>{`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}</div>
           <div>{`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}</div>
           <div>
@@ -42,7 +65,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
           <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             {studio.ui.inspector.cards.selectedEventMarker}
           </p>
-          <div>{`${studio.ui.inspector.fields.type}: ${selection.markerKind}`}</div>
+          <div>{`${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`}</div>
           <div>{`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}</div>
           <div>{`${studio.ui.inspector.fields.density}: ${selection.density}`}</div>
         </div>

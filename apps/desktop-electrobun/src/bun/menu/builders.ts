@@ -1,4 +1,5 @@
 import type { ApplicationMenuItemConfig, MenuItemConfig } from "electrobun/bun";
+import { getDesktopMenuMessages } from "@guerillaglass/localization";
 import type { HostMenuState } from "../../shared/bridgeRpc";
 import { encodeHostMenuAction } from "./actions";
 
@@ -7,8 +8,10 @@ const separator = { type: "separator" as const };
 export function buildApplicationMenu(
   state: HostMenuState,
   platform: NodeJS.Platform = process.platform,
+  locale?: string,
 ): ApplicationMenuItemConfig[] {
-  const recordingLabel = state.isRecording ? "Stop Recording" : "Start Recording";
+  const labels = getDesktopMenuMessages(locale ?? state.locale);
+  const recordingLabel = state.isRecording ? labels.stopRecording : labels.startRecording;
 
   return [
     ...(platform === "darwin"
@@ -27,29 +30,29 @@ export function buildApplicationMenu(
         ]
       : []),
     {
-      label: "File",
+      label: labels.file,
       action: "menu.file",
       submenu: [
         {
-          label: "Open Project...",
+          label: labels.openProject,
           action: encodeHostMenuAction("file.openProject"),
           accelerator: "o",
         },
         separator,
         {
-          label: "Save Project",
+          label: labels.saveProject,
           action: encodeHostMenuAction("file.saveProject"),
           accelerator: "s",
           enabled: state.canSave,
         },
         {
-          label: "Save Project As...",
+          label: labels.saveProjectAs,
           action: encodeHostMenuAction("file.saveProjectAs"),
           enabled: state.canSave,
         },
         separator,
         {
-          label: "Export...",
+          label: labels.export,
           action: encodeHostMenuAction("file.export"),
           accelerator: "e",
           enabled: state.canExport,
@@ -58,7 +61,7 @@ export function buildApplicationMenu(
       ],
     },
     {
-      label: "Edit",
+      label: labels.edit,
       action: "menu.edit",
       submenu: [
         { role: "undo" },
@@ -71,7 +74,7 @@ export function buildApplicationMenu(
       ],
     },
     {
-      label: "Capture",
+      label: labels.capture,
       action: "menu.capture",
       submenu: [
         {
@@ -79,44 +82,44 @@ export function buildApplicationMenu(
           action: encodeHostMenuAction("capture.toggleRecording"),
           accelerator: "r",
         },
-        { label: "Start Preview", action: encodeHostMenuAction("capture.startPreview") },
-        { label: "Stop Preview", action: encodeHostMenuAction("capture.stopPreview") },
+        { label: labels.startPreview, action: encodeHostMenuAction("capture.startPreview") },
+        { label: labels.stopPreview, action: encodeHostMenuAction("capture.stopPreview") },
         separator,
         {
-          label: "Refresh Sources",
+          label: labels.refreshSources,
           action: encodeHostMenuAction("app.refresh"),
         },
       ],
     },
     {
-      label: "Timeline",
+      label: labels.timeline,
       action: "menu.timeline",
       submenu: [
         {
-          label: "Play/Pause",
+          label: labels.playPause,
           action: encodeHostMenuAction("timeline.playPause"),
           accelerator: "space",
         },
         {
-          label: "Set Trim In",
+          label: labels.setTrimIn,
           action: encodeHostMenuAction("timeline.trimIn"),
           accelerator: "i",
         },
         {
-          label: "Set Trim Out",
+          label: labels.setTrimOut,
           action: encodeHostMenuAction("timeline.trimOut"),
           accelerator: "o",
         },
       ],
     },
     {
-      label: "View",
+      label: labels.view,
       action: "menu.view",
       submenu: [
         { role: "toggleFullScreen" },
         separator,
         {
-          label: "Toggle Developer Tools",
+          label: labels.toggleDeveloperTools,
           action: "view.toggleDevTools",
         },
       ],
@@ -124,7 +127,7 @@ export function buildApplicationMenu(
     ...(platform === "darwin"
       ? [
           {
-            label: "Window",
+            label: labels.window,
             action: "menu.window",
             submenu: [
               { role: "minimize" },
@@ -136,26 +139,27 @@ export function buildApplicationMenu(
         ]
       : []),
     {
-      label: "Help",
+      label: labels.help,
       action: "menu.help",
-      submenu: [{ label: "Guerillaglass Documentation", action: "help.docs" }],
+      submenu: [{ label: labels.documentation, action: "help.docs" }],
     },
   ];
 }
 
-export function buildLinuxTrayMenu(state: HostMenuState): MenuItemConfig[] {
-  const recordingLabel = state.isRecording ? "Stop Recording" : "Start Recording";
+export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuItemConfig[] {
+  const labels = getDesktopMenuMessages(locale ?? state.locale);
+  const recordingLabel = state.isRecording ? labels.stopRecording : labels.startRecording;
   return [
-    { type: "normal", label: "Open Project...", action: encodeHostMenuAction("file.openProject") },
+    { type: "normal", label: labels.openProject, action: encodeHostMenuAction("file.openProject") },
     {
       type: "normal",
-      label: "Save Project",
+      label: labels.saveProject,
       action: encodeHostMenuAction("file.saveProject"),
       enabled: state.canSave,
     },
     {
       type: "normal",
-      label: "Save Project As...",
+      label: labels.saveProjectAs,
       action: encodeHostMenuAction("file.saveProjectAs"),
       enabled: state.canSave,
     },
@@ -167,11 +171,11 @@ export function buildLinuxTrayMenu(state: HostMenuState): MenuItemConfig[] {
     },
     {
       type: "normal",
-      label: "Export...",
+      label: labels.export,
       action: encodeHostMenuAction("file.export"),
       enabled: state.canExport,
     },
     separator,
-    { type: "normal", label: "Quit", action: "app.quit" },
+    { type: "normal", label: labels.quit, action: "app.quit" },
   ];
 }

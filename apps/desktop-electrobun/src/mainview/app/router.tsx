@@ -5,7 +5,7 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router";
-import { normalizeStudioLocale } from "@/i18n";
+import { normalizeStudioLocale } from "@guerillaglass/localization";
 import { CaptureRoute } from "./routes/CaptureRoute";
 import { DeliverRoute } from "./routes/DeliverRoute";
 import { EditRoute } from "./routes/EditRoute";

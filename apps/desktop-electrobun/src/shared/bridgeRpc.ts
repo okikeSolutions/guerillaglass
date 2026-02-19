@@ -31,6 +31,7 @@ export type HostMenuState = {
   canSave: boolean;
   canExport: boolean;
   isRecording: boolean;
+  locale?: string;
 };
 
 type BridgeRequests = {
