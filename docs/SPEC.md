@@ -230,7 +230,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
 - [x] Make inspector fully contextual to selection and mode
 - [x] Add project utility panel support for recent projects + active project metadata
-- [ ] Add layout persistence (pane sizes/collapse/workspace restore)
+- [x] Add layout persistence (pane sizes/collapse/workspace restore)
 - [ ] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
@@ -440,7 +440,7 @@ guerillaglass/
 │   │ ├─ bun/
 │   │ └─ mainview/
 │   ├─ electrobun.config.ts
-│   ├─ tailwind.config.js
+│   ├─ tailwind.config.mjs
 │   └─ vite.config.ts
 ├─ packages/
 │ └─ engine-protocol/
@@ -601,6 +601,11 @@ License hygiene:
 - **Formatting:** Use locale-aware date/number/measurement formatting instead of manual string interpolation.
 - **No concatenation:** Avoid building sentences by concatenating fragments; use localized format strings instead.
 - **App Store:** Plan to localize App Store metadata per territory when shipping.
+- Current desktop shell baseline:
+  - Canonical locales: `en-US`, `de-DE`
+  - Locale-scoped routes: `/:locale/capture`, `/:locale/edit`, `/:locale/deliver`
+  - Unknown locale segments redirect to the default locale route
+  - Locale-aware UI formatting uses `Intl.DateTimeFormat` and `Intl.NumberFormat` wrappers in the studio controller
 - Respect system accessibility preferences where available (Reduce Motion, high contrast, reduced transparency).
 - Accessibility baseline: screen reader labels, keyboard navigation, focus order, high-contrast checks.
 - Preserve expected desktop menu/shortcut conventions per platform.

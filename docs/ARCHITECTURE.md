@@ -45,11 +45,20 @@ North star:
 ## Renderer UI State (Creator Studio)
 
 - The desktop renderer keeps editor mode (`Capture`/`Edit`/`Deliver`) and inspector selection in a shared studio controller.
+- The studio shell persists workspace layout and restore state (`gg.studio.layout.v1`):
+  - pane widths/collapse (left + right)
+  - timeline height
+  - last route + locale
+- Locale-aware routing is canonical and centralized:
+  - route schema: `/:locale/:mode`
+  - supported locales: `en-US`, `de-DE`
+  - route helpers generate navigation/redirect targets and normalize unknown locale segments
 - Inspector rendering is centralized in a single panel component and driven by:
   - active mode
   - current selection (timeline clip/marker, capture window, export preset)
 - Selection is normalized when mode changes so mode-incompatible selections are cleared in controller state, not only at render time.
 - Timeline entities are keyboard-focusable selectable controls and update inspector context directly.
+- Date/number UI formatting is localized via controller-level wrappers (`Intl.DateTimeFormat`, `Intl.NumberFormat`) so components avoid ad-hoc formatting logic.
 
 ## Supported Engine Methods (Phase 1 parity)
 

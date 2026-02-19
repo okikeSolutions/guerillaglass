@@ -12,7 +12,7 @@ import type {
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import { enUS } from "@/i18n/en";
+import { getStudioMessages, type StudioLocale } from "@/i18n";
 import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
 import {
@@ -22,10 +22,20 @@ import {
   selectionFromPreset,
   type StudioMode,
 } from "./inspectorContext";
+import {
+  defaultStudioLayoutState,
+  loadStudioLayoutState,
+  modeForStudioRoute,
+  normalizeStudioLayoutRoute,
+  saveStudioLayoutState,
+  studioLayoutBounds,
+} from "./studioLayoutState";
 import { buildTimelineLanes } from "./timelineModel";
 
 const hostMenuCommandEventName = "gg-host-menu-command";
 const playbackRates = [0.5, 1, 1.5, 2] as const;
+const emptyExportPresets: ExportPreset[] = [];
+const emptySourceWindows: SourcesResult["windows"] = [];
 
 export type CaptureSourceMode = "display" | "window";
 export type Notice = { kind: "error" | "success" | "info"; message: string } | null;
@@ -48,11 +58,11 @@ const studioQueryKeys = {
   eventsLog: (eventsURL: string | null) => ["studio", "eventsLog", eventsURL] as const,
 };
 
-function formatError(error: unknown): string {
+function formatError(error: unknown, fallbackMessage: string): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return enUS.notices.actionFailed;
+  return fallbackMessage;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -103,9 +113,64 @@ export function useStudioController() {
   const [playheadSeconds, setPlayheadSeconds] = useState(0);
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState<(typeof playbackRates)[number]>(1);
-  const [activeMode, setActiveMode] = useState<StudioMode>("capture");
-  const [inspectorSelection, setInspectorSelection] =
+  const [rawInspectorSelection, setRawInspectorSelection] =
     useState<InspectorSelection>(emptyInspectorSelection);
+  const [layout, setLayout] = useState(() => loadStudioLayoutState());
+  const activeMode = useMemo<StudioMode>(
+    () => modeForStudioRoute(layout.lastRoute),
+    [layout.lastRoute],
+  );
+  const locale = layout.locale;
+  const ui = useMemo(() => getStudioMessages(locale), [locale]);
+  const integerFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        maximumFractionDigits: 0,
+      }),
+    [locale],
+  );
+  const decimalFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [locale],
+  );
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    [locale],
+  );
+
+  const formatInteger = useCallback(
+    (value: number): string => integerFormatter.format(value),
+    [integerFormatter],
+  );
+  const formatDecimal = useCallback(
+    (value: number): string => decimalFormatter.format(value),
+    [decimalFormatter],
+  );
+  const formatDateTime = useCallback(
+    (value: string): string => {
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.valueOf())) {
+        return value;
+      }
+      return dateTimeFormatter.format(parsed);
+    },
+    [dateTimeFormatter],
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveStudioLayoutState(layout);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [layout]);
 
   const settingsForm = useForm({
     defaultValues: {
@@ -141,13 +206,13 @@ export function useStudioController() {
   const sourcesQuery = useQuery<SourcesResult>({
     queryKey: studioQueryKeys.sources(),
     queryFn: () => engineApi.listSources(),
-    staleTime: 5_000,
+    staleTime: 5000,
   });
 
   const captureStatusQuery = useQuery<CaptureStatusResult>({
     queryKey: studioQueryKeys.captureStatus(),
     queryFn: () => engineApi.captureStatus(),
-    refetchInterval: 1_000,
+    refetchInterval: 1000,
   });
 
   const exportInfoQuery = useQuery({
@@ -195,34 +260,16 @@ export function useStudioController() {
     isHydratingFromProjectRef.current = false;
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
-  const presets = exportInfoQuery.data?.presets ?? [];
+  const presets = exportInfoQuery.data?.presets ?? emptyExportPresets;
 
-  useEffect(() => {
-    const currentPresetId = exportForm.state.values.presetId;
-    if (presets.length === 0) {
-      if (currentPresetId !== "") {
-        exportForm.setFieldValue("presetId", "");
-      }
-      return;
+  const windowChoices = sourcesQuery.data?.windows ?? emptySourceWindows;
+  const selectedWindowId = useMemo(() => {
+    const selectedId = settingsForm.state.values.selectedWindowId;
+    if (windowChoices.some((windowItem) => windowItem.id === selectedId)) {
+      return selectedId;
     }
-    if (!presets.some((preset) => preset.id === currentPresetId)) {
-      exportForm.setFieldValue("presetId", presets[0]!.id);
-    }
-  }, [exportForm, exportForm.state.values.presetId, presets]);
-
-  const windowChoices = sourcesQuery.data?.windows ?? [];
-
-  useEffect(() => {
-    const { captureSource, selectedWindowId } = settingsForm.state.values;
-    if (captureSource !== "window") {
-      return;
-    }
-    const selectedExists = windowChoices.some((windowItem) => windowItem.id === selectedWindowId);
-    if (selectedExists) {
-      return;
-    }
-    settingsForm.setFieldValue("selectedWindowId", windowChoices[0]?.id ?? 0);
-  }, [settingsForm, settingsForm.state.values, windowChoices]);
+    return windowChoices[0]?.id ?? 0;
+  }, [settingsForm.state.values.selectedWindowId, windowChoices]);
 
   const recordingURL =
     captureStatusQuery.data?.recordingURL ?? projectQuery.data?.recordingURL ?? null;
@@ -251,20 +298,18 @@ export function useStudioController() {
         captureStatusQuery.data?.recordingDurationSeconds ?? 0,
         exportForm.state.values.trimStartSeconds,
         exportForm.state.values.trimEndSeconds,
-        playheadSeconds,
         1,
       ),
     [
       captureStatusQuery.data?.recordingDurationSeconds,
       exportForm.state.values.trimEndSeconds,
       exportForm.state.values.trimStartSeconds,
-      playheadSeconds,
     ],
   );
-
-  useEffect(() => {
-    setPlayheadSeconds((current) => clamp(current, 0, timelineDuration));
-  }, [timelineDuration]);
+  const boundedPlayheadSeconds = useMemo(
+    () => clamp(playheadSeconds, 0, timelineDuration),
+    [playheadSeconds, timelineDuration],
+  );
 
   const timelineEvents = useMemo(
     () => (eventsQuery.isSuccess ? eventsQuery.data : []),
@@ -310,21 +355,26 @@ export function useStudioController() {
     const selected = presets.find((preset) => preset.id === exportForm.state.values.presetId);
     return selected ?? presets[0];
   }, [exportForm.state.values.presetId, presets]);
+  const selectedPresetId = selectedPreset?.id ?? "";
 
   const inputMonitoringDenied = permissionsQuery.data?.inputMonitoring === "denied";
+  const inspectorSelection = useMemo(
+    () => normalizeInspectorSelection(activeMode, rawInspectorSelection),
+    [activeMode, rawInspectorSelection],
+  );
 
   const startCaptureInternal = useCallback(async (): Promise<CaptureStatusResult> => {
-    const { captureSource, selectedWindowId, micEnabled } = settingsForm.state.values;
+    const { captureSource, micEnabled } = settingsForm.state.values;
 
     if (captureSource === "window") {
       if (selectedWindowId === 0) {
-        throw new Error(enUS.notices.selectWindowFirst);
+        throw new Error(ui.notices.selectWindowFirst);
       }
       return await engineApi.startWindowCapture(selectedWindowId, micEnabled);
     }
 
     return await engineApi.startDisplayCapture(micEnabled);
-  }, [settingsForm.state.values]);
+  }, [selectedWindowId, settingsForm.state.values, ui.notices.selectWindowFirst]);
 
   const refreshMutation = useMutation({
     mutationFn: async () => {
@@ -352,7 +402,7 @@ export function useStudioController() {
     onError: (error) => {
       setNotice({
         kind: "error",
-        message: error instanceof Error ? error.message : enUS.notices.refreshFailed,
+        message: error instanceof Error ? error.message : ui.notices.refreshFailed,
       });
     },
   });
@@ -373,10 +423,10 @@ export function useStudioController() {
       return nextPermissions;
     },
     onSuccess: () => {
-      setNotice({ kind: "success", message: enUS.notices.permissionsRefreshed });
+      setNotice({ kind: "success", message: ui.notices.permissionsRefreshed });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -384,10 +434,10 @@ export function useStudioController() {
     mutationFn: async () => await startCaptureInternal(),
     onSuccess: (nextStatus) => {
       queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-      setNotice({ kind: "success", message: enUS.notices.captureStarted });
+      setNotice({ kind: "success", message: ui.notices.captureStarted });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -396,10 +446,10 @@ export function useStudioController() {
     onSuccess: (nextStatus) => {
       queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
       setIsTimelinePlaying(false);
-      setNotice({ kind: "info", message: enUS.notices.captureStopped });
+      setNotice({ kind: "info", message: ui.notices.captureStopped });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -432,7 +482,7 @@ export function useStudioController() {
 
       if (finished) {
         setIsTimelinePlaying(false);
-        setNotice({ kind: "success", message: enUS.notices.recordingFinished });
+        setNotice({ kind: "success", message: ui.notices.recordingFinished });
         return;
       }
 
@@ -441,13 +491,13 @@ export function useStudioController() {
       setPlayheadSeconds(0);
 
       if (settingsForm.state.values.trackInputEvents && inputMonitoringDenied) {
-        setNotice({ kind: "info", message: enUS.notices.inputTrackingDegraded });
+        setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
       } else {
-        setNotice({ kind: "success", message: enUS.notices.recordingStarted });
+        setNotice({ kind: "success", message: ui.notices.recordingStarted });
       }
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -476,10 +526,10 @@ export function useStudioController() {
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
-      setNotice({ kind: "success", message: enUS.notices.projectOpened });
+      setNotice({ kind: "success", message: ui.notices.projectOpened });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -491,10 +541,10 @@ export function useStudioController() {
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
-      setNotice({ kind: "success", message: enUS.notices.projectOpened });
+      setNotice({ kind: "success", message: ui.notices.projectOpened });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -525,21 +575,21 @@ export function useStudioController() {
       });
       setNotice({
         kind: "success",
-        message: enUS.notices.projectSaved(nextProject.projectPath ?? enUS.labels.notSaved),
+        message: ui.notices.projectSaved(nextProject.projectPath ?? ui.labels.notSaved),
       });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
   const exportMutation = useMutation({
     mutationFn: async () => {
       if (!recordingURL) {
-        throw new Error(enUS.notices.exportMissingRecording);
+        throw new Error(ui.notices.exportMissingRecording);
       }
       if (!selectedPreset) {
-        throw new Error(enUS.notices.exportMissingPreset);
+        throw new Error(ui.notices.exportMissingPreset);
       }
 
       const targetDirectory = await desktopApi.pickDirectory(
@@ -576,10 +626,10 @@ export function useStudioController() {
       if (!result) {
         return;
       }
-      setNotice({ kind: "success", message: enUS.notices.exportComplete(result.outputURL) });
+      setNotice({ kind: "success", message: ui.notices.exportComplete(result.outputURL) });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error) });
+      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
     },
   });
 
@@ -615,7 +665,7 @@ export function useStudioController() {
         exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
       }
     },
-    [exportForm, exportForm.state.values.trimEndSeconds, timelineDuration],
+    [exportForm, timelineDuration],
   );
 
   const setTrimEndSeconds = useCallback(
@@ -628,16 +678,16 @@ export function useStudioController() {
         exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
       }
     },
-    [exportForm, exportForm.state.values.trimStartSeconds, timelineDuration],
+    [exportForm, timelineDuration],
   );
 
   const setTrimInFromPlayhead = useCallback(() => {
-    setTrimStartSeconds(playheadSeconds);
-  }, [playheadSeconds, setTrimStartSeconds]);
+    setTrimStartSeconds(boundedPlayheadSeconds);
+  }, [boundedPlayheadSeconds, setTrimStartSeconds]);
 
   const setTrimOutFromPlayhead = useCallback(() => {
-    setTrimEndSeconds(playheadSeconds);
-  }, [playheadSeconds, setTrimEndSeconds]);
+    setTrimEndSeconds(boundedPlayheadSeconds);
+  }, [boundedPlayheadSeconds, setTrimEndSeconds]);
 
   const selectTimelineClip = useCallback(
     (params: {
@@ -646,7 +696,7 @@ export function useStudioController() {
       startSeconds: number;
       endSeconds: number;
     }) => {
-      setInspectorSelection({
+      setRawInspectorSelection({
         kind: "timelineClip",
         laneId: params.laneId,
         clipId: params.clipId,
@@ -664,7 +714,7 @@ export function useStudioController() {
       density: number;
       timestampSeconds: number;
     }) => {
-      setInspectorSelection({
+      setRawInspectorSelection({
         kind: "timelineMarker",
         markerId: params.markerId,
         markerKind: params.markerKind,
@@ -677,7 +727,7 @@ export function useStudioController() {
 
   const selectCaptureWindow = useCallback(
     (params: { windowId: number; appName: string; title: string }) => {
-      setInspectorSelection({
+      setRawInspectorSelection({
         kind: "captureWindow",
         windowId: params.windowId,
         appName: params.appName,
@@ -693,13 +743,13 @@ export function useStudioController() {
       if (!preset) {
         return;
       }
-      setInspectorSelection(selectionFromPreset(preset));
+      setRawInspectorSelection(selectionFromPreset(preset));
     },
     [presets],
   );
 
   const clearInspectorSelection = useCallback(() => {
-    setInspectorSelection(emptyInspectorSelection);
+    setRawInspectorSelection(emptyInspectorSelection);
   }, []);
 
   const nudgePlayheadSeconds = useCallback(
@@ -711,6 +761,77 @@ export function useStudioController() {
 
   const toggleTimelinePlayback = useCallback(() => {
     setIsTimelinePlaying((previous) => !previous);
+  }, []);
+
+  const setLeftPaneWidth = useCallback((widthPx: number) => {
+    setLayout((current) => ({
+      ...current,
+      leftPaneWidthPx: clamp(
+        Math.round(widthPx),
+        studioLayoutBounds.leftPaneMinWidthPx,
+        studioLayoutBounds.leftPaneMaxWidthPx,
+      ),
+      leftCollapsed: false,
+    }));
+  }, []);
+
+  const setRightPaneWidth = useCallback((widthPx: number) => {
+    setLayout((current) => ({
+      ...current,
+      rightPaneWidthPx: clamp(
+        Math.round(widthPx),
+        studioLayoutBounds.rightPaneMinWidthPx,
+        studioLayoutBounds.rightPaneMaxWidthPx,
+      ),
+      rightCollapsed: false,
+    }));
+  }, []);
+
+  const setTimelineHeight = useCallback((heightPx: number) => {
+    setLayout((current) => ({
+      ...current,
+      timelineHeightPx: clamp(
+        Math.round(heightPx),
+        studioLayoutBounds.timelineMinHeightPx,
+        studioLayoutBounds.timelineMaxHeightPx,
+      ),
+    }));
+  }, []);
+
+  const toggleLeftPaneCollapsed = useCallback(() => {
+    setLayout((current) => ({
+      ...current,
+      leftCollapsed: !current.leftCollapsed,
+    }));
+  }, []);
+
+  const toggleRightPaneCollapsed = useCallback(() => {
+    setLayout((current) => ({
+      ...current,
+      rightCollapsed: !current.rightCollapsed,
+    }));
+  }, []);
+
+  const setLastRoute = useCallback((route: string) => {
+    setLayout((current) => ({
+      ...current,
+      lastRoute: normalizeStudioLayoutRoute(route),
+    }));
+  }, []);
+
+  const setLocale = useCallback((nextLocale: StudioLocale) => {
+    setLayout((current) => ({
+      ...current,
+      locale: nextLocale,
+    }));
+  }, []);
+
+  const resetLayout = useCallback(() => {
+    setLayout((current) => ({
+      ...defaultStudioLayoutState,
+      lastRoute: current.lastRoute,
+      locale: current.locale,
+    }));
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -762,7 +883,6 @@ export function useStudioController() {
     },
     [
       exportMutation,
-      openRecentProjectMutation,
       openProjectMutation,
       refreshMutation,
       saveProjectMutation,
@@ -863,22 +983,11 @@ export function useStudioController() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [runHostCommand]);
 
-  useEffect(() => {
-    setInspectorSelection((current) => normalizeInspectorSelection(activeMode, current));
-  }, [activeMode]);
-
-  useEffect(() => {
-    if (pingQuery.isSuccess || pingQuery.isError) {
-      return;
-    }
-    void refreshMutation.mutateAsync();
-  }, [pingQuery.isError, pingQuery.isSuccess, refreshMutation]);
-
   const captureStatusLabel = captureStatusQuery.data?.isRecording
-    ? enUS.labels.recording
+    ? ui.labels.recording
     : captureStatusQuery.data?.isRunning
-      ? enUS.labels.previewing
-      : enUS.labels.idle;
+      ? ui.labels.previewing
+      : ui.labels.idle;
 
   return {
     captureStatusLabel,
@@ -887,12 +996,16 @@ export function useStudioController() {
     exportMutation,
     exportPresets: presets,
     formatAspectRatio,
+    formatDateTime,
+    formatDecimal,
     formatDuration,
+    formatInteger,
     inputMonitoringDenied,
     isRefreshing,
     isRunningAction,
     isTimelinePlaying,
     activeMode,
+    locale,
     inspectorSelection,
     notice,
     nudgePlayheadSeconds,
@@ -901,27 +1014,36 @@ export function useStudioController() {
     permissionBadgeVariant,
     permissionsQuery,
     pingQuery,
-    playheadSeconds,
+    playheadSeconds: boundedPlayheadSeconds,
     playbackRate,
     playbackRates,
+    layout,
     projectQuery,
     projectRecentsQuery,
     recordingURL,
     refreshAll,
     refreshMutation,
     requestPermissionMutation,
+    resetLayout,
     runHostCommand,
     saveProjectMutation,
     selectedPreset,
-    setActiveMode,
+    selectedPresetId,
+    selectedWindowId,
     setNotice,
     setPlayheadSeconds: setPlayheadSecondsClamped,
     setPlaybackRate,
-    setInspectorSelection,
+    setLocale,
+    setLastRoute,
+    setLeftPaneWidth,
+    setInspectorSelection: setRawInspectorSelection,
+    setRightPaneWidth,
+    setTimelineHeight,
     setTrimEndSeconds,
     setTrimInFromPlayhead,
     setTrimStartSeconds,
     setTrimOutFromPlayhead,
+    toggleLeftPaneCollapsed,
     clearInspectorSelection,
     selectCaptureWindow,
     selectExportPreset,
@@ -934,8 +1056,9 @@ export function useStudioController() {
     timelineDuration,
     timelineLanes,
     toggleRecordingMutation,
+    toggleRightPaneCollapsed,
     toggleTimelinePlayback,
-    ui: enUS,
+    ui,
     windowChoices,
   };
 }

@@ -27,10 +27,12 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
             {studio.ui.inspector.cards.selectedClip}
           </p>
           <div>{`${studio.ui.inspector.fields.lane}: ${selection.laneId}`}</div>
-          <div>{`${studio.ui.inspector.fields.start}: ${selection.startSeconds.toFixed(2)}s`}</div>
-          <div>{`${studio.ui.inspector.fields.end}: ${selection.endSeconds.toFixed(2)}s`}</div>
+          <div>{`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}</div>
+          <div>{`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}</div>
           <div>
-            {`${studio.ui.inspector.fields.duration}: ${Math.max(0, selection.endSeconds - selection.startSeconds).toFixed(2)}s`}
+            {`${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
+              Math.max(0, selection.endSeconds - selection.startSeconds),
+            )}s`}
           </div>
         </div>
       );
@@ -41,7 +43,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
             {studio.ui.inspector.cards.selectedEventMarker}
           </p>
           <div>{`${studio.ui.inspector.fields.type}: ${selection.markerKind}`}</div>
-          <div>{`${studio.ui.inspector.fields.time}: ${selection.timestampSeconds.toFixed(2)}s`}</div>
+          <div>{`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}</div>
           <div>{`${studio.ui.inspector.fields.density}: ${selection.density}`}</div>
         </div>
       );
@@ -202,7 +204,7 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
           <div className="rounded-md border border-border/70 bg-background/70 p-3">
             <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               <span className="inline-flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5" /> Effects
+                <Sparkles className="h-3.5 w-3.5" /> {studio.ui.inspectorTabs.effects}
               </span>
             </p>
             <label className="inline-flex items-center gap-2">
@@ -261,8 +263,8 @@ function DeliverInspectorContent() {
         <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           {studio.ui.inspector.cards.trimWindow}
         </p>
-        <div>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</div>
-        <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</div>
+        <div>{`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}</div>
+        <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}</div>
       </div>
     </>
   );

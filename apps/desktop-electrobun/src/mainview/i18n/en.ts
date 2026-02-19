@@ -27,6 +27,18 @@ export const enUS = {
     timeline: "Timeline",
     inspector: "Inspector",
   },
+  modes: {
+    capture: "Capture",
+    edit: "Edit",
+    deliver: "Deliver",
+  },
+  workspace: {
+    editStageTitle: "Editor Stage",
+    deliverSummaryTitle: "Delivery Summary",
+    deliverSummarySubtitle: "Final output settings and project metadata",
+    exportTitle: "Export",
+    exportSubtitle: "Type-safe delivery form with validation-ready shape",
+  },
   actions: {
     refresh: "Refresh",
     requestScreen: "Request Screen",
@@ -45,6 +57,9 @@ export const enUS = {
     playPause: "Play/Pause",
     setTrimIn: "Set In",
     setTrimOut: "Set Out",
+    toggleLeftPane: "Toggle Left Pane",
+    toggleRightPane: "Toggle Inspector",
+    resetLayout: "Reset Layout",
   },
   shortcuts: {
     title: "Shortcuts",
@@ -57,8 +72,13 @@ export const enUS = {
     export: "Cmd/Ctrl+E",
   },
   labels: {
+    language: "Language",
+    localeEnglish: "English (US)",
+    localeGerman: "Deutsch (DE)",
     permissionReady: "Screen Permission Ready",
     permissionRequired: "Screen Permission Required",
+    screen: "Screen",
+    microphone: "Mic",
     captureSource: "Capture Source",
     display: "Display",
     window: "Window",
@@ -107,6 +127,9 @@ export const enUS = {
     sourceWindowApp: "App",
     sourceWindowTitle: "Title",
     sourceWindowSize: "Size",
+    resizeTimeline: "Resize timeline",
+    resizeLeftPane: "Resize left panel",
+    resizeRightPane: "Resize right panel",
   },
   values: {
     granted: "granted",
@@ -199,3 +222,19 @@ export const enUS = {
       "Background framing, motion blur, per-segment overrides, and Simulator auto-crop are surfaced here for phased native wiring.",
   },
 } as const;
+
+type WidenLiterals<T> = T extends string
+  ? string
+  : T extends number
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends (...args: infer TArgs) => infer TResult
+        ? (...args: TArgs) => TResult
+        : T extends readonly (infer U)[]
+          ? readonly WidenLiterals<U>[]
+          : T extends object
+            ? { [K in keyof T]: WidenLiterals<T[K]> }
+            : T;
+
+export type StudioMessages = WidenLiterals<typeof enUS>;

@@ -13,14 +13,6 @@ function projectNameFromPath(projectPath: string | null): string {
   return leaf.replace(/\.gglassproj$/i, "") || leaf;
 }
 
-function formatLastOpened(dateTime: string): string {
-  const parsed = new Date(dateTime);
-  if (Number.isNaN(parsed.valueOf())) {
-    return dateTime;
-  }
-  return parsed.toLocaleString();
-}
-
 export function ProjectUtilityPanel() {
   const studio = useStudio();
   const project = studio.projectQuery.data;
@@ -45,10 +37,16 @@ export function ProjectUtilityPanel() {
           <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
           <div>{`${studio.ui.labels.captureSourceMetadata}: ${captureMetadata?.source ?? "-"}`}</div>
           <div>
-            {`${studio.ui.labels.captureResolution}: ${captureMetadata ? `${captureMetadata.contentRect.width.toFixed(0)}x${captureMetadata.contentRect.height.toFixed(0)}` : "-"}`}
+            {`${studio.ui.labels.captureResolution}: ${
+              captureMetadata
+                ? `${studio.formatInteger(captureMetadata.contentRect.width)}x${studio.formatInteger(captureMetadata.contentRect.height)}`
+                : "-"
+            }`}
           </div>
           <div>
-            {`${studio.ui.labels.captureScale}: ${captureMetadata ? captureMetadata.pixelScale.toFixed(2) : "-"}`}
+            {`${studio.ui.labels.captureScale}: ${
+              captureMetadata ? studio.formatDecimal(captureMetadata.pixelScale) : "-"
+            }`}
           </div>
         </div>
 
@@ -104,7 +102,7 @@ export function ProjectUtilityPanel() {
               >
                 <div className="truncate text-sm font-medium">{item.displayName}</div>
                 <div className="truncate text-xs text-muted-foreground">{item.projectPath}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{`${studio.ui.labels.lastOpened}: ${formatLastOpened(item.lastOpenedAt)}`}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{`${studio.ui.labels.lastOpened}: ${studio.formatDateTime(item.lastOpenedAt)}`}</div>
                 <Button
                   size="sm"
                   variant="outline"

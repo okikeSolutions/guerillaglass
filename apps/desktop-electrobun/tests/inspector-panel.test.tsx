@@ -17,6 +17,7 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
       },
     },
     formatAspectRatio: (width: number, height: number) => `${width}:${height}`,
+    formatDecimal: (value: number) => value.toFixed(2),
     inspectorSelection: selection,
     selectedPreset: {
       id: "preset-1",
