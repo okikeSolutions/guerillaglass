@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useCallback, type MouseEvent } from "react";
+import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
 import { normalizeStudioLocale } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,38 @@ function modeTabClass(isActive: boolean): string {
   return isActive
     ? "rounded bg-background px-2 py-1 text-[0.7rem] font-medium text-foreground"
     : "rounded px-2 py-1 text-[0.7rem] font-medium text-muted-foreground hover:text-foreground";
+}
+
+function telemetryHealthBadgeVariant(
+  health: "good" | "warning" | "critical",
+): "default" | "secondary" | "destructive" {
+  switch (health) {
+    case "critical":
+      return "destructive";
+    case "warning":
+      return "secondary";
+    case "good":
+      return "default";
+  }
+}
+
+function localizeTelemetryHealthReason(
+  reason: CaptureHealthReason | null,
+  studio: ReturnType<typeof useStudio>,
+): string | null {
+  if (reason == null) {
+    return null;
+  }
+  switch (reason) {
+    case "engine_error":
+      return studio.ui.helper.healthReasonEngineError;
+    case "high_dropped_frame_rate":
+      return studio.ui.helper.healthReasonHighDroppedFrameRate;
+    case "elevated_dropped_frame_rate":
+      return studio.ui.helper.healthReasonElevatedDroppedFrameRate;
+    case "low_microphone_level":
+      return studio.ui.helper.healthReasonLowMicrophoneLevel;
+  }
 }
 
 export function StudioShellLayout() {
@@ -48,6 +81,25 @@ export function StudioShellLayout() {
   const deliverActive = activeRoute === "/deliver";
   const setLastRoute = studio.setLastRoute;
   const setLocale = studio.setLocale;
+  const telemetry = studio.captureStatusQuery.data?.telemetry;
+  const telemetryHealth = telemetry?.health ?? "good";
+  const telemetryHealthLabel =
+    telemetryHealth === "critical"
+      ? studio.ui.values.critical
+      : telemetryHealth === "warning"
+        ? studio.ui.values.warning
+        : studio.ui.values.good;
+  const telemetryAudioLevel =
+    telemetry?.audioLevelDbfs == null
+      ? "-"
+      : `${studio.formatDecimal(telemetry.audioLevelDbfs)} dBFS`;
+  const telemetryDroppedFrames = `${studio.formatInteger(
+    telemetry?.droppedFrames ?? 0,
+  )} (${studio.formatDecimal(telemetry?.droppedFramePercent ?? 0)}%)`;
+  const telemetryHealthReason = localizeTelemetryHealthReason(
+    telemetry?.healthReason ?? null,
+    studio,
+  );
 
   const setLocaleAndNavigate = useCallback(
     async (nextLocaleRaw: string, route: StudioLayoutRoute) => {
@@ -157,30 +209,6 @@ export function StudioShellLayout() {
                     : studio.ui.labels.permissionRequired}
                 </span>
               </Badge>
-              <Badge
-                className="h-6 gap-1.5 px-2"
-                variant="secondary"
-                title={`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}
-              >
-                <CircleDot className="h-3.5 w-3.5" />
-                <span className="text-[0.65rem] tracking-[0.08em] uppercase">
-                  {studio.captureStatusLabel}
-                </span>
-              </Badge>
-              <Badge
-                className="h-6 gap-1.5 px-2"
-                variant="secondary"
-                title={`${studio.ui.labels.duration}: ${studio.formatDuration(
-                  studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
-                )}`}
-              >
-                <Clock3 className="h-3.5 w-3.5" />
-                <span className="text-[0.65rem] tracking-[0.08em] uppercase">
-                  {studio.formatDuration(
-                    studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
-                  )}
-                </span>
-              </Badge>
               {studio.inputMonitoringDenied && studio.settingsForm.state.values.trackInputEvents ? (
                 <Badge
                   className="h-6 px-1.5"
@@ -246,6 +274,57 @@ export function StudioShellLayout() {
               >
                 <HardDriveDownload className="mr-2 h-4 w-4" /> {studio.ui.actions.exportNow}
               </Button>
+            </div>
+          </div>
+
+          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-5">
+            <div className="rounded border border-border/70 bg-background/70 px-2 py-1.5">
+              <div className="text-[0.65rem] tracking-[0.08em] uppercase text-muted-foreground">
+                {studio.ui.labels.status}
+              </div>
+              <div className="mt-0.5 flex items-center gap-1.5 font-medium">
+                <CircleDot className="h-3.5 w-3.5" />
+                {studio.captureStatusLabel}
+              </div>
+            </div>
+            <div className="rounded border border-border/70 bg-background/70 px-2 py-1.5">
+              <div className="text-[0.65rem] tracking-[0.08em] uppercase text-muted-foreground">
+                {studio.ui.labels.duration}
+              </div>
+              <div className="mt-0.5 flex items-center gap-1.5 font-medium">
+                <Clock3 className="h-3.5 w-3.5" />
+                {studio.formatDuration(
+                  studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+                )}
+              </div>
+            </div>
+            <div className="rounded border border-border/70 bg-background/70 px-2 py-1.5">
+              <div className="text-[0.65rem] tracking-[0.08em] uppercase text-muted-foreground">
+                {studio.ui.labels.droppedFrames}
+              </div>
+              <div className="mt-0.5 font-medium">{telemetryDroppedFrames}</div>
+            </div>
+            <div className="rounded border border-border/70 bg-background/70 px-2 py-1.5">
+              <div className="text-[0.65rem] tracking-[0.08em] uppercase text-muted-foreground">
+                {studio.ui.labels.audioLevel}
+              </div>
+              <div className="mt-0.5 font-medium">{telemetryAudioLevel}</div>
+            </div>
+            <div className="rounded border border-border/70 bg-background/70 px-2 py-1.5">
+              <div className="text-[0.65rem] tracking-[0.08em] uppercase text-muted-foreground">
+                {studio.ui.labels.health}
+              </div>
+              <div className="mt-0.5 flex items-center gap-2" aria-live="polite">
+                <Badge
+                  variant={telemetryHealthBadgeVariant(telemetryHealth)}
+                  title={telemetryHealthReason ?? telemetryHealthLabel}
+                >
+                  {telemetryHealthLabel}
+                </Badge>
+                {telemetryHealthReason ? (
+                  <span className="truncate text-muted-foreground">{telemetryHealthReason}</span>
+                ) : null}
+              </div>
             </div>
           </div>
         </header>
