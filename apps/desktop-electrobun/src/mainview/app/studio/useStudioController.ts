@@ -29,6 +29,7 @@ const playbackRates = [0.5, 1, 1.5, 2] as const;
 
 export type CaptureSourceMode = "display" | "window";
 export type Notice = { kind: "error" | "success" | "info"; message: string } | null;
+const emptyProjectRecents: ProjectRecentsResult = { items: [] };
 
 export const defaultAutoZoom: AutoZoomSettings = {
   isEnabled: true,
@@ -164,8 +165,16 @@ export function useStudioController() {
   const recentsLimit = 10;
   const projectRecentsQuery = useQuery<ProjectRecentsResult>({
     queryKey: studioQueryKeys.projectRecents(recentsLimit),
-    queryFn: () => engineApi.projectRecents(recentsLimit),
+    queryFn: async () => {
+      try {
+        return await engineApi.projectRecents(recentsLimit);
+      } catch {
+        // Recents are non-critical. If RPC wiring is unavailable, keep core workflows unblocked.
+        return emptyProjectRecents;
+      }
+    },
     staleTime: 10_000,
+    retry: false,
   });
 
   const isHydratingFromProjectRef = useRef(false);
@@ -319,17 +328,16 @@ export function useStudioController() {
 
   const refreshMutation = useMutation({
     mutationFn: async () => {
-      const [ping, permissions, sources, captureStatus, exportInfo, project, projectRecents] =
-        await Promise.all([
-          pingQuery.refetch(),
-          permissionsQuery.refetch(),
-          sourcesQuery.refetch(),
-          captureStatusQuery.refetch(),
-          exportInfoQuery.refetch(),
-          projectQuery.refetch(),
-          projectRecentsQuery.refetch(),
-          eventsQuery.refetch(),
-        ]);
+      const [ping, permissions, sources, captureStatus, exportInfo, project] = await Promise.all([
+        pingQuery.refetch(),
+        permissionsQuery.refetch(),
+        sourcesQuery.refetch(),
+        captureStatusQuery.refetch(),
+        exportInfoQuery.refetch(),
+        projectQuery.refetch(),
+        eventsQuery.refetch(),
+      ]);
+      const projectRecents = await projectRecentsQuery.refetch();
 
       return {
         ping: ping.data,
@@ -338,7 +346,7 @@ export function useStudioController() {
         captureStatus: captureStatus.data,
         exportInfo: exportInfo.data,
         project: project.data,
-        projectRecents: projectRecents.data,
+        projectRecents: projectRecents.data ?? emptyProjectRecents,
       };
     },
     onError: (error) => {
