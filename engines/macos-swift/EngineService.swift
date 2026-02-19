@@ -9,6 +9,7 @@ final class EngineService {
     let captureEngine = CaptureEngine()
     let exportPipeline = ExportPipeline()
     let projectStore = ProjectStore()
+    let projectLibraryStore = ProjectLibraryStore()
     let inputPermissionManager = InputPermissionManager()
     let inputSession = InputEventSession()
 
@@ -48,7 +49,8 @@ final class EngineService {
             "export.run": { id, params in await self.exportRunResponse(id: id, params: params) },
             "project.current": { id, _ in self.projectStateResponse(id: id) },
             "project.open": { id, params in self.projectOpenResponse(id: id, params: params) },
-            "project.save": { id, params in self.projectSaveResponse(id: id, params: params) }
+            "project.save": { id, params in self.projectSaveResponse(id: id, params: params) },
+            "project.recents": { id, params in self.projectRecentsResponse(id: id, params: params) }
         ]
 
         guard let handler = handlers[request.method] else {

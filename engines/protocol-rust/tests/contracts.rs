@@ -38,3 +38,13 @@ fn parses_project_save_fixture() {
         Some("/tmp/fixture.gglassproj")
     );
 }
+
+#[test]
+fn parses_project_recents_request() {
+    let fixture = fs::read_to_string(fixture_path("project-recents.request.json"))
+        .expect("read project-recents fixture");
+    let request = decode_request_line(&fixture).expect("decode recents request");
+
+    assert_eq!(request.method_kind(), Some(EngineMethod::ProjectRecents));
+    assert_eq!(request.params["limit"].as_u64(), Some(5));
+}
