@@ -14,6 +14,13 @@ import type {
 import { enUS } from "@/i18n/en";
 import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
+import {
+  emptyInspectorSelection,
+  type InspectorSelection,
+  normalizeInspectorSelection,
+  selectionFromPreset,
+  type StudioMode,
+} from "./inspectorContext";
 import { buildTimelineLanes } from "./timelineModel";
 
 const hostMenuCommandEventName = "gg-host-menu-command";
@@ -93,6 +100,9 @@ export function useStudioController() {
   const [playheadSeconds, setPlayheadSeconds] = useState(0);
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState<(typeof playbackRates)[number]>(1);
+  const [activeMode, setActiveMode] = useState<StudioMode>("capture");
+  const [inspectorSelection, setInspectorSelection] =
+    useState<InspectorSelection>(emptyInspectorSelection);
 
   const settingsForm = useForm({
     defaultValues: {
@@ -583,6 +593,69 @@ export function useStudioController() {
     setTrimEndSeconds(playheadSeconds);
   }, [playheadSeconds, setTrimEndSeconds]);
 
+  const selectTimelineClip = useCallback(
+    (params: {
+      laneId: "video" | "audio";
+      clipId: string;
+      startSeconds: number;
+      endSeconds: number;
+    }) => {
+      setInspectorSelection({
+        kind: "timelineClip",
+        laneId: params.laneId,
+        clipId: params.clipId,
+        startSeconds: params.startSeconds,
+        endSeconds: params.endSeconds,
+      });
+    },
+    [],
+  );
+
+  const selectTimelineMarker = useCallback(
+    (params: {
+      markerId: string;
+      markerKind: "move" | "click" | "mixed";
+      density: number;
+      timestampSeconds: number;
+    }) => {
+      setInspectorSelection({
+        kind: "timelineMarker",
+        markerId: params.markerId,
+        markerKind: params.markerKind,
+        density: params.density,
+        timestampSeconds: params.timestampSeconds,
+      });
+    },
+    [],
+  );
+
+  const selectCaptureWindow = useCallback(
+    (params: { windowId: number; appName: string; title: string }) => {
+      setInspectorSelection({
+        kind: "captureWindow",
+        windowId: params.windowId,
+        appName: params.appName,
+        title: params.title,
+      });
+    },
+    [],
+  );
+
+  const selectExportPreset = useCallback(
+    (presetId: string) => {
+      const preset = presets.find((item) => item.id === presetId);
+      if (!preset) {
+        return;
+      }
+      setInspectorSelection(selectionFromPreset(preset));
+    },
+    [presets],
+  );
+
+  const clearInspectorSelection = useCallback(() => {
+    setInspectorSelection(emptyInspectorSelection);
+  }, []);
+
   const nudgePlayheadSeconds = useCallback(
     (deltaSeconds: number) => {
       setPlayheadSeconds((current) => clamp(current + deltaSeconds, 0, timelineDuration));
@@ -744,6 +817,10 @@ export function useStudioController() {
   }, [runHostCommand]);
 
   useEffect(() => {
+    setInspectorSelection((current) => normalizeInspectorSelection(activeMode, current));
+  }, [activeMode]);
+
+  useEffect(() => {
     if (pingQuery.isSuccess || pingQuery.isError) {
       return;
     }
@@ -768,6 +845,8 @@ export function useStudioController() {
     isRefreshing,
     isRunningAction,
     isTimelinePlaying,
+    activeMode,
+    inspectorSelection,
     notice,
     nudgePlayheadSeconds,
     openProjectMutation,
@@ -785,13 +864,20 @@ export function useStudioController() {
     runHostCommand,
     saveProjectMutation,
     selectedPreset,
+    setActiveMode,
     setNotice,
     setPlayheadSeconds: setPlayheadSecondsClamped,
     setPlaybackRate,
+    setInspectorSelection,
     setTrimEndSeconds,
     setTrimInFromPlayhead,
     setTrimStartSeconds,
     setTrimOutFromPlayhead,
+    clearInspectorSelection,
+    selectCaptureWindow,
+    selectExportPreset,
+    selectTimelineClip,
+    selectTimelineMarker,
     settingsForm,
     sourcesQuery,
     startPreviewMutation,

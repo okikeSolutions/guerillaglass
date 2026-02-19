@@ -1,5 +1,6 @@
 import { HardDriveDownload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InspectorPanel } from "./InspectorPanel";
 import { useStudio } from "../studio/context";
 
 export function DeliverRoute() {
@@ -35,7 +36,10 @@ export function DeliverRoute() {
                 <select
                   className="gg-input"
                   value={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.value)}
+                  onChange={(event) => {
+                    field.handleChange(event.target.value);
+                    studio.selectExportPreset(event.target.value);
+                  }}
                 >
                   {studio.exportPresets.map((preset) => (
                     <option
@@ -117,35 +121,7 @@ export function DeliverRoute() {
         </div>
       </section>
 
-      <aside className="gg-pane gg-pane-right">
-        <div className="gg-pane-header">
-          <h2 className="text-sm font-semibold tracking-wide uppercase">Inspector</h2>
-          <p className="gg-pane-subtitle">Export context and active preset</p>
-        </div>
-        <div className="gg-pane-body space-y-3 text-sm">
-          <div className="rounded-md border border-border/70 bg-background/70 p-3">
-            <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Active Preset
-            </p>
-            <div>{studio.selectedPreset?.name ?? "-"}</div>
-            {studio.selectedPreset ? (
-              <div className="text-muted-foreground">
-                {studio.formatAspectRatio(
-                  studio.selectedPreset.width,
-                  studio.selectedPreset.height,
-                )}
-              </div>
-            ) : null}
-          </div>
-          <div className="rounded-md border border-border/70 bg-background/70 p-3">
-            <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              Trim Window
-            </p>
-            <div>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</div>
-            <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</div>
-          </div>
-        </div>
-      </aside>
+      <InspectorPanel mode="deliver" />
     </section>
   );
 }
