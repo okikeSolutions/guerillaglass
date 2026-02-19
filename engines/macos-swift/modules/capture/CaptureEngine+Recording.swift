@@ -21,7 +21,7 @@ public extension CaptureEngine {
         resetTelemetry()
 
         let outputURL = makeRecordingURL()
-        Self.logger.info("Start recording to \(outputURL.path, privacy: .public)")
+        Self.logger.info("Start recording to \(outputURL.path, privacy: .private(mask: .hash))")
         let queue = recordingQueue
         let box = WeakSelfBox(self)
         try await withCheckedThrowingContinuation { continuation in
@@ -56,7 +56,7 @@ public extension CaptureEngine {
                     }
                     continuation.resume()
                 } catch {
-                    Self.logger.error("Failed to start recording: \(error.localizedDescription, privacy: .public)")
+                    Self.logger.error("Failed to start recording: \(error.localizedDescription, privacy: .private)")
                     continuation.resume(throwing: error)
                 }
             }
@@ -91,12 +91,12 @@ public extension CaptureEngine {
                         engine.isRecording = false
                         switch result {
                         case let .success(url):
-                            Self.logger.info("Recording finished: \(url.path, privacy: .public)")
+                            Self.logger.info("Recording finished: \(url.path, privacy: .private(mask: .hash))")
                             let duration = await Self.recordingDuration(for: url)
                             engine.recordingURL = url
                             engine.recordingDuration = duration
                         case let .failure(error):
-                            Self.logger.error("Recording failed: \(error.localizedDescription, privacy: .public)")
+                            Self.logger.error("Recording failed: \(error.localizedDescription, privacy: .private)")
                             engine.lastError = error.localizedDescription
                         }
                         continuation.resume()
