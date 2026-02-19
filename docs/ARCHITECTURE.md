@@ -25,6 +25,26 @@ Guerillaglass now follows a hybrid multiplatform architecture:
 4. Swift sidecar dispatches methods to native APIs (`ScreenCaptureKit`, `AVFoundation`, Input Monitoring checks).
 5. Response envelopes are validated in TypeScript with Zod before UI rendering.
 
+## Engine Client Reliability Policy
+
+- `EngineClient` enforces method-specific request timeouts instead of a single global timeout.
+  - Short control-plane reads (`ping`, `permissions`, `capture.status`) fail fast.
+  - Long operations (`project.open`, `project.save`) get longer timeout budgets.
+  - `export.run` is non-timed by default so long exports are not failed by arbitrary client deadlines.
+- Unexpected sidecar exit now immediately rejects all pending requests with an explicit process-exit error.
+- Transient transport failures are retried in Bun for read-only methods only, using typed transport errors (not string matching).
+- Restart handling uses bounded attempts with backoff + jitter and a circuit-open cooldown after repeated crash loops.
+- Mutating methods (capture/recording start-stop, export run, project writes) are not auto-retried to avoid duplicate side effects.
+
+## Renderer UI State (Creator Studio)
+
+- The desktop renderer keeps editor mode (`Capture`/`Edit`/`Deliver`) and inspector selection in a shared studio controller.
+- Inspector rendering is centralized in a single panel component and driven by:
+  - active mode
+  - current selection (timeline clip/marker, capture window, export preset)
+- Selection is normalized when mode changes so mode-incompatible selections are cleared in controller state, not only at render time.
+- Timeline entities are keyboard-focusable selectable controls and update inspector context directly.
+
 ## Supported Engine Methods (Phase 1 parity)
 
 - `system.ping`
