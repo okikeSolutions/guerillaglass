@@ -16,7 +16,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/mainview/*"]
+      "@/*": ["./src/mainview/*"],
+      "electrobun/bun": ["./src/types/electrobun-bun-shim.d.ts"],
+      "electrobun/view": ["./src/types/electrobun-view-shim.d.ts"]
     }
   },
   "include": ["src", "tests"],

@@ -28,6 +28,8 @@ type EngineStdin = {
   end: () => unknown;
 };
 
+type EngineProcess = Bun.PipedSubprocess;
+
 export type EngineTarget =
   | "macos-swift"
   | "windows-native"
@@ -221,7 +223,7 @@ export function resolveEnginePath(options?: {
 }
 
 export class EngineClient {
-  private process: ReturnType<typeof Bun.spawn> | null = null;
+  private process: EngineProcess | null = null;
   private stdin: EngineStdin | null = null;
   private pending = new Map<string, PendingRequest>();
   private startPromise: Promise<void> | null = null;
@@ -281,7 +283,7 @@ export class EngineClient {
       const command = this.enginePath.endsWith(".ts")
         ? ["bun", this.enginePath]
         : [this.enginePath];
-      const process = Bun.spawn({
+      const process: EngineProcess = Bun.spawn({
         cmd: command,
         stdin: "pipe",
         stdout: "pipe",
@@ -499,7 +501,7 @@ export class EngineClient {
     });
   }
 
-  private async readStdout(process: ReturnType<typeof Bun.spawn>): Promise<void> {
+  private async readStdout(process: EngineProcess): Promise<void> {
     if (!process.stdout) {
       return;
     }
@@ -539,7 +541,7 @@ export class EngineClient {
     }
   }
 
-  private async readStderr(process: ReturnType<typeof Bun.spawn>): Promise<void> {
+  private async readStderr(process: EngineProcess): Promise<void> {
     if (!process.stderr) {
       return;
     }
@@ -602,7 +604,7 @@ export class EngineClient {
     }
   }
 
-  private async watchProcessExit(process: ReturnType<typeof Bun.spawn>): Promise<void> {
+  private async watchProcessExit(process: EngineProcess): Promise<void> {
     try {
       const exitCode = await process.exited;
       if (this.process !== process) {
