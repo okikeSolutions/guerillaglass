@@ -106,6 +106,14 @@ describe("engine protocol", () => {
       recordingURL: null,
       lastError: null,
       eventsURL: null,
+      telemetry: {
+        totalFrames: 0,
+        droppedFrames: 0,
+        droppedFramePercent: 0,
+        audioLevelDbfs: null,
+        health: "good",
+        healthReason: null,
+      },
     });
 
     const exportInfo = exportInfoResultSchema.parse({
@@ -150,6 +158,21 @@ describe("engine protocol", () => {
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
     expect(recents.items[0]?.displayName).toBe("project");
+  });
+
+  test("applies default telemetry when older engines omit it", () => {
+    const captureStatus = captureStatusResultSchema.parse({
+      isRunning: false,
+      isRecording: false,
+      recordingDurationSeconds: 0,
+      recordingURL: null,
+      lastError: null,
+      eventsURL: null,
+    });
+
+    expect(captureStatus.telemetry.health).toBe("good");
+    expect(captureStatus.telemetry.healthReason).toBeNull();
+    expect(captureStatus.telemetry.droppedFrames).toBe(0);
   });
 
   test("parses success and error response envelopes", () => {
