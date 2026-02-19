@@ -11,7 +11,7 @@
     "gate:typescript": "./Scripts/typescript_gate.sh",
     "js:format": "bunx oxfmt --write apps packages",
     "js:format:check": "bunx oxfmt --check apps packages",
-    "js:lint": "bunx oxlint --deny-warnings --type-aware --ignore-pattern 'apps/desktop-electrobun/build/**' --ignore-pattern 'apps/desktop-electrobun/dist/**' apps packages",
+    "js:lint": "bunx oxlint --deny-warnings --type-aware --ignore-pattern 'apps/desktop-electrobun/build/**' --ignore-pattern 'apps/desktop-electrobun/dist/**' --ignore-pattern 'apps/desktop-electrobun/playwright-report/**' --ignore-pattern 'apps/desktop-electrobun/test-results/**' apps packages",
     "swift:build": "swift build",
     "swift:test": "swift test",
     "swift:format": "swiftformat .",
@@ -27,6 +27,9 @@
     "desktop:typecheck": "cd apps/desktop-electrobun && bun run typecheck",
     "desktop:test:coverage": "cd apps/desktop-electrobun && bun test --coverage",
     "desktop:test:e2e": "cd apps/desktop-electrobun && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts",
+    "desktop:test:ui": "cd apps/desktop-electrobun && bun run test:ui",
+    "desktop:test:ui:headed": "cd apps/desktop-electrobun && bun run test:ui:headed",
+    "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
     "protocol:typecheck": "cd packages/engine-protocol && bun run typecheck",
     "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
   },

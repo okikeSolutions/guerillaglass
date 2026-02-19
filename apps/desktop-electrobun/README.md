@@ -49,6 +49,9 @@ bun run js:lint
 bun run desktop:test
 bun run desktop:test:coverage
 bun run desktop:test:e2e
+
+# Browser UI smoke tests (Playwright against Vite UI + mocked Electrobun bridge)
+bun run desktop:test:ui
 ```
 
 ## Build

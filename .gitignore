@@ -36,6 +36,8 @@ guerillaglass.app/
 node_modules/
 apps/*/dist/
 apps/*/build/
+apps/*/playwright-report/
+apps/*/test-results/
 coverage/
 apps/*/coverage/
 target/
