@@ -1,6 +1,5 @@
 import AVFoundation
 import CoreGraphics
-import CoreImage
 import Export
 import Foundation
 import ScreenCaptureKit
@@ -15,15 +14,17 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @Published public internal(set) var recordingDuration: TimeInterval = 0
     @Published public private(set) var captureDescriptor: CaptureDescriptor?
 
-    private let ciContext = CIContext(options: nil)
+    let ciContext = CIContext(options: nil)
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
     let recordingQueue = DispatchQueue(label: "gg.capture.recording")
+    private let telemetryQueue = DispatchQueue(label: "gg.capture.telemetry")
     private var stream: SCStream?
-    private lazy var audioCapture = AudioCapture { [weak self] buffer, time in
+    lazy var audioCapture = AudioCapture { [weak self] buffer, time in
         self?.handleAudioBuffer(buffer, time: time)
     }
 
-    private var windowsByID: [CGWindowID: SCWindow] = [:]
+    var windowsByID: [CGWindowID: SCWindow] = [:]
+    private var telemetryState = TelemetryState()
     var recordingState = RecordingState()
     @MainActor private var pickerContinuation: CheckedContinuation<SCContentFilter, Error>?
 
@@ -39,8 +40,28 @@ public final class CaptureEngine: NSObject, ObservableObject {
         var lastDurationUpdate: TimeInterval = 0
     }
 
+    public struct CaptureTelemetrySnapshot {
+        public let totalFrames: Int
+        public let droppedFrames: Int
+        public let droppedFramePercent: Double
+        public let audioLevelDbfs: Double?
+    }
+
+    private struct TelemetryState {
+        var totalFrames: Int = 0
+        var droppedFrames: Int = 0
+        var audioLevelDbfs: Double?
+        var lastCompleteFramePTSSeconds: Double?
+
+        var droppedFramePercent: Double {
+            guard totalFrames > 0 else { return 0 }
+            return (Double(droppedFrames) / Double(totalFrames)) * 100
+        }
+    }
+
     public func startDisplayCapture(enableMic: Bool = false) async throws {
         guard !isRunning else { return }
+        resetTelemetry()
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -79,6 +100,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
 
     public func startWindowCapture(windowID: CGWindowID, enableMic: Bool = false) async throws {
         guard !isRunning else { return }
+        resetTelemetry()
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -143,6 +165,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         latestFrame = nil
         self.stream = nil
         captureDescriptor = nil
+        resetTelemetry()
     }
 
     @MainActor
@@ -155,6 +178,24 @@ public final class CaptureEngine: NSObject, ObservableObject {
         lastError = message
     }
 
+    @MainActor
+    func setLatestFrame(_ frame: CGImage?) {
+        latestFrame = frame
+    }
+
+    @MainActor
+    func setRunning(_ running: Bool) {
+        isRunning = running
+    }
+
+    @MainActor
+    func setCachedWindows(_ shareable: [ShareableWindow], mapped: [CGWindowID: SCWindow]) {
+        availableWindows = shareable
+        windowsByID = mapped
+    }
+}
+
+extension CaptureEngine {
     private func ensureScreenCaptureAccess() async throws {
         if CGPreflightScreenCaptureAccess() {
             return
@@ -167,8 +208,85 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
     }
 
+    public func telemetrySnapshot() -> CaptureTelemetrySnapshot {
+        telemetryQueue.sync {
+            CaptureTelemetrySnapshot(
+                totalFrames: telemetryState.totalFrames,
+                droppedFrames: telemetryState.droppedFrames,
+                droppedFramePercent: telemetryState.droppedFramePercent,
+                audioLevelDbfs: telemetryState.audioLevelDbfs
+            )
+        }
+    }
+
+    func resetTelemetry() {
+        telemetryQueue.sync {
+            telemetryState = TelemetryState()
+        }
+    }
+
+    func recordVideoSample(status: SCFrameStatus?, sampleBuffer: CMSampleBuffer) {
+        telemetryQueue.async { [weak self] in
+            guard let self else { return }
+            guard status == nil || status == .complete else { return }
+
+            let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+            let expectedFrameIntervalSeconds = 1.0 / 30.0
+
+            if !pts.isNumeric {
+                telemetryState.totalFrames += 1
+                return
+            }
+
+            let ptsSeconds = pts.seconds
+            if let previousPTS = telemetryState.lastCompleteFramePTSSeconds {
+                let deltaSeconds = max(0, ptsSeconds - previousPTS)
+                let missedFrames = CaptureTelemetryMath.estimateMissedFrames(
+                    deltaSeconds: deltaSeconds,
+                    expectedFrameIntervalSeconds: expectedFrameIntervalSeconds
+                )
+                if missedFrames > 0 {
+                    telemetryState.droppedFrames += missedFrames
+                    telemetryState.totalFrames += missedFrames + 1
+                } else {
+                    telemetryState.totalFrames += 1
+                }
+            } else {
+                telemetryState.totalFrames += 1
+            }
+            telemetryState.lastCompleteFramePTSSeconds = ptsSeconds
+        }
+    }
+
+    func recordAudioLevel(_ level: Double?) {
+        guard let level else { return }
+        telemetryQueue.async { [weak self] in
+            guard let self else { return }
+            let smoothingFactor = 0.18
+            if let previous = telemetryState.audioLevelDbfs {
+                telemetryState.audioLevelDbfs = previous + (level - previous) * smoothingFactor
+            } else {
+                telemetryState.audioLevelDbfs = level
+            }
+        }
+    }
+
+    func frameStatus(for sampleBuffer: CMSampleBuffer) -> SCFrameStatus? {
+        guard let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(
+            sampleBuffer,
+            createIfNecessary: false
+        ) as? [[SCStreamFrameInfo: Any]],
+            let attachments = attachmentsArray.first,
+            let rawStatus = attachments[.status] as? Int
+        else {
+            return nil
+        }
+        return SCFrameStatus(rawValue: rawStatus)
+    }
+
     private func startCapture(using filter: SCContentFilter, enableMic: Bool) async throws {
         guard !isRunning else { return }
+        resetTelemetry()
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -236,7 +354,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
 
     @available(macOS 14.0, *)
     @MainActor
-    private func finishPicker(
+    func finishPicker(
         _ result: Result<SCContentFilter, Error>,
         picker: SCContentSharingPicker
     ) {
@@ -254,142 +372,6 @@ public final class CaptureEngine: NSObject, ObservableObject {
             continuation.resume(returning: filter)
         case let .failure(error):
             continuation.resume(throwing: error)
-        }
-    }
-}
-
-extension CaptureEngine {
-    public func refreshShareableContent() async {
-        do {
-            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
-            let windows = Self.filteredWindows(from: content.windows)
-            await cacheShareableWindows(windows)
-        } catch {
-            await MainActor.run {
-                self.lastError = error.localizedDescription
-            }
-        }
-    }
-
-    func resolveWindow(windowID: CGWindowID) async throws -> SCWindow {
-        if let cached = await cachedWindow(for: windowID) {
-            return cached
-        }
-
-        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
-        let windows = Self.filteredWindows(from: content.windows)
-        await cacheShareableWindows(windows)
-        if let match = windows.first(where: { $0.windowID == windowID }) {
-            return match
-        }
-        throw CaptureError.windowNotFound
-    }
-
-    private func cachedWindow(for windowID: CGWindowID) async -> SCWindow? {
-        await MainActor.run {
-            windowsByID[windowID]
-        }
-    }
-
-    private func cacheShareableWindows(_ windows: [SCWindow]) async {
-        let shareable = ShareableWindow.sorted(windows.map(ShareableWindow.init(window:)))
-        let mapped = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
-        await MainActor.run {
-            self.availableWindows = shareable
-            self.windowsByID = mapped
-        }
-    }
-
-    private static func filteredWindows(from windows: [SCWindow]) -> [SCWindow] {
-        windows
-            .filter { window in
-                guard window.isOnScreen else { return false }
-                guard window.frame.width > 1, window.frame.height > 1 else { return false }
-                guard let app = window.owningApplication else { return false }
-                let bundleID = app.bundleIdentifier
-                if bundleID == "com.apple.WindowServer" || bundleID == "com.apple.dock" {
-                    return false
-                }
-                return true
-            }
-    }
-}
-
-extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
-    public func stream(
-        _: SCStream,
-        didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
-        of outputType: SCStreamOutputType
-    ) {
-        guard outputType == .screen,
-              let imageBuffer = sampleBuffer.imageBuffer else { return }
-
-        appendVideoSample(sampleBuffer)
-
-        let ciImage = CIImage(cvImageBuffer: imageBuffer)
-        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
-
-        Task { @MainActor in
-            self.latestFrame = cgImage
-        }
-    }
-
-    public func stream(_: SCStream, didStopWithError error: Error) {
-        audioCapture.stop()
-        Task { @MainActor in
-            self.isRunning = false
-            self.lastError = error.localizedDescription
-        }
-    }
-}
-
-@available(macOS 14.0, *)
-extension CaptureEngine: SCContentSharingPickerObserver {
-    public func contentSharingPicker(_: SCContentSharingPicker, didCancelFor _: SCStream?) {
-        Task { @MainActor in
-            self.finishPicker(.failure(CaptureError.pickerCancelled), picker: SCContentSharingPicker.shared)
-        }
-    }
-
-    public func contentSharingPicker(
-        _: SCContentSharingPicker,
-        didUpdateWith filter: SCContentFilter,
-        for _: SCStream?
-    ) {
-        Task { @MainActor in
-            self.finishPicker(.success(filter), picker: SCContentSharingPicker.shared)
-        }
-    }
-
-    public func contentSharingPickerStartDidFailWithError(_ error: Error) {
-        Task { @MainActor in
-            self.finishPicker(.failure(error), picker: SCContentSharingPicker.shared)
-        }
-    }
-}
-
-public enum CaptureError: LocalizedError {
-    case noDisplayAvailable
-    case screenRecordingDenied
-    case windowNotFound
-    case pickerCancelled
-    case pickerAlreadyActive
-    case captureNotRunning
-
-    public var errorDescription: String? {
-        switch self {
-        case .noDisplayAvailable:
-            String(localized: "No displays are available for capture.")
-        case .screenRecordingDenied:
-            String(localized: "Screen Recording permission is required to capture your display.")
-        case .windowNotFound:
-            String(localized: "The selected window is no longer available for capture.")
-        case .pickerCancelled:
-            String(localized: "Content selection was cancelled.")
-        case .pickerAlreadyActive:
-            String(localized: "Content picker is already active.")
-        case .captureNotRunning:
-            String(localized: "Start a capture before recording.")
         }
     }
 }

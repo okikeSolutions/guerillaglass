@@ -18,6 +18,7 @@ public extension CaptureEngine {
         guard isRunning else {
             throw CaptureError.captureNotRunning
         }
+        resetTelemetry()
 
         let outputURL = makeRecordingURL()
         Self.logger.info("Start recording to \(outputURL.path, privacy: .public)")
@@ -125,6 +126,7 @@ public extension CaptureEngine {
     }
 
     internal func handleAudioBuffer(_ buffer: AVAudioPCMBuffer, time: AVAudioTime) {
+        recordAudioLevel(Self.audioLevelDbfs(for: buffer))
         recordingQueue.async { [weak self] in
             guard let self else { return }
             guard recordingState.isRecording, let writer = recordingState.writer else { return }
@@ -171,5 +173,32 @@ public extension CaptureEngine {
             return duration.seconds
         }
         return 0
+    }
+
+    private static func audioLevelDbfs(for buffer: AVAudioPCMBuffer) -> Double? {
+        guard let channelData = buffer.floatChannelData else { return nil }
+        let channelCount = Int(buffer.format.channelCount)
+        let frameCount = Int(buffer.frameLength)
+        guard channelCount > 0, frameCount > 0 else { return nil }
+
+        var meanSquare: Float = 0
+        for channel in 0 ..< channelCount {
+            let samples = channelData[channel]
+            var channelSquare: Float = 0
+            for frame in 0 ..< frameCount {
+                let sample = samples[frame]
+                channelSquare += sample * sample
+            }
+            meanSquare += channelSquare / Float(frameCount)
+        }
+        meanSquare /= Float(channelCount)
+
+        if meanSquare <= 0 {
+            return -80
+        }
+
+        let rms = sqrt(meanSquare)
+        let dbfs = 20 * log10(Double(rms))
+        return min(0, max(-80, dbfs))
     }
 }

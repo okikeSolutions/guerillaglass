@@ -94,7 +94,23 @@ extension EngineService {
     }
 
     func captureStatusResponse(id: String) -> EngineResponse {
-        .success(
+        let telemetry = captureEngine.telemetrySnapshot()
+        let health = CaptureTelemetryHealthEvaluator.evaluate(
+            droppedFramePercent: telemetry.droppedFramePercent,
+            audioLevelDbfs: telemetry.audioLevelDbfs,
+            lastError: captureEngine.lastError,
+            isRecording: captureEngine.isRecording
+        )
+        let telemetryPayload: JSONValue = .object([
+            "totalFrames": .number(Double(telemetry.totalFrames)),
+            "droppedFrames": .number(Double(telemetry.droppedFrames)),
+            "droppedFramePercent": .number(telemetry.droppedFramePercent),
+            "audioLevelDbfs": telemetry.audioLevelDbfs.map { .number($0) } ?? .null,
+            "health": .string(health.state.rawValue),
+            "healthReason": health.reason.map { .string($0.rawValue) } ?? .null
+        ])
+
+        return .success(
             id: id,
             result: .object([
                 "isRunning": .bool(captureEngine.isRunning),
@@ -102,7 +118,8 @@ extension EngineService {
                 "recordingDurationSeconds": .number(captureEngine.recordingDuration),
                 "recordingURL": captureEngine.recordingURL.map { .string($0.path) } ?? .null,
                 "lastError": captureEngine.lastError.map { .string($0) } ?? .null,
-                "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null
+                "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
+                "telemetry": telemetryPayload
             ])
         )
     }
