@@ -271,7 +271,7 @@ Creator Studio pro-UI parity backlog (next pass):
 
 - Phase A — Visual foundation + keyboard clarity
   - [x] Switch Tailwind/system surface palette from blue-tinted dark to neutral dark grays (`~#1E1E1E` to `~#2D2D2D`) while keeping contrast-compliant text.
-  - [ ] Reduce chrome/panel noise (lighter separators, fewer heavy borders/glows/boxed cards, flatter pane surfaces).
+  - [x] Reduce chrome/panel noise (lighter separators, fewer heavy borders/glows/boxed cards, flatter pane surfaces).
   - [ ] Tighten typography for pro density (smaller utility labels, reduced decorative uppercase tracking, cleaner hierarchy).
   - [ ] Enforce strict icon/state color semantics (monochrome default; red for recording/error; green for healthy/live; blue or orange for active selection only).
   - [ ] Expose shortcuts in actionable UI affordances (`Blade (B)`, `Play/Pause (Space)`, `Save (Cmd/Ctrl+S)`) across tooltips and menu labels.

@@ -39,6 +39,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --gg-surface-0: oklch(0.99 0 0);
+  --gg-surface-1: oklch(0.975 0 0);
+  --gg-surface-2: oklch(0.955 0 0);
+  --gg-border-subtle: oklch(0.88 0 0 / 55%);
+  --gg-border-strong: oklch(0.82 0 0 / 72%);
+  --gg-shadow-1: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .dark {
@@ -74,6 +80,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --gg-surface-0: oklch(0.16 0 0);
+  --gg-surface-1: oklch(0.19 0 0);
+  --gg-surface-2: oklch(0.22 0 0);
+  --gg-border-subtle: oklch(1 0 0 / 10%);
+  --gg-border-strong: oklch(1 0 0 / 18%);
+  --gg-shadow-1: 0 8px 18px rgba(0, 0, 0, 0.14);
 }
 
 @theme inline {
@@ -159,8 +171,32 @@
 }
 
 @layer components {
+  .gg-shell-frame {
+    border-color: var(--gg-border-strong);
+    background-color: color-mix(in oklab, var(--gg-surface-2) 88%, transparent);
+    box-shadow: var(--gg-shadow-1);
+  }
+
+  .gg-shell-header {
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-0) 72%, transparent);
+  }
+
+  .gg-toolbar-group {
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 40%, transparent);
+  }
+
+  .gg-surface-block {
+    border: 1px solid var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 66%, transparent);
+    box-shadow: none;
+  }
+
   .gg-panel {
-    @apply ring-foreground/10 border bg-card shadow-[inset_0_1px_0_rgba(255,255,255,0.04)];
+    border: 1px solid var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 70%, transparent);
+    box-shadow: none;
   }
 
   .gg-editor-shell {
@@ -168,7 +204,8 @@
   }
 
   .gg-pane {
-    @apply flex min-h-0 min-w-0 flex-col bg-card/45;
+    @apply flex min-h-0 min-w-0 flex-col;
+    background-color: color-mix(in oklab, var(--gg-surface-1) 28%, transparent);
   }
 
   .gg-pane-left {
@@ -176,7 +213,7 @@
   }
 
   .gg-pane-center {
-    @apply bg-background/35;
+    background-color: color-mix(in oklab, var(--gg-surface-0) 18%, transparent);
   }
 
   .gg-pane-right {
@@ -192,18 +229,19 @@
   }
 
   .gg-pane-resize-handle {
-    @apply relative w-1.5 cursor-col-resize bg-border/35 transition-colors duration-150;
+    @apply relative w-1 cursor-col-resize bg-transparent transition-colors duration-150;
     touch-action: none;
   }
 
   .gg-pane-resize-handle::after {
     content: "";
-    @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/80 transition-colors duration-150;
+    @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors duration-150;
+    background-color: var(--gg-border-subtle);
   }
 
   .gg-pane-resize-handle:hover::after,
   .gg-pane-resize-handle:active::after {
-    @apply bg-primary/60;
+    @apply bg-primary/40;
   }
 
   .gg-pane-resize-handle:focus-visible {
@@ -212,8 +250,10 @@
   }
 
   .gg-pane-header {
-    @apply grid min-h-[74px] min-w-0 content-start gap-1 border-b border-border/80 bg-muted/35 px-4 py-3;
+    @apply grid min-h-[66px] min-w-0 content-start gap-1 border-b px-3.5 py-2.5;
     grid-template-rows: auto auto;
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 16%, transparent);
   }
 
   .gg-pane-subtitle {
@@ -223,11 +263,13 @@
   }
 
   .gg-pane-body {
-    @apply flex-1 min-h-0 min-w-0 overflow-y-auto p-4;
+    @apply flex-1 min-h-0 min-w-0 overflow-y-auto p-3;
   }
 
   .gg-keycap {
-    @apply rounded border border-border/80 bg-muted/80 px-1.5 py-0.5 font-mono text-[0.66rem] text-foreground/90;
+    @apply rounded px-1.5 py-0.5 font-mono text-[0.66rem] text-foreground/90;
+    border: 1px solid var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 50%, transparent);
   }
 
   .gg-input {
@@ -235,14 +277,14 @@
   }
 
   .gg-preview-stage {
-    @apply flex min-h-[340px] items-center justify-center rounded-md border border-border/80 bg-card p-5;
-    background-image:
-      radial-gradient(
-        circle at 24% 0%,
-        color-mix(in oklab, var(--primary) 20%, transparent),
-        transparent 56%
-      ),
-      linear-gradient(140deg, var(--background), var(--card));
+    @apply flex min-h-[340px] items-center justify-center rounded-md border p-4;
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 60%, transparent);
+    background-image: linear-gradient(
+      160deg,
+      color-mix(in oklab, var(--background) 86%, black 14%),
+      color-mix(in oklab, var(--card) 88%, black 12%)
+    );
   }
 
   .gg-pane-center .gg-preview-stage {
@@ -258,17 +300,22 @@
   }
 
   .gg-timeline-ruler {
-    @apply relative h-6 rounded-md border border-border/70 bg-muted/50 px-2;
+    @apply relative h-6 rounded-md border px-2;
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 25%, transparent);
   }
 
   .gg-timeline-ruler-tick {
-    @apply absolute bottom-0 border-l border-border/70 pb-0.5 pl-1 text-[0.65rem] text-muted-foreground;
+    @apply absolute bottom-0 border-l pb-0.5 pl-1 text-[0.65rem] text-muted-foreground;
     transform: translateX(-50%);
     height: 100%;
+    border-color: var(--gg-border-subtle);
   }
 
   .gg-timeline-surface {
-    @apply relative overflow-hidden rounded-md border border-border/70 bg-background/80 p-2 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none;
+    @apply relative overflow-hidden rounded-md border p-2 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none;
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-0) 60%, transparent);
     touch-action: none;
     user-select: none;
   }
@@ -295,7 +342,9 @@
   }
 
   .gg-timeline-lane-toggle {
-    @apply inline-flex h-5 w-5 items-center justify-center rounded border border-border/80 bg-background/75 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:outline-none [&_svg]:h-3 [&_svg]:w-3;
+    @apply inline-flex h-5 w-5 items-center justify-center rounded border text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:outline-none [&_svg]:h-3 [&_svg]:w-3;
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-0) 55%, transparent);
   }
 
   .gg-timeline-lane-toggle-active {
@@ -303,7 +352,9 @@
   }
 
   .gg-timeline-lane-track {
-    @apply relative h-9 rounded border border-border/70 bg-muted/40;
+    @apply relative h-9 rounded border;
+    border-color: var(--gg-border-subtle);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 28%, transparent);
   }
 
   .gg-timeline-lane-track-locked {
@@ -371,7 +422,7 @@
   }
 
   .gg-timeline-trim-handle {
-    @apply absolute inset-y-2 z-20 w-2 -translate-x-1/2 cursor-ew-resize rounded bg-primary shadow;
+    @apply absolute inset-y-2 z-20 w-2 -translate-x-1/2 cursor-ew-resize rounded bg-primary/85;
   }
 
   .gg-timeline-playhead {
@@ -379,18 +430,19 @@
   }
 
   .gg-timeline-resize-handle {
-    @apply relative h-2.5 cursor-row-resize bg-border/35;
+    @apply relative h-2.5 cursor-row-resize bg-transparent;
     touch-action: none;
   }
 
   .gg-timeline-resize-handle::after {
     content: "";
-    @apply absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/80 transition-colors duration-150;
+    @apply absolute inset-x-0 top-1/2 h-px -translate-y-1/2 transition-colors duration-150;
+    background-color: var(--gg-border-subtle);
   }
 
   .gg-timeline-resize-handle:hover::after,
   .gg-timeline-resize-handle:active::after {
-    @apply bg-primary/60;
+    @apply bg-primary/40;
   }
 
   .gg-timeline-resize-handle:focus-visible {

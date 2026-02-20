@@ -46,7 +46,7 @@ export function ProjectUtilityPanel() {
       </div>
 
       <div className="gg-pane-body space-y-3 text-sm">
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardContent className="space-y-1">
             <div>{`${studio.ui.labels.projectName}: ${projectNameFromPath(project?.projectPath ?? null)}`}</div>
             <div className="truncate">{`${studio.ui.labels.projectPath}: ${project?.projectPath ?? studio.ui.labels.notSaved}`}</div>
@@ -69,7 +69,7 @@ export function ProjectUtilityPanel() {
           </CardContent>
         </Card>
 
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardHeader>
             <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
               {studio.ui.labels.mediaBin}
@@ -80,7 +80,7 @@ export function ProjectUtilityPanel() {
               <Card
                 key={item.id}
                 size="sm"
-                className="border border-border/60 bg-background/60 shadow-none"
+                className="border border-border/50 bg-background/35 shadow-none"
               >
                 <CardContent className="space-y-1">
                   <div className="text-xs font-medium">{item.label}</div>
@@ -121,7 +121,7 @@ export function ProjectUtilityPanel() {
           </Button>
         </ButtonGroup>
 
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardHeader>
             <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
               <span className="inline-flex items-center gap-1">
@@ -131,7 +131,7 @@ export function ProjectUtilityPanel() {
           </CardHeader>
           <CardContent className="space-y-2">
             {studio.projectRecentsQuery.isPending ? (
-              <Empty className="min-h-0 border-border/60 bg-background/40 p-3">
+              <Empty className="min-h-0 border-border/50 bg-background/30 p-3">
                 <EmptyHeader>
                   <EmptyTitle className="text-sm">{studio.ui.labels.recentProjects}</EmptyTitle>
                   <EmptyDescription>{studio.ui.labels.loadingRecentProjects}</EmptyDescription>
@@ -140,7 +140,7 @@ export function ProjectUtilityPanel() {
             ) : null}
 
             {!studio.projectRecentsQuery.isPending && recentProjects.length === 0 ? (
-              <Empty className="min-h-0 border-border/60 bg-background/40 p-3">
+              <Empty className="min-h-0 border-border/50 bg-background/30 p-3">
                 <EmptyHeader>
                   <EmptyTitle className="text-sm">{studio.ui.labels.recentProjects}</EmptyTitle>
                   <EmptyDescription>{studio.ui.labels.noRecentProjects}</EmptyDescription>
@@ -152,7 +152,7 @@ export function ProjectUtilityPanel() {
               <Card
                 key={item.projectPath}
                 size="sm"
-                className="border border-border/60 bg-background/60 shadow-none"
+                className="border border-border/50 bg-background/35 shadow-none"
               >
                 <CardContent className="space-y-1">
                   <div className="truncate text-sm font-medium">{item.displayName}</div>

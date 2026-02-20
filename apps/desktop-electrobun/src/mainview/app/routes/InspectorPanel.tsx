@@ -58,7 +58,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
   switch (selection.kind) {
     case "timelineClip":
       return (
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardHeader>
             <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
               {studio.ui.inspector.cards.selectedClip}
@@ -78,7 +78,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       );
     case "timelineMarker":
       return (
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardHeader>
             <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
               {studio.ui.inspector.cards.selectedEventMarker}
@@ -93,7 +93,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       );
     case "captureWindow":
       return (
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardHeader>
             <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
               {studio.ui.inspector.cards.selectedWindow}
@@ -108,7 +108,7 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       );
     case "exportPreset":
       return (
-        <Card size="sm" className="border border-border/70 bg-background/70">
+        <Card size="sm" className="gg-surface-block">
           <CardHeader>
             <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
               {studio.ui.inspector.cards.selectedPreset}
@@ -185,7 +185,7 @@ function CaptureInspectorContent() {
 
       <studio.settingsForm.Field name="autoZoom">
         {(field) => (
-          <Card size="sm" className="border border-border/70 bg-background/70">
+          <Card size="sm" className="gg-surface-block">
             <CardContent className="space-y-3">
               <Field>
                 <FieldLabel>
@@ -244,7 +244,7 @@ function CaptureInspectorContent() {
         )}
       </studio.settingsForm.Field>
 
-      <Card size="sm" className="border border-border/70 bg-background/70">
+      <Card size="sm" className="gg-surface-block">
         <CardHeader>
           <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
             {studio.ui.labels.sourceMonitor}
@@ -257,7 +257,7 @@ function CaptureInspectorContent() {
         </CardContent>
       </Card>
 
-      <Card size="sm" className="border border-border/70 bg-background/70">
+      <Card size="sm" className="gg-surface-block">
         <CardHeader>
           <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
             {studio.ui.labels.audioMixer}
@@ -388,7 +388,7 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
 
       <studio.settingsForm.Field name="autoZoom">
         {(field) => (
-          <Card size="sm" className="border border-border/70 bg-background/70">
+          <Card size="sm" className="gg-surface-block">
             <CardHeader>
               <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
@@ -445,7 +445,7 @@ function DeliverInspectorContent() {
 
   return (
     <>
-      <Card size="sm" className="border border-border/70 bg-background/70">
+      <Card size="sm" className="gg-surface-block">
         <CardHeader>
           <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
             {studio.ui.inspector.cards.activePreset}
@@ -460,7 +460,7 @@ function DeliverInspectorContent() {
           ) : null}
         </CardContent>
       </Card>
-      <Card size="sm" className="border border-border/70 bg-background/70">
+      <Card size="sm" className="gg-surface-block">
         <CardHeader>
           <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
             {studio.ui.inspector.cards.trimWindow}
