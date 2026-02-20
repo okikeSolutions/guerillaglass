@@ -85,6 +85,9 @@ export const enUS = {
   },
   labels: {
     language: "Language",
+    density: "Density",
+    densityComfortable: "Comfortable",
+    densityCompact: "Compact",
     localeEnglish: "English (US)",
     localeGerman: "Deutsch (DE)",
     permissionReady: "Screen Permission Ready",

@@ -172,9 +172,32 @@
 
 @layer components {
   .gg-shell-frame {
+    --gg-font-pane-title: 0.875rem;
+    --gg-line-pane-title: 1.25rem;
+    --gg-font-copy-compact: 0.875rem;
+    --gg-line-copy-compact: 1.35rem;
+    --gg-font-copy-meta: 0.75rem;
+    --gg-line-copy-meta: 1rem;
+    --gg-font-utility-label: 0.75rem;
+    --gg-line-utility-label: 1rem;
+    --gg-font-ruler-tick: 0.7rem;
+    --gg-font-lane-label: 0.74rem;
     border-color: var(--gg-border-strong);
     background-color: color-mix(in oklab, var(--gg-surface-2) 88%, transparent);
     box-shadow: var(--gg-shadow-1);
+  }
+
+  .gg-shell-frame[data-density="compact"] {
+    --gg-font-pane-title: 0.82rem;
+    --gg-line-pane-title: 1.1rem;
+    --gg-font-copy-compact: 0.81rem;
+    --gg-line-copy-compact: 1.25rem;
+    --gg-font-copy-meta: 0.72rem;
+    --gg-line-copy-meta: 0.95rem;
+    --gg-font-utility-label: 0.7rem;
+    --gg-line-utility-label: 0.95rem;
+    --gg-font-ruler-tick: 0.67rem;
+    --gg-font-lane-label: 0.7rem;
   }
 
   .gg-shell-header {
@@ -250,24 +273,62 @@
   }
 
   .gg-pane-header {
-    @apply grid min-h-[66px] min-w-0 content-start gap-1 border-b px-3.5 py-2.5;
+    @apply grid min-h-[62px] min-w-0 content-start gap-0.5 border-b px-3.5 py-2.5;
     grid-template-rows: auto auto;
     border-color: var(--gg-border-subtle);
     background-color: color-mix(in oklab, var(--gg-surface-1) 16%, transparent);
   }
 
+  .gg-pane-title {
+    font-size: var(--gg-font-pane-title);
+    line-height: var(--gg-line-pane-title);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
   .gg-pane-subtitle {
-    @apply truncate text-xs text-muted-foreground;
-    min-height: 1rem;
-    line-height: 1rem;
+    @apply truncate text-muted-foreground;
+    font-size: var(--gg-font-copy-meta);
+    line-height: var(--gg-line-copy-meta);
+    min-height: 0.9rem;
   }
 
   .gg-pane-body {
     @apply flex-1 min-h-0 min-w-0 overflow-y-auto p-3;
   }
 
+  .gg-copy-compact {
+    font-size: var(--gg-font-copy-compact);
+    line-height: var(--gg-line-copy-compact);
+  }
+
+  .gg-copy-meta {
+    @apply text-muted-foreground;
+    font-size: var(--gg-font-copy-meta);
+    line-height: var(--gg-line-copy-meta);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gg-copy-strong {
+    @apply font-medium;
+    font-size: var(--gg-font-copy-compact);
+    line-height: var(--gg-line-copy-compact);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gg-utility-label {
+    @apply font-medium text-muted-foreground;
+    font-size: var(--gg-font-utility-label);
+    line-height: var(--gg-line-utility-label);
+    letter-spacing: 0.03em;
+  }
+
+  .gg-numeric {
+    font-variant-numeric: tabular-nums;
+  }
+
   .gg-keycap {
-    @apply rounded px-1.5 py-0.5 font-mono text-[0.66rem] text-foreground/90;
+    @apply rounded px-1.5 py-0.5 font-mono text-[0.7rem] text-foreground/90;
     border: 1px solid var(--gg-border-subtle);
     background-color: color-mix(in oklab, var(--gg-surface-1) 50%, transparent);
   }
@@ -306,7 +367,9 @@
   }
 
   .gg-timeline-ruler-tick {
-    @apply absolute bottom-0 border-l pb-0.5 pl-1 text-[0.65rem] text-muted-foreground;
+    @apply absolute bottom-0 border-l pb-0.5 pl-1 text-muted-foreground;
+    font-size: var(--gg-font-ruler-tick);
+    font-variant-numeric: tabular-nums;
     transform: translateX(-50%);
     height: 100%;
     border-color: var(--gg-border-subtle);
@@ -334,7 +397,9 @@
   }
 
   .gg-timeline-lane-label {
-    @apply text-[0.68rem] font-semibold tracking-[0.1em] text-muted-foreground uppercase;
+    @apply font-medium text-muted-foreground;
+    font-size: var(--gg-font-lane-label);
+    letter-spacing: 0.03em;
   }
 
   .gg-timeline-lane-controls {

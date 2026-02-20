@@ -17,9 +17,11 @@ export const studioLayoutBounds = {
 } as const;
 
 export const studioLayoutRoutes = ["/capture", "/edit", "/deliver"] as const;
+export const studioDensityModes = ["comfortable", "compact"] as const;
 
 export type StudioLayoutRoute = (typeof studioLayoutRoutes)[number];
 export type StudioLocalizedRouteTarget = "/$locale/capture" | "/$locale/edit" | "/$locale/deliver";
+export type StudioDensityMode = (typeof studioDensityModes)[number];
 
 const localeSegmentPattern = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 
@@ -50,6 +52,7 @@ export type StudioLayoutState = {
   timelineCollapsed: boolean;
   lastRoute: StudioLayoutRoute;
   locale: StudioLocale;
+  densityMode: StudioDensityMode;
 };
 
 export const defaultStudioLayoutState: StudioLayoutState = {
@@ -61,6 +64,7 @@ export const defaultStudioLayoutState: StudioLayoutState = {
   timelineCollapsed: false,
   lastRoute: "/capture",
   locale: defaultStudioLocale,
+  densityMode: "comfortable",
 };
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -79,6 +83,16 @@ function asBoolean(value: unknown): boolean | null {
     return null;
   }
   return value;
+}
+
+function asStudioDensityMode(value: unknown): StudioDensityMode | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  if (studioDensityModes.includes(value as StudioDensityMode)) {
+    return value as StudioDensityMode;
+  }
+  return null;
 }
 
 export function routeForStudioMode(mode: StudioMode): StudioLayoutRoute {
@@ -177,6 +191,8 @@ export function sanitizeStudioLayoutState(
       asBoolean(candidate?.timelineCollapsed) ?? defaultStudioLayoutState.timelineCollapsed,
     lastRoute: normalizeStudioLayoutRoute(candidate?.lastRoute),
     locale: normalizeStudioLocale(candidate?.locale),
+    densityMode:
+      asStudioDensityMode(candidate?.densityMode) ?? defaultStudioLayoutState.densityMode,
   };
 }
 

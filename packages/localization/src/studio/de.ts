@@ -88,6 +88,9 @@ export const deDE: StudioMessages = {
   },
   labels: {
     language: "Sprache",
+    density: "Dichte",
+    densityComfortable: "Komfortabel",
+    densityCompact: "Kompakt",
     localeEnglish: "English (US)",
     localeGerman: "Deutsch (DE)",
     permissionReady: "Bildschirmberechtigung bereit",

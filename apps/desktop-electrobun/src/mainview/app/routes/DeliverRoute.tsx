@@ -26,7 +26,7 @@ export function DeliverRoute() {
             <StudioPaneTitle>{studio.ui.workspace.deliverSummaryTitle}</StudioPaneTitle>
             <StudioPaneSubtitle>{studio.ui.workspace.deliverSummarySubtitle}</StudioPaneSubtitle>
           </StudioPaneHeader>
-          <StudioPaneBody className="space-y-3 text-sm">
+          <StudioPaneBody className="gg-copy-compact space-y-3">
             <div className="truncate">{`${studio.ui.labels.projectPath}: ${studio.projectQuery.data?.projectPath ?? studio.ui.labels.notSaved}`}</div>
             <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
             <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
@@ -42,7 +42,7 @@ export function DeliverRoute() {
             <StudioPaneTitle>{studio.ui.workspace.exportTitle}</StudioPaneTitle>
             <StudioPaneSubtitle>{studio.ui.workspace.exportSubtitle}</StudioPaneSubtitle>
           </StudioPaneHeader>
-          <StudioPaneBody className="space-y-3 text-sm">
+          <StudioPaneBody className="gg-copy-compact space-y-3">
             <studio.exportForm.Field name="presetId">
               {(field) => (
                 <Field>

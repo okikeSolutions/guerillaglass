@@ -30,6 +30,7 @@ import {
   normalizeStudioLayoutRoute,
   saveStudioLayoutState,
   studioLayoutBounds,
+  type StudioDensityMode,
 } from "./studioLayoutState";
 import { buildTimelineLanes } from "./timelineModel";
 
@@ -1129,11 +1130,24 @@ export function useStudioController() {
     }));
   }, []);
 
+  const setDensityMode = useCallback((nextDensityMode: StudioDensityMode) => {
+    setLayout((current) => {
+      if (current.densityMode === nextDensityMode) {
+        return current;
+      }
+      return {
+        ...current,
+        densityMode: nextDensityMode,
+      };
+    });
+  }, []);
+
   const resetLayout = useCallback(() => {
     setLayout((current) => ({
       ...defaultStudioLayoutState,
       lastRoute: current.lastRoute,
       locale: current.locale,
+      densityMode: current.densityMode,
     }));
   }, []);
 
@@ -1382,6 +1396,7 @@ export function useStudioController() {
     audioMixer,
     activeMode,
     locale,
+    densityMode: layout.densityMode,
     inspectorSelection,
     notice,
     nudgePlayheadSeconds,
@@ -1415,6 +1430,7 @@ export function useStudioController() {
     setTimelineTool,
     setTimelineZoom,
     setLocale,
+    setDensityMode,
     setLastRoute,
     setLeftPaneWidth,
     setInspectorSelection: setRawInspectorSelection,

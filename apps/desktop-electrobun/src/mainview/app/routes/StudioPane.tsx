@@ -37,9 +37,7 @@ export function StudioPaneHeader({ className, ...props }: ComponentProps<"div">)
 }
 
 export function StudioPaneTitle({ className, ...props }: ComponentProps<"h2">) {
-  return (
-    <h2 className={cn("text-sm font-semibold tracking-wide uppercase", className)} {...props} />
-  );
+  return <h2 className={cn("gg-pane-title", className)} {...props} />;
 }
 
 export function StudioPaneSubtitle({ className, ...props }: ComponentProps<"p">) {
