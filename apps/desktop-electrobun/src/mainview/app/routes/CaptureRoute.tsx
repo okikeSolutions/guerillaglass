@@ -1,5 +1,9 @@
 import { ScreenShare, ShieldCheck } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -7,6 +11,13 @@ import { engineApi } from "@/lib/engine";
 import { useStudio } from "../studio/context";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
+import {
+  StudioPane,
+  StudioPaneBody,
+  StudioPaneHeader,
+  StudioPaneSubtitle,
+  StudioPaneTitle,
+} from "./StudioPane";
 
 export function CaptureRoute() {
   const studio = useStudio();
@@ -15,21 +26,21 @@ export function CaptureRoute() {
   return (
     <EditorWorkspace
       leftPane={
-        <aside className="gg-pane gg-pane-left">
-          <div className="gg-pane-header">
-            <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+        <StudioPane side="left">
+          <StudioPaneHeader>
+            <StudioPaneTitle className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" /> {studio.ui.sections.leftRail}
-            </h2>
-            <p className="gg-pane-subtitle">{studio.ui.labels.inputMonitoring}</p>
-          </div>
-          <div className="gg-pane-body space-y-4 text-sm">
+            </StudioPaneTitle>
+            <StudioPaneSubtitle>{studio.ui.labels.inputMonitoring}</StudioPaneSubtitle>
+          </StudioPaneHeader>
+          <StudioPaneBody className="space-y-4 text-sm">
             <div className="space-y-1">
               <div>{`${studio.ui.labels.screen}: ${studio.permissionsQuery.data?.screenRecordingGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
               <div>{`${studio.ui.labels.microphone}: ${studio.permissionsQuery.data?.microphoneGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
               <div>{`${studio.ui.labels.inputMonitoring}: ${studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown}`}</div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <ButtonGroup className="flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="secondary"
@@ -58,110 +69,119 @@ export function CaptureRoute() {
               >
                 {studio.ui.actions.openSettings}
               </Button>
-            </div>
+            </ButtonGroup>
 
             <div className="space-y-2 border-t border-border/70 pt-3">
-              <div className="font-medium">{studio.ui.labels.captureSource}</div>
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
-                  <RadioGroup
-                    className="flex gap-3"
-                    value={field.state.value}
-                    onValueChange={(nextValue) => {
-                      if (nextValue === "display") {
-                        field.handleChange("display");
-                        if (studio.inspectorSelection.kind === "captureWindow") {
-                          studio.clearInspectorSelection();
-                        }
-                        return;
-                      }
+                  <Field>
+                    <FieldLabel>{studio.ui.labels.captureSource}</FieldLabel>
+                    <FieldContent>
+                      <RadioGroup
+                        className="flex gap-3"
+                        value={field.state.value}
+                        onValueChange={(nextValue) => {
+                          if (nextValue === "display") {
+                            field.handleChange("display");
+                            if (studio.inspectorSelection.kind === "captureWindow") {
+                              studio.clearInspectorSelection();
+                            }
+                            return;
+                          }
 
-                      if (nextValue === "window") {
-                        field.handleChange("window");
-                        const selectedWindow = studio.windowChoices.find(
-                          (windowItem) => windowItem.id === studio.selectedWindowId,
-                        );
-                        if (!selectedWindow) {
-                          return;
-                        }
-                        studio.selectCaptureWindow({
-                          windowId: selectedWindow.id,
-                          appName: selectedWindow.appName,
-                          title: selectedWindow.title,
-                        });
-                      }
-                    }}
-                  >
-                    <Label>
-                      <RadioGroupItem value="display" />
-                      {studio.ui.labels.display}
-                    </Label>
-                    <Label>
-                      <RadioGroupItem value="window" />
-                      {studio.ui.labels.window}
-                    </Label>
-                  </RadioGroup>
+                          if (nextValue === "window") {
+                            field.handleChange("window");
+                            const selectedWindow = studio.windowChoices.find(
+                              (windowItem) => windowItem.id === studio.selectedWindowId,
+                            );
+                            if (!selectedWindow) {
+                              return;
+                            }
+                            studio.selectCaptureWindow({
+                              windowId: selectedWindow.id,
+                              appName: selectedWindow.appName,
+                              title: selectedWindow.title,
+                            });
+                          }
+                        }}
+                      >
+                        <Label>
+                          <RadioGroupItem value="display" />
+                          {studio.ui.labels.display}
+                        </Label>
+                        <Label>
+                          <RadioGroupItem value="window" />
+                          {studio.ui.labels.window}
+                        </Label>
+                      </RadioGroup>
+                    </FieldContent>
+                  </Field>
                 )}
               </studio.settingsForm.Field>
 
               {settingsValues.captureSource === "window" ? (
                 <studio.settingsForm.Field name="selectedWindowId">
                   {(field) => (
-                    <NativeSelect
-                      value={String(studio.selectedWindowId)}
-                      onChange={(event) => {
-                        const windowId = Number(event.target.value);
-                        field.handleChange(windowId);
-                        const selectedWindow = studio.windowChoices.find(
-                          (windowItem) => windowItem.id === windowId,
-                        );
-                        if (!selectedWindow) {
-                          studio.clearInspectorSelection();
-                          return;
-                        }
-                        studio.selectCaptureWindow({
-                          windowId: selectedWindow.id,
-                          appName: selectedWindow.appName,
-                          title: selectedWindow.title,
-                        });
-                      }}
-                    >
-                      {studio.windowChoices.length === 0 ? (
-                        <NativeSelectOption value="0">
-                          {studio.ui.labels.noWindows}
-                        </NativeSelectOption>
-                      ) : null}
-                      {studio.windowChoices.map((windowItem) => (
-                        <NativeSelectOption key={windowItem.id} value={String(windowItem.id)}>
-                          {windowItem.appName} - {windowItem.title || studio.ui.values.untitled}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
+                    <Field>
+                      <FieldLabel>{studio.ui.labels.window}</FieldLabel>
+                      <FieldContent>
+                        <NativeSelect
+                          value={String(studio.selectedWindowId)}
+                          onChange={(event) => {
+                            const windowId = Number(event.target.value);
+                            field.handleChange(windowId);
+                            const selectedWindow = studio.windowChoices.find(
+                              (windowItem) => windowItem.id === windowId,
+                            );
+                            if (!selectedWindow) {
+                              studio.clearInspectorSelection();
+                              return;
+                            }
+                            studio.selectCaptureWindow({
+                              windowId: selectedWindow.id,
+                              appName: selectedWindow.appName,
+                              title: selectedWindow.title,
+                            });
+                          }}
+                        >
+                          {studio.windowChoices.length === 0 ? (
+                            <NativeSelectOption value="0">
+                              {studio.ui.labels.noWindows}
+                            </NativeSelectOption>
+                          ) : null}
+                          {studio.windowChoices.map((windowItem) => (
+                            <NativeSelectOption key={windowItem.id} value={String(windowItem.id)}>
+                              {windowItem.appName} - {windowItem.title || studio.ui.values.untitled}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </FieldContent>
+                    </Field>
                   )}
                 </studio.settingsForm.Field>
               ) : null}
             </div>
-          </div>
-        </aside>
+          </StudioPaneBody>
+        </StudioPane>
       }
       centerPane={
-        <section className="gg-pane gg-pane-center">
-          <div className="gg-pane-header">
-            <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+        <StudioPane as="section" side="center">
+          <StudioPaneHeader>
+            <StudioPaneTitle className="flex items-center gap-2">
               <ScreenShare className="h-4 w-4" /> {studio.ui.sections.center}
-            </h2>
-            <p className="gg-pane-subtitle">
+            </StudioPaneTitle>
+            <StudioPaneSubtitle>
               {studio.captureStatusQuery.data?.isRunning
                 ? studio.ui.helper.activePreviewBody
                 : studio.ui.helper.emptyPreviewBody}
-            </p>
-          </div>
-          <div className="gg-pane-body space-y-3">
+            </StudioPaneSubtitle>
+          </StudioPaneHeader>
+          <StudioPaneBody className="space-y-3">
             {studio.inputMonitoringDenied && settingsValues.trackInputEvents ? (
-              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                <p className="font-medium">{studio.ui.helper.degradedModeTitle}</p>
-                <p className="mt-1 text-destructive/90">{studio.ui.helper.degradedModeBody}</p>
-              </div>
+              <Alert variant="destructive">
+                <AlertTitle>{studio.ui.helper.degradedModeTitle}</AlertTitle>
+                <AlertDescription>{studio.ui.helper.degradedModeBody}</AlertDescription>
+              </Alert>
             ) : null}
 
             <div className="flex flex-wrap gap-2">
@@ -191,12 +211,14 @@ export function CaptureRoute() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{studio.ui.helper.emptyPreviewTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {studio.ui.helper.emptyPreviewBody}
-                  </p>
-                </div>
+                <Empty className="max-w-md border-border/70 bg-background/70 p-6">
+                  <EmptyHeader>
+                    <EmptyTitle className="text-sm">
+                      {studio.ui.helper.emptyPreviewTitle}
+                    </EmptyTitle>
+                    <EmptyDescription>{studio.ui.helper.emptyPreviewBody}</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
             </div>
 
@@ -205,8 +227,8 @@ export function CaptureRoute() {
               <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
               <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
             </div>
-          </div>
-        </section>
+          </StudioPaneBody>
+        </StudioPane>
       }
       rightPane={<InspectorPanel mode="capture" />}
     />

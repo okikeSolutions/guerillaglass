@@ -1,9 +1,10 @@
 import { Keyboard, Mic, MonitorCog, MousePointer, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { useStudio } from "../studio/context";
@@ -12,6 +13,13 @@ import {
   type InspectorSelection,
   type StudioMode,
 } from "../studio/inspectorContext";
+import {
+  StudioPane,
+  StudioPaneBody,
+  StudioPaneHeader,
+  StudioPaneSubtitle,
+  StudioPaneTitle,
+} from "./StudioPane";
 
 type InspectorPanelProps = {
   mode: StudioMode;
@@ -50,52 +58,68 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
   switch (selection.kind) {
     case "timelineClip":
       return (
-        <div className="rounded-md border border-border/70 bg-background/70 p-3">
-          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {studio.ui.inspector.cards.selectedClip}
-          </p>
-          <div>{`${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`}</div>
-          <div>{`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}</div>
-          <div>{`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}</div>
-          <div>
-            {`${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
-              Math.max(0, selection.endSeconds - selection.startSeconds),
-            )}s`}
-          </div>
-        </div>
+        <Card size="sm" className="border border-border/70 bg-background/70">
+          <CardHeader>
+            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+              {studio.ui.inspector.cards.selectedClip}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div>{`${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`}</div>
+            <div>{`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}</div>
+            <div>{`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}</div>
+            <div>
+              {`${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
+                Math.max(0, selection.endSeconds - selection.startSeconds),
+              )}s`}
+            </div>
+          </CardContent>
+        </Card>
       );
     case "timelineMarker":
       return (
-        <div className="rounded-md border border-border/70 bg-background/70 p-3">
-          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {studio.ui.inspector.cards.selectedEventMarker}
-          </p>
-          <div>{`${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`}</div>
-          <div>{`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}</div>
-          <div>{`${studio.ui.inspector.fields.density}: ${selection.density}`}</div>
-        </div>
+        <Card size="sm" className="border border-border/70 bg-background/70">
+          <CardHeader>
+            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+              {studio.ui.inspector.cards.selectedEventMarker}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div>{`${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`}</div>
+            <div>{`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}</div>
+            <div>{`${studio.ui.inspector.fields.density}: ${selection.density}`}</div>
+          </CardContent>
+        </Card>
       );
     case "captureWindow":
       return (
-        <div className="rounded-md border border-border/70 bg-background/70 p-3">
-          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {studio.ui.inspector.cards.selectedWindow}
-          </p>
-          <div>{`${studio.ui.inspector.fields.app}: ${selection.appName}`}</div>
-          <div className="truncate">{`${studio.ui.inspector.fields.title}: ${selection.title || studio.ui.values.untitled}`}</div>
-          <div>{`${studio.ui.inspector.fields.windowId}: ${selection.windowId}`}</div>
-        </div>
+        <Card size="sm" className="border border-border/70 bg-background/70">
+          <CardHeader>
+            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+              {studio.ui.inspector.cards.selectedWindow}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div>{`${studio.ui.inspector.fields.app}: ${selection.appName}`}</div>
+            <div className="truncate">{`${studio.ui.inspector.fields.title}: ${selection.title || studio.ui.values.untitled}`}</div>
+            <div>{`${studio.ui.inspector.fields.windowId}: ${selection.windowId}`}</div>
+          </CardContent>
+        </Card>
       );
     case "exportPreset":
       return (
-        <div className="rounded-md border border-border/70 bg-background/70 p-3">
-          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {studio.ui.inspector.cards.selectedPreset}
-          </p>
-          <div>{selection.name}</div>
-          <div className="text-muted-foreground">{`${selection.width}:${selection.height}`}</div>
-          <div>{`${studio.ui.inspector.fields.fileType}: ${selection.fileType}`}</div>
-        </div>
+        <Card size="sm" className="border border-border/70 bg-background/70">
+          <CardHeader>
+            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+              {studio.ui.inspector.cards.selectedPreset}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div>{selection.name}</div>
+            <div className="text-muted-foreground">{`${selection.width}:${selection.height}`}</div>
+            <div>{`${studio.ui.inspector.fields.fileType}: ${selection.fileType}`}</div>
+          </CardContent>
+        </Card>
       );
     default: {
       const _exhaustiveCheck: never = selection;
@@ -118,108 +142,128 @@ function CaptureInspectorContent() {
     <>
       <studio.settingsForm.Field name="micEnabled">
         {(field) => (
-          <Label>
-            <Checkbox
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
-            />
-            <Mic className="h-4 w-4" /> {studio.ui.labels.includeMic}
-          </Label>
+          <Field>
+            <FieldLabel>
+              <Checkbox
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked)}
+              />
+              <Mic className="h-4 w-4" /> {studio.ui.labels.includeMic}
+            </FieldLabel>
+          </Field>
         )}
       </studio.settingsForm.Field>
 
       <studio.settingsForm.Field name="trackInputEvents">
         {(field) => (
-          <Label>
-            <Checkbox
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
-            />
-            <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
-          </Label>
+          <Field>
+            <FieldLabel>
+              <Checkbox
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked)}
+              />
+              <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
+            </FieldLabel>
+          </Field>
         )}
       </studio.settingsForm.Field>
 
       <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
         {(field) => (
-          <div className="space-y-1">
-            <Label>
+          <Field>
+            <FieldLabel>
               <Checkbox
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked)}
               />
               <Keyboard className="h-4 w-4" /> {studio.ui.labels.singleKeyShortcuts}
-            </Label>
-            <p className="text-xs text-muted-foreground">{studio.ui.helper.singleKeyShortcuts}</p>
-          </div>
+            </FieldLabel>
+            <FieldDescription>{studio.ui.helper.singleKeyShortcuts}</FieldDescription>
+          </Field>
         )}
       </studio.settingsForm.Field>
 
       <studio.settingsForm.Field name="autoZoom">
         {(field) => (
-          <div className="space-y-3 rounded-md border border-border/70 bg-background/70 p-3">
-            <Label>
-              <Checkbox
-                checked={field.state.value.isEnabled}
-                onCheckedChange={(checked) =>
-                  field.handleChange({
-                    ...field.state.value,
-                    isEnabled: checked,
-                  })
-                }
-              />
-              {studio.ui.labels.autoZoomEnabled}
-            </Label>
-            <Label className="grid gap-1">
-              {studio.ui.labels.autoZoomIntensity(Math.round(field.state.value.intensity * 100))}
-              <Slider
-                min={0}
-                max={1}
-                step={0.05}
-                value={[field.state.value.intensity]}
-                onValueChange={(nextValue) =>
-                  field.handleChange({
-                    ...field.state.value,
-                    intensity: readSliderValue(nextValue),
-                  })
-                }
-              />
-            </Label>
-            <Label className="grid gap-1">
-              {studio.ui.labels.minimumKeyframeInterval}
-              <Input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={Number(field.state.value.minimumKeyframeInterval.toFixed(2))}
-                onChange={(event) =>
-                  field.handleChange({
-                    ...field.state.value,
-                    minimumKeyframeInterval: Math.max(0.01, Number(event.target.value) || 0.01),
-                  })
-                }
-              />
-            </Label>
-          </div>
+          <Card size="sm" className="border border-border/70 bg-background/70">
+            <CardContent className="space-y-3">
+              <Field>
+                <FieldLabel>
+                  <Checkbox
+                    checked={field.state.value.isEnabled}
+                    onCheckedChange={(checked) =>
+                      field.handleChange({
+                        ...field.state.value,
+                        isEnabled: checked,
+                      })
+                    }
+                  />
+                  {studio.ui.labels.autoZoomEnabled}
+                </FieldLabel>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  {studio.ui.labels.autoZoomIntensity(
+                    Math.round(field.state.value.intensity * 100),
+                  )}
+                </FieldLabel>
+                <FieldContent>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={[field.state.value.intensity]}
+                    onValueChange={(nextValue) =>
+                      field.handleChange({
+                        ...field.state.value,
+                        intensity: readSliderValue(nextValue),
+                      })
+                    }
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel>{studio.ui.labels.minimumKeyframeInterval}</FieldLabel>
+                <FieldContent>
+                  <Input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={Number(field.state.value.minimumKeyframeInterval.toFixed(2))}
+                    onChange={(event) =>
+                      field.handleChange({
+                        ...field.state.value,
+                        minimumKeyframeInterval: Math.max(0.01, Number(event.target.value) || 0.01),
+                      })
+                    }
+                  />
+                </FieldContent>
+              </Field>
+            </CardContent>
+          </Card>
         )}
       </studio.settingsForm.Field>
 
-      <div className="rounded-md border border-border/70 bg-background/70 p-3">
-        <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          {studio.ui.labels.sourceMonitor}
-        </p>
-        <div className="space-y-1 text-xs">
+      <Card size="sm" className="border border-border/70 bg-background/70">
+        <CardHeader>
+          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            {studio.ui.labels.sourceMonitor}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1 text-xs">
           <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
           <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
           <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-md border border-border/70 bg-background/70 p-3">
-        <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          {studio.ui.labels.audioMixer}
-        </p>
-        <div className="space-y-3">
+      <Card size="sm" className="border border-border/70 bg-background/70">
+        <CardHeader>
+          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            {studio.ui.labels.audioMixer}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
           <AudioMixerChannel
             label={studio.ui.labels.masterChannel}
             value={studio.audioMixer.masterGain}
@@ -240,8 +284,8 @@ function CaptureInspectorContent() {
             onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
             onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </>
   );
 }
@@ -344,40 +388,52 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
 
       <studio.settingsForm.Field name="autoZoom">
         {(field) => (
-          <div className="rounded-md border border-border/70 bg-background/70 p-3">
-            <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              <span className="inline-flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5" /> {studio.ui.inspectorTabs.effects}
-              </span>
-            </p>
-            <Label>
-              <Checkbox
-                checked={field.state.value.isEnabled}
-                onCheckedChange={(checked) =>
-                  field.handleChange({
-                    ...field.state.value,
-                    isEnabled: checked,
-                  })
-                }
-              />
-              {studio.ui.labels.autoZoomEnabled}
-            </Label>
-            <Label className="mt-2 grid gap-1">
-              {studio.ui.labels.autoZoomIntensity(Math.round(field.state.value.intensity * 100))}
-              <Slider
-                min={0}
-                max={1}
-                step={0.05}
-                value={[field.state.value.intensity]}
-                onValueChange={(nextValue) =>
-                  field.handleChange({
-                    ...field.state.value,
-                    intensity: readSliderValue(nextValue),
-                  })
-                }
-              />
-            </Label>
-          </div>
+          <Card size="sm" className="border border-border/70 bg-background/70">
+            <CardHeader>
+              <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" /> {studio.ui.inspectorTabs.effects}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Field>
+                <FieldLabel>
+                  <Checkbox
+                    checked={field.state.value.isEnabled}
+                    onCheckedChange={(checked) =>
+                      field.handleChange({
+                        ...field.state.value,
+                        isEnabled: checked,
+                      })
+                    }
+                  />
+                  {studio.ui.labels.autoZoomEnabled}
+                </FieldLabel>
+              </Field>
+              <Field>
+                <FieldLabel>
+                  {studio.ui.labels.autoZoomIntensity(
+                    Math.round(field.state.value.intensity * 100),
+                  )}
+                </FieldLabel>
+                <FieldContent>
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={[field.state.value.intensity]}
+                    onValueChange={(nextValue) =>
+                      field.handleChange({
+                        ...field.state.value,
+                        intensity: readSliderValue(nextValue),
+                      })
+                    }
+                  />
+                </FieldContent>
+              </Field>
+            </CardContent>
+          </Card>
         )}
       </studio.settingsForm.Field>
     </>
@@ -389,24 +445,32 @@ function DeliverInspectorContent() {
 
   return (
     <>
-      <div className="rounded-md border border-border/70 bg-background/70 p-3">
-        <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          {studio.ui.inspector.cards.activePreset}
-        </p>
-        <div>{studio.selectedPreset?.name ?? "-"}</div>
-        {studio.selectedPreset ? (
-          <div className="text-muted-foreground">
-            {studio.formatAspectRatio(studio.selectedPreset.width, studio.selectedPreset.height)}
-          </div>
-        ) : null}
-      </div>
-      <div className="rounded-md border border-border/70 bg-background/70 p-3">
-        <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-          {studio.ui.inspector.cards.trimWindow}
-        </p>
-        <div>{`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}</div>
-        <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}</div>
-      </div>
+      <Card size="sm" className="border border-border/70 bg-background/70">
+        <CardHeader>
+          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            {studio.ui.inspector.cards.activePreset}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <div>{studio.selectedPreset?.name ?? "-"}</div>
+          {studio.selectedPreset ? (
+            <div className="text-muted-foreground">
+              {studio.formatAspectRatio(studio.selectedPreset.width, studio.selectedPreset.height)}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+      <Card size="sm" className="border border-border/70 bg-background/70">
+        <CardHeader>
+          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            {studio.ui.inspector.cards.trimWindow}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <div>{`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}</div>
+          <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}</div>
+        </CardContent>
+      </Card>
     </>
   );
 }
@@ -418,20 +482,20 @@ export function InspectorPanel({ mode }: InspectorPanelProps) {
   const viewText = studio.ui.inspector.views[view.id];
 
   return (
-    <aside className="gg-pane gg-pane-right">
-      <div className="gg-pane-header">
-        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+    <StudioPane side="right">
+      <StudioPaneHeader>
+        <StudioPaneTitle className="flex items-center gap-2">
           <MonitorCog className="h-4 w-4" /> {viewText.title}
-        </h2>
-        <p className="gg-pane-subtitle">{viewText.subtitle}</p>
-      </div>
-      <div className="gg-pane-body space-y-3 text-sm">
+        </StudioPaneTitle>
+        <StudioPaneSubtitle>{viewText.subtitle}</StudioPaneSubtitle>
+      </StudioPaneHeader>
+      <StudioPaneBody className="space-y-3 text-sm">
         <SelectionDetails selection={selection} />
 
         {mode === "capture" ? <CaptureInspectorContent /> : null}
         {mode === "edit" ? <EditInspectorContent selection={selection} /> : null}
         {mode === "deliver" ? <DeliverInspectorContent /> : null}
-      </div>
-    </aside>
+      </StudioPaneBody>
+    </StudioPane>
   );
 }

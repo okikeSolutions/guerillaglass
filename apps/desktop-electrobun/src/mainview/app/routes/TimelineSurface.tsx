@@ -1,5 +1,7 @@
 import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { useThrottler } from "@tanstack/react-pacer";
+import { Headphones, Lock, VolumeX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { TimelineLane } from "../studio/timelineModel";
 import { clampSeconds, pixelsToSeconds } from "../studio/timelineModel";
 
@@ -248,8 +250,10 @@ export function TimelineSurface({
           />
           <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             className="gg-timeline-trim-handle gg-timeline-trim-handle-start gg-timeline-entity-button"
             data-drag-handle="trim-start"
             style={{ left: `${trimStartPercent}%` }}
@@ -269,8 +273,10 @@ export function TimelineSurface({
               }
             }}
           />
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             className="gg-timeline-trim-handle gg-timeline-trim-handle-end gg-timeline-entity-button"
             data-drag-handle="trim-end"
             style={{ left: `${trimEndPercent}%` }}
@@ -298,36 +304,45 @@ export function TimelineSurface({
                   <div className="gg-timeline-lane-label">{lane.label}</div>
                   {lane.id === "video" || lane.id === "audio" ? (
                     <div className="gg-timeline-lane-controls">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="icon-xs"
                         className={`gg-timeline-lane-toggle${laneControls[lane.id].locked ? " gg-timeline-lane-toggle-active" : ""}`}
                         onClick={() => onToggleLaneLocked(lane.id)}
                         title={labels.timelineLaneLock}
                         aria-label={labels.timelineLaneLock}
                         aria-pressed={laneControls[lane.id].locked}
                       >
-                        L
-                      </button>
-                      <button
+                        <Lock />
+                        <span className="sr-only">{labels.timelineLaneLock}</span>
+                      </Button>
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="icon-xs"
                         className={`gg-timeline-lane-toggle${laneControls[lane.id].muted ? " gg-timeline-lane-toggle-active" : ""}`}
                         onClick={() => onToggleLaneMuted(lane.id)}
                         title={labels.timelineLaneMute}
                         aria-label={labels.timelineLaneMute}
                         aria-pressed={laneControls[lane.id].muted}
                       >
-                        M
-                      </button>
-                      <button
+                        <VolumeX />
+                        <span className="sr-only">{labels.timelineLaneMute}</span>
+                      </Button>
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="icon-xs"
                         className={`gg-timeline-lane-toggle${laneControls[lane.id].solo ? " gg-timeline-lane-toggle-active" : ""}`}
                         onClick={() => onToggleLaneSolo(lane.id)}
                         title={labels.timelineLaneSolo}
                         aria-label={labels.timelineLaneSolo}
                         aria-pressed={laneControls[lane.id].solo}
                       >
-                        S
-                      </button>
+                        <Headphones />
+                        <span className="sr-only">{labels.timelineLaneSolo}</span>
+                      </Button>
                     </div>
                   ) : null}
                 </div>
@@ -350,9 +365,11 @@ export function TimelineSurface({
                           selectedClip?.laneId === lane.id && selectedClip?.clipId === clip.id;
                         const laneLocked = laneControls[lane.id].locked;
                         return (
-                          <button
+                          <Button
                             key={clip.id}
                             type="button"
+                            variant="ghost"
+                            size="icon-xs"
                             data-timeline-selectable="true"
                             className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id}${isSelected ? " gg-timeline-clip-selected" : ""}`}
                             style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
@@ -378,9 +395,11 @@ export function TimelineSurface({
 
                   {"markers" in lane
                     ? lane.markers.map((marker) => (
-                        <button
+                        <Button
                           key={marker.id}
                           type="button"
+                          variant="ghost"
+                          size="icon-xs"
                           data-timeline-selectable="true"
                           className={`gg-timeline-marker-hit gg-timeline-entity-button${selectedMarkerId === marker.id ? " gg-timeline-marker-selected" : ""}`}
                           style={{
@@ -408,7 +427,7 @@ export function TimelineSurface({
                           <span
                             className={`gg-timeline-marker-line gg-timeline-marker-${marker.kind}`}
                           />
-                        </button>
+                        </Button>
                       ))
                     : null}
                 </div>

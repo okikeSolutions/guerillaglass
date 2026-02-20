@@ -170,7 +170,7 @@
   }
 
   .gg-pane-left {
-    @apply border-r border-border/80;
+    @apply border-r-0;
   }
 
   .gg-pane-center {
@@ -178,7 +178,7 @@
   }
 
   .gg-pane-right {
-    @apply border-l border-border/80;
+    @apply border-l-0;
   }
 
   .gg-editor-shell[data-left-collapsed="true"] .gg-pane-left {
@@ -190,17 +190,18 @@
   }
 
   .gg-pane-resize-handle {
-    @apply relative cursor-col-resize bg-border/60 transition-colors duration-150 hover:bg-primary/35;
+    @apply relative w-1.5 cursor-col-resize bg-border/35 transition-colors duration-150;
     touch-action: none;
-  }
-
-  .gg-pane-resize-handle[data-disabled="true"] {
-    @apply pointer-events-none opacity-0;
   }
 
   .gg-pane-resize-handle::after {
     content: "";
-    @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/90;
+    @apply absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/80 transition-colors duration-150;
+  }
+
+  .gg-pane-resize-handle:hover::after,
+  .gg-pane-resize-handle:active::after {
+    @apply bg-primary/60;
   }
 
   .gg-pane-resize-handle:focus-visible {
@@ -209,7 +210,7 @@
   }
 
   .gg-pane-header {
-    @apply grid min-h-[74px] content-start gap-1 border-b border-border/80 bg-muted/35 px-4 py-3;
+    @apply grid min-h-[74px] min-w-0 content-start gap-1 border-b border-border/80 bg-muted/35 px-4 py-3;
     grid-template-rows: auto auto;
   }
 
@@ -220,7 +221,7 @@
   }
 
   .gg-pane-body {
-    @apply flex-1 min-h-0 overflow-y-auto p-4;
+    @apply flex-1 min-h-0 min-w-0 overflow-y-auto p-4;
   }
 
   .gg-keycap {
@@ -292,7 +293,7 @@
   }
 
   .gg-timeline-lane-toggle {
-    @apply inline-flex h-5 w-5 items-center justify-center rounded border border-border/80 bg-background/75 text-[0.6rem] font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:outline-none;
+    @apply inline-flex h-5 w-5 items-center justify-center rounded border border-border/80 bg-background/75 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:outline-none [&_svg]:h-3 [&_svg]:w-3;
   }
 
   .gg-timeline-lane-toggle-active {
@@ -376,8 +377,18 @@
   }
 
   .gg-timeline-resize-handle {
-    @apply h-1.5 cursor-row-resize border-t border-border/70 bg-muted/40 hover:bg-primary/35;
+    @apply relative h-2.5 cursor-row-resize bg-border/35;
     touch-action: none;
+  }
+
+  .gg-timeline-resize-handle::after {
+    content: "";
+    @apply absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border/80 transition-colors duration-150;
+  }
+
+  .gg-timeline-resize-handle:hover::after,
+  .gg-timeline-resize-handle:active::after {
+    @apply bg-primary/60;
   }
 
   .gg-timeline-resize-handle:focus-visible {
@@ -391,13 +402,6 @@
 
   .gg-timeline-tool-blade .gg-timeline-marker-line {
     @apply w-1;
-  }
-}
-
-@media (max-width: 1180px) {
-  .gg-pane-resize-handle,
-  .gg-timeline-resize-handle {
-    @apply hidden;
   }
 }
 
@@ -453,6 +457,7 @@
 
 @media (forced-colors: active) {
   .gg-pane-resize-handle::after,
+  .gg-timeline-resize-handle::after,
   .gg-timeline-playhead,
   .gg-timeline-marker-line {
     background: CanvasText;
