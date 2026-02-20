@@ -20,20 +20,38 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { useStudio } from "../studio/context";
+import {
+  studioBadgeToneClass,
+  studioButtonToneClass,
+  type StudioSemanticState,
+} from "./studioSemanticTone";
 import { TimelineSurface } from "./TimelineSurface";
 
 function TimelineIconAction({
   label,
+  tone = "neutral",
   children,
+  className,
   ...buttonProps
 }: {
   label: string;
+  tone?: StudioSemanticState;
   children: ReactNode;
 } & ComponentProps<typeof Button>) {
   return (
     <Tooltip>
-      <TooltipTrigger render={<Button size="icon-sm" variant="outline" {...buttonProps} />}>
+      <TooltipTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="outline"
+            className={cn(studioButtonToneClass(tone), className)}
+            {...buttonProps}
+          />
+        }
+      >
         {children}
         <span className="sr-only">{label}</span>
       </TooltipTrigger>
@@ -90,7 +108,12 @@ export function TimelineDock() {
                 </TimelineIconAction>
                 <Tooltip>
                   <TooltipTrigger
-                    render={<Badge className="h-7 w-7 justify-center p-0" variant="outline" />}
+                    render={
+                      <Badge
+                        className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
+                        variant="outline"
+                      />
+                    }
                   >
                     <Gauge className="h-4 w-4" />
                     <span className="sr-only">{studio.ui.labels.playbackRate}</span>
@@ -125,41 +148,41 @@ export function TimelineDock() {
               <ButtonGroup className="flex-wrap gap-1">
                 <TimelineIconAction
                   label={studio.ui.actions.timelineToolSelect}
-                  variant={studio.timelineTool === "select" ? "secondary" : "outline"}
+                  tone={studio.timelineTool === "select" ? "selected" : "neutral"}
                   onClick={() => studio.setTimelineTool("select")}
                 >
                   <MousePointer className="h-4 w-4" />
                 </TimelineIconAction>
                 <TimelineIconAction
                   label={studio.ui.actions.timelineToolTrim}
-                  variant={studio.timelineTool === "trim" ? "secondary" : "outline"}
+                  tone={studio.timelineTool === "trim" ? "selected" : "neutral"}
                   onClick={() => studio.setTimelineTool("trim")}
                 >
                   <Scissors className="h-4 w-4" />
                 </TimelineIconAction>
                 <TimelineIconAction
                   label={studio.ui.actions.timelineToolBlade}
-                  variant={studio.timelineTool === "blade" ? "secondary" : "outline"}
+                  tone={studio.timelineTool === "blade" ? "selected" : "neutral"}
                   onClick={() => studio.setTimelineTool("blade")}
                 >
                   <SplitSquareVertical className="h-4 w-4" />
                 </TimelineIconAction>
                 <TimelineIconAction
                   label={studio.ui.labels.timelineSnap}
-                  variant={studio.timelineSnapEnabled ? "secondary" : "outline"}
+                  tone={studio.timelineSnapEnabled ? "selectedAlt" : "neutral"}
                   onClick={studio.toggleTimelineSnap}
                 >
                   <Magnet className="h-4 w-4" />
                 </TimelineIconAction>
                 <TimelineIconAction
                   label={studio.ui.labels.timelineRipple}
-                  variant={studio.timelineRippleEnabled ? "secondary" : "outline"}
+                  tone={studio.timelineRippleEnabled ? "selectedAlt" : "neutral"}
                   onClick={studio.toggleTimelineRipple}
                 >
                   <Waves className="h-4 w-4" />
                 </TimelineIconAction>
               </ButtonGroup>
-              <span className="gg-copy-meta ml-auto">{`${studio.ui.labels.timelineZoom}: ${studio.timelineZoomPercent}%`}</span>
+              <span className="gg-copy-meta gg-numeric ml-auto">{`${studio.ui.labels.timelineZoom}: ${studio.timelineZoomPercent}%`}</span>
               <ButtonGroup className="gap-1">
                 <TimelineIconAction
                   label={studio.ui.actions.timelineZoomOut}
@@ -217,7 +240,7 @@ export function TimelineDock() {
               onSelectMarker={studio.selectTimelineMarker}
             />
 
-            <div className="gg-copy-meta grid grid-cols-3">
+            <div className="gg-copy-meta gg-numeric grid grid-cols-3">
               <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
               <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
               <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>

@@ -4,6 +4,7 @@ import { Headphones, Lock, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TimelineLane } from "../studio/timelineModel";
 import { clampSeconds, pixelsToSeconds } from "../studio/timelineModel";
+import { studioToggleToneClass } from "./studioSemanticTone";
 
 type TimelineSurfaceLabels = {
   playhead: string;
@@ -308,7 +309,9 @@ export function TimelineSurface({
                         type="button"
                         variant="outline"
                         size="icon-xs"
-                        className={`gg-timeline-lane-toggle${laneControls[lane.id].locked ? " gg-timeline-lane-toggle-active" : ""}`}
+                        className={`gg-timeline-lane-toggle ${studioToggleToneClass(
+                          laneControls[lane.id].locked ? "selected" : "neutral",
+                        )}`}
                         onClick={() => onToggleLaneLocked(lane.id)}
                         title={labels.timelineLaneLock}
                         aria-label={labels.timelineLaneLock}
@@ -321,7 +324,9 @@ export function TimelineSurface({
                         type="button"
                         variant="outline"
                         size="icon-xs"
-                        className={`gg-timeline-lane-toggle${laneControls[lane.id].muted ? " gg-timeline-lane-toggle-active" : ""}`}
+                        className={`gg-timeline-lane-toggle ${studioToggleToneClass(
+                          laneControls[lane.id].muted ? "selectedAlt" : "neutral",
+                        )}`}
                         onClick={() => onToggleLaneMuted(lane.id)}
                         title={labels.timelineLaneMute}
                         aria-label={labels.timelineLaneMute}
@@ -334,7 +339,9 @@ export function TimelineSurface({
                         type="button"
                         variant="outline"
                         size="icon-xs"
-                        className={`gg-timeline-lane-toggle${laneControls[lane.id].solo ? " gg-timeline-lane-toggle-active" : ""}`}
+                        className={`gg-timeline-lane-toggle ${studioToggleToneClass(
+                          laneControls[lane.id].solo ? "selected" : "neutral",
+                        )}`}
                         onClick={() => onToggleLaneSolo(lane.id)}
                         title={labels.timelineLaneSolo}
                         aria-label={labels.timelineLaneSolo}

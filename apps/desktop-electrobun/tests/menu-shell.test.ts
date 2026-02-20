@@ -34,6 +34,7 @@ describe("shell menu helpers", () => {
         canExport: false,
         isRecording: true,
         locale: "en-US",
+        densityMode: "compact",
       },
       "darwin",
     );
@@ -43,6 +44,7 @@ describe("shell menu helpers", () => {
         canExport: true,
         isRecording: false,
         locale: "en-US",
+        densityMode: "comfortable",
       },
       "win32",
     );
@@ -60,6 +62,21 @@ describe("shell menu helpers", () => {
       (item) => isNormalApplicationItem(item) && item.label === "Save Project",
     );
     expect(saveItem).toEqual(expect.objectContaining({ enabled: false }));
+
+    const viewMenu = windowsMenu.find(
+      (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
+        isNormalApplicationItem(item) && item.label === "View",
+    );
+    expect(viewMenu).toBeDefined();
+    const viewSubmenu: ApplicationMenuItemConfig[] = viewMenu?.submenu ?? [];
+    const languageMenu = viewSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Language",
+    );
+    const densityMenu = viewSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Density",
+    );
+    expect(languageMenu).toBeDefined();
+    expect(densityMenu).toBeDefined();
   });
 
   test("linux tray menu stays command-driven", () => {
@@ -68,6 +85,7 @@ describe("shell menu helpers", () => {
       canExport: true,
       isRecording: false,
       locale: "en-US",
+      densityMode: "comfortable",
     });
 
     expect(trayMenu[0]).toEqual(
@@ -80,6 +98,11 @@ describe("shell menu helpers", () => {
       (item) => item.type === "normal" && item.label === "Export...",
     );
     expect(exportItem).toEqual(expect.objectContaining({ enabled: true }));
+    expect(
+      trayMenu.some(
+        (item) => item.type === "normal" && item.action === encodeHostMenuAction("app.locale.enUS"),
+      ),
+    ).toBe(true);
   });
 
   test("menu labels localize to German", () => {
@@ -89,6 +112,7 @@ describe("shell menu helpers", () => {
         canExport: true,
         isRecording: false,
         locale: "de-DE",
+        densityMode: "compact",
       },
       "win32",
     );
@@ -100,6 +124,7 @@ describe("shell menu helpers", () => {
         canExport: true,
         isRecording: false,
         locale: "de-DE",
+        densityMode: "compact",
       },
       "de-DE",
     );
@@ -133,8 +158,20 @@ describe("shell menu helpers", () => {
       openDocs: () => calls.push("docs"),
       quit: () => calls.push("quit"),
     });
+    routeMenuAction(encodeHostMenuAction("view.density.compact"), {
+      dispatchHostCommand: (command) => calls.push(`host:${command}`),
+      toggleDevTools: () => calls.push("devtools"),
+      openDocs: () => calls.push("docs"),
+      quit: () => calls.push("quit"),
+    });
 
-    expect(calls).toEqual(["host:file.openProject", "devtools", "docs", "quit"]);
+    expect(calls).toEqual([
+      "host:file.openProject",
+      "devtools",
+      "docs",
+      "quit",
+      "host:view.density.compact",
+    ]);
   });
 
   test("extractMenuAction reads electrobun event payload", () => {
