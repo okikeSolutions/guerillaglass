@@ -31,12 +31,8 @@ export function EditorWorkspace({
   const setTimelineHeight = studio.setTimelineHeight;
   const workspaceContentPreferredMinHeightPx = 220;
   const timelineHandleHeightPx = 10;
-  const layoutRef = useRef(layout);
   const verticalGroupContainerRef = useRef<HTMLDivElement | null>(null);
   const [verticalGroupHeightPx, setVerticalGroupHeightPx] = useState<number | null>(null);
-  useEffect(() => {
-    layoutRef.current = layout;
-  }, [layout]);
 
   const toPxSize = useCallback((value: number) => `${Math.max(value, 0)}px`, []);
   const leftPanelRef = useRef<PanelImperativeHandle | null>(null);
@@ -97,6 +93,10 @@ export function EditorWorkspace({
       maxPx: Math.max(minPx, maxPx),
     };
   }, [verticalGroupHeightPx, workspaceContentMinHeightPx]);
+  const timelineHeightPx = useMemo(
+    () => clamp(layout.timelineHeightPx, timelineHeightBounds.minPx, timelineHeightBounds.maxPx),
+    [layout.timelineHeightPx, timelineHeightBounds.maxPx, timelineHeightBounds.minPx],
+  );
 
   useEffect(() => {
     const clearPointerResize = () => {
@@ -139,7 +139,7 @@ export function EditorWorkspace({
       studioLayoutBounds.rightPaneMaxWidthPx,
     );
 
-    const currentLayout = layoutRef.current;
+    const currentLayout = layout;
 
     if (leftCollapsed !== currentLayout.leftCollapsed) {
       setLeftPaneCollapsed(leftCollapsed);
@@ -154,7 +154,7 @@ export function EditorWorkspace({
     if (!rightCollapsed && Math.abs(nextRightWidth - currentLayout.rightPaneWidthPx) > 1) {
       setRightPaneWidth(nextRightWidth);
     }
-  }, [setLeftPaneCollapsed, setLeftPaneWidth, setRightPaneCollapsed, setRightPaneWidth]);
+  }, [layout, setLeftPaneCollapsed, setLeftPaneWidth, setRightPaneCollapsed, setRightPaneWidth]);
 
   const commitTimelinePanelLayout = useCallback(() => {
     if (!isPointerResizingRef.current) {
@@ -173,7 +173,7 @@ export function EditorWorkspace({
       timelineHeightBounds.maxPx,
     );
 
-    const currentLayout = layoutRef.current;
+    const currentLayout = layout;
 
     if (timelineCollapsed !== currentLayout.timelineCollapsed) {
       setTimelineCollapsed(timelineCollapsed);
@@ -182,6 +182,7 @@ export function EditorWorkspace({
       setTimelineHeight(nextTimelineHeight);
     }
   }, [
+    layout,
     setTimelineCollapsed,
     setTimelineHeight,
     timelineHeightBounds.maxPx,
@@ -245,7 +246,7 @@ export function EditorWorkspace({
         timelinePanel.expand();
       }
       const nextHeight = clamp(
-        layout.timelineHeightPx + deltaPx,
+        timelineHeightPx + deltaPx,
         timelineHeightBounds.minPx,
         timelineHeightBounds.maxPx,
       );
@@ -254,9 +255,9 @@ export function EditorWorkspace({
     },
     [
       layout.timelineCollapsed,
-      layout.timelineHeightPx,
       setTimelineCollapsed,
       setTimelineHeight,
+      timelineHeightPx,
       timelineHeightBounds.maxPx,
       timelineHeightBounds.minPx,
       toPxSize,
@@ -330,48 +331,16 @@ export function EditorWorkspace({
       return;
     }
 
-    const clampedTimelineHeight = clamp(
-      layout.timelineHeightPx,
-      timelineHeightBounds.minPx,
-      timelineHeightBounds.maxPx,
-    );
     if (timelinePanel.isCollapsed()) {
       timelinePanel.expand();
     }
     const currentHeight = timelinePanel.getSize().inPixels;
-    if (Math.abs(currentHeight - clampedTimelineHeight) > 1) {
-      timelinePanel.resize(toPxSize(clampedTimelineHeight));
+    if (Math.abs(currentHeight - timelineHeightPx) > 1) {
+      timelinePanel.resize(toPxSize(timelineHeightPx));
     }
   }, [
     layout.timelineCollapsed,
-    layout.timelineHeightPx,
-    timelineHeightBounds.maxPx,
-    timelineHeightBounds.minPx,
-    toPxSize,
-  ]);
-
-  useEffect(() => {
-    if (layout.timelineCollapsed) {
-      return;
-    }
-    const timelinePanel = timelinePanelRef.current;
-    if (!timelinePanel) {
-      return;
-    }
-    const clampedTimelineHeight = clamp(
-      layout.timelineHeightPx,
-      timelineHeightBounds.minPx,
-      timelineHeightBounds.maxPx,
-    );
-    if (Math.abs(clampedTimelineHeight - layout.timelineHeightPx) <= 1) {
-      return;
-    }
-    timelinePanel.resize(toPxSize(clampedTimelineHeight));
-    setTimelineHeight(clampedTimelineHeight);
-  }, [
-    layout.timelineCollapsed,
-    layout.timelineHeightPx,
-    setTimelineHeight,
+    timelineHeightPx,
     timelineHeightBounds.maxPx,
     timelineHeightBounds.minPx,
     toPxSize,
@@ -508,7 +477,7 @@ export function EditorWorkspace({
           aria-label={studio.ui.labels.resizeTimeline}
           aria-valuemin={timelineHeightBounds.minPx}
           aria-valuemax={timelineHeightBounds.maxPx}
-          aria-valuenow={layout.timelineCollapsed ? 0 : layout.timelineHeightPx}
+          aria-valuenow={layout.timelineCollapsed ? 0 : timelineHeightPx}
           onKeyDown={(event) => {
             const step = event.shiftKey ? timelineResizeStepPxLarge : timelineResizeStepPx;
             if (event.key === "ArrowDown") {
@@ -523,12 +492,12 @@ export function EditorWorkspace({
             }
             if (event.key === "Home") {
               event.preventDefault();
-              resizeTimelineFromKeyboard(timelineHeightBounds.minPx - layout.timelineHeightPx);
+              resizeTimelineFromKeyboard(timelineHeightBounds.minPx - timelineHeightPx);
               return;
             }
             if (event.key === "End") {
               event.preventDefault();
-              resizeTimelineFromKeyboard(timelineHeightBounds.maxPx - layout.timelineHeightPx);
+              resizeTimelineFromKeyboard(timelineHeightBounds.maxPx - timelineHeightPx);
             }
           }}
         />
@@ -536,7 +505,7 @@ export function EditorWorkspace({
           id="workspace-timeline-pane"
           key={timelinePanelKey}
           panelRef={timelinePanelRef}
-          defaultSize={layout.timelineCollapsed ? "0px" : toPxSize(layout.timelineHeightPx)}
+          defaultSize={layout.timelineCollapsed ? "0px" : toPxSize(timelineHeightPx)}
           minSize={toPxSize(timelineHeightBounds.minPx)}
           maxSize={toPxSize(timelineHeightBounds.maxPx)}
           collapsible
