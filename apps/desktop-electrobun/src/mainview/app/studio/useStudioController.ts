@@ -1047,12 +1047,32 @@ export function useStudioController() {
         studioLayoutBounds.timelineMinHeightPx,
         studioLayoutBounds.timelineMaxHeightPx,
       );
-      if (current.timelineHeightPx === nextHeight) {
+      if (current.timelineHeightPx === nextHeight && !current.timelineCollapsed) {
         return current;
       }
       return {
         ...current,
         timelineHeightPx: nextHeight,
+        timelineCollapsed: false,
+      };
+    });
+  }, []);
+
+  const toggleTimelineCollapsed = useCallback(() => {
+    setLayout((current) => ({
+      ...current,
+      timelineCollapsed: !current.timelineCollapsed,
+    }));
+  }, []);
+
+  const setTimelineCollapsed = useCallback((collapsed: boolean) => {
+    setLayout((current) => {
+      if (current.timelineCollapsed === collapsed) {
+        return current;
+      }
+      return {
+        ...current,
+        timelineCollapsed: collapsed,
       };
     });
   }, []);
@@ -1145,6 +1165,9 @@ export function useStudioController() {
         case "timeline.trimOut":
           setTrimOutFromPlayhead();
           break;
+        case "timeline.togglePanel":
+          toggleTimelineCollapsed();
+          break;
         case "file.openProject":
           void openProjectMutation.mutateAsync();
           break;
@@ -1174,6 +1197,7 @@ export function useStudioController() {
       startPreviewMutation,
       stopPreviewMutation,
       toggleRecordingMutation,
+      toggleTimelineCollapsed,
       toggleTimelinePlayback,
     ],
   );
@@ -1397,6 +1421,7 @@ export function useStudioController() {
     setRightPaneWidth,
     setRightPaneCollapsed,
     setTimelineHeight,
+    setTimelineCollapsed,
     setTrimEndSeconds,
     setTrimInFromPlayhead,
     setTrimStartSeconds,
@@ -1426,6 +1451,7 @@ export function useStudioController() {
     timelineLanes,
     toggleRecordingMutation,
     toggleRightPaneCollapsed,
+    toggleTimelineCollapsed,
     toggleTimelinePlayback,
     ui,
     windowChoices,

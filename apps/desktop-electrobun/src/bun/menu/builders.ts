@@ -110,6 +110,11 @@ export function buildApplicationMenu(
           action: encodeHostMenuAction("timeline.trimOut"),
           accelerator: "o",
         },
+        separator,
+        {
+          label: labels.toggleTimeline,
+          action: encodeHostMenuAction("timeline.togglePanel"),
+        },
       ],
     },
     {

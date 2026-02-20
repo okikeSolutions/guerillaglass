@@ -73,6 +73,7 @@ export const deDE: StudioMessages = {
     timelineZoomReset: "Zoom zurücksetzen",
     toggleLeftPane: "Linkes Panel umschalten",
     toggleRightPane: "Inspektor umschalten",
+    toggleTimeline: "Zeitleiste umschalten",
     resetLayout: "Layout zurücksetzen",
   },
   shortcuts: {

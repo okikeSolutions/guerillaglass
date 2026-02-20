@@ -70,6 +70,7 @@ export const enUS = {
     timelineZoomReset: "Reset Zoom",
     toggleLeftPane: "Toggle Left Pane",
     toggleRightPane: "Toggle Inspector",
+    toggleTimeline: "Toggle Timeline",
     resetLayout: "Reset Layout",
   },
   shortcuts: {

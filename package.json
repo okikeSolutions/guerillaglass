@@ -17,6 +17,7 @@
     "swift:format": "swiftformat .",
     "swift:lint": "swiftlint",
     "desktop:dev": "cd apps/desktop-electrobun && bun run dev",
+    "desktop:dev:open": "cd apps/desktop-electrobun && bun run dev:open",
     "desktop:dev:hmr": "cd apps/desktop-electrobun && bun run dev:hmr",
     "desktop:dev:windows-native": "GG_ENGINE_TARGET=windows-native bun run desktop:dev",
     "desktop:dev:linux-native": "GG_ENGINE_TARGET=linux-native bun run desktop:dev",
@@ -42,7 +43,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "oxfmt": "^0.34.0",
     "oxlint": "^1.49.0",
-    "oxlint-tsgolint": "^0.14.1",
+    "oxlint-tsgolint": "^0.14.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.0"
   }

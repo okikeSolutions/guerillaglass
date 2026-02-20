@@ -42,6 +42,7 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
   Runs: `gate:rust` → `gate:typescript` → SwiftFormat → SwiftLint → `swift test` → `swift build`. Use this to verify the project after changes.
 - **Desktop deps (workspace):** `bun install`
 - **Desktop shell dev:** `bun run desktop:dev`
+- **Desktop shell dev fallback (macOS app open):** `bun run desktop:dev:open`
 - **Desktop shell dev with HMR:** `bun run desktop:dev:hmr`
 - **Desktop shell (Windows native):** `bun run desktop:dev:windows-native`
 - **Desktop shell (Linux native):** `bun run desktop:dev:linux-native`

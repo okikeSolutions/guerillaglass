@@ -20,6 +20,7 @@ export const hostMenuCommandList = [
   "timeline.playPause",
   "timeline.trimIn",
   "timeline.trimOut",
+  "timeline.togglePanel",
   "file.openProject",
   "file.saveProject",
   "file.saveProjectAs",
