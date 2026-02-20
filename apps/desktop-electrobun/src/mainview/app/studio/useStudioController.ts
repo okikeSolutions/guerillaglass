@@ -37,10 +37,49 @@ const hostMenuCommandEventName = "gg-host-menu-command";
 const playbackRates = [0.5, 1, 1.5, 2] as const;
 const emptyExportPresets: ExportPreset[] = [];
 const emptySourceWindows: SourcesResult["windows"] = [];
+const timelineZoomBounds = {
+  minPercent: 75,
+  maxPercent: 300,
+};
+const timelineSnapFrameSeconds = 1 / 30;
+const captureStatusSyncAttempts = 4;
+const captureStatusSyncDelayMs = 120;
 
 export type CaptureSourceMode = "display" | "window";
 export type Notice = { kind: "error" | "success" | "info"; message: string } | null;
+export type TimelineTool = "select" | "trim" | "blade";
+export type TimelineLaneControlState = {
+  locked: boolean;
+  muted: boolean;
+  solo: boolean;
+};
+export type TimelineLaneControlStateByLane = Record<"video" | "audio", TimelineLaneControlState>;
+export type AudioMixerState = {
+  masterGain: number;
+  masterMuted: boolean;
+  micGain: number;
+  micMuted: boolean;
+};
+
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
+const defaultTimelineLaneControlState: TimelineLaneControlStateByLane = {
+  video: {
+    locked: false,
+    muted: false,
+    solo: false,
+  },
+  audio: {
+    locked: false,
+    muted: false,
+    solo: false,
+  },
+};
+const defaultAudioMixerState: AudioMixerState = {
+  masterGain: 0.85,
+  masterMuted: false,
+  micGain: 0.9,
+  micMuted: false,
+};
 
 export const defaultAutoZoom: AutoZoomSettings = {
   isEnabled: true,
@@ -68,6 +107,26 @@ function formatError(error: unknown, fallbackMessage: string): string {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
+}
+
+function snapToTimelineFrame(seconds: number, enabled: boolean): number {
+  if (!enabled) {
+    return seconds;
+  }
+  return Math.round(seconds / timelineSnapFrameSeconds) * timelineSnapFrameSeconds;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function isBridgeTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return /rpc request timed out/i.test(error.message.trim());
 }
 
 export function formatDuration(seconds: number): string {
@@ -144,6 +203,13 @@ export function useStudioController() {
   const [rawInspectorSelection, setRawInspectorSelection] =
     useState<InspectorSelection>(emptyInspectorSelection);
   const [layout, setLayout] = useState(() => loadStudioLayoutState());
+  const [timelineZoomPercent, setTimelineZoomPercent] = useState(100);
+  const [timelineSnapEnabled, setTimelineSnapEnabled] = useState(true);
+  const [timelineRippleEnabled, setTimelineRippleEnabled] = useState(false);
+  const [timelineTool, setTimelineTool] = useState<TimelineTool>("select");
+  const [timelineLaneControlState, setTimelineLaneControlState] =
+    useState<TimelineLaneControlStateByLane>(defaultTimelineLaneControlState);
+  const [audioMixer, setAudioMixer] = useState<AudioMixerState>(defaultAudioMixerState);
   const activeMode = useMemo<StudioMode>(
     () => modeForStudioRoute(layout.lastRoute),
     [layout.lastRoute],
@@ -191,6 +257,15 @@ export function useStudioController() {
       return dateTimeFormatter.format(parsed);
     },
     [dateTimeFormatter],
+  );
+  const mapActionErrorMessage = useCallback(
+    (error: unknown): string => {
+      if (isBridgeTimeoutError(error)) {
+        return ui.notices.rpcTimedOut;
+      }
+      return formatError(error, ui.notices.actionFailed);
+    },
+    [ui.notices.actionFailed, ui.notices.rpcTimedOut],
   );
 
   useEffect(() => {
@@ -403,6 +478,46 @@ export function useStudioController() {
     [activeMode, rawInspectorSelection],
   );
 
+  const pickDirectorySafely = useCallback(
+    async (startingFolder?: string): Promise<string | null> => {
+      try {
+        return await desktopApi.pickDirectory(startingFolder);
+      } catch (error) {
+        if (isBridgeTimeoutError(error)) {
+          setNotice({
+            kind: "info",
+            message: ui.notices.directoryPickerTimedOut,
+          });
+          return null;
+        }
+        throw error;
+      }
+    },
+    [ui.notices.directoryPickerTimedOut],
+  );
+
+  const syncCaptureStatus = useCallback(
+    async (options?: { expectRunning?: boolean }): Promise<CaptureStatusResult | null> => {
+      for (let attempt = 0; attempt < captureStatusSyncAttempts; attempt += 1) {
+        const nextStatus = await engineApi.captureStatus();
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
+
+        if (
+          options?.expectRunning === undefined ||
+          nextStatus.isRunning === options.expectRunning
+        ) {
+          return nextStatus;
+        }
+
+        if (attempt < captureStatusSyncAttempts - 1) {
+          await delay(captureStatusSyncDelayMs);
+        }
+      }
+      return null;
+    },
+    [queryClient],
+  );
+
   const startCaptureInternal = useCallback(async (): Promise<CaptureStatusResult> => {
     const { captureSource, micEnabled } = settingsForm.state.values;
 
@@ -442,7 +557,7 @@ export function useStudioController() {
     onError: (error) => {
       setNotice({
         kind: "error",
-        message: error instanceof Error ? error.message : ui.notices.refreshFailed,
+        message: error instanceof Error ? mapActionErrorMessage(error) : ui.notices.refreshFailed,
       });
     },
   });
@@ -466,30 +581,39 @@ export function useStudioController() {
       setNotice({ kind: "success", message: ui.notices.permissionsRefreshed });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
   const startPreviewMutation = useMutation({
     mutationFn: async () => await startCaptureInternal(),
-    onSuccess: (nextStatus) => {
+    onSuccess: async (nextStatus) => {
       queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
+      const syncedStatus = await syncCaptureStatus({ expectRunning: true });
+      if (!syncedStatus?.isRunning) {
+        setNotice({
+          kind: "error",
+          message: ui.notices.previewStateMismatch,
+        });
+        return;
+      }
       setNotice({ kind: "success", message: ui.notices.captureStarted });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
   const stopPreviewMutation = useMutation({
     mutationFn: async () => await engineApi.stopCapture(),
-    onSuccess: (nextStatus) => {
+    onSuccess: async (nextStatus) => {
       queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
       setIsTimelinePlaying(false);
+      await syncCaptureStatus({ expectRunning: false });
       setNotice({ kind: "info", message: ui.notices.captureStopped });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
@@ -517,8 +641,9 @@ export function useStudioController() {
         finished: false,
       };
     },
-    onSuccess: ({ nextStatus, finished }) => {
+    onSuccess: async ({ nextStatus, finished }) => {
       queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
+      await syncCaptureStatus({ expectRunning: !finished });
 
       if (finished) {
         setIsTimelinePlaying(false);
@@ -537,7 +662,7 @@ export function useStudioController() {
       }
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
@@ -549,9 +674,7 @@ export function useStudioController() {
 
   const openProjectMutation = useMutation({
     mutationFn: async () => {
-      const pickedPath = await desktopApi.pickDirectory(
-        projectQuery.data?.projectPath ?? undefined,
-      );
+      const pickedPath = await pickDirectorySafely(projectQuery.data?.projectPath ?? undefined);
       if (!pickedPath) {
         return null;
       }
@@ -569,7 +692,7 @@ export function useStudioController() {
       setNotice({ kind: "success", message: ui.notices.projectOpened });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
@@ -584,7 +707,7 @@ export function useStudioController() {
       setNotice({ kind: "success", message: ui.notices.projectOpened });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
@@ -593,8 +716,7 @@ export function useStudioController() {
       let projectPath = projectQuery.data?.projectPath ?? undefined;
       if (saveAs || !projectPath) {
         projectPath =
-          (await desktopApi.pickDirectory(projectQuery.data?.projectPath ?? undefined)) ??
-          undefined;
+          (await pickDirectorySafely(projectQuery.data?.projectPath ?? undefined)) ?? undefined;
       }
       if (!projectPath) {
         return null;
@@ -619,7 +741,7 @@ export function useStudioController() {
       });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
@@ -632,7 +754,7 @@ export function useStudioController() {
         throw new Error(ui.notices.exportMissingPreset);
       }
 
-      const targetDirectory = await desktopApi.pickDirectory(
+      const targetDirectory = await pickDirectorySafely(
         projectQuery.data?.projectPath ?? undefined,
       );
       if (!targetDirectory) {
@@ -669,7 +791,7 @@ export function useStudioController() {
       setNotice({ kind: "success", message: ui.notices.exportComplete(result.outputURL) });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: formatError(error, ui.notices.actionFailed) });
+      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
     },
   });
 
@@ -687,17 +809,83 @@ export function useStudioController() {
 
   const isRunningAction = busyMutations.some((mutation) => mutation.isPending);
   const isRefreshing = refreshMutation.isPending || pingQuery.isPending;
+  const recordingRequiredNotice = ui.helper.recordToEnableAction;
+
+  const setTimelineZoom = useCallback((nextZoomPercent: number) => {
+    setTimelineZoomPercent((current) =>
+      clamp(
+        Math.round(nextZoomPercent || current),
+        timelineZoomBounds.minPercent,
+        timelineZoomBounds.maxPercent,
+      ),
+    );
+  }, []);
+
+  const zoomTimelineIn = useCallback(() => {
+    setTimelineZoom(timelineZoomPercent + 25);
+  }, [setTimelineZoom, timelineZoomPercent]);
+
+  const zoomTimelineOut = useCallback(() => {
+    setTimelineZoom(timelineZoomPercent - 25);
+  }, [setTimelineZoom, timelineZoomPercent]);
+
+  const resetTimelineZoom = useCallback(() => {
+    setTimelineZoom(100);
+  }, [setTimelineZoom]);
+
+  const toggleTimelineSnap = useCallback(() => {
+    setTimelineSnapEnabled((current) => !current);
+  }, []);
+
+  const toggleTimelineRipple = useCallback(() => {
+    setTimelineRippleEnabled((current) => !current);
+  }, []);
+
+  const toggleLaneControl = useCallback(
+    (laneId: "video" | "audio", control: keyof TimelineLaneControlState) => {
+      setTimelineLaneControlState((current) => ({
+        ...current,
+        [laneId]: {
+          ...current[laneId],
+          [control]: !current[laneId][control],
+        },
+      }));
+    },
+    [],
+  );
+
+  const setAudioMixerGain = useCallback((target: "master" | "mic", gain: number) => {
+    const nextGain = clamp(gain, 0, 1);
+    setAudioMixer((current) => ({
+      ...current,
+      [target === "master" ? "masterGain" : "micGain"]: nextGain,
+    }));
+  }, []);
+
+  const toggleAudioMixerMuted = useCallback((target: "master" | "mic") => {
+    setAudioMixer((current) => ({
+      ...current,
+      [target === "master" ? "masterMuted" : "micMuted"]:
+        !current[target === "master" ? "masterMuted" : "micMuted"],
+    }));
+  }, []);
 
   const setPlayheadSecondsClamped = useCallback(
     (seconds: number) => {
-      setPlayheadSeconds(clamp(seconds, 0, timelineDuration));
+      setPlayheadSeconds(
+        clamp(snapToTimelineFrame(seconds, timelineSnapEnabled), 0, timelineDuration),
+      );
     },
-    [timelineDuration],
+    [timelineDuration, timelineSnapEnabled],
   );
 
   const setTrimStartSeconds = useCallback(
     (seconds: number) => {
-      const nextTrimStart = clamp(seconds, 0, timelineDuration);
+      const nextTrimStart = clamp(
+        snapToTimelineFrame(seconds, timelineSnapEnabled),
+        0,
+        timelineDuration,
+      );
       exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
 
       const trimEndSeconds = exportForm.state.values.trimEndSeconds;
@@ -705,12 +893,16 @@ export function useStudioController() {
         exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
       }
     },
-    [exportForm, timelineDuration],
+    [exportForm, timelineDuration, timelineSnapEnabled],
   );
 
   const setTrimEndSeconds = useCallback(
     (seconds: number) => {
-      const nextTrimEnd = clamp(seconds, 0, timelineDuration);
+      const nextTrimEnd = clamp(
+        snapToTimelineFrame(seconds, timelineSnapEnabled),
+        0,
+        timelineDuration,
+      );
       exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
 
       const trimStartSeconds = exportForm.state.values.trimStartSeconds;
@@ -718,7 +910,7 @@ export function useStudioController() {
         exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
       }
     },
-    [exportForm, timelineDuration],
+    [exportForm, timelineDuration, timelineSnapEnabled],
   );
 
   const setTrimInFromPlayhead = useCallback(() => {
@@ -736,6 +928,9 @@ export function useStudioController() {
       startSeconds: number;
       endSeconds: number;
     }) => {
+      if (timelineLaneControlState[params.laneId].locked) {
+        return;
+      }
       setRawInspectorSelection({
         kind: "timelineClip",
         laneId: params.laneId,
@@ -744,7 +939,7 @@ export function useStudioController() {
         endSeconds: params.endSeconds,
       });
     },
-    [],
+    [timelineLaneControlState],
   );
 
   const selectTimelineMarker = useCallback(
@@ -794,9 +989,15 @@ export function useStudioController() {
 
   const nudgePlayheadSeconds = useCallback(
     (deltaSeconds: number) => {
-      setPlayheadSeconds((current) => clamp(current + deltaSeconds, 0, timelineDuration));
+      setPlayheadSeconds((current) =>
+        clamp(
+          snapToTimelineFrame(current + deltaSeconds, timelineSnapEnabled),
+          0,
+          timelineDuration,
+        ),
+      );
     },
-    [timelineDuration],
+    [timelineDuration, timelineSnapEnabled],
   );
 
   const toggleTimelinePlayback = useCallback(() => {
@@ -804,38 +1005,56 @@ export function useStudioController() {
   }, []);
 
   const setLeftPaneWidth = useCallback((widthPx: number) => {
-    setLayout((current) => ({
-      ...current,
-      leftPaneWidthPx: clamp(
+    setLayout((current) => {
+      const nextWidth = clamp(
         Math.round(widthPx),
         studioLayoutBounds.leftPaneMinWidthPx,
         studioLayoutBounds.leftPaneMaxWidthPx,
-      ),
-      leftCollapsed: false,
-    }));
+      );
+      if (current.leftPaneWidthPx === nextWidth && !current.leftCollapsed) {
+        return current;
+      }
+      return {
+        ...current,
+        leftPaneWidthPx: nextWidth,
+        leftCollapsed: false,
+      };
+    });
   }, []);
 
   const setRightPaneWidth = useCallback((widthPx: number) => {
-    setLayout((current) => ({
-      ...current,
-      rightPaneWidthPx: clamp(
+    setLayout((current) => {
+      const nextWidth = clamp(
         Math.round(widthPx),
         studioLayoutBounds.rightPaneMinWidthPx,
         studioLayoutBounds.rightPaneMaxWidthPx,
-      ),
-      rightCollapsed: false,
-    }));
+      );
+      if (current.rightPaneWidthPx === nextWidth && !current.rightCollapsed) {
+        return current;
+      }
+      return {
+        ...current,
+        rightPaneWidthPx: nextWidth,
+        rightCollapsed: false,
+      };
+    });
   }, []);
 
   const setTimelineHeight = useCallback((heightPx: number) => {
-    setLayout((current) => ({
-      ...current,
-      timelineHeightPx: clamp(
+    setLayout((current) => {
+      const nextHeight = clamp(
         Math.round(heightPx),
         studioLayoutBounds.timelineMinHeightPx,
         studioLayoutBounds.timelineMaxHeightPx,
-      ),
-    }));
+      );
+      if (current.timelineHeightPx === nextHeight) {
+        return current;
+      }
+      return {
+        ...current,
+        timelineHeightPx: nextHeight,
+      };
+    });
   }, []);
 
   const toggleLeftPaneCollapsed = useCallback(() => {
@@ -845,11 +1064,35 @@ export function useStudioController() {
     }));
   }, []);
 
+  const setLeftPaneCollapsed = useCallback((collapsed: boolean) => {
+    setLayout((current) => {
+      if (current.leftCollapsed === collapsed) {
+        return current;
+      }
+      return {
+        ...current,
+        leftCollapsed: collapsed,
+      };
+    });
+  }, []);
+
   const toggleRightPaneCollapsed = useCallback(() => {
     setLayout((current) => ({
       ...current,
       rightCollapsed: !current.rightCollapsed,
     }));
+  }, []);
+
+  const setRightPaneCollapsed = useCallback((collapsed: boolean) => {
+    setLayout((current) => {
+      if (current.rightCollapsed === collapsed) {
+        return current;
+      }
+      return {
+        ...current,
+        rightCollapsed: collapsed,
+      };
+    });
   }, []);
 
   const setLastRoute = useCallback((route: string) => {
@@ -1112,6 +1355,7 @@ export function useStudioController() {
     isRefreshing,
     isRunningAction,
     isTimelinePlaying,
+    audioMixer,
     activeMode,
     locale,
     inspectorSelection,
@@ -1125,6 +1369,7 @@ export function useStudioController() {
     playheadSeconds: boundedPlayheadSeconds,
     playbackRate,
     playbackRates,
+    recordingRequiredNotice,
     layout,
     projectQuery,
     projectRecentsQuery,
@@ -1139,19 +1384,35 @@ export function useStudioController() {
     selectedPresetId,
     selectedWindowId,
     setNotice,
+    setAudioMixerGain,
+    toggleAudioMixerMuted,
     setPlayheadSeconds: setPlayheadSecondsClamped,
     setPlaybackRate,
+    setTimelineTool,
+    setTimelineZoom,
     setLocale,
     setLastRoute,
     setLeftPaneWidth,
     setInspectorSelection: setRawInspectorSelection,
     setRightPaneWidth,
+    setRightPaneCollapsed,
     setTimelineHeight,
     setTrimEndSeconds,
     setTrimInFromPlayhead,
     setTrimStartSeconds,
     setTrimOutFromPlayhead,
+    timelineLaneControlState,
+    timelineRippleEnabled,
+    timelineSnapEnabled,
+    timelineTool,
+    timelineZoomPercent,
+    toggleLaneControl,
     toggleLeftPaneCollapsed,
+    toggleTimelineRipple,
+    toggleTimelineSnap,
+    zoomTimelineIn,
+    zoomTimelineOut,
+    resetTimelineZoom,
     clearInspectorSelection,
     selectCaptureWindow,
     selectExportPreset,
@@ -1168,6 +1429,7 @@ export function useStudioController() {
     toggleTimelinePlayback,
     ui,
     windowChoices,
+    setLeftPaneCollapsed,
   };
 }
 
