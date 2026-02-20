@@ -114,7 +114,7 @@ export function TimelineSurface({
 
   const rulerTicks = useMemo(() => {
     if (durationSeconds <= 0) {
-      return [{ id: "tick-0", seconds: 0, percent: 0 }];
+      return [{ id: "tick-0", isMajor: true, seconds: 0, percent: 0 }];
     }
     const totalTicks = 8;
     return Array.from({ length: totalTicks + 1 }, (_, index) => {
@@ -122,6 +122,7 @@ export function TimelineSurface({
       const seconds = ratio * durationSeconds;
       return {
         id: `tick-${index}`,
+        isMajor: index % 2 === 0,
         seconds,
         percent: ratio * 100,
       };
@@ -204,7 +205,9 @@ export function TimelineSurface({
         {rulerTicks.map((tick) => (
           <div
             key={tick.id}
-            className="gg-timeline-ruler-tick"
+            className={`gg-timeline-ruler-tick${
+              tick.isMajor ? " gg-timeline-ruler-tick-major" : " gg-timeline-ruler-tick-minor"
+            }`}
             style={{ left: `${tick.percent}%` }}
           >
             <span>{tick.seconds.toFixed(1)}</span>
@@ -307,7 +310,7 @@ export function TimelineSurface({
                     <div className="gg-timeline-lane-controls">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="icon-xs"
                         className={`gg-timeline-lane-toggle ${studioToggleToneClass(
                           laneControls[lane.id].locked ? "selected" : "neutral",
@@ -322,7 +325,7 @@ export function TimelineSurface({
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="icon-xs"
                         className={`gg-timeline-lane-toggle ${studioToggleToneClass(
                           laneControls[lane.id].muted ? "selectedAlt" : "neutral",
@@ -337,7 +340,7 @@ export function TimelineSurface({
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="icon-xs"
                         className={`gg-timeline-lane-toggle ${studioToggleToneClass(
                           laneControls[lane.id].solo ? "selected" : "neutral",
@@ -355,6 +358,14 @@ export function TimelineSurface({
                 </div>
                 <div
                   className={`gg-timeline-lane-track${
+                    lane.id === "video" || lane.id === "audio"
+                      ? lane.id === "video"
+                        ? " gg-timeline-lane-track-video"
+                        : " gg-timeline-lane-track-audio"
+                      : lane.id === "events"
+                        ? " gg-timeline-lane-track-events"
+                        : ""
+                  }${
                     lane.id === "video" || lane.id === "audio"
                       ? laneControls[lane.id].locked
                         ? " gg-timeline-lane-track-locked"

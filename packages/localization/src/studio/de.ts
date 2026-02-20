@@ -149,6 +149,7 @@ export const deDE: StudioMessages = {
     masterChannel: "Master",
     mute: "Stumm",
     unmute: "Stummschaltung aufheben",
+    autoZoomSection: "Auto-Zoom",
     autoZoomEnabled: "Auto-Zoom aktiviert",
     autoZoomIntensity: (value: number) => `Auto-Zoom-Intensität (${value}%)`,
     minimumKeyframeInterval: "Min. Keyframe-Intervall (s)",

@@ -1,5 +1,5 @@
 import { Keyboard, Mic, MonitorCog, MousePointer, Sparkles, Volume2, VolumeX } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +24,15 @@ import {
 type InspectorPanelProps = {
   mode: StudioMode;
 };
+
+function InspectorSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="gg-inspector-section-header">{title}</h3>
+      {children}
+    </section>
+  );
+}
 
 function localizeTimelineLaneId(
   laneId: "video" | "audio",
@@ -143,7 +152,7 @@ function CaptureInspectorContent() {
       <studio.settingsForm.Field name="micEnabled">
         {(field) => (
           <Field>
-            <FieldLabel>
+            <FieldLabel className="gg-inspector-toggle-row">
               <Checkbox
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked)}
@@ -157,7 +166,7 @@ function CaptureInspectorContent() {
       <studio.settingsForm.Field name="trackInputEvents">
         {(field) => (
           <Field>
-            <FieldLabel>
+            <FieldLabel className="gg-inspector-toggle-row">
               <Checkbox
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked)}
@@ -171,24 +180,26 @@ function CaptureInspectorContent() {
       <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
         {(field) => (
           <Field>
-            <FieldLabel>
+            <FieldLabel className="gg-inspector-toggle-row">
               <Checkbox
                 checked={field.state.value}
                 onCheckedChange={(checked) => field.handleChange(checked)}
               />
               <Keyboard className="h-4 w-4" /> {studio.ui.labels.singleKeyShortcuts}
             </FieldLabel>
-            <FieldDescription>{studio.ui.helper.singleKeyShortcuts}</FieldDescription>
+            <FieldDescription className="px-1.5 pt-0.5">
+              {studio.ui.helper.singleKeyShortcuts}
+            </FieldDescription>
           </Field>
         )}
       </studio.settingsForm.Field>
 
       <studio.settingsForm.Field name="autoZoom">
         {(field) => (
-          <Card size="sm" className="gg-surface-block">
-            <CardContent className="space-y-3">
+          <InspectorSection title={studio.ui.labels.autoZoomSection.toUpperCase()}>
+            <div className="space-y-3 px-0.5">
               <Field>
-                <FieldLabel>
+                <FieldLabel className="items-center">
                   <Checkbox
                     checked={field.state.value.isEnabled}
                     onCheckedChange={(checked) =>
@@ -209,6 +220,7 @@ function CaptureInspectorContent() {
                 </FieldLabel>
                 <FieldContent>
                   <Slider
+                    className="gg-inspector-slider"
                     min={0}
                     max={1}
                     step={0.05}
@@ -239,27 +251,21 @@ function CaptureInspectorContent() {
                   />
                 </FieldContent>
               </Field>
-            </CardContent>
-          </Card>
+            </div>
+          </InspectorSection>
         )}
       </studio.settingsForm.Field>
 
-      <Card size="sm" className="gg-surface-block">
-        <CardHeader>
-          <CardTitle className="gg-utility-label">{studio.ui.labels.sourceMonitor}</CardTitle>
-        </CardHeader>
-        <CardContent className="gg-copy-meta space-y-1">
+      <InspectorSection title={studio.ui.labels.sourceMonitor.toUpperCase()}>
+        <div className="gg-copy-meta space-y-1 px-0.5">
           <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
           <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
           <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
-        </CardContent>
-      </Card>
+        </div>
+      </InspectorSection>
 
-      <Card size="sm" className="gg-surface-block">
-        <CardHeader>
-          <CardTitle className="gg-utility-label">{studio.ui.labels.audioMixer}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <InspectorSection title={studio.ui.labels.audioMixer.toUpperCase()}>
+        <div className="space-y-3 px-0.5">
           <AudioMixerChannel
             label={studio.ui.labels.masterChannel}
             value={studio.audioMixer.masterGain}
@@ -280,8 +286,8 @@ function CaptureInspectorContent() {
             onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
             onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </InspectorSection>
     </>
   );
 }
@@ -336,6 +342,7 @@ function AudioMixerChannel({
       </div>
       <Progress value={Math.round(level * 100)} />
       <Slider
+        className="gg-inspector-slider"
         min={0}
         max={1}
         step={0.05}
@@ -394,7 +401,7 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
             </CardHeader>
             <CardContent className="space-y-2">
               <Field>
-                <FieldLabel>
+                <FieldLabel className="items-center">
                   <Checkbox
                     checked={field.state.value.isEnabled}
                     onCheckedChange={(checked) =>

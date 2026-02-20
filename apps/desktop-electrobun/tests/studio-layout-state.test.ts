@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildStudioPath,
   defaultStudioLayoutState,
+  dominantLayoutPresetForRoute,
   getInitialStudioPath,
   localizedRouteTargetFor,
   normalizeStudioLayoutRoute,
@@ -29,6 +30,30 @@ describe("studio layout state", () => {
 
   test("parses malformed JSON with default state", () => {
     expect(parseStudioLayoutState("{not-json")).toEqual(defaultStudioLayoutState);
+  });
+
+  test("falls back to default state for structurally invalid payloads", () => {
+    const layout = parseStudioLayoutState(
+      JSON.stringify({
+        leftPaneWidthPx: "220",
+        rightPaneWidthPx: false,
+        timelineHeightPx: "320",
+      }),
+    );
+    expect(layout).toEqual(defaultStudioLayoutState);
+  });
+
+  test("uses dominant layout defaults for capture route", () => {
+    expect(defaultStudioLayoutState.leftPaneWidthPx).toBe(
+      dominantLayoutPresetForRoute("/capture").leftPaneWidthPx,
+    );
+    expect(defaultStudioLayoutState.rightPaneWidthPx).toBe(
+      dominantLayoutPresetForRoute("/capture").rightPaneWidthPx,
+    );
+    expect(defaultStudioLayoutState.timelineHeightPx).toBe(
+      dominantLayoutPresetForRoute("/capture").timelineHeightPx,
+    );
+    expect(defaultStudioLayoutState.presetRoutesApplied).toEqual(["/capture"]);
   });
 
   test("sanitizes out-of-range values", () => {
@@ -62,6 +87,68 @@ describe("studio layout state", () => {
     );
 
     expect(layout.densityMode).toBe("compact");
+  });
+
+  test("applies dominant preset when loading legacy default layout shape", () => {
+    const layout = parseStudioLayoutState(
+      JSON.stringify({
+        leftPaneWidthPx: 260,
+        rightPaneWidthPx: 340,
+        leftCollapsed: false,
+        rightCollapsed: false,
+        timelineHeightPx: 280,
+        timelineCollapsed: false,
+        lastRoute: "/deliver",
+      }),
+    );
+
+    expect(layout.leftPaneWidthPx).toBe(dominantLayoutPresetForRoute("/deliver").leftPaneWidthPx);
+    expect(layout.rightPaneWidthPx).toBe(dominantLayoutPresetForRoute("/deliver").rightPaneWidthPx);
+    expect(layout.timelineHeightPx).toBe(dominantLayoutPresetForRoute("/deliver").timelineHeightPx);
+    expect(layout.leftCollapsed).toBe(dominantLayoutPresetForRoute("/deliver").leftCollapsed);
+    expect(layout.presetRoutesApplied).toEqual(["/deliver"]);
+  });
+
+  test("upgrades persisted capture layouts to the latest preview-first preset", () => {
+    const layout = parseStudioLayoutState(
+      JSON.stringify({
+        leftPaneWidthPx: 420,
+        rightPaneWidthPx: 420,
+        leftCollapsed: false,
+        rightCollapsed: false,
+        timelineHeightPx: 360,
+        timelineCollapsed: false,
+        lastRoute: "/capture",
+        presetRoutesApplied: ["/capture"],
+      }),
+    );
+
+    expect(layout).toMatchObject({
+      ...dominantLayoutPresetForRoute("/capture"),
+      lastRoute: "/capture",
+    });
+    expect(layout.presetVersionByRoute["/capture"]).toBeGreaterThanOrEqual(3);
+  });
+
+  test("keeps persisted capture layouts once current preset revision is applied", () => {
+    const layout = parseStudioLayoutState(
+      JSON.stringify({
+        leftPaneWidthPx: 180,
+        rightPaneWidthPx: 260,
+        leftCollapsed: false,
+        rightCollapsed: false,
+        timelineHeightPx: 240,
+        timelineCollapsed: false,
+        lastRoute: "/capture",
+        presetRoutesApplied: ["/capture"],
+        presetVersionByRoute: { "/capture": 3 },
+      }),
+    );
+
+    expect(layout.leftPaneWidthPx).toBe(180);
+    expect(layout.rightPaneWidthPx).toBe(260);
+    expect(layout.timelineHeightPx).toBe(240);
+    expect(layout.leftCollapsed).toBe(false);
   });
 
   test("resolves locale and route from pathname", () => {

@@ -146,6 +146,7 @@ export const enUS = {
     masterChannel: "Master",
     mute: "Mute",
     unmute: "Unmute",
+    autoZoomSection: "Auto Zoom",
     autoZoomEnabled: "Auto-zoom enabled",
     autoZoomIntensity: (value: number) => `Auto-zoom intensity (${value}%)`,
     minimumKeyframeInterval: "Min keyframe interval (s)",

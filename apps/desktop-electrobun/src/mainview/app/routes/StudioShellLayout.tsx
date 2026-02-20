@@ -128,10 +128,10 @@ export function StudioShellLayout() {
   return (
     <div className="h-full overflow-hidden bg-background">
       <div
-        className="gg-shell-frame mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border"
+        className="gg-shell-frame mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden"
         data-density={studio.densityMode}
       >
-        <header className="gg-shell-header border-b px-4 py-2">
+        <header className="gg-shell-header px-4 py-2">
           <TooltipProvider delay={120}>
             <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-start">
@@ -269,7 +269,7 @@ export function StudioShellLayout() {
                     <TooltipTrigger
                       render={
                         <Badge
-                          className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
+                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
                           variant="outline"
                         />
                       }
@@ -283,7 +283,7 @@ export function StudioShellLayout() {
                     <TooltipTrigger
                       render={
                         <Badge
-                          className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
+                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
                           variant="outline"
                         />
                       }
@@ -301,7 +301,7 @@ export function StudioShellLayout() {
                     <TooltipTrigger
                       render={
                         <Badge
-                          className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
+                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
                           variant="outline"
                         />
                       }
@@ -315,7 +315,7 @@ export function StudioShellLayout() {
                     <TooltipTrigger
                       render={
                         <Badge
-                          className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
+                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
                           variant="outline"
                         />
                       }
@@ -329,7 +329,7 @@ export function StudioShellLayout() {
                     <TooltipTrigger
                       render={
                         <Badge
-                          className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass(telemetryHealthTone)}`}
+                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass(telemetryHealthTone)}`}
                           variant="outline"
                         />
                       }
@@ -349,7 +349,7 @@ export function StudioShellLayout() {
                   <TooltipTrigger
                     render={
                       <Badge
-                        className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass(permissionTone)}`}
+                        className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass(permissionTone)}`}
                         variant="outline"
                       />
                     }
@@ -378,7 +378,7 @@ export function StudioShellLayout() {
                     <TooltipTrigger
                       render={
                         <Badge
-                          className={`h-7 w-7 justify-center p-0 ${studioBadgeToneClass("error")}`}
+                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("error")}`}
                           variant="outline"
                         />
                       }
@@ -396,7 +396,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={() => void studio.refreshAll()}
                         disabled={studio.isRunningAction || studio.isRefreshing}
                       />
@@ -413,7 +413,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={() => void studio.saveProjectMutation.mutateAsync(false)}
                         disabled={studio.isRunningAction || !studio.recordingURL}
                         title={recordingActionDisabledReason}
@@ -438,7 +438,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={() => void studio.exportMutation.mutateAsync()}
                         disabled={studio.isRunningAction || !studio.recordingURL}
                         title={recordingActionDisabledReason}
@@ -463,7 +463,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={studio.toggleLeftPaneCollapsed}
                       />
                     }
@@ -479,7 +479,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={studio.toggleRightPaneCollapsed}
                       />
                     }
@@ -495,7 +495,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={studio.toggleTimelineCollapsed}
                       />
                     }
@@ -511,7 +511,7 @@ export function StudioShellLayout() {
                       <Button
                         size="icon-sm"
                         variant="outline"
-                        className={studioButtonToneClass("neutral")}
+                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
                         onClick={studio.resetLayout}
                       />
                     }
