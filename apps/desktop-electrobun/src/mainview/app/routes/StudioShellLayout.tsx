@@ -129,7 +129,7 @@ export function StudioShellLayout() {
 
   return (
     <div className="h-full overflow-hidden bg-background">
-      <div className="mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border border-border/80 bg-card shadow-[0_20px_50px_rgba(8,15,35,0.14)]">
+      <div className="mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border border-border/80 bg-card shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
         <header className="border-b border-border/80 bg-background/80 px-4 py-2 backdrop-blur-sm">
           <TooltipProvider delay={120}>
             <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
