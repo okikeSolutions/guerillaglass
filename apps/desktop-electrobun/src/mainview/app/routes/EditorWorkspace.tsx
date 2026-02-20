@@ -1,182 +1,136 @@
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
-import { useThrottler } from "@tanstack/react-pacer";
-import type { PanelImperativeHandle, PanelSize } from "react-resizable-panels";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useStudio } from "../studio/context";
 import { studioLayoutBounds } from "../studio/studioLayoutState";
-import { TimelineDock } from "./TimelineDock";
 
 type EditorWorkspaceProps = {
   leftPane: ReactNode;
   centerPane: ReactNode;
   rightPane: ReactNode;
+  bottomPane: ReactNode;
 };
 
-export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorkspaceProps) {
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum);
+}
+
+export function EditorWorkspace({
+  leftPane,
+  centerPane,
+  rightPane,
+  bottomPane,
+}: EditorWorkspaceProps) {
   const studio = useStudio();
+  const layout = studio.layout;
+  const setLeftPaneCollapsed = studio.setLeftPaneCollapsed;
+  const setRightPaneCollapsed = studio.setRightPaneCollapsed;
+  const setTimelineCollapsed = studio.setTimelineCollapsed;
+  const setLeftPaneWidth = studio.setLeftPaneWidth;
+  const setRightPaneWidth = studio.setRightPaneWidth;
+  const setTimelineHeight = studio.setTimelineHeight;
+  const layoutRef = useRef(layout);
+  useEffect(() => {
+    layoutRef.current = layout;
+  }, [layout]);
+
   const toPxSize = useCallback((value: number) => `${Math.max(value, 0)}px`, []);
   const leftPanelRef = useRef<PanelImperativeHandle | null>(null);
   const rightPanelRef = useRef<PanelImperativeHandle | null>(null);
   const timelinePanelRef = useRef<PanelImperativeHandle | null>(null);
-  const lastLeftPanelSizePxRef = useRef(studio.layout.leftPaneWidthPx);
-  const lastRightPanelSizePxRef = useRef(studio.layout.rightPaneWidthPx);
-  const lastTimelinePanelSizePxRef = useRef(studio.layout.timelineHeightPx);
+  const isPointerResizingRef = useRef(false);
   const resizeStepPx = 8;
   const resizeStepPxLarge = 32;
-  const paneResizeThrottleMs = 16;
   const timelineResizeStepPx = 8;
   const timelineResizeStepPxLarge = 32;
-  const timelineResizeThrottleMs = 16;
-
-  const leftPaneResizeThrottler = useThrottler(
-    (nextWidthPx: number) => {
-      studio.setLeftPaneWidth(nextWidthPx);
-    },
-    {
-      leading: true,
-      trailing: true,
-      wait: paneResizeThrottleMs,
-    },
-    () => null,
-  );
-
-  const rightPaneResizeThrottler = useThrottler(
-    (nextWidthPx: number) => {
-      studio.setRightPaneWidth(nextWidthPx);
-    },
-    {
-      leading: true,
-      trailing: true,
-      wait: paneResizeThrottleMs,
-    },
-    () => null,
-  );
-
-  const timelineResizeThrottler = useThrottler(
-    (nextHeightPx: number) => {
-      studio.setTimelineHeight(nextHeightPx);
-    },
-    {
-      leading: true,
-      trailing: true,
-      wait: timelineResizeThrottleMs,
-    },
-    () => null,
-  );
+  const leftPanelKey = layout.leftCollapsed ? "left-collapsed" : "left-expanded";
+  const rightPanelKey = layout.rightCollapsed ? "right-collapsed" : "right-expanded";
+  const timelinePanelKey = layout.timelineCollapsed ? "timeline-collapsed" : "timeline-expanded";
 
   useEffect(() => {
+    const clearPointerResize = () => {
+      isPointerResizingRef.current = false;
+    };
+    window.addEventListener("pointerup", clearPointerResize);
+    window.addEventListener("pointercancel", clearPointerResize);
+    return () => {
+      window.removeEventListener("pointerup", clearPointerResize);
+      window.removeEventListener("pointercancel", clearPointerResize);
+    };
+  }, []);
+
+  const markPointerResizeStart = useCallback(() => {
+    isPointerResizingRef.current = true;
+  }, []);
+
+  const commitHorizontalPanelLayout = useCallback(() => {
+    if (!isPointerResizingRef.current) {
+      return;
+    }
     const leftPanel = leftPanelRef.current;
-    if (!leftPanel) {
-      return;
-    }
-    if (studio.layout.leftCollapsed) {
-      if (!leftPanel.isCollapsed()) {
-        leftPanel.collapse();
-      }
-      return;
-    }
-    if (leftPanel.isCollapsed()) {
-      leftPanel.expand();
-    }
-    if (Math.abs(lastLeftPanelSizePxRef.current - studio.layout.leftPaneWidthPx) <= 1) {
-      return;
-    }
-    if (Math.abs(leftPanel.getSize().inPixels - studio.layout.leftPaneWidthPx) > 1) {
-      leftPanel.resize(toPxSize(studio.layout.leftPaneWidthPx));
-    }
-  }, [studio.layout.leftCollapsed, studio.layout.leftPaneWidthPx, toPxSize]);
-
-  useEffect(() => {
     const rightPanel = rightPanelRef.current;
-    if (!rightPanel) {
+    if (!leftPanel || !rightPanel) {
       return;
     }
-    if (studio.layout.rightCollapsed) {
-      if (!rightPanel.isCollapsed()) {
-        rightPanel.collapse();
-      }
-      return;
-    }
-    if (rightPanel.isCollapsed()) {
-      rightPanel.expand();
-    }
-    if (Math.abs(lastRightPanelSizePxRef.current - studio.layout.rightPaneWidthPx) <= 1) {
-      return;
-    }
-    if (Math.abs(rightPanel.getSize().inPixels - studio.layout.rightPaneWidthPx) > 1) {
-      rightPanel.resize(toPxSize(studio.layout.rightPaneWidthPx));
-    }
-  }, [studio.layout.rightCollapsed, studio.layout.rightPaneWidthPx, toPxSize]);
 
-  useEffect(() => {
+    const leftSize = leftPanel.getSize();
+    const rightSize = rightPanel.getSize();
+    const leftCollapsed = leftPanel.isCollapsed() || leftSize.inPixels <= 1;
+    const rightCollapsed = rightPanel.isCollapsed() || rightSize.inPixels <= 1;
+    const nextLeftWidth = clamp(
+      Math.round(leftSize.inPixels),
+      studioLayoutBounds.leftPaneMinWidthPx,
+      studioLayoutBounds.leftPaneMaxWidthPx,
+    );
+    const nextRightWidth = clamp(
+      Math.round(rightSize.inPixels),
+      studioLayoutBounds.rightPaneMinWidthPx,
+      studioLayoutBounds.rightPaneMaxWidthPx,
+    );
+
+    const currentLayout = layoutRef.current;
+
+    if (leftCollapsed !== currentLayout.leftCollapsed) {
+      setLeftPaneCollapsed(leftCollapsed);
+    }
+    if (rightCollapsed !== currentLayout.rightCollapsed) {
+      setRightPaneCollapsed(rightCollapsed);
+    }
+
+    if (!leftCollapsed && Math.abs(nextLeftWidth - currentLayout.leftPaneWidthPx) > 1) {
+      setLeftPaneWidth(nextLeftWidth);
+    }
+    if (!rightCollapsed && Math.abs(nextRightWidth - currentLayout.rightPaneWidthPx) > 1) {
+      setRightPaneWidth(nextRightWidth);
+    }
+  }, [setLeftPaneCollapsed, setLeftPaneWidth, setRightPaneCollapsed, setRightPaneWidth]);
+
+  const commitTimelinePanelLayout = useCallback(() => {
+    if (!isPointerResizingRef.current) {
+      return;
+    }
     const timelinePanel = timelinePanelRef.current;
     if (!timelinePanel) {
       return;
     }
-    if (studio.layout.timelineCollapsed) {
-      if (!timelinePanel.isCollapsed()) {
-        timelinePanel.collapse();
-      }
-      return;
-    }
-    if (timelinePanel.isCollapsed()) {
-      timelinePanel.expand();
-    }
-    if (Math.abs(lastTimelinePanelSizePxRef.current - studio.layout.timelineHeightPx) <= 1) {
-      return;
-    }
-    if (Math.abs(timelinePanel.getSize().inPixels - studio.layout.timelineHeightPx) > 1) {
-      timelinePanel.resize(toPxSize(studio.layout.timelineHeightPx));
-    }
-  }, [studio.layout.timelineCollapsed, studio.layout.timelineHeightPx, toPxSize]);
 
-  useEffect(() => {
-    return () => {
-      leftPaneResizeThrottler.cancel();
-      rightPaneResizeThrottler.cancel();
-      timelineResizeThrottler.cancel();
-    };
-  }, [leftPaneResizeThrottler, rightPaneResizeThrottler, timelineResizeThrottler]);
+    const timelineSize = timelinePanel.getSize();
+    const timelineCollapsed = timelinePanel.isCollapsed() || timelineSize.inPixels <= 1;
+    const nextTimelineHeight = clamp(
+      Math.round(timelineSize.inPixels),
+      studioLayoutBounds.timelineMinHeightPx,
+      studioLayoutBounds.timelineMaxHeightPx,
+    );
 
-  const syncLeftPaneSize = useCallback(
-    (panelSize: PanelSize) => {
-      lastLeftPanelSizePxRef.current = panelSize.inPixels;
-      if (panelSize.inPixels <= 1) {
-        leftPaneResizeThrottler.cancel();
-        studio.setLeftPaneCollapsed(true);
-        return;
-      }
-      leftPaneResizeThrottler.maybeExecute(panelSize.inPixels);
-    },
-    [leftPaneResizeThrottler, studio],
-  );
+    const currentLayout = layoutRef.current;
 
-  const syncRightPaneSize = useCallback(
-    (panelSize: PanelSize) => {
-      lastRightPanelSizePxRef.current = panelSize.inPixels;
-      if (panelSize.inPixels <= 1) {
-        rightPaneResizeThrottler.cancel();
-        studio.setRightPaneCollapsed(true);
-        return;
-      }
-      rightPaneResizeThrottler.maybeExecute(panelSize.inPixels);
-    },
-    [rightPaneResizeThrottler, studio],
-  );
-
-  const syncTimelineHeight = useCallback(
-    (panelSize: PanelSize) => {
-      lastTimelinePanelSizePxRef.current = panelSize.inPixels;
-      if (panelSize.inPixels <= 1) {
-        timelineResizeThrottler.cancel();
-        studio.setTimelineCollapsed(true);
-        return;
-      }
-      studio.setTimelineCollapsed(false);
-      timelineResizeThrottler.maybeExecute(panelSize.inPixels);
-    },
-    [studio, timelineResizeThrottler],
-  );
+    if (timelineCollapsed !== currentLayout.timelineCollapsed) {
+      setTimelineCollapsed(timelineCollapsed);
+    }
+    if (!timelineCollapsed && Math.abs(nextTimelineHeight - currentLayout.timelineHeightPx) > 1) {
+      setTimelineHeight(nextTimelineHeight);
+    }
+  }, [setTimelineCollapsed, setTimelineHeight]);
 
   const resizeLeftPaneFromKeyboard = useCallback(
     (deltaPx: number) => {
@@ -184,15 +138,21 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
       if (!leftPanel) {
         return;
       }
-      const nextWidth = studio.layout.leftPaneWidthPx + deltaPx;
-      if (studio.layout.leftCollapsed) {
-        studio.setLeftPaneCollapsed(false);
+      const nextWidth = layout.leftPaneWidthPx + deltaPx;
+      if (layout.leftCollapsed) {
+        setLeftPaneCollapsed(false);
         leftPanel.expand();
       }
       leftPanel.resize(toPxSize(nextWidth));
-      studio.setLeftPaneWidth(nextWidth);
+      setLeftPaneWidth(nextWidth);
     },
-    [studio, toPxSize],
+    [
+      layout.leftCollapsed,
+      layout.leftPaneWidthPx,
+      setLeftPaneCollapsed,
+      setLeftPaneWidth,
+      toPxSize,
+    ],
   );
 
   const resizeRightPaneFromKeyboard = useCallback(
@@ -201,15 +161,21 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
       if (!rightPanel) {
         return;
       }
-      const nextWidth = studio.layout.rightPaneWidthPx + deltaPx;
-      if (studio.layout.rightCollapsed) {
-        studio.setRightPaneCollapsed(false);
+      const nextWidth = layout.rightPaneWidthPx + deltaPx;
+      if (layout.rightCollapsed) {
+        setRightPaneCollapsed(false);
         rightPanel.expand();
       }
       rightPanel.resize(toPxSize(nextWidth));
-      studio.setRightPaneWidth(nextWidth);
+      setRightPaneWidth(nextWidth);
     },
-    [studio, toPxSize],
+    [
+      layout.rightCollapsed,
+      layout.rightPaneWidthPx,
+      setRightPaneCollapsed,
+      setRightPaneWidth,
+      toPxSize,
+    ],
   );
 
   const resizeTimelineFromKeyboard = useCallback(
@@ -218,55 +184,58 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
       if (!timelinePanel) {
         return;
       }
-      if (studio.layout.timelineCollapsed) {
-        studio.setTimelineCollapsed(false);
+      if (layout.timelineCollapsed) {
+        setTimelineCollapsed(false);
         timelinePanel.expand();
       }
-      const nextHeight = studio.layout.timelineHeightPx + deltaPx;
+      const nextHeight = layout.timelineHeightPx + deltaPx;
       timelinePanel.resize(toPxSize(nextHeight));
-      studio.setTimelineHeight(nextHeight);
+      setTimelineHeight(nextHeight);
     },
-    [studio, toPxSize],
+    [
+      layout.timelineCollapsed,
+      layout.timelineHeightPx,
+      setTimelineCollapsed,
+      setTimelineHeight,
+      toPxSize,
+    ],
   );
 
   return (
     <ResizablePanelGroup
-      className="h-full min-h-0"
+      className="h-full min-h-0 overflow-hidden"
       orientation="vertical"
-      onLayoutChanged={() => {
-        timelineResizeThrottler.flush();
-      }}
+      onLayoutChanged={commitTimelinePanelLayout}
     >
-      <ResizablePanel id="workspace-content-pane" minSize={0}>
+      <ResizablePanel id="workspace-content-pane" minSize={0} className="min-h-0 overflow-hidden">
         <ResizablePanelGroup
-          className="gg-editor-shell"
+          className="gg-editor-shell min-h-0"
           orientation="horizontal"
-          data-left-collapsed={studio.layout.leftCollapsed}
-          data-right-collapsed={studio.layout.rightCollapsed}
-          onLayoutChanged={() => {
-            leftPaneResizeThrottler.flush();
-            rightPaneResizeThrottler.flush();
-          }}
+          data-left-collapsed={layout.leftCollapsed}
+          data-right-collapsed={layout.rightCollapsed}
+          onLayoutChanged={commitHorizontalPanelLayout}
         >
           <ResizablePanel
             id="editor-left-pane"
+            key={leftPanelKey}
             panelRef={leftPanelRef}
-            defaultSize={toPxSize(studio.layout.leftPaneWidthPx)}
+            defaultSize={layout.leftCollapsed ? "0px" : toPxSize(layout.leftPaneWidthPx)}
             minSize={toPxSize(studioLayoutBounds.leftPaneMinWidthPx)}
             maxSize={toPxSize(studioLayoutBounds.leftPaneMaxWidthPx)}
             collapsible
             collapsedSize="0px"
-            onResize={syncLeftPaneSize}
+            className="min-h-0 min-w-0 overflow-hidden"
           >
             {leftPane}
           </ResizablePanel>
           <ResizableHandle
             withHandle
             className="gg-pane-resize-handle"
+            onPointerDown={markPointerResizeStart}
             aria-label={studio.ui.labels.resizeLeftPane}
             aria-valuemin={studioLayoutBounds.leftPaneMinWidthPx}
             aria-valuemax={studioLayoutBounds.leftPaneMaxWidthPx}
-            aria-valuenow={studio.layout.leftPaneWidthPx}
+            aria-valuenow={layout.leftPaneWidthPx}
             onKeyDown={(event) => {
               const step = event.shiftKey ? resizeStepPxLarge : resizeStepPx;
               if (event.key === "ArrowLeft") {
@@ -282,28 +251,33 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
               if (event.key === "Home") {
                 event.preventDefault();
                 resizeLeftPaneFromKeyboard(
-                  studioLayoutBounds.leftPaneMinWidthPx - studio.layout.leftPaneWidthPx,
+                  studioLayoutBounds.leftPaneMinWidthPx - layout.leftPaneWidthPx,
                 );
                 return;
               }
               if (event.key === "End") {
                 event.preventDefault();
                 resizeLeftPaneFromKeyboard(
-                  studioLayoutBounds.leftPaneMaxWidthPx - studio.layout.leftPaneWidthPx,
+                  studioLayoutBounds.leftPaneMaxWidthPx - layout.leftPaneWidthPx,
                 );
               }
             }}
           />
-          <ResizablePanel id="editor-center-pane" minSize={0}>
+          <ResizablePanel
+            id="editor-center-pane"
+            minSize={0}
+            className="min-h-0 min-w-0 overflow-hidden"
+          >
             {centerPane}
           </ResizablePanel>
           <ResizableHandle
             withHandle
             className="gg-pane-resize-handle"
+            onPointerDown={markPointerResizeStart}
             aria-label={studio.ui.labels.resizeRightPane}
             aria-valuemin={studioLayoutBounds.rightPaneMinWidthPx}
             aria-valuemax={studioLayoutBounds.rightPaneMaxWidthPx}
-            aria-valuenow={studio.layout.rightPaneWidthPx}
+            aria-valuenow={layout.rightPaneWidthPx}
             onKeyDown={(event) => {
               const step = event.shiftKey ? resizeStepPxLarge : resizeStepPx;
               if (event.key === "ArrowLeft") {
@@ -319,27 +293,28 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
               if (event.key === "Home") {
                 event.preventDefault();
                 resizeRightPaneFromKeyboard(
-                  studioLayoutBounds.rightPaneMinWidthPx - studio.layout.rightPaneWidthPx,
+                  studioLayoutBounds.rightPaneMinWidthPx - layout.rightPaneWidthPx,
                 );
                 return;
               }
               if (event.key === "End") {
                 event.preventDefault();
                 resizeRightPaneFromKeyboard(
-                  studioLayoutBounds.rightPaneMaxWidthPx - studio.layout.rightPaneWidthPx,
+                  studioLayoutBounds.rightPaneMaxWidthPx - layout.rightPaneWidthPx,
                 );
               }
             }}
           />
           <ResizablePanel
             id="editor-right-pane"
+            key={rightPanelKey}
             panelRef={rightPanelRef}
-            defaultSize={toPxSize(studio.layout.rightPaneWidthPx)}
+            defaultSize={layout.rightCollapsed ? "0px" : toPxSize(layout.rightPaneWidthPx)}
             minSize={toPxSize(studioLayoutBounds.rightPaneMinWidthPx)}
             maxSize={toPxSize(studioLayoutBounds.rightPaneMaxWidthPx)}
             collapsible
             collapsedSize="0px"
-            onResize={syncRightPaneSize}
+            className="min-h-0 min-w-0 overflow-hidden"
           >
             {rightPane}
           </ResizablePanel>
@@ -348,10 +323,11 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
       <ResizableHandle
         withHandle
         className="gg-timeline-resize-handle"
+        onPointerDown={markPointerResizeStart}
         aria-label={studio.ui.labels.resizeTimeline}
         aria-valuemin={studioLayoutBounds.timelineMinHeightPx}
         aria-valuemax={studioLayoutBounds.timelineMaxHeightPx}
-        aria-valuenow={studio.layout.timelineCollapsed ? 0 : studio.layout.timelineHeightPx}
+        aria-valuenow={layout.timelineCollapsed ? 0 : layout.timelineHeightPx}
         onKeyDown={(event) => {
           const step = event.shiftKey ? timelineResizeStepPxLarge : timelineResizeStepPx;
           if (event.key === "ArrowDown") {
@@ -367,29 +343,30 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
           if (event.key === "Home") {
             event.preventDefault();
             resizeTimelineFromKeyboard(
-              studioLayoutBounds.timelineMinHeightPx - studio.layout.timelineHeightPx,
+              studioLayoutBounds.timelineMinHeightPx - layout.timelineHeightPx,
             );
             return;
           }
           if (event.key === "End") {
             event.preventDefault();
             resizeTimelineFromKeyboard(
-              studioLayoutBounds.timelineMaxHeightPx - studio.layout.timelineHeightPx,
+              studioLayoutBounds.timelineMaxHeightPx - layout.timelineHeightPx,
             );
           }
         }}
       />
       <ResizablePanel
         id="workspace-timeline-pane"
+        key={timelinePanelKey}
         panelRef={timelinePanelRef}
-        defaultSize={toPxSize(studio.layout.timelineHeightPx)}
+        defaultSize={layout.timelineCollapsed ? "0px" : toPxSize(layout.timelineHeightPx)}
         minSize={toPxSize(studioLayoutBounds.timelineMinHeightPx)}
         maxSize={toPxSize(studioLayoutBounds.timelineMaxHeightPx)}
         collapsible
         collapsedSize="0px"
-        onResize={syncTimelineHeight}
+        className="min-h-0 overflow-hidden"
       >
-        <TimelineDock />
+        {bottomPane}
       </ResizablePanel>
     </ResizablePanelGroup>
   );

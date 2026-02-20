@@ -280,7 +280,11 @@ Creator Studio pro-UI parity backlog (next pass):
     - Top-shelf controls are icon-only; language and density controls moved to native menu/tray actions (`app.locale.enUS`, `app.locale.deDE`, `view.density.comfortable`, `view.density.compact`).
     - Shared shortcut registry (`src/shared/shortcuts.ts`) now drives renderer hotkeys, tooltip hints (`Kbd`), and native menu labels/accelerators to prevent binding drift.
 - Phase B — Workflow hierarchy + readability
-  - [ ] Rebalance default layout so preview + timeline are visually dominant and utility rails are more recessive/collapsible.
+  - [x] Rebalance default layout so preview + timeline are visually dominant and utility rails are more recessive/collapsible.
+  - Implementation notes:
+    - Added dominant layout presets per route (`capture`/`edit`/`deliver`) with one-time application per route and reset-to-preset behavior.
+    - Layout persistence parsing now runs through a Zod schema before migration/sanitize steps.
+    - Updated pane and timeline surface styling so utility rails are visually recessive while center preview/timeline surfaces carry stronger emphasis.
   - [ ] Upgrade timeline readability (audio waveform-rich lanes, stronger clip semantics, clearer selected-state/playhead contrast).
   - [ ] Improve inspector context switching so clip/marker/source selection immediately swaps to specific controls with minimal generic scaffolding.
   - [ ] Add a persistent technical feedback strip (dropped frames, CPU, memory, bitrate/audio level, recording health) with OBS-style immediate visibility.

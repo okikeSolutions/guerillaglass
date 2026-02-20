@@ -26,9 +26,11 @@ import {
 } from "./inspectorContext";
 import {
   defaultStudioLayoutState,
+  dominantLayoutPresetForRoute,
   loadStudioLayoutState,
   modeForStudioRoute,
   normalizeStudioLayoutRoute,
+  requiredLayoutPresetVersionForRoute,
   saveStudioLayoutState,
   studioLayoutBounds,
   type StudioDensityMode,
@@ -1106,10 +1108,35 @@ export function useStudioController() {
   }, []);
 
   const setLastRoute = useCallback((route: string) => {
-    setLayout((current) => ({
-      ...current,
-      lastRoute: normalizeStudioLayoutRoute(route),
-    }));
+    setLayout((current) => {
+      const nextRoute = normalizeStudioLayoutRoute(route);
+      if (current.lastRoute === nextRoute) {
+        return current;
+      }
+
+      const requiredPresetVersion = requiredLayoutPresetVersionForRoute(nextRoute);
+      const appliedPresetVersion = current.presetVersionByRoute[nextRoute] ?? 0;
+      const routePresetNeedsUpgrade = appliedPresetVersion < requiredPresetVersion;
+
+      if (current.presetRoutesApplied.includes(nextRoute) && !routePresetNeedsUpgrade) {
+        return {
+          ...current,
+          lastRoute: nextRoute,
+        };
+      }
+
+      const preset = dominantLayoutPresetForRoute(nextRoute);
+      return {
+        ...current,
+        ...preset,
+        lastRoute: nextRoute,
+        presetRoutesApplied: Array.from(new Set([...current.presetRoutesApplied, nextRoute])),
+        presetVersionByRoute: {
+          ...current.presetVersionByRoute,
+          [nextRoute]: requiredPresetVersion,
+        },
+      };
+    });
   }, []);
 
   const setLocale = useCallback((nextLocale: StudioLocale) => {
@@ -1132,12 +1159,20 @@ export function useStudioController() {
   }, []);
 
   const resetLayout = useCallback(() => {
-    setLayout((current) => ({
-      ...defaultStudioLayoutState,
-      lastRoute: current.lastRoute,
-      locale: current.locale,
-      densityMode: current.densityMode,
-    }));
+    setLayout((current) => {
+      const preset = dominantLayoutPresetForRoute(current.lastRoute);
+      return {
+        ...defaultStudioLayoutState,
+        ...preset,
+        lastRoute: current.lastRoute,
+        locale: current.locale,
+        densityMode: current.densityMode,
+        presetRoutesApplied: [current.lastRoute],
+        presetVersionByRoute: {
+          [current.lastRoute]: requiredLayoutPresetVersionForRoute(current.lastRoute),
+        },
+      };
+    });
   }, []);
 
   const refreshAll = useCallback(async () => {

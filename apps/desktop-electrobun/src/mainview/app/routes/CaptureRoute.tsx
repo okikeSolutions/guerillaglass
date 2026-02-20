@@ -1,7 +1,7 @@
 import { ScreenShare, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { engineApi } from "@/lib/engine";
 import { useStudio } from "../studio/context";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
+import { TimelineDock } from "./TimelineDock";
 import {
   StudioPane,
   StudioPaneBody,
@@ -40,36 +41,40 @@ export function CaptureRoute() {
               <div>{`${studio.ui.labels.inputMonitoring}: ${studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown}`}</div>
             </div>
 
-            <ButtonGroup className="flex-wrap gap-2">
+            <div className="gg-left-rail-actions">
               <Button
                 size="sm"
-                variant="secondary"
+                variant="ghost"
+                className="gg-left-rail-action"
                 onClick={() => void studio.requestPermissionMutation.mutateAsync("screen")}
               >
                 {studio.ui.actions.requestScreen}
               </Button>
               <Button
                 size="sm"
-                variant="secondary"
+                variant="ghost"
+                className="gg-left-rail-action"
                 onClick={() => void studio.requestPermissionMutation.mutateAsync("mic")}
               >
                 {studio.ui.actions.requestMic}
               </Button>
               <Button
                 size="sm"
-                variant="secondary"
+                variant="ghost"
+                className="gg-left-rail-action"
                 onClick={() => void studio.requestPermissionMutation.mutateAsync("input")}
               >
                 {studio.ui.actions.requestInput}
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="ghost"
+                className="gg-left-rail-action"
                 onClick={() => void engineApi.openInputMonitoringSettings()}
               >
                 {studio.ui.actions.openSettings}
               </Button>
-            </ButtonGroup>
+            </div>
 
             <div className="space-y-2 border-t border-border/70 pt-3">
               <studio.settingsForm.Field name="captureSource">
@@ -176,61 +181,70 @@ export function CaptureRoute() {
                 : studio.ui.helper.emptyPreviewBody}
             </StudioPaneSubtitle>
           </StudioPaneHeader>
-          <StudioPaneBody className="space-y-3">
+          <StudioPaneBody className="gg-preview-pane-body">
             {studio.inputMonitoringDenied && settingsValues.trackInputEvents ? (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="gg-preview-alert">
                 <AlertTitle>{studio.ui.helper.degradedModeTitle}</AlertTitle>
                 <AlertDescription>{studio.ui.helper.degradedModeBody}</AlertDescription>
               </Alert>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                onClick={() => void studio.startPreviewMutation.mutateAsync()}
-                disabled={studio.isRunningAction || studio.captureStatusQuery.data?.isRunning}
-              >
-                {studio.ui.actions.startPreview}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => void studio.stopPreviewMutation.mutateAsync()}
-                disabled={studio.isRunningAction || !studio.captureStatusQuery.data?.isRunning}
-              >
-                {studio.ui.actions.stopPreview}
-              </Button>
+            <div className="gg-preview-workspace">
+              <div className="gg-preview-stage-wrap">
+                <AspectRatio ratio={16 / 9} className="h-full w-full">
+                  <div className="gg-preview-stage">
+                    {studio.captureStatusQuery.data?.isRunning ? (
+                      <div className="space-y-2 text-center">
+                        <p className="text-sm font-medium">{studio.ui.helper.activePreviewTitle}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {studio.ui.helper.activePreviewBody}
+                        </p>
+                      </div>
+                    ) : (
+                      <Empty className="max-w-lg border-0 bg-transparent p-6">
+                        <EmptyHeader>
+                          <EmptyTitle className="text-sm">
+                            {studio.ui.helper.emptyPreviewTitle}
+                          </EmptyTitle>
+                          <EmptyDescription>{studio.ui.helper.emptyPreviewBody}</EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
+                    )}
+                  </div>
+                </AspectRatio>
+              </div>
             </div>
 
-            <div className="gg-preview-stage">
-              {studio.captureStatusQuery.data?.isRunning ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">{studio.ui.helper.activePreviewTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {studio.ui.helper.activePreviewBody}
-                  </p>
-                </div>
-              ) : (
-                <Empty className="max-w-md border-border/70 bg-background/70 p-6">
-                  <EmptyHeader>
-                    <EmptyTitle className="text-sm">
-                      {studio.ui.helper.emptyPreviewTitle}
-                    </EmptyTitle>
-                    <EmptyDescription>{studio.ui.helper.emptyPreviewBody}</EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              )}
-            </div>
+            <div className="gg-preview-footer">
+              <div className="gg-preview-controls">
+                <Button
+                  size="sm"
+                  onClick={() => void studio.startPreviewMutation.mutateAsync()}
+                  disabled={studio.isRunningAction || studio.captureStatusQuery.data?.isRunning}
+                >
+                  {studio.ui.actions.startPreview}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void studio.stopPreviewMutation.mutateAsync()}
+                  disabled={studio.isRunningAction || !studio.captureStatusQuery.data?.isRunning}
+                >
+                  {studio.ui.actions.stopPreview}
+                </Button>
+              </div>
 
-            <div className="gg-copy-compact grid gap-2 md:grid-cols-3">
-              <div>{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</div>
-              <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
-              <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
+              <div className="gg-preview-status-bar gg-copy-meta">
+                <div className="truncate">{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</div>
+                <div className="truncate">{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
+                <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
+              </div>
             </div>
           </StudioPaneBody>
         </StudioPane>
       }
       rightPane={<InspectorPanel mode="capture" />}
+      bottomPane={<TimelineDock />}
     />
   );
 }

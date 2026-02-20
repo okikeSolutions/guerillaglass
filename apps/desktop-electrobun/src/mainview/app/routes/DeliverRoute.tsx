@@ -6,6 +6,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { useStudio } from "../studio/context";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
+import { TimelineDock } from "./TimelineDock";
 import {
   StudioPane,
   StudioPaneBody,
@@ -144,6 +145,7 @@ export function DeliverRoute() {
         </StudioPane>
       }
       rightPane={<InspectorPanel mode="deliver" />}
+      bottomPane={<TimelineDock />}
     />
   );
 }
