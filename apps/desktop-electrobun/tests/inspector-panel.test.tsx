@@ -59,7 +59,7 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Video Clip Inspector");
     expect(html).toContain("Selected Clip");
-    expect(html).toContain("Lane: Video");
+    expect(html).not.toContain("Lane: Video");
   });
 
   test("renders preset-focused details for preset selection", () => {
@@ -73,6 +73,6 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Preset Inspector");
     expect(html).toContain("Selected Preset");
-    expect(html).toContain("File Type: mp4");
+    expect(html).not.toContain("File Type: mp4");
   });
 });

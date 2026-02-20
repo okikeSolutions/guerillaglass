@@ -80,29 +80,31 @@ function renderPanel(options?: PanelOptions): string {
 }
 
 describe("project utility panel", () => {
-  test("renders active project metadata and recent entries", () => {
+  test("renders collapsible section headers and keeps section bodies collapsed by default", () => {
     const html = renderPanel();
 
     expect(html).toContain("Active Project");
-    expect(html).toContain("Project Name: alpha");
-    expect(html).toContain("Capture Source: window");
-    expect(html).toContain("Capture Resolution: 1280x720");
     expect(html).toContain("Media Bin");
-    expect(html).toContain("Ready");
     expect(html).toContain("Recent Projects");
-    expect(html).toContain("Alpha");
-    expect(html).toContain("Open Recent");
+    expect(html).not.toContain("Project Name: alpha");
+    expect(html).not.toContain("Capture Source: window");
+    expect(html).not.toContain("Capture Resolution: 1280x720");
+    expect(html).not.toContain("Ready");
+    expect(html).not.toContain("Alpha");
+    expect(html).not.toContain("Open Recent");
   });
 
   test("renders loading state for recent projects", () => {
     const html = renderPanel({ pendingRecents: true });
 
-    expect(html).toContain("Loading recent projects...");
+    expect(html).toContain("Recent Projects");
+    expect(html).not.toContain("Loading recent projects...");
   });
 
   test("renders empty state when there are no recent projects", () => {
     const html = renderPanel({ recentItems: [] });
 
-    expect(html).toContain("No recent projects yet");
+    expect(html).toContain("Recent Projects");
+    expect(html).not.toContain("No recent projects yet");
   });
 });
