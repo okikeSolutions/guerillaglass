@@ -8,6 +8,14 @@ North star:
 - Editor-first workstation UI: transport, viewer, timeline, inspector
 - Beautiful-by-default motion design with manual control
 
+Creator Studio reliability + workflow notes (current):
+
+- Dialog-driven project/export actions now treat host RPC dialog timeouts as recoverable and show actionable guidance instead of hard-failing the workflow.
+- Transport actions (`Start Preview`, record toggles, `Stop Preview`) reconcile with fresh `capture.status` reads so UI state is not left stale after command dispatch.
+- Timeline now includes pro-style controls: tool mode (`Select`/`Trim`/`Blade`), snap/ripple toggles, zoom controls, and lane lock/mute/solo toggles.
+- Capture inspector now includes source monitor and audio mixer surfaces (master + mic level/mute controls).
+- Project utility rail now includes a lightweight media-bin summary for current recording and event-log assets.
+
 The project now uses a hybrid architecture:
 
 - Cross-platform desktop shell: Electrobun + React + Tailwind (`/apps/desktop-electrobun`)
