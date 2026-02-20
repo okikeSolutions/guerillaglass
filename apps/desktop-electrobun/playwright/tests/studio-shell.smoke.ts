@@ -235,6 +235,9 @@ test("renders shell and navigates capture/edit/deliver modes", async ({ page }) 
   await expect(page.getByRole("link", { name: "Deliver" })).toBeVisible();
 
   await expect(page.getByText("Preview Stage")).toBeVisible();
+  await expect(page.getByText("Timeline Tools")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Snap" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Blade" })).toBeVisible();
   await page.screenshot({ path: screenshotPath("capture-mode.png"), fullPage: true });
 
   await page.getByRole("link", { name: "Edit" }).click();
@@ -474,7 +477,7 @@ test("honors reduced-motion and increased-contrast accessibility preferences", a
   expect(headerBackdropFilter).toBe("none");
 
   const localeControlColors = await page.evaluate(() => {
-    const localeControl = document.querySelector("select.gg-input");
+    const localeControl = document.querySelector("#studio-locale-select");
     if (
       localeControl == null ||
       typeof localeControl !== "object" ||

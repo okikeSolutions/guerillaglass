@@ -1,11 +1,7 @@
-import {
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-  useCallback,
-  useRef,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { useThrottler } from "@tanstack/react-pacer";
+import type { PanelImperativeHandle, PanelSize } from "react-resizable-panels";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useStudio } from "../studio/context";
 import { studioLayoutBounds } from "../studio/studioLayoutState";
 
@@ -15,45 +11,18 @@ type EditorWorkspaceProps = {
   rightPane: ReactNode;
 };
 
-type PaneResizeDragState = {
-  initialWidth: number;
-  pointerId: number;
-  side: "left" | "right";
-  startX: number;
-};
-
 export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorkspaceProps) {
   const studio = useStudio();
+  const leftPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const rightPanelRef = useRef<PanelImperativeHandle | null>(null);
   const resizeStepPx = 8;
   const resizeStepPxLarge = 32;
   const paneResizeThrottleMs = 16;
-  const activePaneResizeRef = useRef<PaneResizeDragState | null>(null);
 
-  const applyPaneResize = useCallback(
-    ({
-      clientX,
-      initialWidth,
-      side,
-      startX,
-    }: {
-      clientX: number;
-      initialWidth: number;
-      side: "left" | "right";
-      startX: number;
-    }) => {
-      const delta = clientX - startX;
-      const nextWidth = side === "left" ? initialWidth + delta : initialWidth - delta;
-      if (side === "left") {
-        studio.setLeftPaneWidth(nextWidth);
-      } else {
-        studio.setRightPaneWidth(nextWidth);
-      }
+  const leftPaneResizeThrottler = useThrottler(
+    (nextWidthPx: number) => {
+      studio.setLeftPaneWidth(nextWidthPx);
     },
-    [studio],
-  );
-
-  const paneResizeThrottler = useThrottler(
-    applyPaneResize,
     {
       leading: true,
       trailing: true,
@@ -62,139 +31,150 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
     () => null,
   );
 
-  const beginPaneResize = useCallback(
-    (side: "left" | "right", event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!event.isPrimary || event.button !== 0) {
-        return;
-      }
-      if (side === "left" && studio.layout.leftCollapsed) {
-        return;
-      }
-      if (side === "right" && studio.layout.rightCollapsed) {
-        return;
-      }
-
-      event.preventDefault();
-      const startX = event.clientX;
-      const initialWidth =
-        side === "left" ? studio.layout.leftPaneWidthPx : studio.layout.rightPaneWidthPx;
-      activePaneResizeRef.current = {
-        initialWidth,
-        pointerId: event.pointerId,
-        side,
-        startX,
-      };
-
-      paneResizeThrottler.cancel();
-      applyPaneResize({
-        clientX: startX,
-        initialWidth,
-        side,
-        startX,
-      });
-      event.currentTarget.setPointerCapture(event.pointerId);
+  const rightPaneResizeThrottler = useThrottler(
+    (nextWidthPx: number) => {
+      studio.setRightPaneWidth(nextWidthPx);
     },
-    [applyPaneResize, paneResizeThrottler, studio],
+    {
+      leading: true,
+      trailing: true,
+      wait: paneResizeThrottleMs,
+    },
+    () => null,
   );
 
-  const continuePaneResize = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const activeDrag = activePaneResizeRef.current;
-      if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+  useEffect(() => {
+    const leftPanel = leftPanelRef.current;
+    if (!leftPanel) {
+      return;
+    }
+    if (studio.layout.leftCollapsed) {
+      if (!leftPanel.isCollapsed()) {
+        leftPanel.collapse();
+      }
+      return;
+    }
+    if (leftPanel.isCollapsed()) {
+      leftPanel.expand();
+    }
+    if (Math.abs(leftPanel.getSize().inPixels - studio.layout.leftPaneWidthPx) > 1) {
+      leftPanel.resize(studio.layout.leftPaneWidthPx);
+    }
+  }, [studio.layout.leftCollapsed, studio.layout.leftPaneWidthPx]);
+
+  useEffect(() => {
+    const rightPanel = rightPanelRef.current;
+    if (!rightPanel) {
+      return;
+    }
+    if (studio.layout.rightCollapsed) {
+      if (!rightPanel.isCollapsed()) {
+        rightPanel.collapse();
+      }
+      return;
+    }
+    if (rightPanel.isCollapsed()) {
+      rightPanel.expand();
+    }
+    if (Math.abs(rightPanel.getSize().inPixels - studio.layout.rightPaneWidthPx) > 1) {
+      rightPanel.resize(studio.layout.rightPaneWidthPx);
+    }
+  }, [studio.layout.rightCollapsed, studio.layout.rightPaneWidthPx]);
+
+  useEffect(() => {
+    return () => {
+      leftPaneResizeThrottler.cancel();
+      rightPaneResizeThrottler.cancel();
+    };
+  }, [leftPaneResizeThrottler, rightPaneResizeThrottler]);
+
+  const syncLeftPaneSize = useCallback(
+    (panelSize: PanelSize) => {
+      if (panelSize.inPixels <= 1) {
+        leftPaneResizeThrottler.cancel();
+        studio.setLeftPaneCollapsed(true);
         return;
       }
-
-      paneResizeThrottler.maybeExecute({
-        clientX: event.clientX,
-        initialWidth: activeDrag.initialWidth,
-        side: activeDrag.side,
-        startX: activeDrag.startX,
-      });
+      leftPaneResizeThrottler.maybeExecute(panelSize.inPixels);
     },
-    [paneResizeThrottler],
+    [leftPaneResizeThrottler, studio],
   );
 
-  const endPaneResize = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const activeDrag = activePaneResizeRef.current;
-      if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+  const syncRightPaneSize = useCallback(
+    (panelSize: PanelSize) => {
+      if (panelSize.inPixels <= 1) {
+        rightPaneResizeThrottler.cancel();
+        studio.setRightPaneCollapsed(true);
         return;
       }
-
-      paneResizeThrottler.maybeExecute({
-        clientX: event.clientX,
-        initialWidth: activeDrag.initialWidth,
-        side: activeDrag.side,
-        startX: activeDrag.startX,
-      });
-      paneResizeThrottler.flush();
-      paneResizeThrottler.cancel();
-
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      activePaneResizeRef.current = null;
+      rightPaneResizeThrottler.maybeExecute(panelSize.inPixels);
     },
-    [paneResizeThrottler],
+    [rightPaneResizeThrottler, studio],
   );
-
-  const cancelPaneResize = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const activeDrag = activePaneResizeRef.current;
-      if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
-        return;
-      }
-
-      paneResizeThrottler.cancel();
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      activePaneResizeRef.current = null;
-    },
-    [paneResizeThrottler],
-  );
-
-  const style = {
-    "--gg-left-pane-width": `${studio.layout.leftCollapsed ? 0 : studio.layout.leftPaneWidthPx}px`,
-    "--gg-right-pane-width": `${studio.layout.rightCollapsed ? 0 : studio.layout.rightPaneWidthPx}px`,
-    "--gg-left-splitter-width": studio.layout.leftCollapsed ? "0px" : "6px",
-    "--gg-right-splitter-width": studio.layout.rightCollapsed ? "0px" : "6px",
-  } as CSSProperties;
 
   const resizeLeftPaneFromKeyboard = useCallback(
     (deltaPx: number) => {
-      studio.setLeftPaneWidth(studio.layout.leftPaneWidthPx + deltaPx);
+      const leftPanel = leftPanelRef.current;
+      if (!leftPanel) {
+        return;
+      }
+      const nextWidth = studio.layout.leftPaneWidthPx + deltaPx;
+      if (studio.layout.leftCollapsed) {
+        studio.setLeftPaneCollapsed(false);
+        leftPanel.expand();
+      }
+      leftPanel.resize(nextWidth);
+      studio.setLeftPaneWidth(nextWidth);
     },
     [studio],
   );
 
   const resizeRightPaneFromKeyboard = useCallback(
     (deltaPx: number) => {
-      studio.setRightPaneWidth(studio.layout.rightPaneWidthPx + deltaPx);
+      const rightPanel = rightPanelRef.current;
+      if (!rightPanel) {
+        return;
+      }
+      const nextWidth = studio.layout.rightPaneWidthPx + deltaPx;
+      if (studio.layout.rightCollapsed) {
+        studio.setRightPaneCollapsed(false);
+        rightPanel.expand();
+      }
+      rightPanel.resize(nextWidth);
+      studio.setRightPaneWidth(nextWidth);
     },
     [studio],
   );
 
   return (
-    <section
+    <ResizablePanelGroup
       className="gg-editor-shell"
-      style={style}
+      orientation="horizontal"
       data-left-collapsed={studio.layout.leftCollapsed}
       data-right-collapsed={studio.layout.rightCollapsed}
+      onLayoutChanged={() => {
+        leftPaneResizeThrottler.flush();
+        rightPaneResizeThrottler.flush();
+      }}
     >
-      {leftPane}
-      <div
+      <ResizablePanel
+        id="editor-left-pane"
+        panelRef={leftPanelRef}
+        defaultSize={studio.layout.leftPaneWidthPx}
+        minSize={studioLayoutBounds.leftPaneMinWidthPx}
+        maxSize={studioLayoutBounds.leftPaneMaxWidthPx}
+        collapsible
+        collapsedSize={0}
+        onResize={syncLeftPaneSize}
+      >
+        {leftPane}
+      </ResizablePanel>
+      <ResizableHandle
+        withHandle
         className="gg-pane-resize-handle"
         data-disabled={studio.layout.leftCollapsed}
-        onPointerDown={(event) => beginPaneResize("left", event)}
-        onPointerMove={continuePaneResize}
-        onPointerUp={endPaneResize}
-        onPointerCancel={cancelPaneResize}
-        role="separator"
+        disabled={studio.layout.leftCollapsed}
         aria-label={studio.ui.labels.resizeLeftPane}
-        aria-orientation="vertical"
-        tabIndex={studio.layout.leftCollapsed ? -1 : 0}
-        aria-disabled={studio.layout.leftCollapsed}
         aria-valuemin={studioLayoutBounds.leftPaneMinWidthPx}
         aria-valuemax={studioLayoutBounds.leftPaneMaxWidthPx}
         aria-valuenow={studio.layout.leftPaneWidthPx}
@@ -202,7 +182,6 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
           if (studio.layout.leftCollapsed) {
             return;
           }
-
           const step = event.shiftKey ? resizeStepPxLarge : resizeStepPx;
           if (event.key === "ArrowLeft") {
             event.preventDefault();
@@ -216,28 +195,28 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
           }
           if (event.key === "Home") {
             event.preventDefault();
-            studio.setLeftPaneWidth(studioLayoutBounds.leftPaneMinWidthPx);
+            resizeLeftPaneFromKeyboard(
+              studioLayoutBounds.leftPaneMinWidthPx - studio.layout.leftPaneWidthPx,
+            );
             return;
           }
           if (event.key === "End") {
             event.preventDefault();
-            studio.setLeftPaneWidth(studioLayoutBounds.leftPaneMaxWidthPx);
+            resizeLeftPaneFromKeyboard(
+              studioLayoutBounds.leftPaneMaxWidthPx - studio.layout.leftPaneWidthPx,
+            );
           }
         }}
       />
-      {centerPane}
-      <div
+      <ResizablePanel id="editor-center-pane" minSize={420}>
+        {centerPane}
+      </ResizablePanel>
+      <ResizableHandle
+        withHandle
         className="gg-pane-resize-handle"
         data-disabled={studio.layout.rightCollapsed}
-        onPointerDown={(event) => beginPaneResize("right", event)}
-        onPointerMove={continuePaneResize}
-        onPointerUp={endPaneResize}
-        onPointerCancel={cancelPaneResize}
-        role="separator"
+        disabled={studio.layout.rightCollapsed}
         aria-label={studio.ui.labels.resizeRightPane}
-        aria-orientation="vertical"
-        tabIndex={studio.layout.rightCollapsed ? -1 : 0}
-        aria-disabled={studio.layout.rightCollapsed}
         aria-valuemin={studioLayoutBounds.rightPaneMinWidthPx}
         aria-valuemax={studioLayoutBounds.rightPaneMaxWidthPx}
         aria-valuenow={studio.layout.rightPaneWidthPx}
@@ -245,7 +224,6 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
           if (studio.layout.rightCollapsed) {
             return;
           }
-
           const step = event.shiftKey ? resizeStepPxLarge : resizeStepPx;
           if (event.key === "ArrowLeft") {
             event.preventDefault();
@@ -259,16 +237,31 @@ export function EditorWorkspace({ leftPane, centerPane, rightPane }: EditorWorks
           }
           if (event.key === "Home") {
             event.preventDefault();
-            studio.setRightPaneWidth(studioLayoutBounds.rightPaneMinWidthPx);
+            resizeRightPaneFromKeyboard(
+              studioLayoutBounds.rightPaneMinWidthPx - studio.layout.rightPaneWidthPx,
+            );
             return;
           }
           if (event.key === "End") {
             event.preventDefault();
-            studio.setRightPaneWidth(studioLayoutBounds.rightPaneMaxWidthPx);
+            resizeRightPaneFromKeyboard(
+              studioLayoutBounds.rightPaneMaxWidthPx - studio.layout.rightPaneWidthPx,
+            );
           }
         }}
       />
-      {rightPane}
-    </section>
+      <ResizablePanel
+        id="editor-right-pane"
+        panelRef={rightPanelRef}
+        defaultSize={studio.layout.rightPaneWidthPx}
+        minSize={studioLayoutBounds.rightPaneMinWidthPx}
+        maxSize={studioLayoutBounds.rightPaneMaxWidthPx}
+        collapsible
+        collapsedSize={0}
+        onResize={syncRightPaneSize}
+      >
+        {rightPane}
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
