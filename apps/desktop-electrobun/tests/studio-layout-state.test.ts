@@ -41,6 +41,7 @@ describe("studio layout state", () => {
         timelineHeightPx: 999,
         timelineCollapsed: true,
         lastRoute: "/edit/deep-link",
+        densityMode: "ultra-compact",
       }),
     );
 
@@ -50,6 +51,17 @@ describe("studio layout state", () => {
     expect(layout.leftCollapsed).toBe(true);
     expect(layout.timelineCollapsed).toBe(true);
     expect(layout.lastRoute).toBe("/edit");
+    expect(layout.densityMode).toBe(defaultStudioLayoutState.densityMode);
+  });
+
+  test("accepts persisted density mode", () => {
+    const layout = parseStudioLayoutState(
+      JSON.stringify({
+        densityMode: "compact",
+      }),
+    );
+
+    expect(layout.densityMode).toBe("compact");
   });
 
   test("resolves locale and route from pathname", () => {

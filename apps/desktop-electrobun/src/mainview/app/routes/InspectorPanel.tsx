@@ -60,11 +60,11 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       return (
         <Card size="sm" className="gg-surface-block">
           <CardHeader>
-            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            <CardTitle className="gg-utility-label">
               {studio.ui.inspector.cards.selectedClip}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="gg-numeric space-y-1">
             <div>{`${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`}</div>
             <div>{`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}</div>
             <div>{`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}</div>
@@ -80,11 +80,11 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       return (
         <Card size="sm" className="gg-surface-block">
           <CardHeader>
-            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            <CardTitle className="gg-utility-label">
               {studio.ui.inspector.cards.selectedEventMarker}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="gg-numeric space-y-1">
             <div>{`${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`}</div>
             <div>{`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}</div>
             <div>{`${studio.ui.inspector.fields.density}: ${selection.density}`}</div>
@@ -95,11 +95,11 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       return (
         <Card size="sm" className="gg-surface-block">
           <CardHeader>
-            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            <CardTitle className="gg-utility-label">
               {studio.ui.inspector.cards.selectedWindow}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="gg-numeric space-y-1">
             <div>{`${studio.ui.inspector.fields.app}: ${selection.appName}`}</div>
             <div className="truncate">{`${studio.ui.inspector.fields.title}: ${selection.title || studio.ui.values.untitled}`}</div>
             <div>{`${studio.ui.inspector.fields.windowId}: ${selection.windowId}`}</div>
@@ -110,11 +110,11 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
       return (
         <Card size="sm" className="gg-surface-block">
           <CardHeader>
-            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            <CardTitle className="gg-utility-label">
               {studio.ui.inspector.cards.selectedPreset}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="gg-numeric space-y-1">
             <div>{selection.name}</div>
             <div className="text-muted-foreground">{`${selection.width}:${selection.height}`}</div>
             <div>{`${studio.ui.inspector.fields.fileType}: ${selection.fileType}`}</div>
@@ -246,11 +246,9 @@ function CaptureInspectorContent() {
 
       <Card size="sm" className="gg-surface-block">
         <CardHeader>
-          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
-            {studio.ui.labels.sourceMonitor}
-          </CardTitle>
+          <CardTitle className="gg-utility-label">{studio.ui.labels.sourceMonitor}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1 text-xs">
+        <CardContent className="gg-copy-meta space-y-1">
           <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
           <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
           <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
@@ -259,9 +257,7 @@ function CaptureInspectorContent() {
 
       <Card size="sm" className="gg-surface-block">
         <CardHeader>
-          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
-            {studio.ui.labels.audioMixer}
-          </CardTitle>
+          <CardTitle className="gg-utility-label">{studio.ui.labels.audioMixer}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <AudioMixerChannel
@@ -326,7 +322,7 @@ function AudioMixerChannel({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium">{label}</span>
+        <span className="gg-copy-strong">{label}</span>
         <Button
           type="button"
           size="icon-xs"
@@ -390,7 +386,7 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
         {(field) => (
           <Card size="sm" className="gg-surface-block">
             <CardHeader>
-              <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+              <CardTitle className="gg-utility-label">
                 <span className="inline-flex items-center gap-1">
                   <Sparkles className="h-3.5 w-3.5" /> {studio.ui.inspectorTabs.effects}
                 </span>
@@ -447,11 +443,11 @@ function DeliverInspectorContent() {
     <>
       <Card size="sm" className="gg-surface-block">
         <CardHeader>
-          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+          <CardTitle className="gg-utility-label">
             {studio.ui.inspector.cards.activePreset}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1">
+        <CardContent className="gg-numeric space-y-1">
           <div>{studio.selectedPreset?.name ?? "-"}</div>
           {studio.selectedPreset ? (
             <div className="text-muted-foreground">
@@ -462,11 +458,9 @@ function DeliverInspectorContent() {
       </Card>
       <Card size="sm" className="gg-surface-block">
         <CardHeader>
-          <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
-            {studio.ui.inspector.cards.trimWindow}
-          </CardTitle>
+          <CardTitle className="gg-utility-label">{studio.ui.inspector.cards.trimWindow}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1">
+        <CardContent className="gg-numeric space-y-1">
           <div>{`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}</div>
           <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}</div>
         </CardContent>
@@ -489,7 +483,7 @@ export function InspectorPanel({ mode }: InspectorPanelProps) {
         </StudioPaneTitle>
         <StudioPaneSubtitle>{viewText.subtitle}</StudioPaneSubtitle>
       </StudioPaneHeader>
-      <StudioPaneBody className="space-y-3 text-sm">
+      <StudioPaneBody className="gg-copy-compact space-y-3">
         <SelectionDetails selection={selection} />
 
         {mode === "capture" ? <CaptureInspectorContent /> : null}

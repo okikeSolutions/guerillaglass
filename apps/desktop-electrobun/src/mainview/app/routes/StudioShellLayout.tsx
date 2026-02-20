@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   SplitSquareVertical,
+  Type,
   Video,
 } from "lucide-react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -129,7 +130,10 @@ export function StudioShellLayout() {
 
   return (
     <div className="h-full overflow-hidden bg-background">
-      <div className="gg-shell-frame mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border">
+      <div
+        className="gg-shell-frame mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border"
+        data-density={studio.densityMode}
+      >
         <header className="gg-shell-header border-b px-4 py-2">
           <TooltipProvider delay={120}>
             <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
@@ -296,6 +300,39 @@ export function StudioShellLayout() {
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-end">
+                <div className="inline-flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<Badge className="h-7 w-7 justify-center p-0" variant="outline" />}
+                    >
+                      <Type className="h-3.5 w-3.5" />
+                      <span className="sr-only">{studio.ui.labels.density}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>{studio.ui.labels.density}</TooltipContent>
+                  </Tooltip>
+                  <Label className="sr-only" htmlFor="studio-density-select">
+                    {studio.ui.labels.density}
+                  </Label>
+                  <NativeSelect
+                    id="studio-density-select"
+                    size="sm"
+                    className="w-[8.8rem]"
+                    value={studio.densityMode}
+                    onChange={(event) => {
+                      const nextDensity =
+                        event.target.value === "compact" ? "compact" : "comfortable";
+                      studio.setDensityMode(nextDensity);
+                    }}
+                  >
+                    <NativeSelectOption value="comfortable">
+                      {studio.ui.labels.densityComfortable}
+                    </NativeSelectOption>
+                    <NativeSelectOption value="compact">
+                      {studio.ui.labels.densityCompact}
+                    </NativeSelectOption>
+                  </NativeSelect>
+                </div>
+
                 <div className="inline-flex items-center gap-1">
                   <Tooltip>
                     <TooltipTrigger

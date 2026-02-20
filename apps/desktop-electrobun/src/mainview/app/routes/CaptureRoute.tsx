@@ -33,7 +33,7 @@ export function CaptureRoute() {
             </StudioPaneTitle>
             <StudioPaneSubtitle>{studio.ui.labels.inputMonitoring}</StudioPaneSubtitle>
           </StudioPaneHeader>
-          <StudioPaneBody className="space-y-4 text-sm">
+          <StudioPaneBody className="gg-copy-compact space-y-4">
             <div className="space-y-1">
               <div>{`${studio.ui.labels.screen}: ${studio.permissionsQuery.data?.screenRecordingGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
               <div>{`${studio.ui.labels.microphone}: ${studio.permissionsQuery.data?.microphoneGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
@@ -222,7 +222,7 @@ export function CaptureRoute() {
               )}
             </div>
 
-            <div className="grid gap-2 text-sm md:grid-cols-3">
+            <div className="gg-copy-compact grid gap-2 md:grid-cols-3">
               <div>{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</div>
               <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
               <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>

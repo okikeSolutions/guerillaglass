@@ -51,7 +51,7 @@ export function TimelineDock() {
   return (
     <footer className="h-full overflow-hidden bg-background/60">
       <div className="h-full overflow-auto px-4 py-3">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
+        <div className="gg-pane-title mb-2 flex items-center gap-2">
           <Scissors className="h-4 w-4" /> {studio.ui.sections.timeline}
         </div>
 
@@ -121,9 +121,7 @@ export function TimelineDock() {
             </div>
 
             <div className="gg-toolbar-group flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5">
-              <span className="text-[0.68rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                {studio.ui.labels.timelineTools}
-              </span>
+              <span className="gg-utility-label">{studio.ui.labels.timelineTools}</span>
               <ButtonGroup className="flex-wrap gap-1">
                 <TimelineIconAction
                   label={studio.ui.actions.timelineToolSelect}
@@ -161,7 +159,7 @@ export function TimelineDock() {
                   <Waves className="h-4 w-4" />
                 </TimelineIconAction>
               </ButtonGroup>
-              <span className="ml-auto text-xs text-muted-foreground">{`${studio.ui.labels.timelineZoom}: ${studio.timelineZoomPercent}%`}</span>
+              <span className="gg-copy-meta ml-auto">{`${studio.ui.labels.timelineZoom}: ${studio.timelineZoomPercent}%`}</span>
               <ButtonGroup className="gap-1">
                 <TimelineIconAction
                   label={studio.ui.actions.timelineZoomOut}
@@ -219,7 +217,7 @@ export function TimelineDock() {
               onSelectMarker={studio.selectTimelineMarker}
             />
 
-            <div className="grid grid-cols-3 text-xs text-muted-foreground">
+            <div className="gg-copy-meta grid grid-cols-3">
               <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
               <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
               <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>

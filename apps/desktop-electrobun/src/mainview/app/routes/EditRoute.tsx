@@ -48,7 +48,7 @@ export function EditRoute() {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="gg-copy-compact grid grid-cols-3 gap-2">
               <div>{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</div>
               <div>{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
               <div className="truncate">{`${studio.ui.labels.eventsURL}: ${studio.projectQuery.data?.eventsURL ?? studio.captureStatusQuery.data?.eventsURL ?? "-"}`}</div>

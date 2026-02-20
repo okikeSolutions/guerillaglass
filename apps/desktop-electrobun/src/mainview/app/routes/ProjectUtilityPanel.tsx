@@ -39,15 +39,13 @@ export function ProjectUtilityPanel() {
   return (
     <>
       <div className="gg-pane-header">
-        <h2 className="text-sm font-semibold tracking-wide uppercase">
-          {studio.ui.labels.activeProject}
-        </h2>
+        <h2 className="gg-pane-title">{studio.ui.labels.activeProject}</h2>
         <p className="gg-pane-subtitle">{studio.ui.labels.projectUtilitySubtitle}</p>
       </div>
 
-      <div className="gg-pane-body space-y-3 text-sm">
+      <div className="gg-pane-body gg-copy-compact space-y-3">
         <Card size="sm" className="gg-surface-block">
-          <CardContent className="space-y-1">
+          <CardContent className="gg-numeric space-y-1">
             <div>{`${studio.ui.labels.projectName}: ${projectNameFromPath(project?.projectPath ?? null)}`}</div>
             <div className="truncate">{`${studio.ui.labels.projectPath}: ${project?.projectPath ?? studio.ui.labels.notSaved}`}</div>
             <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
@@ -71,9 +69,7 @@ export function ProjectUtilityPanel() {
 
         <Card size="sm" className="gg-surface-block">
           <CardHeader>
-            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
-              {studio.ui.labels.mediaBin}
-            </CardTitle>
+            <CardTitle className="gg-utility-label">{studio.ui.labels.mediaBin}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {mediaBinItems.map((item) => (
@@ -83,9 +79,9 @@ export function ProjectUtilityPanel() {
                 className="border border-border/50 bg-background/35 shadow-none"
               >
                 <CardContent className="space-y-1">
-                  <div className="text-xs font-medium">{item.label}</div>
-                  <div className="truncate text-xs text-muted-foreground">{item.value}</div>
-                  <div className="text-[0.68rem] text-muted-foreground">
+                  <div className="gg-copy-strong">{item.label}</div>
+                  <div className="gg-copy-meta truncate">{item.value}</div>
+                  <div className="gg-copy-meta">
                     {item.available ? studio.ui.labels.mediaReady : studio.ui.labels.mediaMissing}
                   </div>
                 </CardContent>
@@ -123,7 +119,7 @@ export function ProjectUtilityPanel() {
 
         <Card size="sm" className="gg-surface-block">
           <CardHeader>
-            <CardTitle className="text-xs tracking-[0.14em] uppercase text-muted-foreground">
+            <CardTitle className="gg-utility-label">
               <span className="inline-flex items-center gap-1">
                 <FolderClock className="h-3.5 w-3.5" /> {studio.ui.labels.recentProjects}
               </span>
@@ -155,9 +151,9 @@ export function ProjectUtilityPanel() {
                 className="border border-border/50 bg-background/35 shadow-none"
               >
                 <CardContent className="space-y-1">
-                  <div className="truncate text-sm font-medium">{item.displayName}</div>
-                  <div className="truncate text-xs text-muted-foreground">{item.projectPath}</div>
-                  <div className="text-xs text-muted-foreground">{`${studio.ui.labels.lastOpened}: ${studio.formatDateTime(item.lastOpenedAt)}`}</div>
+                  <div className="gg-copy-strong truncate">{item.displayName}</div>
+                  <div className="gg-copy-meta truncate">{item.projectPath}</div>
+                  <div className="gg-copy-meta">{`${studio.ui.labels.lastOpened}: ${studio.formatDateTime(item.lastOpenedAt)}`}</div>
                   <Button
                     size="sm"
                     variant="outline"
