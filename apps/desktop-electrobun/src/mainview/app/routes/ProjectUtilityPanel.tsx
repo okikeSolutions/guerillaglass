@@ -18,6 +18,20 @@ export function ProjectUtilityPanel() {
   const project = studio.projectQuery.data;
   const captureMetadata = project?.captureMetadata;
   const recentProjects = studio.projectRecentsQuery.data?.items ?? [];
+  const mediaBinItems = [
+    {
+      id: "source-video",
+      label: studio.ui.labels.timelineLaneVideo,
+      value: studio.recordingURL ?? "-",
+      available: Boolean(studio.recordingURL),
+    },
+    {
+      id: "source-events",
+      label: studio.ui.labels.timelineLaneEvents,
+      value: project?.eventsURL ?? studio.captureStatusQuery.data?.eventsURL ?? "-",
+      available: Boolean(project?.eventsURL ?? studio.captureStatusQuery.data?.eventsURL),
+    },
+  ];
 
   return (
     <>
@@ -47,6 +61,23 @@ export function ProjectUtilityPanel() {
             {`${studio.ui.labels.captureScale}: ${
               captureMetadata ? studio.formatDecimal(captureMetadata.pixelScale) : "-"
             }`}
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border/70 bg-background/70 p-3">
+          <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            {studio.ui.labels.mediaBin}
+          </p>
+          <div className="space-y-2">
+            {mediaBinItems.map((item) => (
+              <div key={item.id} className="rounded border border-border/60 bg-background/60 p-2">
+                <div className="text-xs font-medium">{item.label}</div>
+                <div className="truncate text-xs text-muted-foreground">{item.value}</div>
+                <div className="mt-1 text-[0.68rem] text-muted-foreground">
+                  {item.available ? studio.ui.labels.mediaReady : studio.ui.labels.mediaMissing}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

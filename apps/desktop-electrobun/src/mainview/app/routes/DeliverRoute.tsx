@@ -1,11 +1,15 @@
 import { HardDriveDownload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useStudio } from "../studio/context";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
 
 export function DeliverRoute() {
   const studio = useStudio();
+  const exportDisabledReason = studio.recordingURL ? undefined : studio.recordingRequiredNotice;
 
   return (
     <EditorWorkspace
@@ -38,10 +42,9 @@ export function DeliverRoute() {
           <div className="gg-pane-body space-y-3 text-sm">
             <studio.exportForm.Field name="presetId">
               {(field) => (
-                <label className="grid gap-1">
+                <Label className="grid gap-1">
                   {studio.ui.labels.preset}
-                  <select
-                    className="gg-input"
+                  <NativeSelect
                     value={studio.selectedPresetId}
                     onChange={(event) => {
                       field.handleChange(event.target.value);
@@ -49,38 +52,36 @@ export function DeliverRoute() {
                     }}
                   >
                     {studio.exportPresets.map((preset) => (
-                      <option
+                      <NativeSelectOption
                         key={preset.id}
                         value={preset.id}
                       >{`${preset.name} · ${studio.formatAspectRatio(
                         preset.width,
                         preset.height,
-                      )}`}</option>
+                      )}`}</NativeSelectOption>
                     ))}
-                  </select>
-                </label>
+                  </NativeSelect>
+                </Label>
               )}
             </studio.exportForm.Field>
 
             <studio.exportForm.Field name="fileName">
               {(field) => (
-                <label className="grid gap-1">
+                <Label className="grid gap-1">
                   {studio.ui.labels.fileName}
-                  <input
-                    className="gg-input"
+                  <Input
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.target.value)}
                   />
-                </label>
+                </Label>
               )}
             </studio.exportForm.Field>
 
             <studio.exportForm.Field name="trimStartSeconds">
               {(field) => (
-                <label className="grid gap-1">
+                <Label className="grid gap-1">
                   {studio.ui.labels.trimInSeconds}
-                  <input
-                    className="gg-input"
+                  <Input
                     type="number"
                     min={0}
                     value={field.state.value}
@@ -93,16 +94,15 @@ export function DeliverRoute() {
                       )
                     }
                   />
-                </label>
+                </Label>
               )}
             </studio.exportForm.Field>
 
             <studio.exportForm.Field name="trimEndSeconds">
               {(field) => (
-                <label className="grid gap-1">
+                <Label className="grid gap-1">
                   {studio.ui.labels.trimOutSeconds}
-                  <input
-                    className="gg-input"
+                  <Input
                     type="number"
                     min={0}
                     value={field.state.value}
@@ -115,16 +115,20 @@ export function DeliverRoute() {
                       )
                     }
                   />
-                </label>
+                </Label>
               )}
             </studio.exportForm.Field>
 
             <Button
               onClick={() => void studio.exportMutation.mutateAsync()}
               disabled={studio.isRunningAction || !studio.recordingURL}
+              title={exportDisabledReason}
             >
               <HardDriveDownload className="mr-2 h-4 w-4" /> {studio.ui.actions.exportNow}
             </Button>
+            {!studio.recordingURL ? (
+              <p className="text-xs text-muted-foreground">{studio.recordingRequiredNotice}</p>
+            ) : null}
           </div>
         </section>
       }

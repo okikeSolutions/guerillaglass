@@ -7,6 +7,13 @@ type TimelineSurfaceLabels = {
   playhead: string;
   trimInSeconds: string;
   trimOutSeconds: string;
+  timelineTools: string;
+  timelineSnap: string;
+  timelineRipple: string;
+  timelineZoom: string;
+  timelineLaneLock: string;
+  timelineLaneMute: string;
+  timelineLaneSolo: string;
   timelineMarkerMove: string;
   timelineMarkerClick: string;
   timelineMarkerMixed: string;
@@ -14,17 +21,33 @@ type TimelineSurfaceLabels = {
   timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) => string;
 };
 
+type TimelineLaneControls = Record<
+  "video" | "audio",
+  {
+    locked: boolean;
+    muted: boolean;
+    solo: boolean;
+  }
+>;
+
 type TimelineSurfaceProps = {
   durationSeconds: number;
   playheadSeconds: number;
   trimStartSeconds: number;
   trimEndSeconds: number;
+  zoomPercent: number;
+  timelineTool: "select" | "trim" | "blade";
+  timelineSnapEnabled: boolean;
   lanes: TimelineLane[];
+  laneControls: TimelineLaneControls;
   labels: TimelineSurfaceLabels;
   onSetPlayheadSeconds: (seconds: number) => void;
   onSetTrimStartSeconds: (seconds: number) => void;
   onSetTrimEndSeconds: (seconds: number) => void;
   onNudgePlayheadSeconds: (deltaSeconds: number) => void;
+  onToggleLaneLocked: (laneId: "video" | "audio") => void;
+  onToggleLaneMuted: (laneId: "video" | "audio") => void;
+  onToggleLaneSolo: (laneId: "video" | "audio") => void;
   selectedClip: { laneId: "video" | "audio"; clipId: string } | null;
   selectedMarkerId: string | null;
   onSelectClip: (params: {
@@ -55,12 +78,19 @@ export function TimelineSurface({
   playheadSeconds,
   trimStartSeconds,
   trimEndSeconds,
+  zoomPercent,
+  timelineTool,
+  timelineSnapEnabled,
   lanes,
+  laneControls,
   labels,
   onSetPlayheadSeconds,
   onSetTrimStartSeconds,
   onSetTrimEndSeconds,
   onNudgePlayheadSeconds,
+  onToggleLaneLocked,
+  onToggleLaneMuted,
+  onToggleLaneSolo,
   selectedClip,
   selectedMarkerId,
   onSelectClip,
@@ -179,161 +209,212 @@ export function TimelineSurface({
         ))}
       </div>
 
-      <div
-        ref={surfaceRef}
-        className="gg-timeline-surface"
-        tabIndex={0}
-        role="group"
-        aria-label={labels.playhead}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowLeft") {
-            event.preventDefault();
-            onNudgePlayheadSeconds(event.shiftKey ? -1 : -0.1);
-          } else if (event.key === "ArrowRight") {
-            event.preventDefault();
-            onNudgePlayheadSeconds(event.shiftKey ? 1 : 0.1);
-          }
-        }}
-        onPointerDown={(event) => {
-          const target = event.target as HTMLElement;
-          if (target.dataset.dragHandle || target.closest("[data-timeline-selectable='true']")) {
-            return;
-          }
-          beginDrag(event, "playhead");
-        }}
-        onPointerMove={(event) => {
-          if (!dragModeRef.current) {
-            return;
-          }
-          pointerDragThrottler.maybeExecute(event.clientX);
-        }}
-        onPointerUp={endDrag}
-        onPointerCancel={cancelDrag}
-      >
+      <div className="gg-timeline-scroll">
         <div
-          className="gg-timeline-trim-window"
-          style={{ left: `${trimStartPercent}%`, width: `${trimWidthPercent}%` }}
-        />
-        <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />
-
-        <button
-          type="button"
-          className="gg-timeline-trim-handle gg-timeline-trim-handle-start gg-timeline-entity-button"
-          data-drag-handle="trim-start"
-          style={{ left: `${trimStartPercent}%` }}
-          aria-label={labels.trimInSeconds}
-          title={labels.trimInSeconds}
-          onPointerDown={(event) => beginDrag(event, "trimStart")}
+          ref={surfaceRef}
+          className={`gg-timeline-surface gg-timeline-tool-${timelineTool}`}
+          style={{ minWidth: `${Math.max(100, zoomPercent)}%` }}
+          tabIndex={0}
+          role="group"
+          aria-label={labels.playhead}
           onKeyDown={(event) => {
-            const delta = event.shiftKey ? 1 : 0.1;
             if (event.key === "ArrowLeft") {
               event.preventDefault();
-              onSetTrimStartSeconds(trimStartSeconds - delta);
-              return;
-            }
-            if (event.key === "ArrowRight") {
+              onNudgePlayheadSeconds(event.shiftKey ? -1 : -0.1);
+            } else if (event.key === "ArrowRight") {
               event.preventDefault();
-              onSetTrimStartSeconds(trimStartSeconds + delta);
+              onNudgePlayheadSeconds(event.shiftKey ? 1 : 0.1);
             }
           }}
-        />
-        <button
-          type="button"
-          className="gg-timeline-trim-handle gg-timeline-trim-handle-end gg-timeline-entity-button"
-          data-drag-handle="trim-end"
-          style={{ left: `${trimEndPercent}%` }}
-          aria-label={labels.trimOutSeconds}
-          title={labels.trimOutSeconds}
-          onPointerDown={(event) => beginDrag(event, "trimEnd")}
-          onKeyDown={(event) => {
-            const delta = event.shiftKey ? 1 : 0.1;
-            if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              onSetTrimEndSeconds(trimEndSeconds - delta);
+          onPointerDown={(event) => {
+            const target = event.target as HTMLElement;
+            if (target.dataset.dragHandle || target.closest("[data-timeline-selectable='true']")) {
               return;
             }
-            if (event.key === "ArrowRight") {
-              event.preventDefault();
-              onSetTrimEndSeconds(trimEndSeconds + delta);
-            }
+            beginDrag(event, "playhead");
           }}
-        />
+          onPointerMove={(event) => {
+            if (!dragModeRef.current) {
+              return;
+            }
+            pointerDragThrottler.maybeExecute(event.clientX);
+          }}
+          onPointerUp={endDrag}
+          onPointerCancel={cancelDrag}
+        >
+          <div
+            className={`gg-timeline-trim-window${timelineSnapEnabled ? " gg-timeline-trim-window-snapping" : ""}`}
+            style={{ left: `${trimStartPercent}%`, width: `${trimWidthPercent}%` }}
+          />
+          <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />
 
-        <div className="gg-timeline-lanes">
-          {lanes.map((lane) => (
-            <div key={lane.id} className="gg-timeline-lane-row">
-              <div className="gg-timeline-lane-label">{lane.label}</div>
-              <div className="gg-timeline-lane-track">
-                {lane.id === "video" || lane.id === "audio"
-                  ? lane.clips.map((clip) => {
-                      const left = toPercent(clip.startSeconds, durationSeconds);
-                      const width = toPercent(clip.endSeconds, durationSeconds) - left;
-                      const isSelected =
-                        selectedClip?.laneId === lane.id && selectedClip?.clipId === clip.id;
-                      return (
+          <button
+            type="button"
+            className="gg-timeline-trim-handle gg-timeline-trim-handle-start gg-timeline-entity-button"
+            data-drag-handle="trim-start"
+            style={{ left: `${trimStartPercent}%` }}
+            aria-label={labels.trimInSeconds}
+            title={labels.trimInSeconds}
+            onPointerDown={(event) => beginDrag(event, "trimStart")}
+            onKeyDown={(event) => {
+              const delta = event.shiftKey ? 1 : 0.1;
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                onSetTrimStartSeconds(trimStartSeconds - delta);
+                return;
+              }
+              if (event.key === "ArrowRight") {
+                event.preventDefault();
+                onSetTrimStartSeconds(trimStartSeconds + delta);
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="gg-timeline-trim-handle gg-timeline-trim-handle-end gg-timeline-entity-button"
+            data-drag-handle="trim-end"
+            style={{ left: `${trimEndPercent}%` }}
+            aria-label={labels.trimOutSeconds}
+            title={labels.trimOutSeconds}
+            onPointerDown={(event) => beginDrag(event, "trimEnd")}
+            onKeyDown={(event) => {
+              const delta = event.shiftKey ? 1 : 0.1;
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                onSetTrimEndSeconds(trimEndSeconds - delta);
+                return;
+              }
+              if (event.key === "ArrowRight") {
+                event.preventDefault();
+                onSetTrimEndSeconds(trimEndSeconds + delta);
+              }
+            }}
+          />
+
+          <div className="gg-timeline-lanes">
+            {lanes.map((lane) => (
+              <div key={lane.id} className="gg-timeline-lane-row">
+                <div className="gg-timeline-lane-label-group">
+                  <div className="gg-timeline-lane-label">{lane.label}</div>
+                  {lane.id === "video" || lane.id === "audio" ? (
+                    <div className="gg-timeline-lane-controls">
+                      <button
+                        type="button"
+                        className={`gg-timeline-lane-toggle${laneControls[lane.id].locked ? " gg-timeline-lane-toggle-active" : ""}`}
+                        onClick={() => onToggleLaneLocked(lane.id)}
+                        title={labels.timelineLaneLock}
+                        aria-label={labels.timelineLaneLock}
+                        aria-pressed={laneControls[lane.id].locked}
+                      >
+                        L
+                      </button>
+                      <button
+                        type="button"
+                        className={`gg-timeline-lane-toggle${laneControls[lane.id].muted ? " gg-timeline-lane-toggle-active" : ""}`}
+                        onClick={() => onToggleLaneMuted(lane.id)}
+                        title={labels.timelineLaneMute}
+                        aria-label={labels.timelineLaneMute}
+                        aria-pressed={laneControls[lane.id].muted}
+                      >
+                        M
+                      </button>
+                      <button
+                        type="button"
+                        className={`gg-timeline-lane-toggle${laneControls[lane.id].solo ? " gg-timeline-lane-toggle-active" : ""}`}
+                        onClick={() => onToggleLaneSolo(lane.id)}
+                        title={labels.timelineLaneSolo}
+                        aria-label={labels.timelineLaneSolo}
+                        aria-pressed={laneControls[lane.id].solo}
+                      >
+                        S
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                <div
+                  className={`gg-timeline-lane-track${
+                    lane.id === "video" || lane.id === "audio"
+                      ? laneControls[lane.id].locked
+                        ? " gg-timeline-lane-track-locked"
+                        : laneControls[lane.id].muted
+                          ? " gg-timeline-lane-track-muted"
+                          : ""
+                      : ""
+                  }`}
+                >
+                  {lane.id === "video" || lane.id === "audio"
+                    ? lane.clips.map((clip) => {
+                        const left = toPercent(clip.startSeconds, durationSeconds);
+                        const width = toPercent(clip.endSeconds, durationSeconds) - left;
+                        const isSelected =
+                          selectedClip?.laneId === lane.id && selectedClip?.clipId === clip.id;
+                        const laneLocked = laneControls[lane.id].locked;
+                        return (
+                          <button
+                            key={clip.id}
+                            type="button"
+                            data-timeline-selectable="true"
+                            className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id}${isSelected ? " gg-timeline-clip-selected" : ""}`}
+                            style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
+                            aria-label={labels.timelineClipAria(
+                              lane.label,
+                              clip.startSeconds,
+                              clip.endSeconds,
+                            )}
+                            aria-pressed={isSelected}
+                            disabled={laneLocked}
+                            onClick={() =>
+                              onSelectClip({
+                                laneId: lane.id,
+                                clipId: clip.id,
+                                startSeconds: clip.startSeconds,
+                                endSeconds: clip.endSeconds,
+                              })
+                            }
+                          />
+                        );
+                      })
+                    : null}
+
+                  {"markers" in lane
+                    ? lane.markers.map((marker) => (
                         <button
-                          key={clip.id}
+                          key={marker.id}
                           type="button"
                           data-timeline-selectable="true"
-                          className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id}${isSelected ? " gg-timeline-clip-selected" : ""}`}
-                          style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
-                          aria-label={labels.timelineClipAria(
-                            lane.label,
-                            clip.startSeconds,
-                            clip.endSeconds,
+                          className={`gg-timeline-marker-hit gg-timeline-entity-button${selectedMarkerId === marker.id ? " gg-timeline-marker-selected" : ""}`}
+                          style={{
+                            left: `${toPercent(marker.timestampSeconds, durationSeconds)}%`,
+                            height: `${Math.min(22, 8 + marker.density)}px`,
+                          }}
+                          aria-label={labels.timelineMarkerAria(
+                            marker.kind === "click"
+                              ? labels.timelineMarkerClick
+                              : marker.kind === "mixed"
+                                ? labels.timelineMarkerMixed
+                                : labels.timelineMarkerMove,
+                            marker.timestampSeconds,
                           )}
-                          aria-pressed={isSelected}
+                          aria-pressed={selectedMarkerId === marker.id}
                           onClick={() =>
-                            onSelectClip({
-                              laneId: lane.id,
-                              clipId: clip.id,
-                              startSeconds: clip.startSeconds,
-                              endSeconds: clip.endSeconds,
+                            onSelectMarker({
+                              markerId: marker.id,
+                              markerKind: marker.kind,
+                              density: marker.density,
+                              timestampSeconds: marker.timestampSeconds,
                             })
                           }
-                        />
-                      );
-                    })
-                  : null}
-
-                {"markers" in lane
-                  ? lane.markers.map((marker) => (
-                      <button
-                        key={marker.id}
-                        type="button"
-                        data-timeline-selectable="true"
-                        className={`gg-timeline-marker-hit gg-timeline-entity-button${selectedMarkerId === marker.id ? " gg-timeline-marker-selected" : ""}`}
-                        style={{
-                          left: `${toPercent(marker.timestampSeconds, durationSeconds)}%`,
-                          height: `${Math.min(22, 8 + marker.density)}px`,
-                        }}
-                        aria-label={labels.timelineMarkerAria(
-                          marker.kind === "click"
-                            ? labels.timelineMarkerClick
-                            : marker.kind === "mixed"
-                              ? labels.timelineMarkerMixed
-                              : labels.timelineMarkerMove,
-                          marker.timestampSeconds,
-                        )}
-                        aria-pressed={selectedMarkerId === marker.id}
-                        onClick={() =>
-                          onSelectMarker({
-                            markerId: marker.id,
-                            markerKind: marker.kind,
-                            density: marker.density,
-                            timestampSeconds: marker.timestampSeconds,
-                          })
-                        }
-                      >
-                        <span
-                          className={`gg-timeline-marker-line gg-timeline-marker-${marker.kind}`}
-                        />
-                      </button>
-                    ))
-                  : null}
+                        >
+                          <span
+                            className={`gg-timeline-marker-line gg-timeline-marker-${marker.kind}`}
+                          />
+                        </button>
+                      ))
+                    : null}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
