@@ -19,7 +19,7 @@ export function StudioPane<T extends ElementType = "aside">({
   return (
     <Component
       className={cn(
-        "gg-pane h-full overflow-hidden",
+        "gg-pane flex-1 overflow-hidden",
         side === "left" && "gg-pane-left",
         side === "center" && "gg-pane-center",
         side === "right" && "gg-pane-right",
