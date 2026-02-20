@@ -315,6 +315,14 @@
     min-width: 0;
   }
 
+  [data-panel-group][data-panel-group-direction="vertical"] > [data-panel] {
+    min-height: 0;
+  }
+
+  [data-panel-group][data-panel-group-direction="horizontal"] > [data-panel] {
+    min-width: 0;
+  }
+
   .gg-editor-shell > [data-slot="resizable-panel"] {
     min-width: 0;
     min-height: 0;
