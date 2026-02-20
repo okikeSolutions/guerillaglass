@@ -44,6 +44,9 @@ bun run swift:build
 # Run desktop shell (expects native engine binary)
 bun run desktop:dev
 
+# macOS fallback when Electrobun dev launcher is unstable
+bun run desktop:dev:open
+
 # Use protocol stubs while native Windows/Linux engines are under development
 GG_ENGINE_TARGET=windows-stub bun run desktop:dev
 GG_ENGINE_TARGET=linux-stub bun run desktop:dev

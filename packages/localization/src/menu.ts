@@ -17,6 +17,7 @@ export type DesktopMenuMessages = {
   playPause: string;
   setTrimIn: string;
   setTrimOut: string;
+  toggleTimeline: string;
   view: string;
   toggleDeveloperTools: string;
   window: string;
@@ -43,6 +44,7 @@ const desktopMenuMessagesByLocale: Record<StudioLocale, DesktopMenuMessages> = {
     playPause: "Play/Pause",
     setTrimIn: "Set Trim In",
     setTrimOut: "Set Trim Out",
+    toggleTimeline: "Toggle Timeline",
     view: "View",
     toggleDeveloperTools: "Toggle Developer Tools",
     window: "Window",
@@ -67,6 +69,7 @@ const desktopMenuMessagesByLocale: Record<StudioLocale, DesktopMenuMessages> = {
     playPause: "Wiedergabe/Pause",
     setTrimIn: "Trim-In setzen",
     setTrimOut: "Trim-Out setzen",
+    toggleTimeline: "Zeitleiste umschalten",
     view: "Ansicht",
     toggleDeveloperTools: "Entwicklerwerkzeuge umschalten",
     window: "Fenster",
