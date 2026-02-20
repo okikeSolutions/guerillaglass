@@ -156,18 +156,6 @@ export function formatAspectRatio(width: number, height: number): string {
   return `${width}:${height}`;
 }
 
-export function permissionBadgeVariant(
-  permissions: PermissionsResult | undefined,
-): "default" | "secondary" | "destructive" {
-  if (!permissions) {
-    return "secondary";
-  }
-  if (!permissions.screenRecordingGranted) {
-    return "destructive";
-  }
-  return "default";
-}
-
 const interactiveGlobalHotkeySelector = [
   "input",
   "textarea",
@@ -1161,6 +1149,12 @@ export function useStudioController() {
         case "app.refresh":
           void refreshMutation.mutateAsync();
           break;
+        case "app.locale.enUS":
+          setLocale("en-US");
+          break;
+        case "app.locale.deDE":
+          setLocale("de-DE");
+          break;
         case "capture.toggleRecording":
           void toggleRecordingMutation.mutateAsync();
           break;
@@ -1181,6 +1175,12 @@ export function useStudioController() {
           break;
         case "timeline.togglePanel":
           toggleTimelineCollapsed();
+          break;
+        case "view.density.comfortable":
+          setDensityMode("comfortable");
+          break;
+        case "view.density.compact":
+          setDensityMode("compact");
           break;
         case "file.openProject":
           void openProjectMutation.mutateAsync();
@@ -1206,6 +1206,8 @@ export function useStudioController() {
       openProjectMutation,
       refreshMutation,
       saveProjectMutation,
+      setDensityMode,
+      setLocale,
       setTrimInFromPlayhead,
       setTrimOutFromPlayhead,
       startPreviewMutation,
@@ -1354,8 +1356,15 @@ export function useStudioController() {
       canExport: !isRunningAction && Boolean(recordingURL),
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
       locale,
+      densityMode: layout.densityMode,
     });
-  }, [captureStatusQuery.data?.isRecording, isRunningAction, locale, recordingURL]);
+  }, [
+    captureStatusQuery.data?.isRecording,
+    isRunningAction,
+    layout.densityMode,
+    locale,
+    recordingURL,
+  ]);
 
   useEffect(() => {
     const onHostMenuCommand = (event: Event) => {
@@ -1402,7 +1411,6 @@ export function useStudioController() {
     nudgePlayheadSeconds,
     openProjectMutation,
     openRecentProjectMutation,
-    permissionBadgeVariant,
     permissionsQuery,
     pingQuery,
     playheadSeconds: boundedPlayheadSeconds,

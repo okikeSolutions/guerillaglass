@@ -25,6 +25,7 @@ let hostMenuState: HostMenuState = {
   canExport: false,
   isRecording: false,
   locale: "en-US",
+  densityMode: "comfortable",
 };
 let currentProjectPath: string | null = null;
 
@@ -93,7 +94,8 @@ function updateHostMenuState(nextState: HostMenuState) {
     hostMenuState.canSave !== nextState.canSave ||
     hostMenuState.canExport !== nextState.canExport ||
     hostMenuState.isRecording !== nextState.isRecording ||
-    hostMenuState.locale !== nextState.locale;
+    hostMenuState.locale !== nextState.locale ||
+    hostMenuState.densityMode !== nextState.densityMode;
   if (!hasChange) {
     return;
   }

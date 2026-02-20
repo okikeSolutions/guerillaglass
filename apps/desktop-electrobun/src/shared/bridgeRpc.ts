@@ -14,6 +14,8 @@ import type { RPCSchema } from "electrobun/bun";
 
 export const hostMenuCommandList = [
   "app.refresh",
+  "app.locale.enUS",
+  "app.locale.deDE",
   "capture.toggleRecording",
   "capture.startPreview",
   "capture.stopPreview",
@@ -21,6 +23,8 @@ export const hostMenuCommandList = [
   "timeline.trimIn",
   "timeline.trimOut",
   "timeline.togglePanel",
+  "view.density.comfortable",
+  "view.density.compact",
   "file.openProject",
   "file.saveProject",
   "file.saveProjectAs",
@@ -33,6 +37,7 @@ export type HostMenuState = {
   canExport: boolean;
   isRecording: boolean;
   locale?: string;
+  densityMode?: "comfortable" | "compact";
 };
 
 type BridgeRequests = {

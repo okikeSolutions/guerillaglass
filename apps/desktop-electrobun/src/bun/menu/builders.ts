@@ -12,6 +12,8 @@ export function buildApplicationMenu(
 ): ApplicationMenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
   const recordingLabel = state.isRecording ? labels.stopRecording : labels.startRecording;
+  const localeSelection = state.locale === "de-DE" ? "de-DE" : "en-US";
+  const densitySelection = state.densityMode === "compact" ? "compact" : "comfortable";
 
   return [
     ...(platform === "darwin"
@@ -124,6 +126,47 @@ export function buildApplicationMenu(
         { role: "toggleFullScreen" },
         separator,
         {
+          label: labels.language,
+          action: "menu.view.language",
+          submenu: [
+            {
+              label:
+                localeSelection === "en-US"
+                  ? `\u2713 ${labels.languageEnglish}`
+                  : labels.languageEnglish,
+              action: encodeHostMenuAction("app.locale.enUS"),
+            },
+            {
+              label:
+                localeSelection === "de-DE"
+                  ? `\u2713 ${labels.languageGerman}`
+                  : labels.languageGerman,
+              action: encodeHostMenuAction("app.locale.deDE"),
+            },
+          ],
+        },
+        {
+          label: labels.density,
+          action: "menu.view.density",
+          submenu: [
+            {
+              label:
+                densitySelection === "comfortable"
+                  ? `\u2713 ${labels.densityComfortable}`
+                  : labels.densityComfortable,
+              action: encodeHostMenuAction("view.density.comfortable"),
+            },
+            {
+              label:
+                densitySelection === "compact"
+                  ? `\u2713 ${labels.densityCompact}`
+                  : labels.densityCompact,
+              action: encodeHostMenuAction("view.density.compact"),
+            },
+          ],
+        },
+        separator,
+        {
           label: labels.toggleDeveloperTools,
           action: "view.toggleDevTools",
         },
@@ -154,6 +197,8 @@ export function buildApplicationMenu(
 export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
   const recordingLabel = state.isRecording ? labels.stopRecording : labels.startRecording;
+  const localeSelection = state.locale === "de-DE" ? "de-DE" : "en-US";
+  const densitySelection = state.densityMode === "compact" ? "compact" : "comfortable";
   return [
     { type: "normal", label: labels.openProject, action: encodeHostMenuAction("file.openProject") },
     {
@@ -179,6 +224,34 @@ export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuI
       label: labels.export,
       action: encodeHostMenuAction("file.export"),
       enabled: state.canExport,
+    },
+    separator,
+    {
+      type: "normal",
+      label:
+        localeSelection === "en-US" ? `\u2713 ${labels.languageEnglish}` : labels.languageEnglish,
+      action: encodeHostMenuAction("app.locale.enUS"),
+    },
+    {
+      type: "normal",
+      label:
+        localeSelection === "de-DE" ? `\u2713 ${labels.languageGerman}` : labels.languageGerman,
+      action: encodeHostMenuAction("app.locale.deDE"),
+    },
+    separator,
+    {
+      type: "normal",
+      label:
+        densitySelection === "comfortable"
+          ? `\u2713 ${labels.densityComfortable}`
+          : labels.densityComfortable,
+      action: encodeHostMenuAction("view.density.comfortable"),
+    },
+    {
+      type: "normal",
+      label:
+        densitySelection === "compact" ? `\u2713 ${labels.densityCompact}` : labels.densityCompact,
+      action: encodeHostMenuAction("view.density.compact"),
     },
     separator,
     { type: "normal", label: labels.quit, action: "app.quit" },

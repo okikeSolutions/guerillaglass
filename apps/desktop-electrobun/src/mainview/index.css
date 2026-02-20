@@ -45,6 +45,11 @@
   --gg-border-subtle: oklch(0.88 0 0 / 55%);
   --gg-border-strong: oklch(0.82 0 0 / 72%);
   --gg-shadow-1: 0 6px 14px rgba(0, 0, 0, 0.12);
+  --gg-tone-neutral: oklch(0.38 0 0);
+  --gg-tone-danger: oklch(0.57 0.23 26);
+  --gg-tone-success: oklch(0.55 0.15 152);
+  --gg-tone-selected: oklch(0.56 0.2 257);
+  --gg-tone-selected-alt: oklch(0.66 0.17 64);
 }
 
 .dark {
@@ -86,6 +91,11 @@
   --gg-border-subtle: oklch(1 0 0 / 10%);
   --gg-border-strong: oklch(1 0 0 / 18%);
   --gg-shadow-1: 0 8px 18px rgba(0, 0, 0, 0.14);
+  --gg-tone-neutral: oklch(0.86 0 0);
+  --gg-tone-danger: oklch(0.72 0.18 24);
+  --gg-tone-success: oklch(0.8 0.16 152);
+  --gg-tone-selected: oklch(0.78 0.16 257);
+  --gg-tone-selected-alt: oklch(0.82 0.16 66);
 }
 
 @theme inline {
@@ -203,6 +213,64 @@
   .gg-shell-header {
     border-color: var(--gg-border-subtle);
     background-color: color-mix(in oklab, var(--gg-surface-0) 72%, transparent);
+  }
+
+  .gg-tone-neutral {
+    --gg-tone-current: var(--gg-tone-neutral);
+  }
+
+  .gg-tone-danger {
+    --gg-tone-current: var(--gg-tone-danger);
+  }
+
+  .gg-tone-success {
+    --gg-tone-current: var(--gg-tone-success);
+  }
+
+  .gg-tone-selected {
+    --gg-tone-current: var(--gg-tone-selected);
+  }
+
+  .gg-tone-selected-alt {
+    --gg-tone-current: var(--gg-tone-selected-alt);
+  }
+
+  .gg-icon-tone {
+    color: var(--gg-tone-current) !important;
+  }
+
+  .gg-button-tone {
+    color: var(--gg-tone-current) !important;
+    border-color: color-mix(
+      in oklab,
+      var(--gg-tone-current) 42%,
+      var(--gg-border-subtle)
+    ) !important;
+    background-color: color-mix(in oklab, var(--gg-tone-current) 12%, transparent) !important;
+  }
+
+  .gg-button-tone:hover {
+    background-color: color-mix(in oklab, var(--gg-tone-current) 18%, transparent) !important;
+  }
+
+  .gg-badge-tone {
+    color: var(--gg-tone-current) !important;
+    border-color: color-mix(
+      in oklab,
+      var(--gg-tone-current) 44%,
+      var(--gg-border-subtle)
+    ) !important;
+    background-color: color-mix(in oklab, var(--gg-tone-current) 14%, transparent) !important;
+  }
+
+  .gg-toggle-tone {
+    color: var(--gg-tone-current) !important;
+    border-color: color-mix(
+      in oklab,
+      var(--gg-tone-current) 45%,
+      var(--gg-border-subtle)
+    ) !important;
+    background-color: color-mix(in oklab, var(--gg-tone-current) 16%, transparent) !important;
   }
 
   .gg-toolbar-group {
@@ -412,10 +480,6 @@
     background-color: color-mix(in oklab, var(--gg-surface-0) 55%, transparent);
   }
 
-  .gg-timeline-lane-toggle-active {
-    @apply border-primary/70 bg-primary/20 text-foreground;
-  }
-
   .gg-timeline-lane-track {
     @apply relative h-9 rounded border;
     border-color: var(--gg-border-subtle);
@@ -439,11 +503,11 @@
   }
 
   .gg-timeline-clip-video {
-    @apply bg-primary/45;
+    background-color: color-mix(in oklab, var(--gg-tone-selected) 55%, transparent);
   }
 
   .gg-timeline-clip-audio {
-    @apply bg-secondary-foreground/35;
+    background-color: color-mix(in oklab, var(--gg-tone-selected-alt) 44%, transparent);
   }
 
   .gg-timeline-marker-hit {
@@ -455,26 +519,26 @@
   }
 
   .gg-timeline-clip-selected {
-    @apply ring-2 ring-primary/80;
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--gg-tone-selected) 90%, white 10%);
   }
 
   .gg-timeline-marker-selected {
-    @apply ring-2 ring-primary/70;
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--gg-tone-selected-alt) 88%, white 12%);
   }
 
   .gg-timeline-marker-move {
-    @apply bg-primary/55;
+    background-color: color-mix(in oklab, var(--gg-tone-selected) 72%, transparent);
   }
 
   .gg-timeline-marker-click {
-    @apply bg-destructive/70;
+    background-color: color-mix(in oklab, var(--gg-tone-selected-alt) 72%, transparent);
   }
 
   .gg-timeline-marker-mixed {
     background: linear-gradient(
       to top,
-      color-mix(in oklab, var(--destructive) 80%, transparent),
-      color-mix(in oklab, var(--primary) 75%, transparent)
+      color-mix(in oklab, var(--gg-tone-selected-alt) 78%, transparent),
+      color-mix(in oklab, var(--gg-tone-selected) 78%, transparent)
     );
   }
 
@@ -561,11 +625,11 @@
   }
 
   .gg-timeline-clip-video {
-    background-color: color-mix(in oklab, var(--primary) 72%, transparent);
+    background-color: color-mix(in oklab, var(--gg-tone-selected) 78%, transparent);
   }
 
   .gg-timeline-clip-audio {
-    background-color: color-mix(in oklab, var(--foreground) 42%, transparent);
+    background-color: color-mix(in oklab, var(--gg-tone-selected-alt) 72%, transparent);
   }
 
   .gg-timeline-playhead,

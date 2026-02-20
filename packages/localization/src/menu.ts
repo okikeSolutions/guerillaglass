@@ -19,6 +19,12 @@ export type DesktopMenuMessages = {
   setTrimOut: string;
   toggleTimeline: string;
   view: string;
+  language: string;
+  languageEnglish: string;
+  languageGerman: string;
+  density: string;
+  densityComfortable: string;
+  densityCompact: string;
   toggleDeveloperTools: string;
   window: string;
   help: string;
@@ -46,6 +52,12 @@ const desktopMenuMessagesByLocale: Record<StudioLocale, DesktopMenuMessages> = {
     setTrimOut: "Set Trim Out",
     toggleTimeline: "Toggle Timeline",
     view: "View",
+    language: "Language",
+    languageEnglish: "English (US)",
+    languageGerman: "Deutsch (DE)",
+    density: "Density",
+    densityComfortable: "Comfortable",
+    densityCompact: "Compact",
     toggleDeveloperTools: "Toggle Developer Tools",
     window: "Window",
     help: "Help",
@@ -71,6 +83,12 @@ const desktopMenuMessagesByLocale: Record<StudioLocale, DesktopMenuMessages> = {
     setTrimOut: "Trim-Out setzen",
     toggleTimeline: "Zeitleiste umschalten",
     view: "Ansicht",
+    language: "Sprache",
+    languageEnglish: "English (US)",
+    languageGerman: "Deutsch (DE)",
+    density: "Dichte",
+    densityComfortable: "Komfortabel",
+    densityCompact: "Kompakt",
     toggleDeveloperTools: "Entwicklerwerkzeuge umschalten",
     window: "Fenster",
     help: "Hilfe",
