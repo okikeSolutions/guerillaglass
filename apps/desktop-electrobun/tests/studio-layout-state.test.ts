@@ -8,6 +8,7 @@ import {
   parseStudioLayoutState,
   resolveStudioLocation,
   routeForStudioMode,
+  studioLayoutBounds,
 } from "../src/mainview/app/studio/studioLayoutState";
 
 describe("studio layout state", () => {
@@ -38,14 +39,16 @@ describe("studio layout state", () => {
         leftCollapsed: true,
         rightCollapsed: false,
         timelineHeightPx: 999,
+        timelineCollapsed: true,
         lastRoute: "/edit/deep-link",
       }),
     );
 
-    expect(layout.leftPaneWidthPx).toBeGreaterThanOrEqual(180);
-    expect(layout.rightPaneWidthPx).toBeLessThanOrEqual(620);
-    expect(layout.timelineHeightPx).toBeLessThanOrEqual(560);
+    expect(layout.leftPaneWidthPx).toBeGreaterThanOrEqual(studioLayoutBounds.leftPaneMinWidthPx);
+    expect(layout.rightPaneWidthPx).toBeLessThanOrEqual(studioLayoutBounds.rightPaneMaxWidthPx);
+    expect(layout.timelineHeightPx).toBeLessThanOrEqual(studioLayoutBounds.timelineMaxHeightPx);
     expect(layout.leftCollapsed).toBe(true);
+    expect(layout.timelineCollapsed).toBe(true);
     expect(layout.lastRoute).toBe("/edit");
   });
 
