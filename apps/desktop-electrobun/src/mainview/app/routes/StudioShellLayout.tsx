@@ -4,7 +4,6 @@ import {
   AudioLines,
   Clock3,
   CircleDot,
-  FolderOpen,
   HardDriveDownload,
   Languages,
   LayoutPanelTop,
@@ -17,27 +16,26 @@ import {
   Scissors,
   ShieldAlert,
   ShieldCheck,
+  SplitSquareVertical,
   Video,
 } from "lucide-react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useThrottler } from "@tanstack/react-pacer";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
 import { normalizeStudioLocale } from "@guerillaglass/localization";
-import type { PanelImperativeHandle, PanelSize } from "react-resizable-panels";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStudio } from "../studio/context";
 import {
   localizedRouteTargetFor,
   resolveStudioLocation,
-  studioLayoutBounds,
   type StudioLayoutRoute,
 } from "../studio/studioLayoutState";
-import { TimelineSurface } from "./TimelineSurface";
 
 function modeIconClass(isActive: boolean): string {
   return isActive
@@ -115,21 +113,6 @@ export function StudioShellLayout() {
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
-  const timelineResizeStepPx = 8;
-  const timelineResizeStepPxLarge = 32;
-  const timelineResizeThrottleMs = 16;
-  const timelinePanelRef = useRef<PanelImperativeHandle | null>(null);
-  const timelineResizeThrottler = useThrottler(
-    (nextHeightPx: number) => {
-      studio.setTimelineHeight(nextHeightPx);
-    },
-    {
-      leading: true,
-      trailing: true,
-      wait: timelineResizeThrottleMs,
-    },
-    () => null,
-  );
 
   const setLocaleAndNavigate = useCallback(
     async (nextLocaleRaw: string, route: StudioLayoutRoute) => {
@@ -144,42 +127,6 @@ export function StudioShellLayout() {
     [navigate, setLastRoute, setLocale],
   );
 
-  useEffect(() => {
-    const timelinePanel = timelinePanelRef.current;
-    if (!timelinePanel) {
-      return;
-    }
-    if (Math.abs(timelinePanel.getSize().inPixels - studio.layout.timelineHeightPx) > 1) {
-      timelinePanel.resize(studio.layout.timelineHeightPx);
-    }
-  }, [studio.layout.timelineHeightPx]);
-
-  useEffect(() => {
-    return () => {
-      timelineResizeThrottler.cancel();
-    };
-  }, [timelineResizeThrottler]);
-
-  const syncTimelineHeight = useCallback(
-    (panelSize: PanelSize) => {
-      timelineResizeThrottler.maybeExecute(panelSize.inPixels);
-    },
-    [timelineResizeThrottler],
-  );
-
-  const resizeTimelineFromKeyboard = useCallback(
-    (deltaPx: number) => {
-      const timelinePanel = timelinePanelRef.current;
-      if (!timelinePanel) {
-        return;
-      }
-      const nextHeight = studio.layout.timelineHeightPx + deltaPx;
-      timelinePanel.resize(nextHeight);
-      studio.setTimelineHeight(nextHeight);
-    },
-    [studio],
-  );
-
   return (
     <div className="h-full overflow-hidden bg-background">
       <div className="mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border border-border/80 bg-card shadow-[0_20px_50px_rgba(8,15,35,0.14)]">
@@ -188,7 +135,7 @@ export function StudioShellLayout() {
             <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-start">
                 <h1 className="mr-2 text-sm font-semibold tracking-tight">{studio.ui.app.title}</h1>
-                <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-secondary/30 p-1">
+                <ButtonGroup className="gap-1 rounded-lg border border-border/70 bg-secondary/30 p-1">
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -240,11 +187,11 @@ export function StudioShellLayout() {
                     </TooltipTrigger>
                     <TooltipContent>{studio.ui.modes.deliver}</TooltipContent>
                   </Tooltip>
-                </div>
+                </ButtonGroup>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-center">
-                <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-muted/35 p-1">
+                <ButtonGroup className="gap-1 rounded-lg border border-border/70 bg-muted/35 p-1">
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -288,7 +235,7 @@ export function StudioShellLayout() {
                         : studio.ui.actions.startRecording}
                     </TooltipContent>
                   </Tooltip>
-                </div>
+                </ButtonGroup>
 
                 <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-background/70 p-1">
                   <Tooltip>
@@ -359,9 +306,9 @@ export function StudioShellLayout() {
                     </TooltipTrigger>
                     <TooltipContent>{studio.ui.labels.language}</TooltipContent>
                   </Tooltip>
-                  <label className="sr-only" htmlFor="studio-locale-select">
+                  <Label className="sr-only" htmlFor="studio-locale-select">
                     {studio.ui.labels.language}
-                  </label>
+                  </Label>
                   <NativeSelect
                     id="studio-locale-select"
                     size="sm"
@@ -501,6 +448,21 @@ export function StudioShellLayout() {
                 <Tooltip>
                   <TooltipTrigger
                     render={
+                      <Button
+                        size="icon-sm"
+                        variant="outline"
+                        onClick={studio.toggleTimelineCollapsed}
+                      />
+                    }
+                  >
+                    <SplitSquareVertical className="h-4 w-4" />
+                    <span className="sr-only">{studio.ui.actions.toggleTimeline}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>{studio.ui.actions.toggleTimeline}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
                       <Button size="icon-sm" variant="outline" onClick={studio.resetLayout} />
                     }
                   >
@@ -515,221 +477,17 @@ export function StudioShellLayout() {
         </header>
 
         {studio.notice ? (
-          <div
-            className={
-              studio.notice.kind === "error"
-                ? "border-b border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-                : "border-b border-border/70 bg-muted/50 px-4 py-3 text-sm"
-            }
+          <Alert
+            variant={studio.notice.kind === "error" ? "destructive" : "default"}
+            className="rounded-none border-x-0 border-t-0 border-b px-4 py-3 text-sm"
           >
-            {studio.notice.message}
-          </div>
+            <AlertDescription>{studio.notice.message}</AlertDescription>
+          </Alert>
         ) : null}
 
-        <ResizablePanelGroup
-          className="min-h-0 flex-1"
-          orientation="vertical"
-          onLayoutChanged={() => {
-            timelineResizeThrottler.flush();
-          }}
-        >
-          <ResizablePanel id="workspace-content-pane" minSize={320}>
-            <div className="flex-1 min-h-0 overflow-auto">
-              <Outlet />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle
-            withHandle
-            className="gg-timeline-resize-handle"
-            aria-label={studio.ui.labels.resizeTimeline}
-            aria-valuemin={studioLayoutBounds.timelineMinHeightPx}
-            aria-valuemax={studioLayoutBounds.timelineMaxHeightPx}
-            aria-valuenow={studio.layout.timelineHeightPx}
-            onKeyDown={(event) => {
-              const step = event.shiftKey ? timelineResizeStepPxLarge : timelineResizeStepPx;
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
-                resizeTimelineFromKeyboard(-step);
-                return;
-              }
-              if (event.key === "ArrowUp") {
-                event.preventDefault();
-                resizeTimelineFromKeyboard(step);
-                return;
-              }
-              if (event.key === "Home") {
-                event.preventDefault();
-                resizeTimelineFromKeyboard(
-                  studioLayoutBounds.timelineMinHeightPx - studio.layout.timelineHeightPx,
-                );
-                return;
-              }
-              if (event.key === "End") {
-                event.preventDefault();
-                resizeTimelineFromKeyboard(
-                  studioLayoutBounds.timelineMaxHeightPx - studio.layout.timelineHeightPx,
-                );
-              }
-            }}
-          />
-          <ResizablePanel
-            id="workspace-timeline-pane"
-            panelRef={timelinePanelRef}
-            defaultSize={studio.layout.timelineHeightPx}
-            minSize={studioLayoutBounds.timelineMinHeightPx}
-            maxSize={studioLayoutBounds.timelineMaxHeightPx}
-            onResize={syncTimelineHeight}
-          >
-            <footer className="h-full overflow-hidden border-t border-border/80 bg-background/75 backdrop-blur-sm">
-              <div className="h-full overflow-auto px-4 py-3">
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
-                  <Scissors className="h-4 w-4" /> {studio.ui.sections.timeline}
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={studio.setTrimInFromPlayhead}>
-                      {studio.ui.actions.setTrimIn}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={studio.setTrimOutFromPlayhead}>
-                      {studio.ui.actions.setTrimOut}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void studio.openProjectMutation.mutateAsync()}
-                      disabled={studio.isRunningAction}
-                    >
-                      <FolderOpen className="mr-2 h-4 w-4" /> {studio.ui.actions.openProject}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-auto"
-                      onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
-                      disabled={studio.isRunningAction || !studio.recordingURL}
-                      title={recordingActionDisabledReason}
-                    >
-                      <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProjectAs}
-                    </Button>
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      {studio.ui.labels.playbackRate}
-                      <NativeSelect
-                        className="w-28"
-                        value={String(studio.playbackRate)}
-                        onChange={(event) =>
-                          studio.setPlaybackRate(
-                            Number(event.target.value) as (typeof studio.playbackRates)[number],
-                          )
-                        }
-                      >
-                        {studio.playbackRates.map((rate) => (
-                          <NativeSelectOption key={rate} value={String(rate)}>
-                            {`${rate.toFixed(1)}x`}
-                          </NativeSelectOption>
-                        ))}
-                      </NativeSelect>
-                    </label>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/25 px-2 py-1.5">
-                    <span className="text-[0.68rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                      {studio.ui.labels.timelineTools}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant={studio.timelineTool === "select" ? "secondary" : "outline"}
-                      onClick={() => studio.setTimelineTool("select")}
-                    >
-                      {studio.ui.actions.timelineToolSelect}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={studio.timelineTool === "trim" ? "secondary" : "outline"}
-                      onClick={() => studio.setTimelineTool("trim")}
-                    >
-                      {studio.ui.actions.timelineToolTrim}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={studio.timelineTool === "blade" ? "secondary" : "outline"}
-                      onClick={() => studio.setTimelineTool("blade")}
-                    >
-                      {studio.ui.actions.timelineToolBlade}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={studio.timelineSnapEnabled ? "secondary" : "outline"}
-                      onClick={studio.toggleTimelineSnap}
-                    >
-                      {studio.ui.labels.timelineSnap}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={studio.timelineRippleEnabled ? "secondary" : "outline"}
-                      onClick={studio.toggleTimelineRipple}
-                    >
-                      {studio.ui.labels.timelineRipple}
-                    </Button>
-                    <span className="ml-auto text-xs text-muted-foreground">{`${studio.ui.labels.timelineZoom}: ${studio.timelineZoomPercent}%`}</span>
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" variant="outline" onClick={studio.zoomTimelineOut}>
-                        {studio.ui.actions.timelineZoomOut}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={studio.resetTimelineZoom}>
-                        {studio.ui.actions.timelineZoomReset}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={studio.zoomTimelineIn}>
-                        {studio.ui.actions.timelineZoomIn}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <TimelineSurface
-                    durationSeconds={studio.timelineDuration}
-                    playheadSeconds={studio.playheadSeconds}
-                    trimStartSeconds={studio.exportForm.state.values.trimStartSeconds}
-                    trimEndSeconds={studio.exportForm.state.values.trimEndSeconds}
-                    lanes={studio.timelineLanes}
-                    laneControls={studio.timelineLaneControlState}
-                    labels={studio.ui.labels}
-                    timelineTool={studio.timelineTool}
-                    timelineSnapEnabled={studio.timelineSnapEnabled}
-                    zoomPercent={studio.timelineZoomPercent}
-                    onSetPlayheadSeconds={studio.setPlayheadSeconds}
-                    onSetTrimStartSeconds={studio.setTrimStartSeconds}
-                    onSetTrimEndSeconds={studio.setTrimEndSeconds}
-                    onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
-                    onToggleLaneLocked={(laneId) => studio.toggleLaneControl(laneId, "locked")}
-                    onToggleLaneMuted={(laneId) => studio.toggleLaneControl(laneId, "muted")}
-                    onToggleLaneSolo={(laneId) => studio.toggleLaneControl(laneId, "solo")}
-                    selectedClip={
-                      studio.inspectorSelection.kind === "timelineClip"
-                        ? {
-                            laneId: studio.inspectorSelection.laneId,
-                            clipId: studio.inspectorSelection.clipId,
-                          }
-                        : null
-                    }
-                    selectedMarkerId={
-                      studio.inspectorSelection.kind === "timelineMarker"
-                        ? studio.inspectorSelection.markerId
-                        : null
-                    }
-                    onSelectClip={studio.selectTimelineClip}
-                    onSelectMarker={studio.selectTimelineMarker}
-                  />
-
-                  <div className="grid grid-cols-3 text-xs text-muted-foreground">
-                    <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
-                    <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
-                    <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
-                  </div>
-                </div>
-              </div>
-            </footer>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <Outlet />
+        </div>
       </div>
     </div>
   );

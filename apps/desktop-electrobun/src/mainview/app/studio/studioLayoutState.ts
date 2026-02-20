@@ -8,10 +8,10 @@ import type { StudioMode } from "./inspectorContext";
 export const studioLayoutStorageKey = "gg.studio.layout.v1";
 
 export const studioLayoutBounds = {
-  leftPaneMinWidthPx: 180,
-  leftPaneMaxWidthPx: 520,
-  rightPaneMinWidthPx: 260,
-  rightPaneMaxWidthPx: 620,
+  leftPaneMinWidthPx: 150,
+  leftPaneMaxWidthPx: 640,
+  rightPaneMinWidthPx: 220,
+  rightPaneMaxWidthPx: 760,
   timelineMinHeightPx: 180,
   timelineMaxHeightPx: 560,
 } as const;
@@ -47,6 +47,7 @@ export type StudioLayoutState = {
   leftCollapsed: boolean;
   rightCollapsed: boolean;
   timelineHeightPx: number;
+  timelineCollapsed: boolean;
   lastRoute: StudioLayoutRoute;
   locale: StudioLocale;
 };
@@ -57,6 +58,7 @@ export const defaultStudioLayoutState: StudioLayoutState = {
   leftCollapsed: false,
   rightCollapsed: false,
   timelineHeightPx: 280,
+  timelineCollapsed: false,
   lastRoute: "/capture",
   locale: defaultStudioLocale,
 };
@@ -171,6 +173,8 @@ export function sanitizeStudioLayoutState(
       studioLayoutBounds.timelineMinHeightPx,
       studioLayoutBounds.timelineMaxHeightPx,
     ),
+    timelineCollapsed:
+      asBoolean(candidate?.timelineCollapsed) ?? defaultStudioLayoutState.timelineCollapsed,
     lastRoute: normalizeStudioLayoutRoute(candidate?.lastRoute),
     locale: normalizeStudioLocale(candidate?.locale),
   };
