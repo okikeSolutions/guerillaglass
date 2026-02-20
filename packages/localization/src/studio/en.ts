@@ -77,6 +77,7 @@ export const enUS = {
     title: "Shortcuts",
     playPause: "Space",
     record: "R",
+    blade: "B",
     trimIn: "I",
     trimOut: "O",
     save: "Cmd/Ctrl+S",

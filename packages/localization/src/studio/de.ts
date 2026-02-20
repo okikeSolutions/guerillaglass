@@ -80,6 +80,7 @@ export const deDE: StudioMessages = {
     title: "Kurzbefehle",
     playPause: "Leertaste",
     record: "R",
+    blade: "B",
     trimIn: "I",
     trimOut: "O",
     save: "Cmd/Ctrl+S",

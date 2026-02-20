@@ -9,6 +9,7 @@ import {
 } from "../src/bun/menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../src/bun/menu/builders";
 import { routeMenuAction } from "../src/bun/menu/router";
+import { withShortcutLabel } from "../src/shared/shortcuts";
 
 function isNormalApplicationItem(
   item: ApplicationMenuItemConfig,
@@ -61,7 +62,7 @@ describe("shell menu helpers", () => {
     const saveItem = fileSubmenu.find(
       (item) => isNormalApplicationItem(item) && item.label === "Save Project",
     );
-    expect(saveItem).toEqual(expect.objectContaining({ enabled: false }));
+    expect(saveItem).toEqual(expect.objectContaining({ enabled: false, accelerator: "s" }));
 
     const viewMenu = windowsMenu.find(
       (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
@@ -95,7 +96,7 @@ describe("shell menu helpers", () => {
       }),
     );
     const exportItem = trayMenu.find(
-      (item) => item.type === "normal" && item.label === "Export...",
+      (item) => item.type === "normal" && item.label === withShortcutLabel("Export...", "export"),
     );
     expect(exportItem).toEqual(expect.objectContaining({ enabled: true }));
     expect(

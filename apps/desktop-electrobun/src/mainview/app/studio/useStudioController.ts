@@ -16,6 +16,7 @@ import type {
 import { getStudioMessages, type StudioLocale } from "@guerillaglass/localization";
 import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
+import { studioShortcuts } from "../../../shared/shortcuts";
 import {
   emptyInspectorSelection,
   type InspectorSelection,
@@ -1219,7 +1220,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "Mod+S",
+    studioShortcuts.save.hotkey,
     (event) => {
       if (event.shiftKey) {
         return;
@@ -1235,7 +1236,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "Mod+Shift+S",
+    studioShortcuts.saveAs.hotkey,
     (event) => {
       event.preventDefault();
       runHostCommand("file.saveProjectAs");
@@ -1248,7 +1249,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "Mod+E",
+    studioShortcuts.export.hotkey,
     (event) => {
       event.preventDefault();
       runHostCommand("file.export");
@@ -1270,7 +1271,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "Space",
+    studioShortcuts.playPause.hotkey,
     (event) => {
       if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
         return;
@@ -1289,7 +1290,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "R",
+    studioShortcuts.record.hotkey,
     (event) => {
       if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
         return;
@@ -1308,7 +1309,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "I",
+    studioShortcuts.trimIn.hotkey,
     (event) => {
       if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
         return;
@@ -1327,7 +1328,7 @@ export function useStudioController() {
   );
 
   useHotkey(
-    "O",
+    studioShortcuts.trimOut.hotkey,
     (event) => {
       if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
         return;
@@ -1337,6 +1338,25 @@ export function useStudioController() {
       }
       event.preventDefault();
       runHostCommand("timeline.trimOut");
+    },
+    {
+      ignoreInputs: true,
+      preventDefault: false,
+      stopPropagation: false,
+    },
+  );
+
+  useHotkey(
+    studioShortcuts.timelineBlade.hotkey,
+    (event) => {
+      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
+        return;
+      }
+      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      setTimelineTool("blade");
     },
     {
       ignoreInputs: true,

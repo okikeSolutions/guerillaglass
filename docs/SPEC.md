@@ -274,10 +274,11 @@ Creator Studio pro-UI parity backlog (next pass):
   - [x] Reduce chrome/panel noise (lighter separators, fewer heavy borders/glows/boxed cards, flatter pane surfaces).
   - [x] Tighten typography for pro density (smaller utility labels, reduced decorative uppercase tracking, cleaner hierarchy).
   - [x] Enforce strict icon/state color semantics (monochrome default; red for recording/error; green for healthy/live; blue or orange for active selection only).
-  - [ ] Expose shortcuts in actionable UI affordances (`Blade (B)`, `Play/Pause (Space)`, `Save (Cmd/Ctrl+S)`) across tooltips and menu labels.
+  - [x] Expose shortcuts in actionable UI affordances (`Blade (B)`, `Play/Pause (Space)`, `Save (Cmd/Ctrl+S)`) across tooltips and menu labels.
   - Implementation notes:
     - Semantic tone tokens are defined in renderer CSS (`--gg-tone-neutral`, `--gg-tone-danger`, `--gg-tone-success`, `--gg-tone-selected`, `--gg-tone-selected-alt`) and applied via utility classes rather than raw component variants.
     - Top-shelf controls are icon-only; language and density controls moved to native menu/tray actions (`app.locale.enUS`, `app.locale.deDE`, `view.density.comfortable`, `view.density.compact`).
+    - Shared shortcut registry (`src/shared/shortcuts.ts`) now drives renderer hotkeys, tooltip hints (`Kbd`), and native menu labels/accelerators to prevent binding drift.
 - Phase B — Workflow hierarchy + readability
   - [ ] Rebalance default layout so preview + timeline are visually dominant and utility rails are more recessive/collapsible.
   - [ ] Upgrade timeline readability (audio waveform-rich lanes, stronger clip semantics, clearer selected-state/playhead contrast).
