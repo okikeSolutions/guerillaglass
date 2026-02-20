@@ -164,6 +164,8 @@ Notes:
 
 - Trim in/out
 - Preview playback + scrubber + playback speed control
+- Timeline tool discipline (`Select` / `Trim` / `Blade`) with snap/ripple toggles
+- Timeline zoom controls and per-lane lock/mute/solo controls
 
 ### 7.4 Export
 
@@ -230,11 +232,16 @@ Creator Studio tracking checklist (current repo):
 - [x] Add explicit mode switch (`Capture`, `Edit`, `Deliver`) with stable navigation state
 - [x] Keep timeline permanently visible in primary layout across desktop breakpoints
 - [x] Convert timeline slider into lane-based timeline surface (video/audio/events tracks)
+- [x] Add timeline operation toolbar (tool mode, snap/ripple toggles, zoom controls)
+- [x] Add per-lane lock/mute/solo controls for video/audio lanes
 - [x] Make inspector fully contextual to selection and mode
 - [x] Add project utility panel support for recent projects + active project metadata
+- [x] Add source monitor + audio mixer surfaces in capture inspector
+- [x] Add media-bin summary to project utility rail
 - [x] Add layout persistence (pane sizes/collapse/workspace restore)
 - [x] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
+- [x] Handle host-dialog RPC timeouts as recoverable workflow interruptions with guidance copy
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
 - [x] Keep degraded-mode messaging visible near preview/recording context
 - [x] Add host command bus between Bun shell menu/tray and renderer actions

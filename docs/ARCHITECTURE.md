@@ -46,6 +46,8 @@ Renderer hardening (current):
 - Transient transport failures are retried in Bun for read-only methods only, using typed transport errors (not string matching).
 - Restart handling uses bounded attempts with backoff + jitter and a circuit-open cooldown after repeated crash loops.
 - Mutating methods (capture/recording start-stop, export run, project writes) are not auto-retried to avoid duplicate side effects.
+- Renderer directory-picker flows (`open project`, `save as`, export target selection) treat host RPC timeout responses as recoverable interruptions and show workflow guidance instead of a sticky fatal error state.
+- Transport mutations (`start/stop preview`, record toggles) reconcile against follow-up `capture.status` polls before final notice state to reduce stale transport-state drift.
 
 ## Renderer UI State (Creator Studio)
 
@@ -63,7 +65,10 @@ Renderer hardening (current):
   - current selection (timeline clip/marker, capture window, export preset)
 - Selection is normalized when mode changes so mode-incompatible selections are cleared in controller state, not only at render time.
 - Timeline entities are keyboard-focusable selectable controls and update inspector context directly.
+- Timeline toolbar exposes pro-style operations (`Select`/`Trim`/`Blade`, snap/ripple toggles, zoom controls) and lane controls (`lock`/`mute`/`solo`) while preserving keyboard/pointer parity.
 - Date/number UI formatting is localized via controller-level wrappers (`Intl.DateTimeFormat`, `Intl.NumberFormat`) so components avoid ad-hoc formatting logic.
+- Capture inspector includes source monitor and audio mixer surfaces (master + mic) for operational monitoring.
+- Project utility rail includes a lightweight media-bin summary (recording/events asset readiness) alongside active metadata and recents.
 
 ## Supported Engine Methods (Phase 1 parity)
 
