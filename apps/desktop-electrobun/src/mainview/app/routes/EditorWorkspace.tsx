@@ -264,6 +264,93 @@ export function EditorWorkspace({
   );
 
   useEffect(() => {
+    const leftPanel = leftPanelRef.current;
+    if (!leftPanel) {
+      return;
+    }
+
+    if (layout.leftCollapsed) {
+      if (!leftPanel.isCollapsed()) {
+        leftPanel.collapse();
+      }
+      return;
+    }
+
+    const nextWidth = clamp(
+      layout.leftPaneWidthPx,
+      studioLayoutBounds.leftPaneMinWidthPx,
+      studioLayoutBounds.leftPaneMaxWidthPx,
+    );
+    if (leftPanel.isCollapsed()) {
+      leftPanel.expand();
+    }
+    const currentWidth = leftPanel.getSize().inPixels;
+    if (Math.abs(currentWidth - nextWidth) > 1) {
+      leftPanel.resize(toPxSize(nextWidth));
+    }
+  }, [layout.leftCollapsed, layout.leftPaneWidthPx, toPxSize]);
+
+  useEffect(() => {
+    const rightPanel = rightPanelRef.current;
+    if (!rightPanel) {
+      return;
+    }
+
+    if (layout.rightCollapsed) {
+      if (!rightPanel.isCollapsed()) {
+        rightPanel.collapse();
+      }
+      return;
+    }
+
+    const nextWidth = clamp(
+      layout.rightPaneWidthPx,
+      studioLayoutBounds.rightPaneMinWidthPx,
+      studioLayoutBounds.rightPaneMaxWidthPx,
+    );
+    if (rightPanel.isCollapsed()) {
+      rightPanel.expand();
+    }
+    const currentWidth = rightPanel.getSize().inPixels;
+    if (Math.abs(currentWidth - nextWidth) > 1) {
+      rightPanel.resize(toPxSize(nextWidth));
+    }
+  }, [layout.rightCollapsed, layout.rightPaneWidthPx, toPxSize]);
+
+  useEffect(() => {
+    const timelinePanel = timelinePanelRef.current;
+    if (!timelinePanel) {
+      return;
+    }
+
+    if (layout.timelineCollapsed) {
+      if (!timelinePanel.isCollapsed()) {
+        timelinePanel.collapse();
+      }
+      return;
+    }
+
+    const clampedTimelineHeight = clamp(
+      layout.timelineHeightPx,
+      timelineHeightBounds.minPx,
+      timelineHeightBounds.maxPx,
+    );
+    if (timelinePanel.isCollapsed()) {
+      timelinePanel.expand();
+    }
+    const currentHeight = timelinePanel.getSize().inPixels;
+    if (Math.abs(currentHeight - clampedTimelineHeight) > 1) {
+      timelinePanel.resize(toPxSize(clampedTimelineHeight));
+    }
+  }, [
+    layout.timelineCollapsed,
+    layout.timelineHeightPx,
+    timelineHeightBounds.maxPx,
+    timelineHeightBounds.minPx,
+    toPxSize,
+  ]);
+
+  useEffect(() => {
     if (layout.timelineCollapsed) {
       return;
     }
