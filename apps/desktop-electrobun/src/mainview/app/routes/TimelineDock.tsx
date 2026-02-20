@@ -49,7 +49,7 @@ export function TimelineDock() {
     : studio.recordingRequiredNotice;
 
   return (
-    <footer className="h-full overflow-hidden bg-background/75 backdrop-blur-sm">
+    <footer className="h-full overflow-hidden bg-background/60">
       <div className="h-full overflow-auto px-4 py-3">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
           <Scissors className="h-4 w-4" /> {studio.ui.sections.timeline}
@@ -120,7 +120,7 @@ export function TimelineDock() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/25 px-2 py-1.5">
+            <div className="gg-toolbar-group flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5">
               <span className="text-[0.68rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                 {studio.ui.labels.timelineTools}
               </span>

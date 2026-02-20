@@ -129,13 +129,13 @@ export function StudioShellLayout() {
 
   return (
     <div className="h-full overflow-hidden bg-background">
-      <div className="mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border border-border/80 bg-card shadow-[0_20px_50px_rgba(0,0,0,0.22)]">
-        <header className="border-b border-border/80 bg-background/80 px-4 py-2 backdrop-blur-sm">
+      <div className="gg-shell-frame mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden border">
+        <header className="gg-shell-header border-b px-4 py-2">
           <TooltipProvider delay={120}>
             <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-start">
                 <h1 className="mr-2 text-sm font-semibold tracking-tight">{studio.ui.app.title}</h1>
-                <ButtonGroup className="gap-1 rounded-lg border border-border/70 bg-secondary/30 p-1">
+                <ButtonGroup className="gg-toolbar-group gap-1 rounded-lg border p-1">
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -191,7 +191,7 @@ export function StudioShellLayout() {
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-center">
-                <ButtonGroup className="gap-1 rounded-lg border border-border/70 bg-muted/35 p-1">
+                <ButtonGroup className="gg-toolbar-group gap-1 rounded-lg border p-1">
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -237,7 +237,7 @@ export function StudioShellLayout() {
                   </Tooltip>
                 </ButtonGroup>
 
-                <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-background/70 p-1">
+                <div className="gg-toolbar-group flex items-center gap-1 rounded-lg border p-1">
                   <Tooltip>
                     <TooltipTrigger
                       render={<Badge className="h-7 w-7 justify-center p-0" variant="outline" />}
