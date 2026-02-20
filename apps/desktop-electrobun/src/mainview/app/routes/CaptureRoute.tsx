@@ -1,5 +1,8 @@
 import { ScreenShare, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { engineApi } from "@/lib/engine";
 import { useStudio } from "../studio/context";
 import { EditorWorkspace } from "./EditorWorkspace";
@@ -61,51 +64,51 @@ export function CaptureRoute() {
               <div className="font-medium">{studio.ui.labels.captureSource}</div>
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
-                  <div className="flex gap-3">
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={field.state.value === "display"}
-                        onChange={() => {
-                          field.handleChange("display");
-                          if (studio.inspectorSelection.kind === "captureWindow") {
-                            studio.clearInspectorSelection();
-                          }
-                        }}
-                      />
+                  <RadioGroup
+                    className="flex gap-3"
+                    value={field.state.value}
+                    onValueChange={(nextValue) => {
+                      if (nextValue === "display") {
+                        field.handleChange("display");
+                        if (studio.inspectorSelection.kind === "captureWindow") {
+                          studio.clearInspectorSelection();
+                        }
+                        return;
+                      }
+
+                      if (nextValue === "window") {
+                        field.handleChange("window");
+                        const selectedWindow = studio.windowChoices.find(
+                          (windowItem) => windowItem.id === studio.selectedWindowId,
+                        );
+                        if (!selectedWindow) {
+                          return;
+                        }
+                        studio.selectCaptureWindow({
+                          windowId: selectedWindow.id,
+                          appName: selectedWindow.appName,
+                          title: selectedWindow.title,
+                        });
+                      }
+                    }}
+                  >
+                    <Label>
+                      <RadioGroupItem value="display" />
                       {studio.ui.labels.display}
-                    </label>
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="radio"
-                        checked={field.state.value === "window"}
-                        onChange={() => {
-                          field.handleChange("window");
-                          const selectedWindow = studio.windowChoices.find(
-                            (windowItem) => windowItem.id === studio.selectedWindowId,
-                          );
-                          if (!selectedWindow) {
-                            return;
-                          }
-                          studio.selectCaptureWindow({
-                            windowId: selectedWindow.id,
-                            appName: selectedWindow.appName,
-                            title: selectedWindow.title,
-                          });
-                        }}
-                      />
+                    </Label>
+                    <Label>
+                      <RadioGroupItem value="window" />
                       {studio.ui.labels.window}
-                    </label>
-                  </div>
+                    </Label>
+                  </RadioGroup>
                 )}
               </studio.settingsForm.Field>
 
               {settingsValues.captureSource === "window" ? (
                 <studio.settingsForm.Field name="selectedWindowId">
                   {(field) => (
-                    <select
-                      className="gg-input"
-                      value={studio.selectedWindowId}
+                    <NativeSelect
+                      value={String(studio.selectedWindowId)}
                       onChange={(event) => {
                         const windowId = Number(event.target.value);
                         field.handleChange(windowId);
@@ -124,14 +127,16 @@ export function CaptureRoute() {
                       }}
                     >
                       {studio.windowChoices.length === 0 ? (
-                        <option value={0}>{studio.ui.labels.noWindows}</option>
+                        <NativeSelectOption value="0">
+                          {studio.ui.labels.noWindows}
+                        </NativeSelectOption>
                       ) : null}
                       {studio.windowChoices.map((windowItem) => (
-                        <option key={windowItem.id} value={windowItem.id}>
+                        <NativeSelectOption key={windowItem.id} value={String(windowItem.id)}>
                           {windowItem.appName} - {windowItem.title || studio.ui.values.untitled}
-                        </option>
+                        </NativeSelectOption>
                       ))}
-                    </select>
+                    </NativeSelect>
                   )}
                 </studio.settingsForm.Field>
               ) : null}

@@ -1,6 +1,11 @@
-import { Keyboard, Mic, MonitorCog, MousePointer, Sparkles } from "lucide-react";
+import { Keyboard, Mic, MonitorCog, MousePointer, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { useStudio } from "../studio/context";
 import {
   resolveInspectorView,
@@ -102,46 +107,49 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
 
 function CaptureInspectorContent() {
   const studio = useStudio();
+  const telemetry = studio.captureStatusQuery.data?.telemetry;
+  const rawMeter =
+    telemetry?.audioLevelDbfs == null ? 0 : clampDbfsToMeter(telemetry.audioLevelDbfs);
+  const masterMeter = studio.audioMixer.masterMuted ? 0 : rawMeter * studio.audioMixer.masterGain;
+  const micMeter = studio.audioMixer.micMuted ? 0 : rawMeter * studio.audioMixer.micGain;
+  const captureSource = studio.settingsForm.state.values.captureSource;
 
   return (
     <>
       <studio.settingsForm.Field name="micEnabled">
         {(field) => (
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
+          <Label>
+            <Checkbox
               checked={field.state.value}
-              onChange={(event) => field.handleChange(event.target.checked)}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
             <Mic className="h-4 w-4" /> {studio.ui.labels.includeMic}
-          </label>
+          </Label>
         )}
       </studio.settingsForm.Field>
 
       <studio.settingsForm.Field name="trackInputEvents">
         {(field) => (
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
+          <Label>
+            <Checkbox
               checked={field.state.value}
-              onChange={(event) => field.handleChange(event.target.checked)}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
             <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
-          </label>
+          </Label>
         )}
       </studio.settingsForm.Field>
 
       <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
         {(field) => (
           <div className="space-y-1">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
+            <Label>
+              <Checkbox
                 checked={field.state.value}
-                onChange={(event) => field.handleChange(event.target.checked)}
+                onCheckedChange={(checked) => field.handleChange(checked)}
               />
               <Keyboard className="h-4 w-4" /> {studio.ui.labels.singleKeyShortcuts}
-            </label>
+            </Label>
             <p className="text-xs text-muted-foreground">{studio.ui.helper.singleKeyShortcuts}</p>
           </div>
         )}
@@ -150,43 +158,40 @@ function CaptureInspectorContent() {
       <studio.settingsForm.Field name="autoZoom">
         {(field) => (
           <div className="space-y-3 rounded-md border border-border/70 bg-background/70 p-3">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
+            <Label>
+              <Checkbox
                 checked={field.state.value.isEnabled}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   field.handleChange({
                     ...field.state.value,
-                    isEnabled: event.target.checked,
+                    isEnabled: checked,
                   })
                 }
               />
               {studio.ui.labels.autoZoomEnabled}
-            </label>
-            <label className="grid gap-1">
+            </Label>
+            <Label className="grid gap-1">
               {studio.ui.labels.autoZoomIntensity(Math.round(field.state.value.intensity * 100))}
-              <input
-                type="range"
+              <Slider
                 min={0}
                 max={1}
                 step={0.05}
-                value={field.state.value.intensity}
-                onChange={(event) =>
+                value={[field.state.value.intensity]}
+                onValueChange={(nextValue) =>
                   field.handleChange({
                     ...field.state.value,
-                    intensity: Number(event.target.value),
+                    intensity: readSliderValue(nextValue),
                   })
                 }
               />
-            </label>
-            <label className="grid gap-1">
+            </Label>
+            <Label className="grid gap-1">
               {studio.ui.labels.minimumKeyframeInterval}
-              <input
-                className="gg-input"
+              <Input
                 type="number"
                 min={0.01}
                 step={0.01}
-                value={field.state.value.minimumKeyframeInterval}
+                value={Number(field.state.value.minimumKeyframeInterval.toFixed(2))}
                 onChange={(event) =>
                   field.handleChange({
                     ...field.state.value,
@@ -194,11 +199,110 @@ function CaptureInspectorContent() {
                   })
                 }
               />
-            </label>
+            </Label>
           </div>
         )}
       </studio.settingsForm.Field>
+
+      <div className="rounded-md border border-border/70 bg-background/70 p-3">
+        <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          {studio.ui.labels.sourceMonitor}
+        </p>
+        <div className="space-y-1 text-xs">
+          <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
+          <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
+          <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
+        </div>
+      </div>
+
+      <div className="rounded-md border border-border/70 bg-background/70 p-3">
+        <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          {studio.ui.labels.audioMixer}
+        </p>
+        <div className="space-y-3">
+          <AudioMixerChannel
+            label={studio.ui.labels.masterChannel}
+            value={studio.audioMixer.masterGain}
+            level={masterMeter}
+            muted={studio.audioMixer.masterMuted}
+            muteLabel={studio.ui.labels.mute}
+            unmuteLabel={studio.ui.labels.unmute}
+            onValueChange={(value) => studio.setAudioMixerGain("master", value)}
+            onToggleMuted={() => studio.toggleAudioMixerMuted("master")}
+          />
+          <AudioMixerChannel
+            label={studio.ui.labels.microphone}
+            value={studio.audioMixer.micGain}
+            level={micMeter}
+            muted={studio.audioMixer.micMuted}
+            muteLabel={studio.ui.labels.mute}
+            unmuteLabel={studio.ui.labels.unmute}
+            onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
+            onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
+          />
+        </div>
+      </div>
     </>
+  );
+}
+
+function clampDbfsToMeter(audioLevelDbfs: number): number {
+  if (!Number.isFinite(audioLevelDbfs)) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, (audioLevelDbfs + 60) / 60));
+}
+
+function readSliderValue(value: number | readonly number[]): number {
+  if (typeof value === "number") {
+    return value;
+  }
+  return value[0] ?? 0;
+}
+
+function AudioMixerChannel({
+  label,
+  level,
+  muted,
+  onToggleMuted,
+  onValueChange,
+  value,
+  muteLabel,
+  unmuteLabel,
+}: {
+  label: string;
+  level: number;
+  muted: boolean;
+  value: number;
+  muteLabel: string;
+  unmuteLabel: string;
+  onValueChange: (value: number) => void;
+  onToggleMuted: () => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium">{label}</span>
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="outline"
+          aria-label={muted ? unmuteLabel : muteLabel}
+          title={muted ? unmuteLabel : muteLabel}
+          onClick={onToggleMuted}
+        >
+          {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+        </Button>
+      </div>
+      <Progress value={Math.round(level * 100)} />
+      <Slider
+        min={0}
+        max={1}
+        step={0.05}
+        value={[value]}
+        onValueChange={(nextValue) => onValueChange(readSliderValue(nextValue))}
+      />
+    </div>
   );
 }
 
@@ -246,35 +350,33 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
                 <Sparkles className="h-3.5 w-3.5" /> {studio.ui.inspectorTabs.effects}
               </span>
             </p>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
+            <Label>
+              <Checkbox
                 checked={field.state.value.isEnabled}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   field.handleChange({
                     ...field.state.value,
-                    isEnabled: event.target.checked,
+                    isEnabled: checked,
                   })
                 }
               />
               {studio.ui.labels.autoZoomEnabled}
-            </label>
-            <label className="mt-2 grid gap-1">
+            </Label>
+            <Label className="mt-2 grid gap-1">
               {studio.ui.labels.autoZoomIntensity(Math.round(field.state.value.intensity * 100))}
-              <input
-                type="range"
+              <Slider
                 min={0}
                 max={1}
                 step={0.05}
-                value={field.state.value.intensity}
-                onChange={(event) =>
+                value={[field.state.value.intensity]}
+                onValueChange={(nextValue) =>
                   field.handleChange({
                     ...field.state.value,
-                    intensity: Number(event.target.value),
+                    intensity: readSliderValue(nextValue),
                   })
                 }
               />
-            </label>
+            </Label>
           </div>
         )}
       </studio.settingsForm.Field>

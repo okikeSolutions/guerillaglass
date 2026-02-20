@@ -87,6 +87,8 @@ describe("project utility panel", () => {
     expect(html).toContain("Project Name: alpha");
     expect(html).toContain("Capture Source: window");
     expect(html).toContain("Capture Resolution: 1280x720");
+    expect(html).toContain("Media Bin");
+    expect(html).toContain("Ready");
     expect(html).toContain("Recent Projects");
     expect(html).toContain("Alpha");
     expect(html).toContain("Open Recent");
