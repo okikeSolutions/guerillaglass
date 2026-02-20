@@ -1,6 +1,7 @@
 import type { ApplicationMenuItemConfig, MenuItemConfig } from "electrobun/bun";
 import { getDesktopMenuMessages } from "@guerillaglass/localization";
 import type { HostMenuState } from "../../shared/bridgeRpc";
+import { studioShortcuts, withShortcutLabel } from "../../shared/shortcuts";
 import { encodeHostMenuAction } from "./actions";
 
 const separator = { type: "separator" as const };
@@ -44,19 +45,20 @@ export function buildApplicationMenu(
         {
           label: labels.saveProject,
           action: encodeHostMenuAction("file.saveProject"),
-          accelerator: "s",
+          accelerator: studioShortcuts.save.menuAccelerator,
           enabled: state.canSave,
         },
         {
           label: labels.saveProjectAs,
           action: encodeHostMenuAction("file.saveProjectAs"),
+          accelerator: studioShortcuts.saveAs.menuAccelerator,
           enabled: state.canSave,
         },
         separator,
         {
           label: labels.export,
           action: encodeHostMenuAction("file.export"),
-          accelerator: "e",
+          accelerator: studioShortcuts.export.menuAccelerator,
           enabled: state.canExport,
         },
         ...(platform !== "darwin" ? [separator, { role: "quit" }] : []),
@@ -82,7 +84,7 @@ export function buildApplicationMenu(
         {
           label: recordingLabel,
           action: encodeHostMenuAction("capture.toggleRecording"),
-          accelerator: "r",
+          accelerator: studioShortcuts.record.menuAccelerator,
         },
         { label: labels.startPreview, action: encodeHostMenuAction("capture.startPreview") },
         { label: labels.stopPreview, action: encodeHostMenuAction("capture.stopPreview") },
@@ -100,17 +102,17 @@ export function buildApplicationMenu(
         {
           label: labels.playPause,
           action: encodeHostMenuAction("timeline.playPause"),
-          accelerator: "space",
+          accelerator: studioShortcuts.playPause.menuAccelerator,
         },
         {
           label: labels.setTrimIn,
           action: encodeHostMenuAction("timeline.trimIn"),
-          accelerator: "i",
+          accelerator: studioShortcuts.trimIn.menuAccelerator,
         },
         {
           label: labels.setTrimOut,
           action: encodeHostMenuAction("timeline.trimOut"),
-          accelerator: "o",
+          accelerator: studioShortcuts.trimOut.menuAccelerator,
         },
         separator,
         {
@@ -196,20 +198,24 @@ export function buildApplicationMenu(
 
 export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
-  const recordingLabel = state.isRecording ? labels.stopRecording : labels.startRecording;
+  const recordingLabel = withShortcutLabel(
+    state.isRecording ? labels.stopRecording : labels.startRecording,
+    "record",
+    { platform: "linux" },
+  );
   const localeSelection = state.locale === "de-DE" ? "de-DE" : "en-US";
   const densitySelection = state.densityMode === "compact" ? "compact" : "comfortable";
   return [
     { type: "normal", label: labels.openProject, action: encodeHostMenuAction("file.openProject") },
     {
       type: "normal",
-      label: labels.saveProject,
+      label: withShortcutLabel(labels.saveProject, "save", { platform: "linux" }),
       action: encodeHostMenuAction("file.saveProject"),
       enabled: state.canSave,
     },
     {
       type: "normal",
-      label: labels.saveProjectAs,
+      label: withShortcutLabel(labels.saveProjectAs, "saveAs", { platform: "linux" }),
       action: encodeHostMenuAction("file.saveProjectAs"),
       enabled: state.canSave,
     },
@@ -221,7 +227,7 @@ export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuI
     },
     {
       type: "normal",
-      label: labels.export,
+      label: withShortcutLabel(labels.export, "export", { platform: "linux" }),
       action: encodeHostMenuAction("file.export"),
       enabled: state.canExport,
     },

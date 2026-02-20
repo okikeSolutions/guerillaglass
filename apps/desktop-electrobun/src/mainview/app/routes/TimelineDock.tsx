@@ -19,8 +19,13 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { ShortcutHint } from "@/components/ui/shortcut-hint";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  normalizeShortcutDisplayPlatform,
+  studioShortcutDisplayTokens,
+} from "../../../shared/shortcuts";
 import { useStudio } from "../studio/context";
 import {
   studioBadgeToneClass,
@@ -32,12 +37,14 @@ import { TimelineSurface } from "./TimelineSurface";
 function TimelineIconAction({
   label,
   tone = "neutral",
+  shortcutKeys,
   children,
   className,
   ...buttonProps
 }: {
   label: string;
   tone?: StudioSemanticState;
+  shortcutKeys?: readonly string[];
   children: ReactNode;
 } & ComponentProps<typeof Button>) {
   return (
@@ -55,7 +62,9 @@ function TimelineIconAction({
         {children}
         <span className="sr-only">{label}</span>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        <ShortcutHint label={label} keys={shortcutKeys} />
+      </TooltipContent>
     </Tooltip>
   );
 }
@@ -65,6 +74,13 @@ export function TimelineDock() {
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
+  const shortcutPlatform = normalizeShortcutDisplayPlatform(
+    typeof navigator === "undefined"
+      ? undefined
+      : ((navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+          navigator.platform ??
+          navigator.userAgent),
+  );
 
   return (
     <footer className="h-full overflow-hidden bg-background/60">
@@ -79,12 +95,18 @@ export function TimelineDock() {
               <ButtonGroup className="gap-1">
                 <TimelineIconAction
                   label={studio.ui.actions.setTrimIn}
+                  shortcutKeys={studioShortcutDisplayTokens("trimIn", {
+                    platform: shortcutPlatform,
+                  })}
                   onClick={studio.setTrimInFromPlayhead}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </TimelineIconAction>
                 <TimelineIconAction
                   label={studio.ui.actions.setTrimOut}
+                  shortcutKeys={studioShortcutDisplayTokens("trimOut", {
+                    platform: shortcutPlatform,
+                  })}
                   onClick={studio.setTrimOutFromPlayhead}
                 >
                   <ArrowRight className="h-4 w-4" />
@@ -100,6 +122,9 @@ export function TimelineDock() {
               <div className="ml-auto inline-flex items-center gap-2">
                 <TimelineIconAction
                   label={studio.ui.actions.saveProjectAs}
+                  shortcutKeys={studioShortcutDisplayTokens("saveAs", {
+                    platform: shortcutPlatform,
+                  })}
                   onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
                   disabled={studio.isRunningAction || !studio.recordingURL}
                   title={recordingActionDisabledReason}
@@ -162,6 +187,9 @@ export function TimelineDock() {
                 </TimelineIconAction>
                 <TimelineIconAction
                   label={studio.ui.actions.timelineToolBlade}
+                  shortcutKeys={studioShortcutDisplayTokens("timelineBlade", {
+                    platform: shortcutPlatform,
+                  })}
                   tone={studio.timelineTool === "blade" ? "selected" : "neutral"}
                   onClick={() => studio.setTimelineTool("blade")}
                 >

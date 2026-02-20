@@ -25,7 +25,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { ShortcutHint } from "@/components/ui/shortcut-hint";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  normalizeShortcutDisplayPlatform,
+  studioShortcutDisplayTokens,
+} from "../../../shared/shortcuts";
 import {
   studioBadgeToneClass,
   studioButtonToneClass,
@@ -100,6 +105,13 @@ export function StudioShellLayout() {
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
+  const shortcutPlatform = normalizeShortcutDisplayPlatform(
+    typeof navigator === "undefined"
+      ? undefined
+      : ((navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
+          navigator.platform ??
+          navigator.userAgent),
+  );
 
   useEffect(() => {
     if (activeLocale === studio.locale) {
@@ -206,7 +218,15 @@ export function StudioShellLayout() {
                       )}
                       <span className="sr-only">{studio.ui.actions.playPause}</span>
                     </TooltipTrigger>
-                    <TooltipContent>{studio.ui.actions.playPause}</TooltipContent>
+                    <TooltipContent>
+                      <ShortcutHint
+                        label={studio.ui.actions.playPause}
+                        keys={studioShortcutDisplayTokens("playPause", {
+                          platform: shortcutPlatform,
+                          spaceKeyLabel: studio.ui.shortcuts.playPause,
+                        })}
+                      />
+                    </TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger
@@ -230,9 +250,16 @@ export function StudioShellLayout() {
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {studio.captureStatusQuery.data?.isRecording
-                        ? studio.ui.actions.stopRecording
-                        : studio.ui.actions.startRecording}
+                      <ShortcutHint
+                        label={
+                          studio.captureStatusQuery.data?.isRecording
+                            ? studio.ui.actions.stopRecording
+                            : studio.ui.actions.startRecording
+                        }
+                        keys={studioShortcutDisplayTokens("record", {
+                          platform: shortcutPlatform,
+                        })}
+                      />
                     </TooltipContent>
                   </Tooltip>
                 </ButtonGroup>
@@ -396,7 +423,14 @@ export function StudioShellLayout() {
                     <Save className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
                     <span className="sr-only">{studio.ui.actions.saveProject}</span>
                   </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.saveProject}</TooltipContent>
+                  <TooltipContent>
+                    <ShortcutHint
+                      label={studio.ui.actions.saveProject}
+                      keys={studioShortcutDisplayTokens("save", {
+                        platform: shortcutPlatform,
+                      })}
+                    />
+                  </TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger
@@ -414,7 +448,14 @@ export function StudioShellLayout() {
                     <HardDriveDownload className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
                     <span className="sr-only">{studio.ui.actions.exportNow}</span>
                   </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.exportNow}</TooltipContent>
+                  <TooltipContent>
+                    <ShortcutHint
+                      label={studio.ui.actions.exportNow}
+                      keys={studioShortcutDisplayTokens("export", {
+                        platform: shortcutPlatform,
+                      })}
+                    />
+                  </TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger
