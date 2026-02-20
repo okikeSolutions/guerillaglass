@@ -1,12 +1,22 @@
-import { Keyboard, Mic, MonitorCog, MousePointer, Sparkles, Volume2, VolumeX } from "lucide-react";
+import {
+  ChevronRight,
+  Keyboard,
+  Mic,
+  MonitorCog,
+  MousePointer,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 import { useStudio } from "../studio/context";
 import {
   resolveInspectorView,
@@ -25,13 +35,34 @@ type InspectorPanelProps = {
   mode: StudioMode;
 };
 
-function InspectorSection({ title, children }: { title: string; children: ReactNode }) {
+function InspectorSection({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="space-y-2">
-      <h3 className="gg-inspector-section-header">{title}</h3>
-      {children}
-    </section>
+    <Collapsible defaultOpen={false} className={cn("gg-inspector-section", className)}>
+      <CollapsibleTrigger className="gg-inspector-section-trigger">
+        <ChevronRight className="gg-inspector-section-chevron" />
+        <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="gg-inspector-section-content">
+        <div className="gg-inspector-section-body">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
+}
+
+function InspectorDetailList({ children }: { children: ReactNode }) {
+  return <div className="gg-inspector-detail-list gg-numeric">{children}</div>;
+}
+
+function InspectorDetailRow({ value, className }: { value: string; className?: string }) {
+  return <div className={cn("gg-inspector-detail-row", className)}>{value}</div>;
 }
 
 function localizeTimelineLaneId(
@@ -67,68 +98,70 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
   switch (selection.kind) {
     case "timelineClip":
       return (
-        <Card size="sm" className="gg-surface-block">
-          <CardHeader>
-            <CardTitle className="gg-utility-label">
-              {studio.ui.inspector.cards.selectedClip}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gg-numeric space-y-1">
-            <div>{`${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`}</div>
-            <div>{`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}</div>
-            <div>{`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}</div>
-            <div>
-              {`${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
+        <InspectorSection title={studio.ui.inspector.cards.selectedClip}>
+          <InspectorDetailList>
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
                 Math.max(0, selection.endSeconds - selection.startSeconds),
               )}s`}
-            </div>
-          </CardContent>
-        </Card>
+            />
+          </InspectorDetailList>
+        </InspectorSection>
       );
     case "timelineMarker":
       return (
-        <Card size="sm" className="gg-surface-block">
-          <CardHeader>
-            <CardTitle className="gg-utility-label">
-              {studio.ui.inspector.cards.selectedEventMarker}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gg-numeric space-y-1">
-            <div>{`${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`}</div>
-            <div>{`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}</div>
-            <div>{`${studio.ui.inspector.fields.density}: ${selection.density}`}</div>
-          </CardContent>
-        </Card>
+        <InspectorSection title={studio.ui.inspector.cards.selectedEventMarker}>
+          <InspectorDetailList>
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.density}: ${selection.density}`}
+            />
+          </InspectorDetailList>
+        </InspectorSection>
       );
     case "captureWindow":
       return (
-        <Card size="sm" className="gg-surface-block">
-          <CardHeader>
-            <CardTitle className="gg-utility-label">
-              {studio.ui.inspector.cards.selectedWindow}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gg-numeric space-y-1">
-            <div>{`${studio.ui.inspector.fields.app}: ${selection.appName}`}</div>
-            <div className="truncate">{`${studio.ui.inspector.fields.title}: ${selection.title || studio.ui.values.untitled}`}</div>
-            <div>{`${studio.ui.inspector.fields.windowId}: ${selection.windowId}`}</div>
-          </CardContent>
-        </Card>
+        <InspectorSection title={studio.ui.inspector.cards.selectedWindow}>
+          <InspectorDetailList>
+            <InspectorDetailRow value={`${studio.ui.inspector.fields.app}: ${selection.appName}`} />
+            <InspectorDetailRow
+              className="truncate"
+              value={`${studio.ui.inspector.fields.title}: ${selection.title || studio.ui.values.untitled}`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.windowId}: ${selection.windowId}`}
+            />
+          </InspectorDetailList>
+        </InspectorSection>
       );
     case "exportPreset":
       return (
-        <Card size="sm" className="gg-surface-block">
-          <CardHeader>
-            <CardTitle className="gg-utility-label">
-              {studio.ui.inspector.cards.selectedPreset}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gg-numeric space-y-1">
-            <div>{selection.name}</div>
-            <div className="text-muted-foreground">{`${selection.width}:${selection.height}`}</div>
-            <div>{`${studio.ui.inspector.fields.fileType}: ${selection.fileType}`}</div>
-          </CardContent>
-        </Card>
+        <InspectorSection title={studio.ui.inspector.cards.selectedPreset}>
+          <InspectorDetailList>
+            <InspectorDetailRow value={selection.name} />
+            <InspectorDetailRow
+              className="text-muted-foreground"
+              value={`${selection.width}:${selection.height}`}
+            />
+            <InspectorDetailRow
+              value={`${studio.ui.inspector.fields.fileType}: ${selection.fileType}`}
+            />
+          </InspectorDetailList>
+        </InspectorSection>
       );
     default: {
       const _exhaustiveCheck: never = selection;
@@ -149,55 +182,50 @@ function CaptureInspectorContent() {
 
   return (
     <>
-      <studio.settingsForm.Field name="micEnabled">
-        {(field) => (
-          <Field>
-            <FieldLabel className="gg-inspector-toggle-row">
-              <Checkbox
-                checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
-              />
-              <Mic className="h-4 w-4" /> {studio.ui.labels.includeMic}
-            </FieldLabel>
-          </Field>
-        )}
-      </studio.settingsForm.Field>
+      <InspectorSection title={studio.ui.inspectorTabs.capture.toUpperCase()}>
+        <studio.settingsForm.Field name="micEnabled">
+          {(field) => (
+            <Field>
+              <FieldLabel className="gg-inspector-toggle-row">
+                <Checkbox
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(checked)}
+                />
+                <Mic className="h-4 w-4" /> {studio.ui.labels.includeMic}
+              </FieldLabel>
+            </Field>
+          )}
+        </studio.settingsForm.Field>
 
-      <studio.settingsForm.Field name="trackInputEvents">
-        {(field) => (
-          <Field>
-            <FieldLabel className="gg-inspector-toggle-row">
-              <Checkbox
-                checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
-              />
-              <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
-            </FieldLabel>
-          </Field>
-        )}
-      </studio.settingsForm.Field>
+        <studio.settingsForm.Field name="trackInputEvents">
+          {(field) => (
+            <Field>
+              <FieldLabel className="gg-inspector-toggle-row">
+                <Checkbox
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(checked)}
+                />
+                <MousePointer className="h-4 w-4" /> {studio.ui.labels.trackInput}
+              </FieldLabel>
+            </Field>
+          )}
+        </studio.settingsForm.Field>
 
-      <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
-        {(field) => (
-          <Field>
-            <FieldLabel className="gg-inspector-toggle-row">
-              <Checkbox
-                checked={field.state.value}
-                onCheckedChange={(checked) => field.handleChange(checked)}
-              />
-              <Keyboard className="h-4 w-4" /> {studio.ui.labels.singleKeyShortcuts}
-            </FieldLabel>
-            <FieldDescription className="px-1.5 pt-0.5">
-              {studio.ui.helper.singleKeyShortcuts}
-            </FieldDescription>
-          </Field>
-        )}
-      </studio.settingsForm.Field>
+        <div className="space-y-1 px-0.5">
+          <p className="gg-utility-label">{studio.ui.labels.sourceMonitor}</p>
+          <div className="gg-copy-meta space-y-1">
+            <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
+            <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
+            <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
+          </div>
+        </div>
+      </InspectorSection>
 
-      <studio.settingsForm.Field name="autoZoom">
-        {(field) => (
-          <InspectorSection title={studio.ui.labels.autoZoomSection.toUpperCase()}>
-            <div className="space-y-3 px-0.5">
+      <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
+        <studio.settingsForm.Field name="autoZoom">
+          {(field) => (
+            <div className="space-y-2 px-0.5">
+              <p className="gg-utility-label">{studio.ui.labels.autoZoomSection}</p>
               <Field>
                 <FieldLabel className="items-center">
                   <Checkbox
@@ -251,42 +279,52 @@ function CaptureInspectorContent() {
                   />
                 </FieldContent>
               </Field>
-            </div>
-          </InspectorSection>
-        )}
-      </studio.settingsForm.Field>
 
-      <InspectorSection title={studio.ui.labels.sourceMonitor.toUpperCase()}>
-        <div className="gg-copy-meta space-y-1 px-0.5">
-          <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
-          <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
-          <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
-        </div>
+              <div className="space-y-2 pt-1">
+                <p className="gg-utility-label">{studio.ui.labels.audioMixer}</p>
+                <AudioMixerChannel
+                  label={studio.ui.labels.masterChannel}
+                  value={studio.audioMixer.masterGain}
+                  level={masterMeter}
+                  muted={studio.audioMixer.masterMuted}
+                  muteLabel={studio.ui.labels.mute}
+                  unmuteLabel={studio.ui.labels.unmute}
+                  onValueChange={(value) => studio.setAudioMixerGain("master", value)}
+                  onToggleMuted={() => studio.toggleAudioMixerMuted("master")}
+                />
+                <AudioMixerChannel
+                  label={studio.ui.labels.microphone}
+                  value={studio.audioMixer.micGain}
+                  level={micMeter}
+                  muted={studio.audioMixer.micMuted}
+                  muteLabel={studio.ui.labels.mute}
+                  unmuteLabel={studio.ui.labels.unmute}
+                  onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
+                  onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
+                />
+              </div>
+            </div>
+          )}
+        </studio.settingsForm.Field>
       </InspectorSection>
 
-      <InspectorSection title={studio.ui.labels.audioMixer.toUpperCase()}>
-        <div className="space-y-3 px-0.5">
-          <AudioMixerChannel
-            label={studio.ui.labels.masterChannel}
-            value={studio.audioMixer.masterGain}
-            level={masterMeter}
-            muted={studio.audioMixer.masterMuted}
-            muteLabel={studio.ui.labels.mute}
-            unmuteLabel={studio.ui.labels.unmute}
-            onValueChange={(value) => studio.setAudioMixerGain("master", value)}
-            onToggleMuted={() => studio.toggleAudioMixerMuted("master")}
-          />
-          <AudioMixerChannel
-            label={studio.ui.labels.microphone}
-            value={studio.audioMixer.micGain}
-            level={micMeter}
-            muted={studio.audioMixer.micMuted}
-            muteLabel={studio.ui.labels.mute}
-            unmuteLabel={studio.ui.labels.unmute}
-            onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
-            onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
-          />
-        </div>
+      <InspectorSection title={studio.ui.inspectorTabs.advanced.toUpperCase()}>
+        <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
+          {(field) => (
+            <Field>
+              <FieldLabel className="gg-inspector-toggle-row">
+                <Checkbox
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(checked)}
+                />
+                <Keyboard className="h-4 w-4" /> {studio.ui.labels.singleKeyShortcuts}
+              </FieldLabel>
+              <FieldDescription className="px-1.5 pt-0.5">
+                {studio.ui.helper.singleKeyShortcuts}
+              </FieldDescription>
+            </Field>
+          )}
+        </studio.settingsForm.Field>
       </InspectorSection>
     </>
   );
@@ -326,7 +364,7 @@ function AudioMixerChannel({
   onToggleMuted: () => void;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
         <span className="gg-copy-strong">{label}</span>
         <Button
@@ -358,48 +396,50 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
 
   return (
     <>
-      {selection.kind === "timelineClip" ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => studio.setTrimStartSeconds(selection.startSeconds)}
-          >
-            {studio.ui.inspector.actions.setTrimInToClipStart}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => studio.setTrimEndSeconds(selection.endSeconds)}
-          >
-            {studio.ui.inspector.actions.setTrimOutToClipEnd}
-          </Button>
-        </div>
-      ) : null}
+      <InspectorSection title={studio.ui.inspectorTabs.project.toUpperCase()}>
+        {selection.kind === "timelineClip" ? (
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => studio.setTrimStartSeconds(selection.startSeconds)}
+            >
+              {studio.ui.inspector.actions.setTrimInToClipStart}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => studio.setTrimEndSeconds(selection.endSeconds)}
+            >
+              {studio.ui.inspector.actions.setTrimOutToClipEnd}
+            </Button>
+          </div>
+        ) : null}
 
-      {selection.kind === "timelineMarker" ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => studio.setPlayheadSeconds(selection.timestampSeconds)}
-          >
-            {studio.ui.inspector.actions.jumpPlayheadToMarker}
-          </Button>
-        </div>
-      ) : null}
+        {selection.kind === "timelineMarker" ? (
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => studio.setPlayheadSeconds(selection.timestampSeconds)}
+            >
+              {studio.ui.inspector.actions.jumpPlayheadToMarker}
+            </Button>
+          </div>
+        ) : null}
 
-      <studio.settingsForm.Field name="autoZoom">
-        {(field) => (
-          <Card size="sm" className="gg-surface-block">
-            <CardHeader>
-              <CardTitle className="gg-utility-label">
-                <span className="inline-flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5" /> {studio.ui.inspectorTabs.effects}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+        {selection.kind === "none" ? (
+          <p className="gg-copy-meta">{studio.ui.helper.activePreviewBody}</p>
+        ) : null}
+      </InspectorSection>
+
+      <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
+        <studio.settingsForm.Field name="autoZoom">
+          {(field) => (
+            <div className="space-y-2 px-0.5">
+              <p className="gg-utility-label inline-flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" /> {studio.ui.labels.autoZoomSection}
+              </p>
               <Field>
                 <FieldLabel className="items-center">
                   <Checkbox
@@ -435,10 +475,10 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
                   />
                 </FieldContent>
               </Field>
-            </CardContent>
-          </Card>
-        )}
-      </studio.settingsForm.Field>
+            </div>
+          )}
+        </studio.settingsForm.Field>
+      </InspectorSection>
     </>
   );
 }
@@ -448,30 +488,31 @@ function DeliverInspectorContent() {
 
   return (
     <>
-      <Card size="sm" className="gg-surface-block">
-        <CardHeader>
-          <CardTitle className="gg-utility-label">
-            {studio.ui.inspector.cards.activePreset}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="gg-numeric space-y-1">
-          <div>{studio.selectedPreset?.name ?? "-"}</div>
+      <InspectorSection title={studio.ui.inspector.cards.activePreset}>
+        <InspectorDetailList>
+          <InspectorDetailRow value={studio.selectedPreset?.name ?? "-"} />
           {studio.selectedPreset ? (
-            <div className="text-muted-foreground">
-              {studio.formatAspectRatio(studio.selectedPreset.width, studio.selectedPreset.height)}
-            </div>
+            <InspectorDetailRow
+              className="text-muted-foreground"
+              value={studio.formatAspectRatio(
+                studio.selectedPreset.width,
+                studio.selectedPreset.height,
+              )}
+            />
           ) : null}
-        </CardContent>
-      </Card>
-      <Card size="sm" className="gg-surface-block">
-        <CardHeader>
-          <CardTitle className="gg-utility-label">{studio.ui.inspector.cards.trimWindow}</CardTitle>
-        </CardHeader>
-        <CardContent className="gg-numeric space-y-1">
-          <div>{`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}</div>
-          <div>{`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}</div>
-        </CardContent>
-      </Card>
+        </InspectorDetailList>
+      </InspectorSection>
+
+      <InspectorSection title={studio.ui.inspector.cards.trimWindow}>
+        <InspectorDetailList>
+          <InspectorDetailRow
+            value={`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}
+          />
+          <InspectorDetailRow
+            value={`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}
+          />
+        </InspectorDetailList>
+      </InspectorSection>
     </>
   );
 }
@@ -490,8 +531,8 @@ export function InspectorPanel({ mode }: InspectorPanelProps) {
         </StudioPaneTitle>
         <StudioPaneSubtitle>{viewText.subtitle}</StudioPaneSubtitle>
       </StudioPaneHeader>
-      <StudioPaneBody className="gg-copy-compact space-y-3">
-        <SelectionDetails selection={selection} />
+      <StudioPaneBody className="gg-inspector-pane-body gg-copy-compact">
+        {selection.kind !== "none" ? <SelectionDetails selection={selection} /> : null}
 
         {mode === "capture" ? <CaptureInspectorContent /> : null}
         {mode === "edit" ? <EditInspectorContent selection={selection} /> : null}

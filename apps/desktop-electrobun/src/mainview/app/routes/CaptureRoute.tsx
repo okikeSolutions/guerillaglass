@@ -1,13 +1,16 @@
-import { ScreenShare, ShieldCheck } from "lucide-react";
+import { ChevronRight, ScreenShare, ShieldCheck } from "lucide-react";
+import { type ReactNode } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { engineApi } from "@/lib/engine";
+import { cn } from "@/lib/utils";
 import { useStudio } from "../studio/context";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
@@ -34,49 +37,51 @@ export function CaptureRoute() {
             </StudioPaneTitle>
             <StudioPaneSubtitle>{studio.ui.labels.inputMonitoring}</StudioPaneSubtitle>
           </StudioPaneHeader>
-          <StudioPaneBody className="gg-copy-compact space-y-4">
-            <div className="space-y-1">
-              <div>{`${studio.ui.labels.screen}: ${studio.permissionsQuery.data?.screenRecordingGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
-              <div>{`${studio.ui.labels.microphone}: ${studio.permissionsQuery.data?.microphoneGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
-              <div>{`${studio.ui.labels.inputMonitoring}: ${studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown}`}</div>
-            </div>
+          <StudioPaneBody className="gg-copy-compact gg-inspector-pane-body">
+            <CaptureLeftSection title={studio.ui.labels.inputMonitoring}>
+              <div className="gg-inspector-detail-list">
+                <div className="gg-inspector-detail-row">{`${studio.ui.labels.screen}: ${studio.permissionsQuery.data?.screenRecordingGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
+                <div className="gg-inspector-detail-row">{`${studio.ui.labels.microphone}: ${studio.permissionsQuery.data?.microphoneGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
+                <div className="gg-inspector-detail-row">{`${studio.ui.labels.inputMonitoring}: ${studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown}`}</div>
+              </div>
 
-            <div className="gg-left-rail-actions">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gg-left-rail-action"
-                onClick={() => void studio.requestPermissionMutation.mutateAsync("screen")}
-              >
-                {studio.ui.actions.requestScreen}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gg-left-rail-action"
-                onClick={() => void studio.requestPermissionMutation.mutateAsync("mic")}
-              >
-                {studio.ui.actions.requestMic}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gg-left-rail-action"
-                onClick={() => void studio.requestPermissionMutation.mutateAsync("input")}
-              >
-                {studio.ui.actions.requestInput}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gg-left-rail-action"
-                onClick={() => void engineApi.openInputMonitoringSettings()}
-              >
-                {studio.ui.actions.openSettings}
-              </Button>
-            </div>
+              <div className="gg-left-rail-actions pt-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gg-left-rail-action"
+                  onClick={() => void studio.requestPermissionMutation.mutateAsync("screen")}
+                >
+                  {studio.ui.actions.requestScreen}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gg-left-rail-action"
+                  onClick={() => void studio.requestPermissionMutation.mutateAsync("mic")}
+                >
+                  {studio.ui.actions.requestMic}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gg-left-rail-action"
+                  onClick={() => void studio.requestPermissionMutation.mutateAsync("input")}
+                >
+                  {studio.ui.actions.requestInput}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="gg-left-rail-action"
+                  onClick={() => void engineApi.openInputMonitoringSettings()}
+                >
+                  {studio.ui.actions.openSettings}
+                </Button>
+              </div>
+            </CaptureLeftSection>
 
-            <div className="space-y-2 border-t border-border/70 pt-3">
+            <CaptureLeftSection title={studio.ui.labels.captureSource}>
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
                   <Field>
@@ -165,7 +170,7 @@ export function CaptureRoute() {
                   )}
                 </studio.settingsForm.Field>
               ) : null}
-            </div>
+            </CaptureLeftSection>
           </StudioPaneBody>
         </StudioPane>
       }
@@ -246,5 +251,27 @@ export function CaptureRoute() {
       rightPane={<InspectorPanel mode="capture" />}
       bottomPane={<TimelineDock />}
     />
+  );
+}
+
+function CaptureLeftSection({
+  title,
+  children,
+  className,
+}: {
+  title: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Collapsible defaultOpen={false} className={cn("gg-inspector-section", className)}>
+      <CollapsibleTrigger className="gg-inspector-section-trigger">
+        <ChevronRight className="gg-inspector-section-chevron" />
+        <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="gg-inspector-section-content">
+        <div className="gg-inspector-section-body">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
