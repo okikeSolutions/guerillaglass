@@ -130,7 +130,7 @@ function handleShellAction(action: string) {
     dispatchHostCommand,
     toggleDevTools: () => mainWindow?.webview.toggleDevTools(),
     openDocs: () => {
-      void Utils.openExternal("https://github.com/okikio/guerillaglass");
+      void Utils.openExternal("https://github.com/okikeSolutions/guerillaglass");
     },
     quit: () => Utils.quit(),
   });
