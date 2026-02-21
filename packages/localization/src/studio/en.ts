@@ -23,6 +23,8 @@ export const enUS = {
     projectOpened: "Project opened.",
     projectSaved: (path: string) => `Project saved to ${path}`,
     selectWindowFirst: "Select a window before starting capture.",
+    screenPermissionRequired:
+      "Screen Recording permission is required. Enable Guerillaglass in System Settings > Privacy & Security > Screen Recording, then retry.",
     inputTrackingDegraded:
       "Input Monitoring is denied. Recording continues, but auto-zoom triggers and click highlights are disabled.",
   },

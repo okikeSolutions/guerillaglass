@@ -26,6 +26,8 @@ export const deDE: StudioMessages = {
     projectOpened: "Projekt geöffnet.",
     projectSaved: (path: string) => `Projekt gespeichert unter ${path}`,
     selectWindowFirst: "Wähle vor dem Start der Aufnahme ein Fenster aus.",
+    screenPermissionRequired:
+      "Bildschirmaufnahme-Berechtigung ist erforderlich. Aktiviere Guerillaglass unter Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und versuche es erneut.",
     inputTrackingDegraded:
       "Input Monitoring ist abgelehnt. Aufnahme läuft weiter, aber Auto-Zoom-Trigger und Klick-Highlights sind deaktiviert.",
   },
