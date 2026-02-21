@@ -112,11 +112,25 @@ export const captureHealthReasonSchema = z.enum([
   "elevated_dropped_frame_rate",
   "low_microphone_level",
 ]);
+export const captureFrameRates = [24, 30, 60] as const;
+export const defaultCaptureFrameRate: (typeof captureFrameRates)[number] = 30;
+const [captureFrameRate24, captureFrameRate30, captureFrameRate60] = captureFrameRates;
+export const captureFrameRateSchema = z.union([
+  z.literal(captureFrameRate24),
+  z.literal(captureFrameRate30),
+  z.literal(captureFrameRate60),
+]);
 
 export const defaultCaptureTelemetry = {
   totalFrames: 0,
   droppedFrames: 0,
   droppedFramePercent: 0,
+  sourceDroppedFrames: 0,
+  sourceDroppedFramePercent: 0,
+  writerDroppedFrames: 0,
+  writerBackpressureDrops: 0,
+  writerDroppedFramePercent: 0,
+  achievedFps: 0,
   audioLevelDbfs: null,
   health: "good",
   healthReason: null,
@@ -124,6 +138,12 @@ export const defaultCaptureTelemetry = {
   totalFrames: number;
   droppedFrames: number;
   droppedFramePercent: number;
+  sourceDroppedFrames: number;
+  sourceDroppedFramePercent: number;
+  writerDroppedFrames: number;
+  writerBackpressureDrops: number;
+  writerDroppedFramePercent: number;
+  achievedFps: number;
   audioLevelDbfs: number | null;
   health: "good" | "warning" | "critical";
   healthReason:
@@ -138,6 +158,12 @@ export const captureTelemetrySchema = z.object({
   totalFrames: z.number().int().nonnegative(),
   droppedFrames: z.number().int().nonnegative(),
   droppedFramePercent: z.number().nonnegative(),
+  sourceDroppedFrames: z.number().int().nonnegative().optional().default(0),
+  sourceDroppedFramePercent: z.number().nonnegative().optional().default(0),
+  writerDroppedFrames: z.number().int().nonnegative().optional().default(0),
+  writerBackpressureDrops: z.number().int().nonnegative().optional().default(0),
+  writerDroppedFramePercent: z.number().nonnegative().optional().default(0),
+  achievedFps: z.number().nonnegative().optional().default(0),
   audioLevelDbfs: z.number().nullable(),
   health: captureHealthSchema,
   healthReason: captureHealthReasonSchema.nullable(),
@@ -239,6 +265,7 @@ export const captureStartDisplayRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.CaptureStartDisplay),
   params: z.object({
     enableMic: z.boolean().optional().default(false),
+    captureFps: captureFrameRateSchema.optional().default(defaultCaptureFrameRate),
   }),
 });
 
@@ -247,6 +274,7 @@ export const captureStartWindowRequestSchema = requestBaseSchema.extend({
   params: z.object({
     windowId: z.number().int().nonnegative(),
     enableMic: z.boolean().optional().default(false),
+    captureFps: captureFrameRateSchema.optional().default(defaultCaptureFrameRate),
   }),
 });
 
@@ -380,6 +408,7 @@ export type ActionResult = z.infer<typeof actionResultSchema>;
 export type SourcesResult = z.infer<typeof sourcesResultSchema>;
 export type CaptureHealth = z.infer<typeof captureHealthSchema>;
 export type CaptureHealthReason = z.infer<typeof captureHealthReasonSchema>;
+export type CaptureFrameRate = z.infer<typeof captureFrameRateSchema>;
 export type CaptureTelemetry = z.infer<typeof captureTelemetrySchema>;
 export type CaptureStatusResult = z.infer<typeof captureStatusResultSchema>;
 export type ExportPreset = z.infer<typeof exportPresetSchema>;

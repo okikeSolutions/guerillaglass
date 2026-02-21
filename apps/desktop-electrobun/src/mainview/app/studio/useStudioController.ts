@@ -1,7 +1,11 @@
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AutoZoomSettings, ExportPreset } from "@guerillaglass/engine-protocol";
+import {
+  defaultCaptureFrameRate,
+  AutoZoomSettings,
+  ExportPreset,
+} from "@guerillaglass/engine-protocol";
 import { getStudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
@@ -149,6 +153,7 @@ export function useStudioController() {
     defaultValues: {
       captureSource: "display" as CaptureSourceMode,
       selectedWindowId: 0,
+      captureFps: defaultCaptureFrameRate,
       micEnabled: false,
       trackInputEvents: true,
       singleKeyShortcutsEnabled: true,

@@ -1,6 +1,7 @@
 import {
   actionResultSchema,
   captureStatusResultSchema,
+  defaultCaptureFrameRate,
   exportInfoResultSchema,
   exportRunResultSchema,
   inputEventLogSchema,
@@ -10,6 +11,7 @@ import {
   projectStateSchema,
   sourcesResultSchema,
   type AutoZoomSettings,
+  type CaptureFrameRate,
   type CaptureStatusResult,
   type InputEvent,
   type PermissionsResult,
@@ -64,15 +66,22 @@ export const engineApi = {
     return sourcesResultSchema.parse(await requireBridge("ggEngineListSources")());
   },
 
-  async startDisplayCapture(enableMic: boolean): Promise<CaptureStatusResult> {
+  async startDisplayCapture(
+    enableMic: boolean,
+    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+  ): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge("ggEngineStartDisplayCapture")(enableMic),
+      await requireBridge("ggEngineStartDisplayCapture")(enableMic, captureFps),
     );
   },
 
-  async startWindowCapture(windowId: number, enableMic: boolean): Promise<CaptureStatusResult> {
+  async startWindowCapture(
+    windowId: number,
+    enableMic: boolean,
+    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+  ): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge("ggEngineStartWindowCapture")(windowId, enableMic),
+      await requireBridge("ggEngineStartWindowCapture")(windowId, enableMic, captureFps),
     );
   },
 

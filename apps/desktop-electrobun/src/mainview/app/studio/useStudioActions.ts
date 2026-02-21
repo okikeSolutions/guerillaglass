@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type {
   AutoZoomSettings,
+  CaptureFrameRate,
   CaptureStatusResult,
   ExportPreset,
   PingResult,
@@ -32,6 +33,7 @@ export type SettingsFormApi = {
     values: {
       captureSource: CaptureSourceMode;
       selectedWindowId: number;
+      captureFps: CaptureFrameRate;
       micEnabled: boolean;
       trackInputEvents: boolean;
       autoZoom: AutoZoomSettings;
@@ -155,14 +157,14 @@ export function useStudioActions({
   const startCaptureInternal = useCallback(async (): Promise<CaptureStatusResult> => {
     await ensureScreenRecordingPermission();
 
-    const { captureSource, micEnabled } = settingsForm.state.values;
+    const { captureSource, micEnabled, captureFps } = settingsForm.state.values;
     if (captureSource === "window") {
       if (selectedWindowId === 0) {
         throw new Error(ui.notices.selectWindowFirst);
       }
-      return await engineApi.startWindowCapture(selectedWindowId, micEnabled);
+      return await engineApi.startWindowCapture(selectedWindowId, micEnabled, captureFps);
     }
-    return await engineApi.startDisplayCapture(micEnabled);
+    return await engineApi.startDisplayCapture(micEnabled, captureFps);
   }, [
     ensureScreenRecordingPermission,
     selectedWindowId,

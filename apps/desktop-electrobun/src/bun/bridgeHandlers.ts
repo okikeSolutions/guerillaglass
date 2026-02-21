@@ -27,10 +27,10 @@ export function createEngineBridgeHandlers({
       engineClient.requestInputMonitoringPermission(),
     ggEngineOpenInputMonitoringSettings: async () => engineClient.openInputMonitoringSettings(),
     ggEngineListSources: async () => engineClient.listSources(),
-    ggEngineStartDisplayCapture: async ({ enableMic }) =>
-      engineClient.startDisplayCapture(enableMic),
-    ggEngineStartWindowCapture: async ({ windowId, enableMic }) =>
-      engineClient.startWindowCapture(windowId, enableMic),
+    ggEngineStartDisplayCapture: async ({ enableMic, captureFps }) =>
+      engineClient.startDisplayCapture(enableMic, captureFps),
+    ggEngineStartWindowCapture: async ({ windowId, enableMic, captureFps }) =>
+      engineClient.startWindowCapture(windowId, enableMic, captureFps),
     ggEngineStopCapture: async () => engineClient.stopCapture(),
     ggEngineStartRecording: async ({ trackInputEvents }) =>
       engineClient.startRecording(trackInputEvents),

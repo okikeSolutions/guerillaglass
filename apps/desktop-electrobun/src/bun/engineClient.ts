@@ -5,6 +5,7 @@ import {
   capabilitiesResultSchema,
   buildRequest,
   captureStatusResultSchema,
+  defaultCaptureFrameRate,
   exportInfoResultSchema,
   exportRunResultSchema,
   parseResponse,
@@ -14,6 +15,7 @@ import {
   projectStateSchema,
   sourcesResultSchema,
   type AutoZoomSettings,
+  type CaptureFrameRate,
   type EngineRequest,
 } from "@guerillaglass/engine-protocol";
 
@@ -134,23 +136,27 @@ const engineMethodDefinitions = {
   } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof sourcesResultSchema.parse>>, []>,
   startDisplayCapture: {
     method: "capture.startDisplay",
-    toParams: (enableMic: boolean) => ({ enableMic }),
+    toParams: (enableMic: boolean, captureFps: CaptureFrameRate) => ({ enableMic, captureFps }),
     schema: captureStatusResultSchema,
     timeoutMs: 15_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
-    [enableMic: boolean]
+    [enableMic: boolean, captureFps: CaptureFrameRate]
   >,
   startWindowCapture: {
     method: "capture.startWindow",
-    toParams: (windowId: number, enableMic: boolean) => ({ windowId, enableMic }),
+    toParams: (windowId: number, enableMic: boolean, captureFps: CaptureFrameRate) => ({
+      windowId,
+      enableMic,
+      captureFps,
+    }),
     schema: captureStatusResultSchema,
     timeoutMs: 15_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
-    [windowId: number, enableMic: boolean]
+    [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate]
   >,
   stopCapture: {
     method: "capture.stop",
@@ -549,16 +555,27 @@ export class EngineClient {
     return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
-  async startDisplayCapture(enableMic: boolean) {
+  async startDisplayCapture(
+    enableMic: boolean,
+    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+  ) {
     const definition = engineMethodDefinitions.startDisplayCapture;
-    return this.callAndParse(definition.method, definition.toParams(enableMic), definition.schema);
+    return this.callAndParse(
+      definition.method,
+      definition.toParams(enableMic, captureFps),
+      definition.schema,
+    );
   }
 
-  async startWindowCapture(windowId: number, enableMic: boolean) {
+  async startWindowCapture(
+    windowId: number,
+    enableMic: boolean,
+    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+  ) {
     const definition = engineMethodDefinitions.startWindowCapture;
     return this.callAndParse(
       definition.method,
-      definition.toParams(windowId, enableMic),
+      definition.toParams(windowId, enableMic, captureFps),
       definition.schema,
     );
   }

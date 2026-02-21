@@ -1,5 +1,19 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { defaultCaptureTelemetry } from "@guerillaglass/engine-protocol";
 import { desktopApi, engineApi, parseInputEventLog } from "../src/mainview/lib/engine";
+
+function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    isRunning: false,
+    isRecording: false,
+    recordingDurationSeconds: 0,
+    recordingURL: null,
+    lastError: null,
+    eventsURL: null,
+    telemetry: { ...defaultCaptureTelemetry },
+    ...overrides,
+  };
+}
 
 beforeEach(() => {
   delete (globalThis as { window?: unknown }).window;
@@ -44,20 +58,7 @@ describe("renderer engine bridge", () => {
         ],
       }),
       ggEngineCaptureStatus: async () => ({
-        isRunning: false,
-        isRecording: false,
-        recordingDurationSeconds: 0,
-        recordingURL: null,
-        lastError: null,
-        eventsURL: null,
-        telemetry: {
-          totalFrames: 0,
-          droppedFrames: 0,
-          droppedFramePercent: 0,
-          audioLevelDbfs: null,
-          health: "good",
-          healthReason: null,
-        },
+        ...makeCaptureStatus(),
       }),
       ggEngineExportInfo: async () => ({
         presets: [
@@ -83,36 +84,10 @@ describe("renderer engine bridge", () => {
         captureMetadata: null,
       }),
       ggEngineStartDisplayCapture: async () => ({
-        isRunning: true,
-        isRecording: false,
-        recordingDurationSeconds: 0,
-        recordingURL: null,
-        lastError: null,
-        eventsURL: null,
-        telemetry: {
-          totalFrames: 0,
-          droppedFrames: 0,
-          droppedFramePercent: 0,
-          audioLevelDbfs: null,
-          health: "good",
-          healthReason: null,
-        },
+        ...makeCaptureStatus({ isRunning: true }),
       }),
       ggEngineStartRecording: async () => ({
-        isRunning: true,
-        isRecording: true,
-        recordingDurationSeconds: 0,
-        recordingURL: null,
-        lastError: null,
-        eventsURL: null,
-        telemetry: {
-          totalFrames: 0,
-          droppedFrames: 0,
-          droppedFramePercent: 0,
-          audioLevelDbfs: null,
-          health: "good",
-          healthReason: null,
-        },
+        ...makeCaptureStatus({ isRunning: true, isRecording: true }),
       }),
       ggEngineRunExport: async () => ({ outputURL: "/tmp/out.mp4" }),
       ggEngineProjectSave: async () => ({

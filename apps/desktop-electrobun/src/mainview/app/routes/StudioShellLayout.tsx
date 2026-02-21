@@ -37,6 +37,10 @@ import {
   studioHealthTone,
   studioIconToneClass,
 } from "./studioSemanticTone";
+import {
+  buildCaptureTelemetryPresentation,
+  buildDroppedFramesTooltip,
+} from "../studio/captureTelemetryPresentation";
 import { useStudio } from "../studio/context";
 import { localizedRouteTargetFor, resolveStudioLocation } from "../studio/studioLayoutState";
 
@@ -158,9 +162,10 @@ export function StudioShellLayout() {
     telemetry?.audioLevelDbfs == null
       ? "-"
       : `${studio.formatDecimal(telemetry.audioLevelDbfs)} dBFS`;
-  const telemetryDroppedFrames = `${studio.formatInteger(
-    telemetry?.droppedFrames ?? 0,
-  )} (${studio.formatDecimal(telemetry?.droppedFramePercent ?? 0)}%)`;
+  const telemetryPresentation = buildCaptureTelemetryPresentation(telemetry, {
+    formatInteger: studio.formatInteger,
+    formatDecimal: studio.formatDecimal,
+  });
   const telemetryHealthReason = localizeTelemetryHealthReason(
     telemetry?.healthReason ?? null,
     studio,
@@ -215,7 +220,7 @@ export function StudioShellLayout() {
       id: "dropped-frames",
       tone: "neutral" as const,
       srLabel: studio.ui.labels.droppedFrames,
-      tooltip: `${studio.ui.labels.droppedFrames}: ${telemetryDroppedFrames}`,
+      tooltip: buildDroppedFramesTooltip(studio.ui.labels, telemetryPresentation),
       icon: <Activity className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
     },
     {
