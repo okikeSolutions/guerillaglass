@@ -12,25 +12,27 @@ import type {
 } from "@guerillaglass/engine-protocol";
 import type { RPCSchema } from "electrobun/bun";
 
-export const hostMenuCommandList = [
-  "app.refresh",
-  "app.locale.enUS",
-  "app.locale.deDE",
-  "capture.toggleRecording",
-  "capture.startPreview",
-  "capture.stopPreview",
-  "timeline.playPause",
-  "timeline.trimIn",
-  "timeline.trimOut",
-  "timeline.togglePanel",
-  "view.density.comfortable",
-  "view.density.compact",
-  "file.openProject",
-  "file.saveProject",
-  "file.saveProjectAs",
-  "file.export",
-] as const;
-export type HostMenuCommand = (typeof hostMenuCommandList)[number];
+export const hostMenuCommands = {
+  appRefresh: "app.refresh",
+  appLocaleEnUS: "app.locale.enUS",
+  appLocaleDeDE: "app.locale.deDE",
+  captureToggleRecording: "capture.toggleRecording",
+  captureStartPreview: "capture.startPreview",
+  captureStopPreview: "capture.stopPreview",
+  timelinePlayPause: "timeline.playPause",
+  timelineTrimIn: "timeline.trimIn",
+  timelineTrimOut: "timeline.trimOut",
+  timelineTogglePanel: "timeline.togglePanel",
+  viewDensityComfortable: "view.density.comfortable",
+  viewDensityCompact: "view.density.compact",
+  fileOpenProject: "file.openProject",
+  fileSaveProject: "file.saveProject",
+  fileSaveProjectAs: "file.saveProjectAs",
+  fileExport: "file.export",
+} as const;
+
+export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCommands];
+export const hostMenuCommandList = Object.values(hostMenuCommands) as HostMenuCommand[];
 
 export type HostMenuState = {
   canSave: boolean;
@@ -40,51 +42,136 @@ export type HostMenuState = {
   densityMode?: "comfortable" | "compact";
 };
 
-type BridgeRequests = {
-  ggEnginePing: { params: undefined; response: PingResult };
-  ggEngineGetPermissions: { params: undefined; response: PermissionsResult };
-  ggEngineRequestScreenRecordingPermission: { params: undefined; response: ActionResult };
-  ggEngineRequestMicrophonePermission: { params: undefined; response: ActionResult };
-  ggEngineRequestInputMonitoringPermission: { params: undefined; response: ActionResult };
-  ggEngineOpenInputMonitoringSettings: { params: undefined; response: ActionResult };
-  ggEngineListSources: { params: undefined; response: SourcesResult };
-  ggEngineStartDisplayCapture: {
-    params: { enableMic: boolean };
-    response: CaptureStatusResult;
-  };
-  ggEngineStartWindowCapture: {
-    params: { windowId: number; enableMic: boolean };
-    response: CaptureStatusResult;
-  };
-  ggEngineStopCapture: { params: undefined; response: CaptureStatusResult };
-  ggEngineStartRecording: {
-    params: { trackInputEvents: boolean };
-    response: CaptureStatusResult;
-  };
-  ggEngineStopRecording: { params: undefined; response: CaptureStatusResult };
-  ggEngineCaptureStatus: { params: undefined; response: CaptureStatusResult };
-  ggEngineExportInfo: { params: undefined; response: ExportInfoResult };
-  ggEngineRunExport: {
-    params: {
+type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
+  toParams: (...args: Args) => Params;
+  responseType: Response;
+};
+
+function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
+  toParams: (...args: Args) => Params,
+): BridgeRequestDefinition<Params, Response, Args> {
+  return { toParams, responseType: undefined as Response };
+}
+
+export const bridgeRequestDefinitions = {
+  ggEnginePing: defineBridgeRequest<undefined, PingResult, []>(() => undefined),
+  ggEngineGetPermissions: defineBridgeRequest<undefined, PermissionsResult, []>(() => undefined),
+  ggEngineRequestScreenRecordingPermission: defineBridgeRequest<undefined, ActionResult, []>(
+    () => undefined,
+  ),
+  ggEngineRequestMicrophonePermission: defineBridgeRequest<undefined, ActionResult, []>(
+    () => undefined,
+  ),
+  ggEngineRequestInputMonitoringPermission: defineBridgeRequest<undefined, ActionResult, []>(
+    () => undefined,
+  ),
+  ggEngineOpenInputMonitoringSettings: defineBridgeRequest<undefined, ActionResult, []>(
+    () => undefined,
+  ),
+  ggEngineListSources: defineBridgeRequest<undefined, SourcesResult, []>(() => undefined),
+  ggEngineStartDisplayCapture: defineBridgeRequest<
+    { enableMic: boolean },
+    CaptureStatusResult,
+    [enableMic: boolean]
+  >((enableMic) => ({ enableMic })),
+  ggEngineStartWindowCapture: defineBridgeRequest<
+    { windowId: number; enableMic: boolean },
+    CaptureStatusResult,
+    [windowId: number, enableMic: boolean]
+  >((windowId, enableMic) => ({ windowId, enableMic })),
+  ggEngineStopCapture: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
+  ggEngineStartRecording: defineBridgeRequest<
+    { trackInputEvents: boolean },
+    CaptureStatusResult,
+    [trackInputEvents: boolean]
+  >((trackInputEvents) => ({ trackInputEvents })),
+  ggEngineStopRecording: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
+  ggEngineCaptureStatus: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
+  ggEngineExportInfo: defineBridgeRequest<undefined, ExportInfoResult, []>(() => undefined),
+  ggEngineRunExport: defineBridgeRequest<
+    {
       outputURL: string;
       presetId: string;
       trimStartSeconds?: number;
       trimEndSeconds?: number;
-    };
-    response: ExportRunResult;
+    },
+    ExportRunResult,
+    [
+      params: {
+        outputURL: string;
+        presetId: string;
+        trimStartSeconds?: number;
+        trimEndSeconds?: number;
+      },
+    ]
+  >((params) => params),
+  ggEngineProjectCurrent: defineBridgeRequest<undefined, ProjectState, []>(() => undefined),
+  ggEngineProjectOpen: defineBridgeRequest<
+    { projectPath: string },
+    ProjectState,
+    [projectPath: string]
+  >((projectPath) => ({ projectPath })),
+  ggEngineProjectSave: defineBridgeRequest<
+    { projectPath?: string; autoZoom?: AutoZoomSettings },
+    ProjectState,
+    [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
+  >((params) => params),
+  ggEngineProjectRecents: defineBridgeRequest<
+    { limit?: number },
+    ProjectRecentsResult,
+    [limit?: number]
+  >((limit) => ({ limit })),
+  ggPickDirectory: defineBridgeRequest<
+    { startingFolder?: string },
+    string | null,
+    [startingFolder?: string]
+  >((startingFolder) => ({ startingFolder })),
+  ggReadTextFile: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
+    (filePath) => ({ filePath }),
+  ),
+} as const;
+
+type BridgeRequestDefinitions = typeof bridgeRequestDefinitions;
+type BridgeRequestParams<TDefinition> =
+  TDefinition extends BridgeRequestDefinition<infer TParams, infer _TResponse, infer _TArgs>
+    ? TParams
+    : never;
+type BridgeRequestResponse<TDefinition> =
+  TDefinition extends BridgeRequestDefinition<infer _TParams, infer TResponse, infer _TArgs>
+    ? TResponse
+    : never;
+type BridgeRequestArgs<TDefinition> =
+  TDefinition extends BridgeRequestDefinition<infer _TParams, infer _TResponse, infer TArgs>
+    ? TArgs
+    : never;
+
+export type BridgeRequestName = keyof BridgeRequestDefinitions;
+export const bridgeRequestNameList = Object.keys(bridgeRequestDefinitions) as BridgeRequestName[];
+
+export type BridgeRequests = {
+  [K in BridgeRequestName]: {
+    params: BridgeRequestParams<BridgeRequestDefinitions[K]>;
+    response: BridgeRequestResponse<BridgeRequestDefinitions[K]>;
   };
-  ggEngineProjectCurrent: { params: undefined; response: ProjectState };
-  ggEngineProjectOpen: { params: { projectPath: string }; response: ProjectState };
-  ggEngineProjectSave: {
-    params: { projectPath?: string; autoZoom?: AutoZoomSettings };
-    response: ProjectState;
-  };
-  ggEngineProjectRecents: {
-    params: { limit?: number };
-    response: ProjectRecentsResult;
-  };
-  ggPickDirectory: { params: { startingFolder?: string }; response: string | null };
-  ggReadTextFile: { params: { filePath: string }; response: string };
+};
+
+export type BridgeRequestInvoker = <K extends BridgeRequestName>(
+  name: K,
+  params: BridgeRequests[K]["params"],
+) => Promise<BridgeRequests[K]["response"]>;
+
+export type BridgeRequestHandlerMap = {
+  [K in BridgeRequestName]: (
+    params: BridgeRequests[K]["params"],
+  ) => Promise<BridgeRequests[K]["response"]>;
+};
+
+export type WindowBridgeBindings = {
+  [K in BridgeRequestName]?: (
+    ...args: BridgeRequestArgs<BridgeRequestDefinitions[K]>
+  ) => Promise<BridgeRequestResponse<BridgeRequestDefinitions[K]>>;
+} & {
+  ggHostSendMenuState?: (state: HostMenuState) => void;
 };
 
 export type DesktopBridgeRPC = {

@@ -1,6 +1,11 @@
 import { Electroview } from "electrobun/view";
-import type { AutoZoomSettings } from "@guerillaglass/engine-protocol";
-import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
+import { createWindowBridgeBindings } from "../../shared/bridgeBindings";
+import type {
+  BridgeRequestInvoker,
+  DesktopBridgeRPC,
+  HostMenuCommand,
+  WindowBridgeBindings,
+} from "../../shared/bridgeRpc";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;
@@ -35,43 +40,18 @@ export function initializeElectrobunRpcBridge(): void {
   });
   new Electroview({ rpc });
 
-  window.ggEnginePing = () => rpc.request.ggEnginePing();
-  window.ggEngineGetPermissions = () => rpc.request.ggEngineGetPermissions();
-  window.ggEngineRequestScreenRecordingPermission = () =>
-    rpc.request.ggEngineRequestScreenRecordingPermission();
-  window.ggEngineRequestMicrophonePermission = () =>
-    rpc.request.ggEngineRequestMicrophonePermission();
-  window.ggEngineRequestInputMonitoringPermission = () =>
-    rpc.request.ggEngineRequestInputMonitoringPermission();
-  window.ggEngineOpenInputMonitoringSettings = () =>
-    rpc.request.ggEngineOpenInputMonitoringSettings();
-  window.ggEngineListSources = () => rpc.request.ggEngineListSources();
-  window.ggEngineStartDisplayCapture = (enableMic: boolean) =>
-    rpc.request.ggEngineStartDisplayCapture({ enableMic });
-  window.ggEngineStartWindowCapture = (windowId: number, enableMic: boolean) =>
-    rpc.request.ggEngineStartWindowCapture({ windowId, enableMic });
-  window.ggEngineStopCapture = () => rpc.request.ggEngineStopCapture();
-  window.ggEngineStartRecording = (trackInputEvents: boolean) =>
-    rpc.request.ggEngineStartRecording({ trackInputEvents });
-  window.ggEngineStopRecording = () => rpc.request.ggEngineStopRecording();
-  window.ggEngineCaptureStatus = () => rpc.request.ggEngineCaptureStatus();
-  window.ggEngineExportInfo = () => rpc.request.ggEngineExportInfo();
-  window.ggEngineRunExport = (params: {
-    outputURL: string;
-    presetId: string;
-    trimStartSeconds?: number;
-    trimEndSeconds?: number;
-  }) => rpc.request.ggEngineRunExport(params);
-  window.ggEngineProjectCurrent = () => rpc.request.ggEngineProjectCurrent();
-  window.ggEngineProjectOpen = (projectPath: string) =>
-    rpc.request.ggEngineProjectOpen({ projectPath });
-  window.ggEngineProjectSave = (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) =>
-    rpc.request.ggEngineProjectSave(params);
-  window.ggEngineProjectRecents = (limit?: number) => rpc.request.ggEngineProjectRecents({ limit });
-  window.ggPickDirectory = (startingFolder?: string) =>
-    rpc.request.ggPickDirectory({ startingFolder });
-  window.ggReadTextFile = (filePath: string) => rpc.request.ggReadTextFile({ filePath });
-  window.ggHostSendMenuState = (state: HostMenuState) => rpc.send.hostMenuState(state);
+  const invoke: BridgeRequestInvoker = (name, params) => {
+    const requestProxy = rpc.request as unknown as Record<
+      string,
+      (value: unknown) => Promise<unknown>
+    >;
+    return requestProxy[name](params) as Promise<never>;
+  };
 
+  const bindings: WindowBridgeBindings = createWindowBridgeBindings(invoke, (state) =>
+    rpc.send.hostMenuState(state),
+  );
+
+  Object.assign(window, bindings);
   bridgeInitialized = true;
 }
