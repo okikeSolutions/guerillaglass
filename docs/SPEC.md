@@ -291,7 +291,12 @@ Creator Studio pro-UI parity backlog (next pass):
     - Added dominant layout presets per route (`capture`/`edit`/`deliver`) with one-time application per route and reset-to-preset behavior.
     - Layout persistence parsing now runs through a Zod schema before migration/sanitize steps.
     - Updated pane and timeline surface styling so utility rails are visually recessive while center preview/timeline surfaces carry stronger emphasis.
-  - [ ] Upgrade timeline readability (audio waveform-rich lanes, stronger clip semantics, clearer selected-state/playhead contrast).
+  - [x] Upgrade timeline readability (audio waveform-rich lanes, stronger clip semantics, clearer selected-state/playhead contrast).
+  - Implementation notes:
+    - Timeline lanes now render semantic clip identity and a higher-contrast selected clip/playhead treatment.
+    - Audio lanes render waveform bars using decoded media when available, with input-event-derived fallback waveform generation.
+    - Playback transport now uses dual clocks: a smooth display clock for playhead rendering and a frame-quantized edit clock for trim/blade/snap actions.
+    - Edit-route media sync uses `requestVideoFrameCallback` (with `requestAnimationFrame` fallback) instead of coarse `timeupdate` playhead stepping.
   - [ ] Improve inspector context switching so clip/marker/source selection immediately swaps to specific controls with minimal generic scaffolding.
   - [ ] Add a persistent technical feedback strip (dropped frames, CPU, memory, bitrate/audio level, recording health) with OBS-style immediate visibility.
 - Phase C — Docking architecture

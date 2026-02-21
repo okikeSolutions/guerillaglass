@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InputEvent } from "@guerillaglass/engine-protocol";
 import { buildTimelineLanes } from "./timelineModel";
+import {
+  defaultTimelineFrameRate,
+  normalizeTimelineFrameRate,
+  quantizeSecondsToFrame,
+} from "./timelineTimebase";
+import { usePlaybackTransport } from "./usePlaybackTransport";
+import { useTimelineWaveform } from "./useTimelineWaveform";
 
 const playbackRates = [0.5, 1, 1.5, 2] as const;
 const timelineZoomBounds = {
   minPercent: 75,
   maxPercent: 300,
 };
-const timelineSnapFrameSeconds = 1 / 30;
 
 type TimelineTool = "select" | "trim" | "blade";
 type TimelineLaneControlState = {
@@ -46,17 +52,18 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-function snapToTimelineFrame(seconds: number, enabled: boolean): number {
+function snapToTimelineFrame(seconds: number, enabled: boolean, frameRate: number): number {
   if (!enabled) {
     return seconds;
   }
-  return Math.round(seconds / timelineSnapFrameSeconds) * timelineSnapFrameSeconds;
+  return quantizeSecondsToFrame(seconds, frameRate);
 }
 
 type UseStudioTimelineOptions = {
   activeMode: "capture" | "edit" | "deliver";
   recordingURL: string | null;
   recordingDurationSeconds: number;
+  timelineFrameRate?: number;
   timelineEvents: InputEvent[];
   laneLabels: {
     video: string;
@@ -73,6 +80,7 @@ export function useStudioTimeline({
   activeMode,
   recordingURL,
   recordingDurationSeconds,
+  timelineFrameRate = defaultTimelineFrameRate,
   timelineEvents,
   laneLabels,
   trimStartSeconds,
@@ -80,9 +88,6 @@ export function useStudioTimeline({
   onTrimStartSecondsChange,
   onTrimEndSecondsChange,
 }: UseStudioTimelineOptions) {
-  const [playheadSeconds, setPlayheadSeconds] = useState(0);
-  const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState<(typeof playbackRates)[number]>(1);
   const [timelineZoomPercent, setTimelineZoomPercent] = useState(100);
   const [timelineSnapEnabled, setTimelineSnapEnabled] = useState(true);
   const [timelineRippleEnabled, setTimelineRippleEnabled] = useState(false);
@@ -92,13 +97,39 @@ export function useStudioTimeline({
   const [audioMixer, setAudioMixer] = useState<AudioMixerState>(defaultAudioMixerState);
 
   const usesMediaPlaybackClock = activeMode === "edit" && Boolean(recordingURL);
+  const normalizedFrameRate = useMemo(
+    () => normalizeTimelineFrameRate(timelineFrameRate),
+    [timelineFrameRate],
+  );
   const timelineDuration = useMemo(
     () => Math.max(recordingDurationSeconds, trimStartSeconds, trimEndSeconds, 1),
     [recordingDurationSeconds, trimEndSeconds, trimStartSeconds],
   );
-  const boundedPlayheadSeconds = useMemo(
-    () => clamp(playheadSeconds, 0, timelineDuration),
-    [playheadSeconds, timelineDuration],
+  const playbackTransport = usePlaybackTransport({
+    durationSeconds: timelineDuration,
+    frameRate: normalizedFrameRate,
+  });
+  const {
+    advance,
+    displayTimeSeconds,
+    editTimeSeconds,
+    isPlaying,
+    pause,
+    play,
+    playbackRate: transportPlaybackRate,
+    seek,
+    setDisplayTimeSeconds,
+    setRate,
+  } = playbackTransport;
+  const isTimelinePlaying = isPlaying;
+  const playbackRate = transportPlaybackRate as (typeof playbackRates)[number];
+  const boundedDisplayPlayheadSeconds = useMemo(
+    () => clamp(displayTimeSeconds, 0, timelineDuration),
+    [displayTimeSeconds, timelineDuration],
+  );
+  const boundedEditPlayheadSeconds = useMemo(
+    () => clamp(editTimeSeconds, 0, timelineDuration),
+    [editTimeSeconds, timelineDuration],
   );
   const laneRecordingDurationSeconds = useMemo(() => {
     if (!recordingURL) {
@@ -106,14 +137,20 @@ export function useStudioTimeline({
     }
     return Math.max(recordingDurationSeconds, timelineDuration);
   }, [recordingDurationSeconds, recordingURL, timelineDuration]);
+  const audioWaveform = useTimelineWaveform({
+    recordingURL,
+    recordingDurationSeconds: laneRecordingDurationSeconds,
+    timelineEvents,
+  });
   const timelineLanes = useMemo(
     () =>
       buildTimelineLanes({
         recordingDurationSeconds: laneRecordingDurationSeconds,
         events: timelineEvents,
+        audioWaveform,
         labels: laneLabels,
       }),
-    [laneLabels, laneRecordingDurationSeconds, timelineEvents],
+    [audioWaveform, laneLabels, laneRecordingDurationSeconds, timelineEvents],
   );
 
   useEffect(() => {
@@ -121,19 +158,16 @@ export function useStudioTimeline({
       return;
     }
 
+    const tickMs = 50;
     const timer = setInterval(() => {
-      setPlayheadSeconds((previous) => {
-        const next = previous + 0.05 * playbackRate;
-        if (next >= timelineDuration) {
-          setIsTimelinePlaying(false);
-          return timelineDuration;
-        }
-        return next;
-      });
-    }, 50);
+      const next = advance(tickMs);
+      if (next >= timelineDuration) {
+        pause();
+      }
+    }, tickMs);
 
     return () => clearInterval(timer);
-  }, [isTimelinePlaying, playbackRate, timelineDuration, usesMediaPlaybackClock]);
+  }, [advance, isTimelinePlaying, pause, timelineDuration, usesMediaPlaybackClock]);
 
   const setTimelineZoom = useCallback((nextZoomPercent: number) => {
     setTimelineZoomPercent((current) =>
@@ -196,28 +230,66 @@ export function useStudioTimeline({
 
   const setPlayheadSecondsClamped = useCallback(
     (seconds: number) => {
-      setPlayheadSeconds(
-        clamp(snapToTimelineFrame(seconds, timelineSnapEnabled), 0, timelineDuration),
+      const next = clamp(
+        snapToTimelineFrame(seconds, timelineSnapEnabled, normalizedFrameRate),
+        0,
+        timelineDuration,
       );
+      seek(next);
     },
-    [timelineDuration, timelineSnapEnabled],
+    [normalizedFrameRate, seek, timelineDuration, timelineSnapEnabled],
   );
 
   const setPlayheadSecondsFromMedia = useCallback(
     (seconds: number) => {
-      setPlayheadSeconds(clamp(seconds, 0, timelineDuration));
+      seek(clamp(seconds, 0, timelineDuration));
     },
-    [timelineDuration],
+    [seek, timelineDuration],
   );
 
-  const setTimelinePlaybackActive = useCallback((isActive: boolean) => {
-    setIsTimelinePlaying(isActive);
-  }, []);
+  const setDisplayPlayheadSecondsFromMedia = useCallback(
+    (seconds: number) => {
+      setDisplayTimeSeconds(clamp(seconds, 0, timelineDuration));
+    },
+    [setDisplayTimeSeconds, timelineDuration],
+  );
+
+  const setTimelinePlaybackActive = useCallback(
+    (isActive: boolean) => {
+      if (isActive) {
+        play();
+        return;
+      }
+      pause();
+    },
+    [pause, play],
+  );
+
+  const setIsTimelinePlaying = useCallback(
+    (isActive: boolean) => {
+      setTimelinePlaybackActive(isActive);
+    },
+    [setTimelinePlaybackActive],
+  );
+
+  const setPlaybackRate = useCallback(
+    (rate: (typeof playbackRates)[number]) => {
+      setRate(rate);
+    },
+    [setRate],
+  );
+
+  const setPlayheadSeconds = useCallback(
+    (seconds: number) => {
+      seek(clamp(seconds, 0, timelineDuration));
+    },
+    [seek, timelineDuration],
+  );
 
   const setTrimStartSeconds = useCallback(
     (seconds: number) => {
       const nextTrimStart = clamp(
-        snapToTimelineFrame(seconds, timelineSnapEnabled),
+        snapToTimelineFrame(seconds, timelineSnapEnabled, normalizedFrameRate),
         0,
         timelineDuration,
       );
@@ -229,6 +301,7 @@ export function useStudioTimeline({
     [
       onTrimEndSecondsChange,
       onTrimStartSecondsChange,
+      normalizedFrameRate,
       timelineDuration,
       timelineSnapEnabled,
       trimEndSeconds,
@@ -238,7 +311,7 @@ export function useStudioTimeline({
   const setTrimEndSeconds = useCallback(
     (seconds: number) => {
       const nextTrimEnd = clamp(
-        snapToTimelineFrame(seconds, timelineSnapEnabled),
+        snapToTimelineFrame(seconds, timelineSnapEnabled, normalizedFrameRate),
         0,
         timelineDuration,
       );
@@ -250,6 +323,7 @@ export function useStudioTimeline({
     [
       onTrimEndSecondsChange,
       onTrimStartSecondsChange,
+      normalizedFrameRate,
       timelineDuration,
       timelineSnapEnabled,
       trimStartSeconds,
@@ -257,35 +331,39 @@ export function useStudioTimeline({
   );
 
   const setTrimInFromPlayhead = useCallback(() => {
-    setTrimStartSeconds(boundedPlayheadSeconds);
-  }, [boundedPlayheadSeconds, setTrimStartSeconds]);
+    setTrimStartSeconds(boundedDisplayPlayheadSeconds);
+  }, [boundedDisplayPlayheadSeconds, setTrimStartSeconds]);
 
   const setTrimOutFromPlayhead = useCallback(() => {
-    setTrimEndSeconds(boundedPlayheadSeconds);
-  }, [boundedPlayheadSeconds, setTrimEndSeconds]);
+    setTrimEndSeconds(boundedDisplayPlayheadSeconds);
+  }, [boundedDisplayPlayheadSeconds, setTrimEndSeconds]);
 
   const nudgePlayheadSeconds = useCallback(
     (deltaSeconds: number) => {
-      setPlayheadSeconds((current) =>
-        clamp(
-          snapToTimelineFrame(current + deltaSeconds, timelineSnapEnabled),
-          0,
-          timelineDuration,
+      const next = clamp(
+        snapToTimelineFrame(
+          displayTimeSeconds + deltaSeconds,
+          timelineSnapEnabled,
+          normalizedFrameRate,
         ),
+        0,
+        timelineDuration,
       );
+      seek(next);
     },
-    [timelineDuration, timelineSnapEnabled],
+    [displayTimeSeconds, normalizedFrameRate, seek, timelineDuration, timelineSnapEnabled],
   );
 
   const toggleTimelinePlayback = useCallback(() => {
-    setIsTimelinePlaying((previous) => !previous);
-  }, []);
+    setTimelinePlaybackActive(!isTimelinePlaying);
+  }, [isTimelinePlaying, setTimelinePlaybackActive]);
 
   return {
     audioMixer,
+    editPlayheadSeconds: boundedEditPlayheadSeconds,
     isTimelinePlaying,
     nudgePlayheadSeconds,
-    playheadSeconds: boundedPlayheadSeconds,
+    playheadSeconds: boundedDisplayPlayheadSeconds,
     playbackRate,
     playbackRates,
     resetTimelineZoom,
@@ -293,6 +371,7 @@ export function useStudioTimeline({
     setIsTimelinePlaying,
     setPlayheadSeconds,
     setPlayheadSecondsClamped,
+    setDisplayPlayheadSecondsFromMedia,
     setPlayheadSecondsFromMedia,
     setPlaybackRate,
     setTimelinePlaybackActive,

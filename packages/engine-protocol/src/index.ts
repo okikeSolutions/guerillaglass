@@ -28,6 +28,7 @@ export const captureMetadataSchema = z
       height: z.number().positive(),
     }),
     pixelScale: z.number().positive(),
+    fps: z.number().positive().nullable().optional(),
   })
   .nullable();
 

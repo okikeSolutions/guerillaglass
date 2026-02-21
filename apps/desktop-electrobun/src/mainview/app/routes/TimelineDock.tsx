@@ -241,12 +241,7 @@ export function TimelineDock() {
               onToggleLaneMuted={(laneId) => studio.toggleLaneControl(laneId, "muted")}
               onToggleLaneSolo={(laneId) => studio.toggleLaneControl(laneId, "solo")}
               selectedClip={
-                studio.inspectorSelection.kind === "timelineClip"
-                  ? {
-                      laneId: studio.inspectorSelection.laneId,
-                      clipId: studio.inspectorSelection.clipId,
-                    }
-                  : null
+                studio.inspectorSelection.kind === "timelineClip" ? studio.inspectorSelection : null
               }
               selectedMarkerId={
                 studio.inspectorSelection.kind === "timelineMarker"

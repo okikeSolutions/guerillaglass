@@ -211,11 +211,26 @@ export function useStudioController() {
     }
     return windowChoices[0]?.id ?? 0;
   }, [settingsForm.state.values.selectedWindowId, windowChoices]);
+  const timelineFrameRate = useMemo(() => {
+    const metadataFrameRate =
+      captureStatusQuery.data?.captureMetadata?.fps ??
+      projectQuery.data?.captureMetadata?.fps ??
+      null;
+    if (metadataFrameRate && Number.isFinite(metadataFrameRate) && metadataFrameRate > 0) {
+      return metadataFrameRate;
+    }
+    return settingsForm.state.values.captureFps;
+  }, [
+    captureStatusQuery.data?.captureMetadata?.fps,
+    projectQuery.data?.captureMetadata?.fps,
+    settingsForm.state.values.captureFps,
+  ]);
 
   const timeline = useStudioTimeline({
     activeMode,
     recordingURL,
     recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+    timelineFrameRate,
     timelineEvents,
     laneLabels: {
       video: ui.labels.timelineLaneVideo,
@@ -239,6 +254,7 @@ export function useStudioController() {
     setIsTimelinePlaying,
     setPlayheadSeconds,
     setPlayheadSecondsClamped,
+    setDisplayPlayheadSecondsFromMedia,
     setPlayheadSecondsFromMedia,
     setPlaybackRate,
     setTimelinePlaybackActive,
@@ -565,6 +581,7 @@ export function useStudioController() {
     setAudioMixerGain,
     toggleAudioMixerMuted,
     setPlayheadSeconds: setPlayheadSecondsClamped,
+    setDisplayPlayheadSecondsFromMedia,
     setPlayheadSecondsFromMedia,
     setPlaybackRate,
     setTimelinePlaybackActive,
