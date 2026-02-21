@@ -44,7 +44,7 @@ export type MenuItemConfig =
     };
 
 export const BrowserView: {
-  defineRPC<T>(_config: { handlers: unknown }): T;
+  defineRPC<T>(_config: { maxRequestTime?: number; handlers: unknown }): T;
 };
 
 export class BrowserWindow<TRPC = unknown> {

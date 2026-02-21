@@ -25,6 +25,7 @@ export function initializeElectrobunRpcBridge(): void {
   }
 
   const rpc = Electroview.defineRPC<DesktopBridgeRPC>({
+    maxRequestTime: Infinity,
     handlers: {
       requests: {},
       messages: {
