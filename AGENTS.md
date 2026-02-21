@@ -1,6 +1,7 @@
 # Repository Guidelines
 
-- **Spec:** `docs/SPEC.md` — source of truth for product, architecture, project format, and verification links.
+- **Spec:** `docs/SPEC.md` — source of truth for product requirements, architecture, project format, and verification links.
+- **Roadmap:** `docs/ROADMAP.md` — execution sequencing, milestone checklists, and progress tracking.
 - **Licensing:** MIT or Apache-2.0 (see spec §19); third-party in `THIRD_PARTY_NOTICES.md`.
 - GitHub issues/comments/PR comments: use literal multiline strings or `-F - <<'EOF'` (or `$'...'`) for real newlines; never embed `"\\n"`.
 
@@ -23,9 +24,9 @@
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
 - **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `engineProtocolTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
 - **Gate scripts (implementation):** `Scripts/` — `rust_gate.sh`, `typescript_gate.sh`, `full_gate.sh`, `docs_gate.mjs`, `coverage.sh`, `rust_coverage.sh`, `swift_coverage.sh`, `coverage_check.sh`.
-- **Docs:** `docs/` — SPEC and other project docs.
+- **Docs:** `docs/` — SPEC, ROADMAP, and other project docs.
 
-When adding modules or moving code, keep the spec’s architecture (§16–17) and update `AGENTS.md` / `docs/SPEC.md` if the tree changes.
+When adding modules or moving code, keep the spec’s architecture (§16–17) and update `AGENTS.md` / `docs/SPEC.md` / `docs/ROADMAP.md` if the tree or planned milestones change.
 
 ---
 
@@ -112,7 +113,7 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 - **Phase 2:** Cinematic defaults (event tracking, auto-zoom, framing, vertical export) + Windows/Linux parity expansion.
 - **Phase 3:** Motion blur/segment polish + cross-platform workflow polish parity.
 
-When adding features, align with the current phase and the capability matrix in the spec (§5).
+When adding features, align with the current phase in `docs/ROADMAP.md` and the capability matrix in the spec (§5).
 
 ---
 
