@@ -2,7 +2,7 @@
 
 ## Overview
 
-Guerillaglass now follows a hybrid multiplatform architecture:
+Guerilla Glass now follows a hybrid multiplatform architecture:
 
 1. Desktop shell (`/apps/desktop-electrobun`)
    - Electrobun main process (`src/bun`)
@@ -76,6 +76,8 @@ Playback transport hardening (current):
 - Selection is normalized when mode changes so mode-incompatible selections are cleared in controller state, not only at render time.
 - Timeline entities are keyboard-focusable selectable controls and update inspector context directly.
 - Timeline toolbar exposes pro-style operations (`Select`/`Trim`/`Blade`, snap/ripple toggles, zoom controls) and lane controls (`lock`/`mute`/`solo`) while preserving keyboard/pointer parity.
+- Waveform/media source hydration uses query-driven data flows so async loading, cancellation, and cache state are centralized.
+- Timeline playback uses a shared frame timebase model aligned to media playback state for stable transport behavior.
 - Date/number UI formatting is localized via controller-level wrappers (`Intl.DateTimeFormat`, `Intl.NumberFormat`) so components avoid ad-hoc formatting logic.
 - Capture inspector includes source monitor and audio mixer surfaces (master + mic) for operational monitoring.
 - Project utility rail includes a lightweight media-bin summary (recording/events asset readiness) alongside active metadata and recents.
