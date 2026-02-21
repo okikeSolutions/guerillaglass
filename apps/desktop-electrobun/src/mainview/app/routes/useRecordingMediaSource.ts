@@ -1,59 +1,45 @@
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { desktopApi } from "@/lib/engine";
 import { toMediaSourceURL } from "./mediaSource";
 
+const recordingMediaSourceQueryKey = (recordingURL: string | null) =>
+  ["studio", "recordingMediaSource", recordingURL] as const;
+
+function hasDesktopMediaResolver(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const bridgeWindow = window as Window & {
+    ggResolveMediaSourceURL?: (...args: unknown[]) => Promise<string>;
+  };
+  return typeof bridgeWindow.ggResolveMediaSourceURL === "function";
+}
+
 export function useRecordingMediaSource(recordingURL: string | null): string | null {
-  const hasDesktopResolver = useMemo(() => {
-    const bridgeWindow = window as Window & {
-      ggResolveMediaSourceURL?: (...args: unknown[]) => Promise<string>;
-    };
-    return typeof bridgeWindow.ggResolveMediaSourceURL === "function";
-  }, []);
+  const hasDesktopResolver = useMemo(() => hasDesktopMediaResolver(), []);
   const fallbackSource = useMemo(() => {
     if (hasDesktopResolver) {
       return null;
     }
     return toMediaSourceURL(recordingURL);
   }, [hasDesktopResolver, recordingURL]);
-  const [bridgeResolvedSource, setBridgeResolvedSource] = useState<{
-    input: string;
-    source: string;
-  } | null>(null);
+  const bridgeResolvedSourceQuery = useQuery<string | null>({
+    queryKey: recordingMediaSourceQueryKey(recordingURL),
+    enabled: Boolean(recordingURL) && hasDesktopResolver,
+    queryFn: async () => {
+      if (!recordingURL || !hasDesktopResolver) {
+        return null;
+      }
+      try {
+        return await desktopApi.resolveMediaSourceURL(recordingURL);
+      } catch {
+        return null;
+      }
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let isCancelled = false;
-    if (!recordingURL || !hasDesktopResolver) {
-      return () => {
-        isCancelled = true;
-      };
-    }
-
-    void desktopApi
-      .resolveMediaSourceURL(recordingURL)
-      .then((url) => {
-        if (isCancelled) {
-          return;
-        }
-        setBridgeResolvedSource({
-          input: recordingURL,
-          source: url,
-        });
-      })
-      .catch(() => {
-        if (isCancelled) {
-          return;
-        }
-        setBridgeResolvedSource(null);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [fallbackSource, hasDesktopResolver, recordingURL]);
-
-  if (recordingURL && bridgeResolvedSource?.input === recordingURL) {
-    return bridgeResolvedSource.source;
-  }
-
-  return fallbackSource;
+  return bridgeResolvedSourceQuery.data ?? fallbackSource;
 }

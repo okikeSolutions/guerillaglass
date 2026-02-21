@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import type { InputEvent } from "@guerillaglass/engine-protocol";
 import { desktopApi } from "@/lib/engine";
 import { toMediaSourceURL } from "../routes/mediaSource";
@@ -13,6 +14,9 @@ type UseTimelineWaveformOptions = {
 };
 
 const waveformCache = new Map<string, TimelineWaveform>();
+
+const timelineWaveformQueryKey = (recordingURL: string | null) =>
+  ["studio", "timelineWaveform", recordingURL] as const;
 
 function normalizePeaks(peaks: number[]): number[] {
   const ceiling = peaks.reduce((maximum, current) => Math.max(maximum, current), 0);
@@ -69,13 +73,16 @@ function buildDecodedWaveform(audioBuffer: AudioBuffer): TimelineWaveform {
   };
 }
 
-async function decodeWaveform(sourceURL: string): Promise<TimelineWaveform | null> {
+async function decodeWaveform(
+  sourceURL: string,
+  signal: AbortSignal | undefined,
+): Promise<TimelineWaveform | null> {
   const AudioContextCtor = getAudioContextConstructor();
   if (!AudioContextCtor) {
     return null;
   }
 
-  const response = await fetch(sourceURL);
+  const response = await fetch(sourceURL, { signal });
   if (!response.ok) {
     return null;
   }
@@ -118,56 +125,53 @@ async function resolveWaveformSourceURL(recordingURL: string): Promise<string | 
   }
 }
 
+async function loadDecodedWaveform(
+  recordingURL: string,
+  signal: AbortSignal | undefined,
+): Promise<TimelineWaveform | null> {
+  const mediaSourceURL = await resolveWaveformSourceURL(recordingURL);
+  if (!mediaSourceURL) {
+    return null;
+  }
+
+  const cachedWaveform = waveformCache.get(mediaSourceURL);
+  if (cachedWaveform) {
+    return cachedWaveform;
+  }
+
+  const waveform = await decodeWaveform(mediaSourceURL, signal);
+  if (waveform) {
+    waveformCache.set(mediaSourceURL, waveform);
+  }
+  return waveform;
+}
+
 export function useTimelineWaveform({
   recordingURL,
   recordingDurationSeconds,
   timelineEvents,
 }: UseTimelineWaveformOptions): TimelineWaveform | null {
-  const [decodedWaveform, setDecodedWaveform] = useState<TimelineWaveform | null>(null);
-
-  useEffect(() => {
-    let isCancelled = false;
-    const decodeTask = async (): Promise<TimelineWaveform | null> => {
+  const decodedWaveformQuery = useQuery<TimelineWaveform | null>({
+    queryKey: timelineWaveformQueryKey(recordingURL),
+    enabled: Boolean(recordingURL),
+    queryFn: async ({ signal }) => {
       if (!recordingURL) {
         return null;
       }
-      const mediaSourceURL = await resolveWaveformSourceURL(recordingURL);
-      if (!mediaSourceURL) {
+      try {
+        return await loadDecodedWaveform(recordingURL, signal);
+      } catch {
         return null;
       }
-      const cachedWaveform = waveformCache.get(mediaSourceURL);
-      if (cachedWaveform) {
-        return cachedWaveform;
-      }
-      const waveform = await decodeWaveform(mediaSourceURL);
-      if (waveform) {
-        waveformCache.set(mediaSourceURL, waveform);
-      }
-      return waveform;
-    };
-
-    void decodeTask()
-      .then((waveform) => {
-        if (isCancelled) {
-          return;
-        }
-        setDecodedWaveform(waveform ?? null);
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setDecodedWaveform(null);
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [recordingURL]);
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
 
   return useMemo(() => {
-    if (decodedWaveform) {
-      return decodedWaveform;
+    if (decodedWaveformQuery.data) {
+      return decodedWaveformQuery.data;
     }
     return buildEventWaveform(timelineEvents, recordingDurationSeconds);
-  }, [decodedWaveform, recordingDurationSeconds, timelineEvents]);
+  }, [decodedWaveformQuery.data, recordingDurationSeconds, timelineEvents]);
 }

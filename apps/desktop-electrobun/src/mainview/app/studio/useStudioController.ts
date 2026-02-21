@@ -186,8 +186,7 @@ export function useStudioController() {
   } = useStudioQueries(studioRecentsLimit);
   const recentsLimit = studioRecentsLimit;
 
-  const isHydratingFromProjectRef = useRef(false);
-  const autoZoomSyncSignatureRef = useRef("");
+  const lastHydratedProjectAutoZoomSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     const projectAutoZoom = projectQuery.data?.autoZoom;
@@ -195,13 +194,11 @@ export function useStudioController() {
       return;
     }
     const nextSignature = JSON.stringify(projectAutoZoom);
-    if (nextSignature === autoZoomSyncSignatureRef.current) {
+    if (nextSignature === lastHydratedProjectAutoZoomSignatureRef.current) {
       return;
     }
-    autoZoomSyncSignatureRef.current = nextSignature;
-    isHydratingFromProjectRef.current = true;
+    lastHydratedProjectAutoZoomSignatureRef.current = nextSignature;
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
-    isHydratingFromProjectRef.current = false;
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
   const selectedWindowId = useMemo(() => {
