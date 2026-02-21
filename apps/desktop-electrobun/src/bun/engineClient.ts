@@ -152,7 +152,8 @@ const engineMethodDefinitions = {
       captureFps,
     }),
     schema: captureStatusResultSchema,
-    timeoutMs: 15_000,
+    // 0 disables timeout: native window picker can remain open while users decide or cancel.
+    timeoutMs: 0,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,

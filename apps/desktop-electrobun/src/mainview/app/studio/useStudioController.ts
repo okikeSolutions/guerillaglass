@@ -151,7 +151,7 @@ export function useStudioController() {
 
   const settingsForm = useForm({
     defaultValues: {
-      captureSource: "display" as CaptureSourceMode,
+      captureSource: "window" as CaptureSourceMode,
       selectedWindowId: 0,
       captureFps: defaultCaptureFrameRate,
       micEnabled: false,
