@@ -5,6 +5,7 @@ import {
   buildRequest,
   capabilitiesResultSchema,
   captureStatusResultSchema,
+  defaultCaptureTelemetry,
   engineRequestSchema,
   exportInfoResultSchema,
   parseResponse,
@@ -121,14 +122,7 @@ describe("engine protocol", () => {
       },
       lastError: null,
       eventsURL: null,
-      telemetry: {
-        totalFrames: 0,
-        droppedFrames: 0,
-        droppedFramePercent: 0,
-        audioLevelDbfs: null,
-        health: "good",
-        healthReason: null,
-      },
+      telemetry: { ...defaultCaptureTelemetry },
     });
 
     const exportInfo = exportInfoResultSchema.parse({
@@ -190,6 +184,9 @@ describe("engine protocol", () => {
     expect(captureStatus.telemetry.health).toBe("good");
     expect(captureStatus.telemetry.healthReason).toBeNull();
     expect(captureStatus.telemetry.droppedFrames).toBe(0);
+    expect(captureStatus.telemetry.sourceDroppedFrames).toBe(0);
+    expect(captureStatus.telemetry.writerDroppedFrames).toBe(0);
+    expect(captureStatus.telemetry.achievedFps).toBe(0);
     expect(captureStatus.captureMetadata).toBeNull();
   });
 

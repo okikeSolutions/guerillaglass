@@ -1,6 +1,7 @@
 import type {
   ActionResult,
   AutoZoomSettings,
+  CaptureFrameRate,
   CaptureStatusResult,
   ExportInfoResult,
   ExportRunResult,
@@ -70,15 +71,15 @@ export const bridgeRequestDefinitions = {
   ),
   ggEngineListSources: defineBridgeRequest<undefined, SourcesResult, []>(() => undefined),
   ggEngineStartDisplayCapture: defineBridgeRequest<
-    { enableMic: boolean },
+    { enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
-    [enableMic: boolean]
-  >((enableMic) => ({ enableMic })),
+    [enableMic: boolean, captureFps: CaptureFrameRate]
+  >((enableMic, captureFps) => ({ enableMic, captureFps })),
   ggEngineStartWindowCapture: defineBridgeRequest<
-    { windowId: number; enableMic: boolean },
+    { windowId: number; enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
-    [windowId: number, enableMic: boolean]
-  >((windowId, enableMic) => ({ windowId, enableMic })),
+    [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate]
+  >((windowId, enableMic, captureFps) => ({ windowId, enableMic, captureFps })),
   ggEngineStopCapture: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
   ggEngineStartRecording: defineBridgeRequest<
     { trackInputEvents: boolean },

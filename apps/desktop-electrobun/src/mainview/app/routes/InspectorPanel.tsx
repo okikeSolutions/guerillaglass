@@ -9,15 +9,24 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
+import { captureFrameRates, type CaptureFrameRate } from "@guerillaglass/engine-protocol";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../studio/context";
+import { buildCaptureTelemetryPresentation } from "../studio/captureTelemetryPresentation";
 import {
   resolveInspectorView,
   type InspectorSelection,
@@ -286,6 +295,12 @@ function AutoZoomSection({
 function CaptureInspectorContent() {
   const studio = useStudio();
   const captureSource = studio.settingsForm.state.values.captureSource;
+  const telemetry = studio.captureStatusQuery.data?.telemetry;
+  const telemetryPresentation = buildCaptureTelemetryPresentation(telemetry, {
+    formatInteger: studio.formatInteger,
+    formatDecimal: studio.formatDecimal,
+  });
+  const captureFpsOptions = captureFrameRates;
 
   return (
     <>
@@ -318,12 +333,48 @@ function CaptureInspectorContent() {
           )}
         </studio.settingsForm.Field>
 
+        <studio.settingsForm.Field name="captureFps">
+          {(field) => (
+            <Field>
+              <FieldLabel>{studio.ui.labels.captureFrameRate}</FieldLabel>
+              <FieldContent>
+                <Select
+                  value={String(field.state.value)}
+                  onValueChange={(value) => {
+                    const captureFrameRate = parseCaptureFrameRate(value);
+                    if (captureFrameRate != null) {
+                      field.handleChange(captureFrameRate);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {captureFpsOptions.map((fps) => (
+                      <SelectItem key={fps} value={String(fps)}>
+                        {fps} fps
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldContent>
+            </Field>
+          )}
+        </studio.settingsForm.Field>
+
         <div className="space-y-1 px-0.5">
           <p className="gg-utility-label">{studio.ui.labels.sourceMonitor}</p>
           <div className="gg-copy-meta space-y-1">
             <div>{`${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`}</div>
             <div>{`${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`}</div>
             <div>{`${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`}</div>
+            <div>{`${studio.ui.labels.captureFrameRate}: ${studio.settingsForm.state.values.captureFps} fps`}</div>
+            <div>{`${studio.ui.labels.achievedFps}: ${telemetryPresentation.achievedFps}`}</div>
+            <div>{`${studio.ui.labels.droppedFrames}: ${telemetryPresentation.droppedFrames}`}</div>
+            <div>{`${studio.ui.labels.sourceDroppedFrames}: ${telemetryPresentation.sourceDroppedFrames}`}</div>
+            <div>{`${studio.ui.labels.writerDroppedFrames}: ${telemetryPresentation.writerDroppedFrames}`}</div>
+            <div>{`${studio.ui.labels.writerBackpressureDrops}: ${telemetryPresentation.writerBackpressureDrops}`}</div>
           </div>
         </div>
       </InspectorSection>
@@ -370,6 +421,19 @@ function readSliderValue(value: number | readonly number[]): number {
     return value;
   }
   return value[0] ?? 0;
+}
+
+function parseCaptureFrameRate(value: string | null): CaptureFrameRate | null {
+  if (value == null) {
+    return null;
+  }
+  const parsedValue = Number(value);
+  for (const frameRate of captureFrameRates) {
+    if (frameRate === parsedValue) {
+      return frameRate;
+    }
+  }
+  return null;
 }
 
 function AudioMixerChannel({

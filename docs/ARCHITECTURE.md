@@ -112,6 +112,12 @@ Playback transport hardening (current):
   - `totalFrames`
   - `droppedFrames`
   - `droppedFramePercent`
+  - `sourceDroppedFrames`
+  - `sourceDroppedFramePercent`
+  - `writerDroppedFrames`
+  - `writerBackpressureDrops`
+  - `writerDroppedFramePercent`
+  - `achievedFps`
   - `audioLevelDbfs` (`null` when unavailable)
   - `health` (`good` | `warning` | `critical`)
   - `healthReason` (`engine_error` | `high_dropped_frame_rate` | `elevated_dropped_frame_rate` | `low_microphone_level` | `null`)
@@ -123,6 +129,13 @@ Protocol compatibility policy for `capture.status`:
 - Additive fields must be optional/derivable in the renderer.
 - Renderer parsing defaults missing `telemetry` to a neutral payload so older engines do not break UI.
 - Engines should emit explicit `null` for unavailable telemetry fields instead of omitting keys.
+
+Capture start requests support runtime capture cadence selection:
+
+- `capture.startDisplay.params.captureFps` (`24 | 30 | 60`, default `30`)
+- `capture.startWindow.params.captureFps` (`24 | 30 | 60`, default `30`)
+
+Capture FPS is independent from export preset FPS. Export cadence remains defined by the selected export preset.
 
 ## Why This Split
 
