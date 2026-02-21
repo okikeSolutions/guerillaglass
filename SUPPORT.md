@@ -2,8 +2,8 @@
 
 For support questions and workflow help:
 
-- Open a [GitHub Discussion](https://github.com/okikio/guerillaglass/discussions) for Q&A.
-- Open a [GitHub Issue](https://github.com/okikio/guerillaglass/issues) for reproducible bugs.
+- Open a [GitHub Discussion](https://github.com/okikeSolutions/guerillaglass/discussions) for Q&A.
+- Open a [GitHub Issue](https://github.com/okikeSolutions/guerillaglass/issues) for reproducible bugs.
 
 When filing bugs, include:
 
