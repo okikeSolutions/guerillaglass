@@ -1,0 +1,13 @@
+[package]
+name = "native-foundation"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "native_foundation"
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = "1"
+protocol-rust = { path = "../protocol-rust" }
+time = { version = "0.3", features = ["formatting"] }

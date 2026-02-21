@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "engines/protocol-rust",
+  "engines/native-foundation",
   "engines/windows-native",
   "engines/linux-native",
 ]
