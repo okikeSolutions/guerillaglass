@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { engineMethods } from "./methods";
 
 export const inputMonitoringStatusSchema = z.enum(["notDetermined", "denied", "authorized"]);
 
@@ -195,54 +196,54 @@ const requestBaseSchema = z.object({
 const emptyParamsSchema = z.object({}).passthrough().optional().default({});
 
 export const systemPingRequestSchema = requestBaseSchema.extend({
-  method: z.literal("system.ping"),
+  method: z.literal(engineMethods.SystemPing),
   params: emptyParamsSchema,
 });
 
 export const engineCapabilitiesRequestSchema = requestBaseSchema.extend({
-  method: z.literal("engine.capabilities"),
+  method: z.literal(engineMethods.EngineCapabilities),
   params: emptyParamsSchema,
 });
 
 export const permissionsGetRequestSchema = requestBaseSchema.extend({
-  method: z.literal("permissions.get"),
+  method: z.literal(engineMethods.PermissionsGet),
   params: emptyParamsSchema,
 });
 
 export const permissionsRequestScreenRequestSchema = requestBaseSchema.extend({
-  method: z.literal("permissions.requestScreenRecording"),
+  method: z.literal(engineMethods.PermissionsRequestScreenRecording),
   params: emptyParamsSchema,
 });
 
 export const permissionsRequestMicrophoneRequestSchema = requestBaseSchema.extend({
-  method: z.literal("permissions.requestMicrophone"),
+  method: z.literal(engineMethods.PermissionsRequestMicrophone),
   params: emptyParamsSchema,
 });
 
 export const permissionsRequestInputMonitoringRequestSchema = requestBaseSchema.extend({
-  method: z.literal("permissions.requestInputMonitoring"),
+  method: z.literal(engineMethods.PermissionsRequestInputMonitoring),
   params: emptyParamsSchema,
 });
 
 export const permissionsOpenInputSettingsRequestSchema = requestBaseSchema.extend({
-  method: z.literal("permissions.openInputMonitoringSettings"),
+  method: z.literal(engineMethods.PermissionsOpenInputMonitoringSettings),
   params: emptyParamsSchema,
 });
 
 export const sourcesListRequestSchema = requestBaseSchema.extend({
-  method: z.literal("sources.list"),
+  method: z.literal(engineMethods.SourcesList),
   params: emptyParamsSchema,
 });
 
 export const captureStartDisplayRequestSchema = requestBaseSchema.extend({
-  method: z.literal("capture.startDisplay"),
+  method: z.literal(engineMethods.CaptureStartDisplay),
   params: z.object({
     enableMic: z.boolean().optional().default(false),
   }),
 });
 
 export const captureStartWindowRequestSchema = requestBaseSchema.extend({
-  method: z.literal("capture.startWindow"),
+  method: z.literal(engineMethods.CaptureStartWindow),
   params: z.object({
     windowId: z.number().int().nonnegative(),
     enableMic: z.boolean().optional().default(false),
@@ -250,34 +251,34 @@ export const captureStartWindowRequestSchema = requestBaseSchema.extend({
 });
 
 export const captureStopRequestSchema = requestBaseSchema.extend({
-  method: z.literal("capture.stop"),
+  method: z.literal(engineMethods.CaptureStop),
   params: emptyParamsSchema,
 });
 
 export const recordingStartRequestSchema = requestBaseSchema.extend({
-  method: z.literal("recording.start"),
+  method: z.literal(engineMethods.RecordingStart),
   params: z.object({
     trackInputEvents: z.boolean().optional().default(false),
   }),
 });
 
 export const recordingStopRequestSchema = requestBaseSchema.extend({
-  method: z.literal("recording.stop"),
+  method: z.literal(engineMethods.RecordingStop),
   params: emptyParamsSchema,
 });
 
 export const captureStatusRequestSchema = requestBaseSchema.extend({
-  method: z.literal("capture.status"),
+  method: z.literal(engineMethods.CaptureStatus),
   params: emptyParamsSchema,
 });
 
 export const exportInfoRequestSchema = requestBaseSchema.extend({
-  method: z.literal("export.info"),
+  method: z.literal(engineMethods.ExportInfo),
   params: emptyParamsSchema,
 });
 
 export const exportRunRequestSchema = requestBaseSchema.extend({
-  method: z.literal("export.run"),
+  method: z.literal(engineMethods.ExportRun),
   params: z.object({
     outputURL: z.string().min(1),
     presetId: z.string().min(1),
@@ -287,19 +288,19 @@ export const exportRunRequestSchema = requestBaseSchema.extend({
 });
 
 export const projectCurrentRequestSchema = requestBaseSchema.extend({
-  method: z.literal("project.current"),
+  method: z.literal(engineMethods.ProjectCurrent),
   params: emptyParamsSchema,
 });
 
 export const projectOpenRequestSchema = requestBaseSchema.extend({
-  method: z.literal("project.open"),
+  method: z.literal(engineMethods.ProjectOpen),
   params: z.object({
     projectPath: z.string().min(1),
   }),
 });
 
 export const projectSaveRequestSchema = requestBaseSchema.extend({
-  method: z.literal("project.save"),
+  method: z.literal(engineMethods.ProjectSave),
   params: z.object({
     projectPath: z.string().min(1).optional(),
     autoZoom: autoZoomSettingsSchema.optional(),
@@ -307,7 +308,7 @@ export const projectSaveRequestSchema = requestBaseSchema.extend({
 });
 
 export const projectRecentsRequestSchema = requestBaseSchema.extend({
-  method: z.literal("project.recents"),
+  method: z.literal(engineMethods.ProjectRecents),
   params: z
     .object({
       limit: z.number().int().positive().max(100).optional(),
