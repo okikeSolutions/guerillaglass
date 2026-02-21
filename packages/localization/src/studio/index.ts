@@ -1,9 +1,12 @@
 import { deDE } from "./de";
 import { enUS, type StudioMessages } from "./en";
 
+/** Supported studio locale tags. */
 export const studioLocales = ["en-US", "de-DE"] as const;
+/** Union of supported studio locale tags. */
 export type StudioLocale = (typeof studioLocales)[number];
 
+/** Default locale used when input locale cannot be matched. */
 export const defaultStudioLocale: StudioLocale = "en-US";
 
 const studioMessagesByLocale: Record<StudioLocale, StudioMessages> = {
@@ -11,6 +14,7 @@ const studioMessagesByLocale: Record<StudioLocale, StudioMessages> = {
   "de-DE": deDE,
 };
 
+/** Normalizes raw locale input into a supported studio locale. */
 export function normalizeStudioLocale(locale: string | null | undefined): StudioLocale {
   const normalized = locale?.trim().toLowerCase();
 
@@ -25,6 +29,7 @@ export function normalizeStudioLocale(locale: string | null | undefined): Studio
   return defaultStudioLocale;
 }
 
+/** Returns studio messages for a supported or normalized locale. */
 export function getStudioMessages(locale: string | null | undefined): StudioMessages {
   return studioMessagesByLocale[normalizeStudioLocale(locale)];
 }

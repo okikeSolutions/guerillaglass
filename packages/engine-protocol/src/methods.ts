@@ -1,3 +1,4 @@
+/** Canonical JSON-RPC method names supported by the engine protocol. */
 export const engineMethods = {
   SystemPing: "system.ping",
   EngineCapabilities: "engine.capabilities",
@@ -21,6 +22,8 @@ export const engineMethods = {
   ProjectRecents: "project.recents",
 } as const;
 
+/** Union type of supported engine JSON-RPC methods. */
 export type EngineMethod = (typeof engineMethods)[keyof typeof engineMethods];
 
+/** Stable list of all supported engine methods for validation and iteration. */
 export const engineMethodList = Object.values(engineMethods) as EngineMethod[];

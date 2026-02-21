@@ -94,6 +94,7 @@ function buildTrayCommands(state: HostMenuState, locale?: string): MenuItemConfi
   return items;
 }
 
+/** Builds the platform application menu from host command definitions. */
 export function buildApplicationMenu(
   state: HostMenuState,
   platform: NodeJS.Platform = process.platform,
@@ -198,6 +199,7 @@ export function buildApplicationMenu(
   ];
 }
 
+/** Builds the Linux tray menu from the host command registry. */
 export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
   return [

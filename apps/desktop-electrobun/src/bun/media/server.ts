@@ -132,6 +132,7 @@ function mediaSecurityHeaders(): Record<string, string> {
   };
 }
 
+/** Loopback-only media server that mints temporary file-backed playback URLs. */
 export class MediaServer {
   private server: ReturnType<typeof Bun.serve> | null = null;
   private origin: string | null = null;

@@ -32,6 +32,7 @@ type EngineStdin = {
 
 type EngineProcess = Bun.PipedSubprocess;
 
+/** Supported native and stub engine targets. */
 export type EngineTarget =
   | "macos-swift"
   | "windows-native"
@@ -378,6 +379,7 @@ function firstExisting(...paths: string[]): string {
   return paths[0] ?? "";
 }
 
+/** Resolves the engine executable path for the current environment. */
 export function resolveEnginePath(options?: {
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
@@ -412,6 +414,7 @@ export function resolveEnginePath(options?: {
   return resolveByTarget("macos-swift", baseDir);
 }
 
+/** JSON-RPC client for the native engine stdio transport. */
 export class EngineClient {
   private process: EngineProcess | null = null;
   private stdin: EngineStdin | null = null;
