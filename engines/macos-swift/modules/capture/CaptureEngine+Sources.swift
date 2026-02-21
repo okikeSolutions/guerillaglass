@@ -2,10 +2,25 @@ import CoreGraphics
 import ScreenCaptureKit
 
 extension CaptureEngine {
+    struct ShareableWindowMetadata {
+        let bundleIdentifier: String?
+        let frame: CGRect
+        let isOnScreen: Bool
+    }
+
+    static func shouldIncludeShareableWindow(_ metadata: ShareableWindowMetadata) -> Bool {
+        guard metadata.isOnScreen else { return false }
+        guard metadata.frame.width > 1, metadata.frame.height > 1 else { return false }
+        guard let bundleID = metadata.bundleIdentifier else { return false }
+        if bundleID == "com.apple.WindowServer" || bundleID == "com.apple.dock" {
+            return false
+        }
+        return true
+    }
+
     public func refreshShareableContent() async {
         do {
-            let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
-            let windows = Self.filteredWindows(from: content.windows)
+            let windows = try await Self.filteredWindows(from: shareableWindowsProvider())
             await cacheShareableWindows(windows)
         } catch {
             await MainActor.run {
@@ -19,8 +34,7 @@ extension CaptureEngine {
             return cached
         }
 
-        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
-        let windows = Self.filteredWindows(from: content.windows)
+        let windows = try await Self.filteredWindows(from: shareableWindowsProvider())
         await cacheShareableWindows(windows)
         if let match = windows.first(where: { $0.windowID == windowID }) {
             return match
@@ -45,14 +59,13 @@ extension CaptureEngine {
     private static func filteredWindows(from windows: [SCWindow]) -> [SCWindow] {
         windows
             .filter { window in
-                guard window.isOnScreen else { return false }
-                guard window.frame.width > 1, window.frame.height > 1 else { return false }
-                guard let app = window.owningApplication else { return false }
-                let bundleID = app.bundleIdentifier
-                if bundleID == "com.apple.WindowServer" || bundleID == "com.apple.dock" {
-                    return false
-                }
-                return true
+                shouldIncludeShareableWindow(
+                    ShareableWindowMetadata(
+                        bundleIdentifier: window.owningApplication?.bundleIdentifier,
+                        frame: window.frame,
+                        isOnScreen: window.isOnScreen
+                    )
+                )
             }
     }
 }

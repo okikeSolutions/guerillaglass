@@ -22,7 +22,7 @@
 - **Platform stub engines:** `engines/windows-stub/`, `engines/linux-stub/` — protocol-compatible stubs for parallel engine work.
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
 - **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `engineProtocolTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
-- **Gate scripts (implementation):** `Scripts/` — `rust_gate.sh`, `typescript_gate.sh`, `full_gate.sh`, `coverage.sh`, `rust_coverage.sh`, `swift_coverage.sh`.
+- **Gate scripts (implementation):** `Scripts/` — `rust_gate.sh`, `typescript_gate.sh`, `full_gate.sh`, `coverage.sh`, `rust_coverage.sh`, `swift_coverage.sh`, `coverage_check.sh`.
 - **Docs:** `docs/` — SPEC and other project docs.
 
 When adding modules or moving code, keep the spec’s architecture (§16–17) and update `AGENTS.md` / `docs/SPEC.md` if the tree changes.
@@ -56,6 +56,7 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **Rust coverage:** `bun run coverage:rust` (requires `cargo-llvm-cov`)
 - **Swift coverage:** `bun run coverage:swift`
 - **All coverage checks:** `bun run coverage`
+- **Coverage threshold gate:** `bun run coverage:check` (runs TS/Rust/Swift coverage and enforces minimum baselines)
 - **Desktop shell parity e2e:** `bun run desktop:test:e2e`
 - **JS/TS format write:** `bun run js:format`
 - **Protocol package typecheck:** `bun run protocol:typecheck`

@@ -22,6 +22,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Rust coverage tooling
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -37,3 +42,6 @@ jobs:
 
       - name: Run full gate
         run: bun run gate
+
+      - name: Run coverage threshold gate
+        run: bun run coverage:check
