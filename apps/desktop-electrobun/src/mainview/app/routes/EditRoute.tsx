@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useStudio } from "../studio/context";
@@ -8,6 +8,7 @@ import { TimelineDock } from "./TimelineDock";
 import { ProjectUtilityPanel } from "./ProjectUtilityPanel";
 import { captureTargetLabelFromMetadata } from "./captureTargetLabel";
 import { useRecordingMediaSource } from "./useRecordingMediaSource";
+import { useVideoPlaybackSync } from "./useVideoPlaybackSync";
 import {
   StudioPane,
   StudioPaneBody,
@@ -25,6 +26,7 @@ export function EditRoute() {
     isTimelinePlaying,
     playbackRate,
     playheadSeconds,
+    setDisplayPlayheadSecondsFromMedia,
     projectQuery,
     recordingURL,
     setPlayheadSecondsFromMedia,
@@ -44,47 +46,17 @@ export function EditRoute() {
     formatInteger,
   });
 
-  useEffect(() => {
-    const media = mediaRef.current;
-    if (!media || !recordingMediaSource) {
-      return;
-    }
-
-    media.playbackRate = playbackRate;
-  }, [playbackRate, recordingMediaSource]);
-
-  useEffect(() => {
-    const media = mediaRef.current;
-    if (!media || !recordingMediaSource) {
-      return;
-    }
-
-    if (isTimelinePlaying) {
-      void media.play().catch(() => {
-        setTimelinePlaybackActive(false);
-      });
-      return;
-    }
-    media.pause();
-  }, [isTimelinePlaying, recordingMediaSource, setTimelinePlaybackActive]);
-
-  useEffect(() => {
-    const media = mediaRef.current;
-    if (!media || !recordingMediaSource || isTimelinePlaying) {
-      return;
-    }
-
-    const boundedPlayhead = Math.max(0, Math.min(playheadSeconds, timelineDuration));
-    if (Math.abs(media.currentTime - boundedPlayhead) <= 0.08) {
-      return;
-    }
-
-    try {
-      media.currentTime = boundedPlayhead;
-    } catch {
-      // Ignore seek errors while media is loading.
-    }
-  }, [isTimelinePlaying, playheadSeconds, recordingMediaSource, timelineDuration]);
+  useVideoPlaybackSync({
+    mediaRef,
+    recordingMediaSource,
+    isTimelinePlaying,
+    playbackRate,
+    playheadSeconds,
+    timelineDuration,
+    setTimelinePlaybackActive,
+    setDisplayPlayheadSecondsFromMedia,
+    setPlayheadSecondsFromMedia,
+  });
 
   return (
     <EditorWorkspace
@@ -112,27 +84,11 @@ export function EditRoute() {
                       preload="metadata"
                       controls
                       playsInline
-                      onTimeUpdate={(event) => {
-                        setPlayheadSecondsFromMedia(event.currentTarget.currentTime);
-                      }}
                       onPlay={() => {
                         setTimelinePlaybackActive(true);
                       }}
                       onPause={() => {
                         setTimelinePlaybackActive(false);
-                      }}
-                      onEnded={(event) => {
-                        setTimelinePlaybackActive(false);
-                        const duration = event.currentTarget.duration;
-                        if (Number.isFinite(duration) && duration > 0) {
-                          setPlayheadSecondsFromMedia(duration);
-                        }
-                      }}
-                      onLoadedMetadata={(event) => {
-                        const duration = event.currentTarget.duration;
-                        if (Number.isFinite(duration) && duration > 0) {
-                          setPlayheadSecondsFromMedia(Math.min(playheadSeconds, duration));
-                        }
                       }}
                     />
                   ) : captureStatusQuery.data?.isRunning ? (

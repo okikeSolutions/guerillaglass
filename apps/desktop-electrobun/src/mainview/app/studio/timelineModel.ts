@@ -1,9 +1,20 @@
 import type { InputEvent } from "@guerillaglass/engine-protocol";
 
+export type TimelineClipSemantic = "screen" | "mix";
+
+export type TimelineWaveform = {
+  peaks: number[];
+  bucketSeconds: number;
+  durationSeconds: number;
+  source: "decoded" | "events";
+};
+
 export type TimelineClip = {
   id: string;
   startSeconds: number;
   endSeconds: number;
+  semantic: TimelineClipSemantic;
+  waveform: TimelineWaveform | null;
 };
 
 export type TimelineEventMarkerKind = "move" | "click" | "mixed";
@@ -66,6 +77,18 @@ type TimelineLaneLabels = {
   events: string;
 };
 
+function clampUnit(value: number): number {
+  return Math.min(Math.max(value, 0), 1);
+}
+
+function normalizePeaks(peaks: number[]): number[] {
+  const ceiling = peaks.reduce((maximum, current) => Math.max(maximum, current), 0);
+  if (ceiling <= Number.EPSILON) {
+    return peaks.map(() => 0.06);
+  }
+  return peaks.map((peak) => clampUnit(Math.max(peak / ceiling, 0.06)));
+}
+
 export function buildEventMarkers(
   events: InputEvent[],
   durationSeconds: number,
@@ -118,9 +141,53 @@ export function buildEventMarkers(
     });
 }
 
+export function buildEventWaveform(
+  events: InputEvent[],
+  durationSeconds: number,
+  options?: {
+    minimumBuckets?: number;
+    maximumBuckets?: number;
+  },
+): TimelineWaveform | null {
+  if (durationSeconds <= 0) {
+    return null;
+  }
+
+  const minimumBuckets = options?.minimumBuckets ?? 300;
+  const maximumBuckets = options?.maximumBuckets ?? 1200;
+  const requestedBuckets = Math.round(durationSeconds * 40);
+  const bucketCount = Math.min(Math.max(requestedBuckets, minimumBuckets), maximumBuckets);
+  const buckets = new Array<number>(bucketCount).fill(0.05);
+
+  for (const event of events) {
+    if (event.timestamp < 0 || event.timestamp > durationSeconds) {
+      continue;
+    }
+    const ratio = durationSeconds > 0 ? event.timestamp / durationSeconds : 0;
+    const bucketIndex = Math.min(bucketCount - 1, Math.max(0, Math.floor(ratio * bucketCount)));
+    const increment = event.type === "cursorMoved" ? 0.06 : 0.3;
+    buckets[bucketIndex] += increment;
+
+    if (bucketIndex > 0) {
+      buckets[bucketIndex - 1] += increment * 0.45;
+    }
+    if (bucketIndex + 1 < bucketCount) {
+      buckets[bucketIndex + 1] += increment * 0.45;
+    }
+  }
+
+  return {
+    peaks: normalizePeaks(buckets),
+    bucketSeconds: durationSeconds / bucketCount,
+    durationSeconds,
+    source: "events",
+  };
+}
+
 export function buildTimelineLanes(params: {
   recordingDurationSeconds: number;
   events: InputEvent[];
+  audioWaveform?: TimelineWaveform | null;
   labels?: TimelineLaneLabels;
 }): TimelineLane[] {
   const duration = Math.max(0, params.recordingDurationSeconds);
@@ -129,23 +196,32 @@ export function buildTimelineLanes(params: {
     audio: "Audio",
     events: "Events",
   };
-  const clip = {
-    id: "clip-0",
+  const videoClip = {
+    id: "clip-video-0",
     startSeconds: 0,
     endSeconds: duration,
+    semantic: "screen" as const,
+    waveform: null,
+  };
+  const audioClip = {
+    id: "clip-audio-0",
+    startSeconds: 0,
+    endSeconds: duration,
+    semantic: "mix" as const,
+    waveform: params.audioWaveform ?? buildEventWaveform(params.events, duration),
   };
 
   return [
     {
       id: "video",
       label: labels.video,
-      clips: duration > 0 ? [clip] : [],
+      clips: duration > 0 ? [videoClip] : [],
       markers: [],
     },
     {
       id: "audio",
       label: labels.audio,
-      clips: duration > 0 ? [clip] : [],
+      clips: duration > 0 ? [audioClip] : [],
       markers: [],
     },
     {
