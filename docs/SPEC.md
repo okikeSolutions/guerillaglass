@@ -73,6 +73,7 @@ Guerilla Glass should feel like a professional creator tool:
   - Additive protocol evolution rule: new response fields should be optional or renderer-derivable so older engines remain compatible during rollout.
 - **Native engines (per platform):**
   - macOS: Swift sidecar (`engines/macos-swift`) as current production capture/export path
+  - Shared Rust native foundation: `engines/native-foundation` (runtime + protocol parity handlers reused by Windows/Linux sidecars)
   - Windows: Rust sidecar foundation (`engines/windows-native`) with protocol parity handlers
   - Linux: Rust sidecar foundation (`engines/linux-native`) with protocol parity handlers
   - Stubs: protocol-compatible Windows/Linux stubs for parallel shell/protocol iteration
@@ -508,6 +509,7 @@ guerillaglass/
 │  │     ├─ automation/
 │  │     ├─ rendering/
 │  │     └─ export/
+│  ├─ native-foundation/
 │  ├─ windows-native/
 │  ├─ linux-native/
 │  ├─ windows-stub/

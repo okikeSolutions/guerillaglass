@@ -17,6 +17,7 @@
 - **Native engine modules:** `engines/macos-swift/modules/` — capture, input tracking, project, automation, rendering, export.
 - **Native Windows engine foundation:** `engines/windows-native/` — Rust sidecar foundation with protocol parity handlers.
 - **Native Linux engine foundation:** `engines/linux-native/` — Rust sidecar foundation with protocol parity handlers.
+- **Native engine shared foundation:** `engines/native-foundation/` — shared Rust runtime/stdio/parity handler implementation consumed by Windows and Linux native sidecars.
 - **Rust protocol module (new):** `engines/protocol-rust/` — shared Rust wire message types and capture clock primitives.
 - **Platform stub engines:** `engines/windows-stub/`, `engines/linux-stub/` — protocol-compatible stubs for parallel engine work.
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
