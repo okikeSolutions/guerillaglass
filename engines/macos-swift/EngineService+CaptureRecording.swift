@@ -5,10 +5,66 @@ import Foundation
 import Project
 
 extension EngineService {
+    private func resolveCaptureFrameRate(from params: [String: JSONValue]) -> Int? {
+        let frameRate = params["captureFps"]?.intValue ?? CaptureFrameRatePolicy.defaultValue
+        guard CaptureFrameRatePolicy.isSupported(frameRate) else {
+            return nil
+        }
+        return frameRate
+    }
+
+    private func captureFrameRateValidationMessage() -> String {
+        let supportedValues = CaptureFrameRatePolicy.supportedValues
+            .map(String.init)
+            .joined(separator: ", ")
+        return "captureFps must be one of \(supportedValues)"
+    }
+
+    private func telemetryHealthInput(
+        from telemetry: CaptureEngine.CaptureTelemetrySnapshot
+    ) -> CaptureTelemetryHealthInput {
+        CaptureTelemetryHealthInput(
+            totalFrames: telemetry.totalFrames,
+            droppedFramePercent: telemetry.droppedFramePercent,
+            sourceDroppedFramePercent: telemetry.sourceDroppedFramePercent,
+            writerDroppedFramePercent: telemetry.writerDroppedFramePercent,
+            audioLevelDbfs: telemetry.audioLevelDbfs,
+            lastError: captureEngine.lastError,
+            isRecording: captureEngine.isRecording
+        )
+    }
+
+    private func telemetryPayload(
+        from telemetry: CaptureEngine.CaptureTelemetrySnapshot,
+        health: CaptureTelemetryHealth
+    ) -> JSONValue {
+        .object([
+            "totalFrames": .number(Double(telemetry.totalFrames)),
+            "droppedFrames": .number(Double(telemetry.droppedFrames)),
+            "droppedFramePercent": .number(telemetry.droppedFramePercent),
+            "sourceDroppedFrames": .number(Double(telemetry.sourceDroppedFrames)),
+            "sourceDroppedFramePercent": .number(telemetry.sourceDroppedFramePercent),
+            "writerDroppedFrames": .number(Double(telemetry.writerDroppedFrames)),
+            "writerBackpressureDrops": .number(Double(telemetry.writerBackpressureDrops)),
+            "writerDroppedFramePercent": .number(telemetry.writerDroppedFramePercent),
+            "achievedFps": .number(telemetry.achievedFps),
+            "audioLevelDbfs": telemetry.audioLevelDbfs.map { .number($0) } ?? .null,
+            "health": .string(health.state.rawValue),
+            "healthReason": health.reason.map { .string($0.rawValue) } ?? .null
+        ])
+    }
+
     func startDisplayResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
         let enableMic = params["enableMic"]?.boolValue ?? false
+        guard let captureFps = resolveCaptureFrameRate(from: params) else {
+            return .failure(
+                id: id,
+                code: "invalid_params",
+                message: captureFrameRateValidationMessage()
+            )
+        }
         do {
-            try await captureEngine.startDisplayCapture(enableMic: enableMic)
+            try await captureEngine.startDisplayCapture(enableMic: enableMic, targetFrameRate: captureFps)
             return captureStatusResponse(id: id)
         } catch {
             return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
@@ -20,9 +76,20 @@ extension EngineService {
             return .failure(id: id, code: "invalid_params", message: "windowId is required")
         }
         let enableMic = params["enableMic"]?.boolValue ?? false
+        guard let captureFps = resolveCaptureFrameRate(from: params) else {
+            return .failure(
+                id: id,
+                code: "invalid_params",
+                message: captureFrameRateValidationMessage()
+            )
+        }
 
         do {
-            try await captureEngine.startWindowCapture(windowID: CGWindowID(windowID), enableMic: enableMic)
+            try await captureEngine.startWindowCapture(
+                windowID: CGWindowID(windowID),
+                enableMic: enableMic,
+                targetFrameRate: captureFps
+            )
             return captureStatusResponse(id: id)
         } catch {
             return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
@@ -100,10 +167,7 @@ extension EngineService {
     func captureStatusResponse(id: String) -> EngineResponse {
         let telemetry = captureEngine.telemetrySnapshot()
         let health = CaptureTelemetryHealthEvaluator.evaluate(
-            droppedFramePercent: telemetry.droppedFramePercent,
-            audioLevelDbfs: telemetry.audioLevelDbfs,
-            lastError: captureEngine.lastError,
-            isRecording: captureEngine.isRecording
+            telemetryHealthInput(from: telemetry)
         )
         let captureMetadataPayload: JSONValue
         if let descriptor = captureEngine.captureDescriptor {
@@ -112,14 +176,6 @@ extension EngineService {
         } else {
             captureMetadataPayload = .null
         }
-        let telemetryPayload: JSONValue = .object([
-            "totalFrames": .number(Double(telemetry.totalFrames)),
-            "droppedFrames": .number(Double(telemetry.droppedFrames)),
-            "droppedFramePercent": .number(telemetry.droppedFramePercent),
-            "audioLevelDbfs": telemetry.audioLevelDbfs.map { .number($0) } ?? .null,
-            "health": .string(health.state.rawValue),
-            "healthReason": health.reason.map { .string($0.rawValue) } ?? .null
-        ])
 
         return .success(
             id: id,
@@ -131,7 +187,7 @@ extension EngineService {
                 "captureMetadata": captureMetadataPayload,
                 "lastError": captureEngine.lastError.map { .string($0) } ?? .null,
                 "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
-                "telemetry": telemetryPayload
+                "telemetry": telemetryPayload(from: telemetry, health: health)
             ])
         )
     }
