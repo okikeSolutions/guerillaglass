@@ -221,6 +221,7 @@ export const exportRunResultSchema = z.object({
   outputURL: z.string().min(1),
 });
 
+/** Engine protocol schema for projectStateSchema. */
 export const projectStateSchema = z.object({
   projectPath: z.string().nullable(),
   recordingURL: z.string().nullable(),
@@ -229,12 +230,14 @@ export const projectStateSchema = z.object({
   captureMetadata: captureMetadataSchema,
 });
 
+/** Engine protocol schema for projectRecentItemSchema. */
 export const projectRecentItemSchema = z.object({
   projectPath: z.string().min(1),
   displayName: z.string().min(1),
   lastOpenedAt: z.string().datetime(),
 });
 
+/** Engine protocol schema for projectRecentsResultSchema. */
 export const projectRecentsResultSchema = z.object({
   items: z.array(projectRecentItemSchema),
 });
@@ -245,46 +248,55 @@ const requestBaseSchema = z.object({
 
 const emptyParamsSchema = z.looseObject({}).optional().default({});
 
+/** Engine protocol schema for systemPingRequestSchema. */
 export const systemPingRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.SystemPing),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for engineCapabilitiesRequestSchema. */
 export const engineCapabilitiesRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.EngineCapabilities),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for permissionsGetRequestSchema. */
 export const permissionsGetRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.PermissionsGet),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for permissionsRequestScreenRequestSchema. */
 export const permissionsRequestScreenRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.PermissionsRequestScreenRecording),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for permissionsRequestMicrophoneRequestSchema. */
 export const permissionsRequestMicrophoneRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.PermissionsRequestMicrophone),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for permissionsRequestInputMonitoringRequestSchema. */
 export const permissionsRequestInputMonitoringRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.PermissionsRequestInputMonitoring),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for permissionsOpenInputSettingsRequestSchema. */
 export const permissionsOpenInputSettingsRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.PermissionsOpenInputMonitoringSettings),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for sourcesListRequestSchema. */
 export const sourcesListRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.SourcesList),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for captureStartDisplayRequestSchema. */
 export const captureStartDisplayRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.CaptureStartDisplay),
   params: z.object({
@@ -293,6 +305,7 @@ export const captureStartDisplayRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for captureStartWindowRequestSchema. */
 export const captureStartWindowRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.CaptureStartWindow),
   params: z.object({
@@ -302,11 +315,13 @@ export const captureStartWindowRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for captureStopRequestSchema. */
 export const captureStopRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.CaptureStop),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for recordingStartRequestSchema. */
 export const recordingStartRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.RecordingStart),
   params: z.object({
@@ -314,21 +329,25 @@ export const recordingStartRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for recordingStopRequestSchema. */
 export const recordingStopRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.RecordingStop),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for captureStatusRequestSchema. */
 export const captureStatusRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.CaptureStatus),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for exportInfoRequestSchema. */
 export const exportInfoRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ExportInfo),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for exportRunRequestSchema. */
 export const exportRunRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ExportRun),
   params: z.object({
@@ -339,11 +358,13 @@ export const exportRunRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for projectCurrentRequestSchema. */
 export const projectCurrentRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ProjectCurrent),
   params: emptyParamsSchema,
 });
 
+/** Engine protocol schema for projectOpenRequestSchema. */
 export const projectOpenRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ProjectOpen),
   params: z.object({
@@ -351,6 +372,7 @@ export const projectOpenRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for projectSaveRequestSchema. */
 export const projectSaveRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ProjectSave),
   params: z.object({
@@ -359,6 +381,7 @@ export const projectSaveRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for projectRecentsRequestSchema. */
 export const projectRecentsRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ProjectRecents),
   params: z
@@ -428,27 +451,49 @@ export const engineResponseSchema = z.union([
   engineErrorResponseSchema,
 ]);
 
+/** Type alias for EngineRequest. */
 export type EngineRequest = z.infer<typeof engineRequestSchema>;
+/** Type alias for EngineResponse. */
 export type EngineResponse = z.infer<typeof engineResponseSchema>;
+/** Type alias for EngineErrorCode. */
 export type EngineErrorCode = z.infer<typeof engineErrorCodeSchema>;
+/** Type alias for PingResult. */
 export type PingResult = z.infer<typeof pingResultSchema>;
+/** Type alias for CapabilitiesResult. */
 export type CapabilitiesResult = z.infer<typeof capabilitiesResultSchema>;
+/** Type alias for PermissionsResult. */
 export type PermissionsResult = z.infer<typeof permissionsResultSchema>;
+/** Type alias for ActionResult. */
 export type ActionResult = z.infer<typeof actionResultSchema>;
+/** Type alias for SourcesResult. */
 export type SourcesResult = z.infer<typeof sourcesResultSchema>;
+/** Type alias for CaptureHealth. */
 export type CaptureHealth = z.infer<typeof captureHealthSchema>;
+/** Type alias for CaptureHealthReason. */
 export type CaptureHealthReason = z.infer<typeof captureHealthReasonSchema>;
+/** Type alias for CaptureFrameRate. */
 export type CaptureFrameRate = z.infer<typeof captureFrameRateSchema>;
+/** Type alias for CaptureTelemetry. */
 export type CaptureTelemetry = z.infer<typeof captureTelemetrySchema>;
+/** Type alias for CaptureStatusResult. */
 export type CaptureStatusResult = z.infer<typeof captureStatusResultSchema>;
+/** Type alias for ExportPreset. */
 export type ExportPreset = z.infer<typeof exportPresetSchema>;
+/** Type alias for ExportInfoResult. */
 export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;
+/** Type alias for ExportRunResult. */
 export type ExportRunResult = z.infer<typeof exportRunResultSchema>;
+/** Type alias for ProjectState. */
 export type ProjectState = z.infer<typeof projectStateSchema>;
+/** Type alias for ProjectRecentItem. */
 export type ProjectRecentItem = z.infer<typeof projectRecentItemSchema>;
+/** Type alias for ProjectRecentsResult. */
 export type ProjectRecentsResult = z.infer<typeof projectRecentsResultSchema>;
+/** Type alias for AutoZoomSettings. */
 export type AutoZoomSettings = z.infer<typeof autoZoomSettingsSchema>;
+/** Type alias for InputEvent. */
 export type InputEvent = z.infer<typeof inputEventSchema>;
+/** Type alias for InputEventLog. */
 export type InputEventLog = z.infer<typeof inputEventLogSchema>;
 
 /** Builds and validates a typed engine request payload. */

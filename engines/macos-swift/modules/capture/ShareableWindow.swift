@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import ScreenCaptureKit
 
+/// Public value type exposed by the macOS engine module.
 public struct ShareableWindow: Identifiable, Hashable {
     public let id: CGWindowID
     public let title: String

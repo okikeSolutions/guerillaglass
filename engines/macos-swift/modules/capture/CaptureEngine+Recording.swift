@@ -3,6 +3,7 @@ import Export
 import Foundation
 import OSLog
 
+/// Public extension for the macOS engine API surface.
 public extension CaptureEngine {
     private static let logger = Logger(subsystem: "com.guerillaglass", category: "recording")
 

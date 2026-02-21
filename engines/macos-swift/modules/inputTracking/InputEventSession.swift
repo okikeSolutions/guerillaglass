@@ -1,6 +1,7 @@
 import Foundation
 import QuartzCore
 
+/// Public value type exposed by the macOS engine module.
 public struct InputClock {
     public let now: () -> TimeInterval
 
@@ -13,6 +14,7 @@ public struct InputClock {
     }
 }
 
+/// Public class exposed by the macOS engine module.
 public final class InputEventRecorder {
     private let queue = DispatchQueue(label: "gg.input.events")
     private let clock: InputClock
@@ -64,6 +66,7 @@ public final class InputEventRecorder {
     }
 }
 
+/// Public class exposed by the macOS engine module.
 public final class InputEventSession {
     public private(set) var isRunning = false
 

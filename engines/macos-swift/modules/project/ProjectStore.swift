@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public class exposed by the macOS engine module.
 public final class ProjectStore {
     public enum StoreError: Error {
         case invalidRecordingURL

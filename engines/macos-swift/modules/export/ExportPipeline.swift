@@ -3,6 +3,7 @@ import AVFoundation
 import Foundation
 import Rendering
 
+/// Public class exposed by the macOS engine module.
 public final class ExportPipeline {
     private final class ExportSessionBox: @unchecked Sendable {
         let session: AVAssetExportSession

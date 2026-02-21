@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct InputEventLog: Codable, Equatable {
     public static let schemaVersion = 1
 

@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct AutoZoomSettings: Codable, Equatable {
     public static let intensityRange: ClosedRange<Double> = 0 ... 1
     public static let minimumKeyframeIntervalRange: ClosedRange<TimeInterval> =

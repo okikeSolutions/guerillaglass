@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import InputTracking
 
+/// Public value type exposed by the macOS engine module.
 public struct CameraKeyframe: Equatable {
     public let time: TimeInterval
     public let center: CGPoint
@@ -14,6 +15,7 @@ public struct CameraKeyframe: Equatable {
     }
 }
 
+/// Public value type exposed by the macOS engine module.
 public struct CameraPlan: Equatable {
     public let sourceSize: CGSize
     public let keyframes: [CameraKeyframe]
@@ -26,6 +28,7 @@ public struct CameraPlan: Equatable {
     }
 }
 
+/// Public class exposed by the macOS engine module.
 public final class VirtualCameraPlanner {
     private let attentionModel: AttentionModel
 

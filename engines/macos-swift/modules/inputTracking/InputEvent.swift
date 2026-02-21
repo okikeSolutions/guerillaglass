@@ -1,18 +1,21 @@
 import CoreGraphics
 import Foundation
 
+/// Public enum exposed by the macOS engine module.
 public enum InputEventType: String, Codable {
     case cursorMoved
     case mouseDown
     case mouseUp
 }
 
+/// Public enum exposed by the macOS engine module.
 public enum MouseButton: String, Codable {
     case left
     case right
     case other
 }
 
+/// Public value type exposed by the macOS engine module.
 public struct InputPoint: Codable, Equatable {
     public let xValue: Double
     public let yValue: Double
@@ -36,6 +39,7 @@ public struct InputPoint: Codable, Equatable {
     }
 }
 
+/// Public value type exposed by the macOS engine module.
 public struct InputEvent: Codable, Equatable {
     public let type: InputEventType
     public let timestamp: TimeInterval

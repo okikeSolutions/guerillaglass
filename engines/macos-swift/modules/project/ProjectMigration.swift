@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public enum exposed by the macOS engine module.
 public enum ProjectMigration {
     public enum MigrationError: Error {
         case unknownVersion

@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct Project: Codable, Identifiable, Equatable {
     public let id: UUID
     public var createdAt: Date

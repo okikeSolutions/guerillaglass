@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct TrimRangeValues: Equatable {
     public let start: Double
     public let end: Double
@@ -11,6 +12,7 @@ public struct TrimRangeValues: Equatable {
     }
 }
 
+/// Public enum exposed by the macOS engine module.
 public enum TrimRangeCalculator {
     public static func clamped(
         start: Double,
