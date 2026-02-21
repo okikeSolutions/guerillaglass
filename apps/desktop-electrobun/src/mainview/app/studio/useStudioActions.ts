@@ -107,6 +107,29 @@ export function useStudioActions({
   projectRecentsQuery,
   eventsQuery,
 }: UseStudioActionsOptions) {
+  const ensureScreenRecordingPermission = useCallback(async (): Promise<void> => {
+    let permissions = await engineApi.getPermissions();
+    queryClient.setQueryData(studioQueryKeys.permissions(), permissions);
+    if (permissions.screenRecordingGranted) {
+      return;
+    }
+
+    await engineApi.requestScreenRecordingPermission();
+    permissions = await engineApi.getPermissions();
+    queryClient.setQueryData(studioQueryKeys.permissions(), permissions);
+    if (!permissions.screenRecordingGranted) {
+      throw new Error(ui.notices.screenPermissionRequired);
+    }
+
+    const nextSources = await engineApi.listSources().catch(() => null);
+    if (nextSources) {
+      queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
+      if (!nextSources.windows.some((windowItem) => windowItem.id === selectedWindowId)) {
+        settingsForm.setFieldValue("selectedWindowId", nextSources.windows[0]?.id ?? 0);
+      }
+    }
+  }, [queryClient, selectedWindowId, settingsForm, ui.notices.screenPermissionRequired]);
+
   const syncCaptureStatus = useCallback(
     async (options?: { expectRunning?: boolean }): Promise<CaptureStatusResult | null> => {
       for (let attempt = 0; attempt < captureStatusSyncAttempts; attempt += 1) {
@@ -130,6 +153,8 @@ export function useStudioActions({
   );
 
   const startCaptureInternal = useCallback(async (): Promise<CaptureStatusResult> => {
+    await ensureScreenRecordingPermission();
+
     const { captureSource, micEnabled } = settingsForm.state.values;
     if (captureSource === "window") {
       if (selectedWindowId === 0) {
@@ -138,7 +163,12 @@ export function useStudioActions({
       return await engineApi.startWindowCapture(selectedWindowId, micEnabled);
     }
     return await engineApi.startDisplayCapture(micEnabled);
-  }, [selectedWindowId, settingsForm.state.values, ui.notices.selectWindowFirst]);
+  }, [
+    ensureScreenRecordingPermission,
+    selectedWindowId,
+    settingsForm.state.values,
+    ui.notices.selectWindowFirst,
+  ]);
 
   const refreshMutation = useMutation({
     mutationFn: async () => {
