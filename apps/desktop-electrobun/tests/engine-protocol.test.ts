@@ -104,6 +104,21 @@ describe("engine protocol", () => {
       isRecording: false,
       recordingDurationSeconds: 0,
       recordingURL: null,
+      captureMetadata: {
+        source: "window",
+        window: {
+          id: 42,
+          title: "Simulator",
+          appName: "Xcode",
+        },
+        contentRect: {
+          x: 0,
+          y: 0,
+          width: 1280,
+          height: 720,
+        },
+        pixelScale: 2,
+      },
       lastError: null,
       eventsURL: null,
       telemetry: {
@@ -155,6 +170,8 @@ describe("engine protocol", () => {
     expect(permissions.inputMonitoring).toBe("notDetermined");
     expect(sources.windows[0]?.appName).toBe("Xcode");
     expect(captureStatus.eventsURL).toBeNull();
+    expect(captureStatus.captureMetadata?.source).toBe("window");
+    expect(captureStatus.captureMetadata?.window?.id).toBe(42);
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
     expect(recents.items[0]?.displayName).toBe("project");
@@ -173,6 +190,7 @@ describe("engine protocol", () => {
     expect(captureStatus.telemetry.health).toBe("good");
     expect(captureStatus.telemetry.healthReason).toBeNull();
     expect(captureStatus.telemetry.droppedFrames).toBe(0);
+    expect(captureStatus.captureMetadata).toBeNull();
   });
 
   test("parses success and error response envelopes", () => {

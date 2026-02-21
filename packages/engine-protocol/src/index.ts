@@ -10,6 +10,15 @@ export const autoZoomSettingsSchema = z.object({
 
 export const captureMetadataSchema = z
   .object({
+    window: z
+      .object({
+        id: z.number().int().nonnegative(),
+        title: z.string(),
+        appName: z.string(),
+      })
+      .nullable()
+      .optional()
+      .default(null),
     source: z.enum(["display", "window"]),
     contentRect: z.object({
       x: z.number(),
@@ -138,6 +147,7 @@ export const captureStatusResultSchema = z.object({
   isRecording: z.boolean(),
   recordingDurationSeconds: z.number().nonnegative(),
   recordingURL: z.string().nullable(),
+  captureMetadata: captureMetadataSchema.optional().default(null),
   lastError: z.string().nullable(),
   eventsURL: z.string().nullable(),
   telemetry: captureTelemetrySchema.optional().default(defaultCaptureTelemetry),

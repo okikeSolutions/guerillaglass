@@ -129,16 +129,7 @@ extension EngineService {
         ]
 
         if let metadata = project.captureMetadata {
-            payload["captureMetadata"] = .object([
-                "source": .string(metadata.source.rawValue),
-                "contentRect": .object([
-                    "x": .number(metadata.contentRect.originX),
-                    "y": .number(metadata.contentRect.originY),
-                    "width": .number(metadata.contentRect.width),
-                    "height": .number(metadata.contentRect.height)
-                ]),
-                "pixelScale": .number(metadata.pixelScale)
-            ])
+            payload["captureMetadata"] = captureMetadataJSON(from: metadata)
         } else {
             payload["captureMetadata"] = .null
         }
@@ -175,9 +166,36 @@ extension EngineService {
         let source: CaptureMetadata.Source = descriptor.source == .window ? .window : .display
         return CaptureMetadata(
             source: source,
+            window: descriptor.windowTarget.map {
+                CaptureMetadata.Window(
+                    id: $0.id,
+                    title: $0.title,
+                    appName: $0.appName
+                )
+            },
             contentRect: CaptureRect(rect: descriptor.contentRect),
             pixelScale: Double(descriptor.pixelScale)
         )
+    }
+
+    func captureMetadataJSON(from metadata: CaptureMetadata) -> JSONValue {
+        .object([
+            "window": metadata.window.map {
+                .object([
+                    "id": .number(Double($0.id)),
+                    "title": .string($0.title),
+                    "appName": .string($0.appName)
+                ])
+            } ?? .null,
+            "source": .string(metadata.source.rawValue),
+            "contentRect": .object([
+                "x": .number(metadata.contentRect.originX),
+                "y": .number(metadata.contentRect.originY),
+                "width": .number(metadata.contentRect.width),
+                "height": .number(metadata.contentRect.height)
+            ]),
+            "pixelScale": .number(metadata.pixelScale)
+        ])
     }
 
     private func recordRecentProjectIfPossible(url: URL) {

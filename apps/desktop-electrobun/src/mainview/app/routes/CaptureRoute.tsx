@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { engineApi } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../studio/context";
+import { captureTargetLabelFromMetadata } from "./captureTargetLabel";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
 import { TimelineDock } from "./TimelineDock";
@@ -26,6 +27,27 @@ import {
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
+  const activeCaptureMetadata = studio.captureStatusQuery.data?.captureMetadata;
+  const selectedWindow = studio.windowChoices.find(
+    (windowItem) => windowItem.id === studio.selectedWindowId,
+  );
+  const selectedWindowLabel = selectedWindow
+    ? `${selectedWindow.appName} - ${selectedWindow.title || studio.ui.values.untitled}`
+    : studio.ui.labels.window;
+  const metadataTargetLabel = captureTargetLabelFromMetadata({
+    metadata: activeCaptureMetadata ?? null,
+    displayLabel: studio.ui.labels.display,
+    windowLabel: studio.ui.labels.window,
+    untitledLabel: studio.ui.values.untitled,
+    formatInteger: studio.formatInteger,
+  });
+  const activeCaptureTarget =
+    metadataTargetLabel ??
+    (settingsValues.captureSource === "window"
+      ? selectedWindow
+        ? selectedWindowLabel
+        : studio.ui.labels.noWindows
+      : studio.ui.labels.display);
 
   return (
     <EditorWorkspace
@@ -241,6 +263,7 @@ export function CaptureRoute() {
 
               <div className="gg-preview-status-bar gg-copy-meta">
                 <div className="truncate">{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</div>
+                <div className="truncate">{`${studio.ui.labels.captureSource}: ${activeCaptureTarget}`}</div>
                 <div className="truncate">{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
                 <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
               </div>

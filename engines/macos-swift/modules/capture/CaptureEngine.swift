@@ -134,6 +134,11 @@ public final class CaptureEngine: NSObject, ObservableObject {
                 self.lastError = nil
                 self.captureDescriptor = CaptureDescriptor(
                     source: .window,
+                    windowTarget: CaptureDescriptor.WindowTarget(
+                        id: window.windowID,
+                        title: window.title ?? "",
+                        appName: window.owningApplication?.applicationName ?? "Unknown App"
+                    ),
                     contentRect: window.frame,
                     pixelScale: scale
                 )

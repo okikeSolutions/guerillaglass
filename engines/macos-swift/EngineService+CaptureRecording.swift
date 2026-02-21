@@ -105,6 +105,13 @@ extension EngineService {
             lastError: captureEngine.lastError,
             isRecording: captureEngine.isRecording
         )
+        let captureMetadataPayload: JSONValue
+        if let descriptor = captureEngine.captureDescriptor {
+            let metadata = makeCaptureMetadata(from: descriptor)
+            captureMetadataPayload = captureMetadataJSON(from: metadata)
+        } else {
+            captureMetadataPayload = .null
+        }
         let telemetryPayload: JSONValue = .object([
             "totalFrames": .number(Double(telemetry.totalFrames)),
             "droppedFrames": .number(Double(telemetry.droppedFrames)),
@@ -121,6 +128,7 @@ extension EngineService {
                 "isRecording": .bool(captureEngine.isRecording),
                 "recordingDurationSeconds": .number(captureEngine.recordingDuration),
                 "recordingURL": captureEngine.recordingURL.map { .string($0.path) } ?? .null,
+                "captureMetadata": captureMetadataPayload,
                 "lastError": captureEngine.lastError.map { .string($0) } ?? .null,
                 "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
                 "telemetry": telemetryPayload
