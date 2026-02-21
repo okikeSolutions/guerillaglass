@@ -1,10 +1,98 @@
 import type { ApplicationMenuItemConfig, MenuItemConfig } from "electrobun/bun";
 import { getDesktopMenuMessages } from "@guerillaglass/localization";
 import type { HostMenuState } from "../../shared/bridgeRpc";
-import { studioShortcuts, withShortcutLabel } from "../../shared/shortcuts";
+import {
+  isHostCommandChecked,
+  listHostCommandsForAppSection,
+  listHostCommandsForTray,
+  resolveHostCommandAccelerator,
+  resolveHostCommandEnabled,
+  resolveHostCommandLabel,
+  type HostCommandDefinition,
+} from "../../shared/hostCommandRegistry";
+import { withShortcutLabel } from "../../shared/shortcuts";
 import { encodeHostMenuAction } from "./actions";
 
 const separator = { type: "separator" as const };
+
+function prefixedCheckLabel(label: string, checked: boolean): string {
+  return checked ? `\u2713 ${label}` : label;
+}
+
+function buildAppSectionCommands(
+  section: "file" | "capture" | "timeline" | "language" | "density",
+  state: HostMenuState,
+  locale?: string,
+): ApplicationMenuItemConfig[] {
+  const labels = getDesktopMenuMessages(locale ?? state.locale);
+  const definitions = listHostCommandsForAppSection(section);
+  const items: ApplicationMenuItemConfig[] = [];
+  let previousGroup: number | undefined;
+  for (const definition of definitions) {
+    const group = definition.menu.appGroup;
+    if (
+      previousGroup !== undefined &&
+      group !== undefined &&
+      group !== previousGroup &&
+      items.length > 0
+    ) {
+      items.push(separator);
+    }
+    previousGroup = group;
+    items.push({
+      label: prefixedCheckLabel(
+        resolveHostCommandLabel(definition, labels, state),
+        isHostCommandChecked(definition, state),
+      ),
+      action: encodeHostMenuAction(definition.id),
+      accelerator: resolveHostCommandAccelerator(definition),
+      enabled: resolveHostCommandEnabled(definition, state),
+    });
+  }
+  return items;
+}
+
+function toTrayCommandItem(
+  definition: HostCommandDefinition,
+  state: HostMenuState,
+  locale?: string,
+): MenuItemConfig {
+  const labels = getDesktopMenuMessages(locale ?? state.locale);
+  const checkedLabel = prefixedCheckLabel(
+    resolveHostCommandLabel(definition, labels, state),
+    isHostCommandChecked(definition, state),
+  );
+  const label = definition.shortcut
+    ? withShortcutLabel(checkedLabel, definition.shortcut, { platform: "linux" })
+    : checkedLabel;
+
+  return {
+    type: "normal",
+    label,
+    action: encodeHostMenuAction(definition.id),
+    enabled: resolveHostCommandEnabled(definition, state),
+  };
+}
+
+function buildTrayCommands(state: HostMenuState, locale?: string): MenuItemConfig[] {
+  const definitions = listHostCommandsForTray();
+  const items: MenuItemConfig[] = [];
+  let previousGroup: number | undefined;
+  for (const definition of definitions) {
+    const group = definition.menu.trayGroup;
+    if (
+      previousGroup !== undefined &&
+      group !== undefined &&
+      group !== previousGroup &&
+      items.length > 0
+    ) {
+      items.push(separator);
+    }
+    previousGroup = group;
+    items.push(toTrayCommandItem(definition, state, locale));
+  }
+  return items;
+}
 
 export function buildApplicationMenu(
   state: HostMenuState,
@@ -12,9 +100,6 @@ export function buildApplicationMenu(
   locale?: string,
 ): ApplicationMenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
-  const recordingLabel = state.isRecording ? labels.stopRecording : labels.startRecording;
-  const localeSelection = state.locale === "de-DE" ? "de-DE" : "en-US";
-  const densitySelection = state.densityMode === "compact" ? "compact" : "comfortable";
 
   return [
     ...(platform === "darwin"
@@ -36,31 +121,7 @@ export function buildApplicationMenu(
       label: labels.file,
       action: "menu.file",
       submenu: [
-        {
-          label: labels.openProject,
-          action: encodeHostMenuAction("file.openProject"),
-          accelerator: "o",
-        },
-        separator,
-        {
-          label: labels.saveProject,
-          action: encodeHostMenuAction("file.saveProject"),
-          accelerator: studioShortcuts.save.menuAccelerator,
-          enabled: state.canSave,
-        },
-        {
-          label: labels.saveProjectAs,
-          action: encodeHostMenuAction("file.saveProjectAs"),
-          accelerator: studioShortcuts.saveAs.menuAccelerator,
-          enabled: state.canSave,
-        },
-        separator,
-        {
-          label: labels.export,
-          action: encodeHostMenuAction("file.export"),
-          accelerator: studioShortcuts.export.menuAccelerator,
-          enabled: state.canExport,
-        },
+        ...buildAppSectionCommands("file", state, locale),
         ...(platform !== "darwin" ? [separator, { role: "quit" }] : []),
       ],
     },
@@ -80,46 +141,12 @@ export function buildApplicationMenu(
     {
       label: labels.capture,
       action: "menu.capture",
-      submenu: [
-        {
-          label: recordingLabel,
-          action: encodeHostMenuAction("capture.toggleRecording"),
-          accelerator: studioShortcuts.record.menuAccelerator,
-        },
-        { label: labels.startPreview, action: encodeHostMenuAction("capture.startPreview") },
-        { label: labels.stopPreview, action: encodeHostMenuAction("capture.stopPreview") },
-        separator,
-        {
-          label: labels.refreshSources,
-          action: encodeHostMenuAction("app.refresh"),
-        },
-      ],
+      submenu: buildAppSectionCommands("capture", state, locale),
     },
     {
       label: labels.timeline,
       action: "menu.timeline",
-      submenu: [
-        {
-          label: labels.playPause,
-          action: encodeHostMenuAction("timeline.playPause"),
-          accelerator: studioShortcuts.playPause.menuAccelerator,
-        },
-        {
-          label: labels.setTrimIn,
-          action: encodeHostMenuAction("timeline.trimIn"),
-          accelerator: studioShortcuts.trimIn.menuAccelerator,
-        },
-        {
-          label: labels.setTrimOut,
-          action: encodeHostMenuAction("timeline.trimOut"),
-          accelerator: studioShortcuts.trimOut.menuAccelerator,
-        },
-        separator,
-        {
-          label: labels.toggleTimeline,
-          action: encodeHostMenuAction("timeline.togglePanel"),
-        },
-      ],
+      submenu: buildAppSectionCommands("timeline", state, locale),
     },
     {
       label: labels.view,
@@ -130,42 +157,12 @@ export function buildApplicationMenu(
         {
           label: labels.language,
           action: "menu.view.language",
-          submenu: [
-            {
-              label:
-                localeSelection === "en-US"
-                  ? `\u2713 ${labels.languageEnglish}`
-                  : labels.languageEnglish,
-              action: encodeHostMenuAction("app.locale.enUS"),
-            },
-            {
-              label:
-                localeSelection === "de-DE"
-                  ? `\u2713 ${labels.languageGerman}`
-                  : labels.languageGerman,
-              action: encodeHostMenuAction("app.locale.deDE"),
-            },
-          ],
+          submenu: buildAppSectionCommands("language", state, locale),
         },
         {
           label: labels.density,
           action: "menu.view.density",
-          submenu: [
-            {
-              label:
-                densitySelection === "comfortable"
-                  ? `\u2713 ${labels.densityComfortable}`
-                  : labels.densityComfortable,
-              action: encodeHostMenuAction("view.density.comfortable"),
-            },
-            {
-              label:
-                densitySelection === "compact"
-                  ? `\u2713 ${labels.densityCompact}`
-                  : labels.densityCompact,
-              action: encodeHostMenuAction("view.density.compact"),
-            },
-          ],
+          submenu: buildAppSectionCommands("density", state, locale),
         },
         separator,
         {
@@ -198,67 +195,8 @@ export function buildApplicationMenu(
 
 export function buildLinuxTrayMenu(state: HostMenuState, locale?: string): MenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
-  const recordingLabel = withShortcutLabel(
-    state.isRecording ? labels.stopRecording : labels.startRecording,
-    "record",
-    { platform: "linux" },
-  );
-  const localeSelection = state.locale === "de-DE" ? "de-DE" : "en-US";
-  const densitySelection = state.densityMode === "compact" ? "compact" : "comfortable";
   return [
-    { type: "normal", label: labels.openProject, action: encodeHostMenuAction("file.openProject") },
-    {
-      type: "normal",
-      label: withShortcutLabel(labels.saveProject, "save", { platform: "linux" }),
-      action: encodeHostMenuAction("file.saveProject"),
-      enabled: state.canSave,
-    },
-    {
-      type: "normal",
-      label: withShortcutLabel(labels.saveProjectAs, "saveAs", { platform: "linux" }),
-      action: encodeHostMenuAction("file.saveProjectAs"),
-      enabled: state.canSave,
-    },
-    separator,
-    {
-      type: "normal",
-      label: recordingLabel,
-      action: encodeHostMenuAction("capture.toggleRecording"),
-    },
-    {
-      type: "normal",
-      label: withShortcutLabel(labels.export, "export", { platform: "linux" }),
-      action: encodeHostMenuAction("file.export"),
-      enabled: state.canExport,
-    },
-    separator,
-    {
-      type: "normal",
-      label:
-        localeSelection === "en-US" ? `\u2713 ${labels.languageEnglish}` : labels.languageEnglish,
-      action: encodeHostMenuAction("app.locale.enUS"),
-    },
-    {
-      type: "normal",
-      label:
-        localeSelection === "de-DE" ? `\u2713 ${labels.languageGerman}` : labels.languageGerman,
-      action: encodeHostMenuAction("app.locale.deDE"),
-    },
-    separator,
-    {
-      type: "normal",
-      label:
-        densitySelection === "comfortable"
-          ? `\u2713 ${labels.densityComfortable}`
-          : labels.densityComfortable,
-      action: encodeHostMenuAction("view.density.comfortable"),
-    },
-    {
-      type: "normal",
-      label:
-        densitySelection === "compact" ? `\u2713 ${labels.densityCompact}` : labels.densityCompact,
-      action: encodeHostMenuAction("view.density.compact"),
-    },
+    ...buildTrayCommands(state, locale),
     separator,
     { type: "normal", label: labels.quit, action: "app.quit" },
   ];

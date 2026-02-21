@@ -1,89 +1,27 @@
 import { useForm } from "@tanstack/react-form";
-import { useHotkey } from "@tanstack/react-hotkeys";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  AutoZoomSettings,
-  CaptureStatusResult,
-  ExportPreset,
-  InputEvent,
-  PermissionsResult,
-  PingResult,
-  ProjectRecentsResult,
-  ProjectState,
-  SourcesResult,
-} from "@guerillaglass/engine-protocol";
-import { getStudioMessages, type StudioLocale } from "@guerillaglass/localization";
-import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
+import type { AutoZoomSettings, ExportPreset } from "@guerillaglass/engine-protocol";
+import { getStudioMessages } from "@guerillaglass/localization";
+import { desktopApi, sendHostMenuState } from "@/lib/engine";
 import type { HostMenuCommand } from "../../../shared/bridgeRpc";
-import { studioShortcuts } from "../../../shared/shortcuts";
+import { createHostCommandRunnerFromHandlers } from "../../../shared/hostCommandRegistry";
 import {
   emptyInspectorSelection,
   type InspectorSelection,
   normalizeInspectorSelection,
   selectionFromPreset,
-  type StudioMode,
 } from "./inspectorContext";
-import {
-  defaultStudioLayoutState,
-  dominantLayoutPresetForRoute,
-  loadStudioLayoutState,
-  modeForStudioRoute,
-  normalizeStudioLayoutRoute,
-  requiredLayoutPresetVersionForRoute,
-  saveStudioLayoutState,
-  studioLayoutBounds,
-  type StudioDensityMode,
-} from "./studioLayoutState";
-import { buildTimelineLanes } from "./timelineModel";
+import { useStudioHotkeys } from "./useStudioHotkeys";
+import { useStudioLayoutController } from "./useStudioLayoutController";
+import { useStudioActions, type ExportFormApi, type SettingsFormApi } from "./useStudioActions";
+import { studioRecentsLimit, useStudioQueries } from "./useStudioQueries";
+import { useStudioTimeline } from "./useStudioTimeline";
 
 const hostMenuCommandEventName = "gg-host-menu-command";
-const playbackRates = [0.5, 1, 1.5, 2] as const;
-const emptyExportPresets: ExportPreset[] = [];
-const emptySourceWindows: SourcesResult["windows"] = [];
-const timelineZoomBounds = {
-  minPercent: 75,
-  maxPercent: 300,
-};
-const timelineSnapFrameSeconds = 1 / 30;
-const captureStatusSyncAttempts = 4;
-const captureStatusSyncDelayMs = 120;
 
 export type CaptureSourceMode = "display" | "window";
 export type Notice = { kind: "error" | "success" | "info"; message: string } | null;
-export type TimelineTool = "select" | "trim" | "blade";
-export type TimelineLaneControlState = {
-  locked: boolean;
-  muted: boolean;
-  solo: boolean;
-};
-export type TimelineLaneControlStateByLane = Record<"video" | "audio", TimelineLaneControlState>;
-export type AudioMixerState = {
-  masterGain: number;
-  masterMuted: boolean;
-  micGain: number;
-  micMuted: boolean;
-};
-
-const emptyProjectRecents: ProjectRecentsResult = { items: [] };
-const defaultTimelineLaneControlState: TimelineLaneControlStateByLane = {
-  video: {
-    locked: false,
-    muted: false,
-    solo: false,
-  },
-  audio: {
-    locked: false,
-    muted: false,
-    solo: false,
-  },
-};
-const defaultAudioMixerState: AudioMixerState = {
-  masterGain: 0.85,
-  masterMuted: false,
-  micGain: 0.9,
-  micMuted: false,
-};
 
 export const defaultAutoZoom: AutoZoomSettings = {
   isEnabled: true,
@@ -91,39 +29,11 @@ export const defaultAutoZoom: AutoZoomSettings = {
   minimumKeyframeInterval: 1 / 30,
 };
 
-const studioQueryKeys = {
-  ping: () => ["studio", "ping"] as const,
-  permissions: () => ["studio", "permissions"] as const,
-  sources: () => ["studio", "sources"] as const,
-  captureStatus: () => ["studio", "captureStatus"] as const,
-  exportInfo: () => ["studio", "exportInfo"] as const,
-  projectCurrent: () => ["studio", "projectCurrent"] as const,
-  projectRecents: (limit: number) => ["studio", "projectRecents", limit] as const,
-  eventsLog: (eventsURL: string | null) => ["studio", "eventsLog", eventsURL] as const,
-};
-
 function formatError(error: unknown, fallbackMessage: string): string {
   if (error instanceof Error) {
     return error.message;
   }
   return fallbackMessage;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(Math.max(value, minimum), maximum);
-}
-
-function snapToTimelineFrame(seconds: number, enabled: boolean): number {
-  if (!enabled) {
-    return seconds;
-  }
-  return Math.round(seconds / timelineSnapFrameSeconds) * timelineSnapFrameSeconds;
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
 }
 
 function isBridgeTimeoutError(error: unknown): boolean {
@@ -159,53 +69,28 @@ export function formatAspectRatio(width: number, height: number): string {
   return `${width}:${height}`;
 }
 
-const interactiveGlobalHotkeySelector = [
-  "input",
-  "textarea",
-  "select",
-  "button",
-  "a[href]",
-  "[contenteditable]:not([contenteditable='false'])",
-  "[role='button']",
-  "[role='link']",
-  "[role='menuitem']",
-  "[role='tab']",
-  "[role='checkbox']",
-  "[role='radio']",
-  "[role='switch']",
-].join(",");
-
-function shouldBlockGlobalSingleKeyHotkey(target: EventTarget | null): boolean {
-  if (target == null || typeof target !== "object") {
-    return false;
-  }
-  const elementLike = target as { closest?: (selector: string) => Element | null };
-  if (typeof elementLike.closest !== "function") {
-    return false;
-  }
-  return elementLike.closest(interactiveGlobalHotkeySelector) != null;
-}
-
 export function useStudioController() {
   const queryClient = useQueryClient();
+  const {
+    activeMode,
+    layout,
+    resetLayout,
+    setDensityMode,
+    setLastRoute,
+    setLeftPaneCollapsed,
+    setLeftPaneWidth,
+    setLocale,
+    setRightPaneCollapsed,
+    setRightPaneWidth,
+    setTimelineCollapsed,
+    setTimelineHeight,
+    toggleLeftPaneCollapsed,
+    toggleRightPaneCollapsed,
+    toggleTimelineCollapsed,
+  } = useStudioLayoutController();
   const [notice, setNotice] = useState<Notice>(null);
-  const [playheadSeconds, setPlayheadSeconds] = useState(0);
-  const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState<(typeof playbackRates)[number]>(1);
   const [rawInspectorSelection, setRawInspectorSelection] =
     useState<InspectorSelection>(emptyInspectorSelection);
-  const [layout, setLayout] = useState(() => loadStudioLayoutState());
-  const [timelineZoomPercent, setTimelineZoomPercent] = useState(100);
-  const [timelineSnapEnabled, setTimelineSnapEnabled] = useState(true);
-  const [timelineRippleEnabled, setTimelineRippleEnabled] = useState(false);
-  const [timelineTool, setTimelineTool] = useState<TimelineTool>("select");
-  const [timelineLaneControlState, setTimelineLaneControlState] =
-    useState<TimelineLaneControlStateByLane>(defaultTimelineLaneControlState);
-  const [audioMixer, setAudioMixer] = useState<AudioMixerState>(defaultAudioMixerState);
-  const activeMode = useMemo<StudioMode>(
-    () => modeForStudioRoute(layout.lastRoute),
-    [layout.lastRoute],
-  );
   const locale = layout.locale;
   const ui = useMemo(() => getStudioMessages(locale), [locale]);
   const integerFormatter = useMemo(
@@ -260,13 +145,6 @@ export function useStudioController() {
     [ui.notices.actionFailed, ui.notices.rpcTimedOut],
   );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      saveStudioLayoutState(layout);
-    }, 120);
-    return () => clearTimeout(timer);
-  }, [layout]);
-
   const settingsForm = useForm({
     defaultValues: {
       captureSource: "display" as CaptureSourceMode,
@@ -287,56 +165,21 @@ export function useStudioController() {
     },
   });
 
-  const pingQuery = useQuery<PingResult>({
-    queryKey: studioQueryKeys.ping(),
-    queryFn: () => engineApi.ping(),
-    staleTime: 30_000,
-  });
-
-  const permissionsQuery = useQuery<PermissionsResult>({
-    queryKey: studioQueryKeys.permissions(),
-    queryFn: () => engineApi.getPermissions(),
-    staleTime: 30_000,
-  });
-
-  const sourcesQuery = useQuery<SourcesResult>({
-    queryKey: studioQueryKeys.sources(),
-    queryFn: () => engineApi.listSources(),
-    staleTime: 5000,
-  });
-
-  const captureStatusQuery = useQuery<CaptureStatusResult>({
-    queryKey: studioQueryKeys.captureStatus(),
-    queryFn: () => engineApi.captureStatus(),
-    refetchInterval: 1000,
-  });
-
-  const exportInfoQuery = useQuery({
-    queryKey: studioQueryKeys.exportInfo(),
-    queryFn: () => engineApi.exportInfo(),
-    staleTime: 60_000,
-  });
-
-  const projectQuery = useQuery<ProjectState>({
-    queryKey: studioQueryKeys.projectCurrent(),
-    queryFn: () => engineApi.projectCurrent(),
-    staleTime: 10_000,
-  });
-
-  const recentsLimit = 10;
-  const projectRecentsQuery = useQuery<ProjectRecentsResult>({
-    queryKey: studioQueryKeys.projectRecents(recentsLimit),
-    queryFn: async () => {
-      try {
-        return await engineApi.projectRecents(recentsLimit);
-      } catch {
-        // Recents are non-critical. If RPC wiring is unavailable, keep core workflows unblocked.
-        return emptyProjectRecents;
-      }
-    },
-    staleTime: 10_000,
-    retry: false,
-  });
+  const {
+    captureStatusQuery,
+    eventsQuery,
+    exportInfoQuery,
+    permissionsQuery,
+    pingQuery,
+    presets,
+    projectQuery,
+    projectRecentsQuery,
+    recordingURL,
+    sourcesQuery,
+    timelineEvents,
+    windowChoices,
+  } = useStudioQueries(studioRecentsLimit);
+  const recentsLimit = studioRecentsLimit;
 
   const isHydratingFromProjectRef = useRef(false);
   const autoZoomSyncSignatureRef = useRef("");
@@ -356,9 +199,6 @@ export function useStudioController() {
     isHydratingFromProjectRef.current = false;
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
-  const presets = exportInfoQuery.data?.presets ?? emptyExportPresets;
-
-  const windowChoices = sourcesQuery.data?.windows ?? emptySourceWindows;
   const selectedWindowId = useMemo(() => {
     const selectedId = settingsForm.state.values.selectedWindowId;
     if (windowChoices.some((windowItem) => windowItem.id === selectedId)) {
@@ -367,97 +207,57 @@ export function useStudioController() {
     return windowChoices[0]?.id ?? 0;
   }, [settingsForm.state.values.selectedWindowId, windowChoices]);
 
-  const recordingURL =
-    captureStatusQuery.data?.recordingURL ?? projectQuery.data?.recordingURL ?? null;
-  const eventsURL = captureStatusQuery.data?.eventsURL ?? projectQuery.data?.eventsURL ?? null;
-  const usesMediaPlaybackClock = activeMode === "edit" && Boolean(recordingURL);
-
-  const eventsQuery = useQuery<InputEvent[]>({
-    queryKey: studioQueryKeys.eventsLog(eventsURL),
-    enabled:
-      Boolean(eventsURL) &&
-      !eventsURL?.startsWith("stub://") &&
-      !eventsURL?.startsWith("native://"),
-    queryFn: async () => {
-      if (!eventsURL) {
-        return [];
-      }
-      const raw = await desktopApi.readTextFile(eventsURL);
-      return parseInputEventLog(raw);
+  const timeline = useStudioTimeline({
+    activeMode,
+    recordingURL,
+    recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+    timelineEvents,
+    laneLabels: {
+      video: ui.labels.timelineLaneVideo,
+      audio: ui.labels.timelineLaneAudio,
+      events: ui.labels.timelineLaneEvents,
     },
-    staleTime: 10_000,
-    retry: false,
+    trimStartSeconds: exportForm.state.values.trimStartSeconds,
+    trimEndSeconds: exportForm.state.values.trimEndSeconds,
+    onTrimStartSecondsChange: (seconds) => exportForm.setFieldValue("trimStartSeconds", seconds),
+    onTrimEndSecondsChange: (seconds) => exportForm.setFieldValue("trimEndSeconds", seconds),
   });
-
-  const timelineDuration = useMemo(
-    () =>
-      Math.max(
-        captureStatusQuery.data?.recordingDurationSeconds ?? 0,
-        exportForm.state.values.trimStartSeconds,
-        exportForm.state.values.trimEndSeconds,
-        1,
-      ),
-    [
-      captureStatusQuery.data?.recordingDurationSeconds,
-      exportForm.state.values.trimEndSeconds,
-      exportForm.state.values.trimStartSeconds,
-    ],
-  );
-  const boundedPlayheadSeconds = useMemo(
-    () => clamp(playheadSeconds, 0, timelineDuration),
-    [playheadSeconds, timelineDuration],
-  );
-
-  const timelineEvents = useMemo(
-    () => (eventsQuery.isSuccess ? eventsQuery.data : []),
-    [eventsQuery.data, eventsQuery.isSuccess],
-  );
-
-  const laneRecordingDurationSeconds = useMemo(() => {
-    if (!recordingURL) {
-      return 0;
-    }
-    return Math.max(captureStatusQuery.data?.recordingDurationSeconds ?? 0, timelineDuration);
-  }, [captureStatusQuery.data?.recordingDurationSeconds, recordingURL, timelineDuration]);
-
-  const timelineLanes = useMemo(
-    () =>
-      buildTimelineLanes({
-        recordingDurationSeconds: laneRecordingDurationSeconds,
-        events: timelineEvents,
-        labels: {
-          video: ui.labels.timelineLaneVideo,
-          audio: ui.labels.timelineLaneAudio,
-          events: ui.labels.timelineLaneEvents,
-        },
-      }),
-    [
-      laneRecordingDurationSeconds,
-      timelineEvents,
-      ui.labels.timelineLaneAudio,
-      ui.labels.timelineLaneEvents,
-      ui.labels.timelineLaneVideo,
-    ],
-  );
-
-  useEffect(() => {
-    if (!isTimelinePlaying || usesMediaPlaybackClock) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setPlayheadSeconds((previous) => {
-        const next = previous + 0.05 * playbackRate;
-        if (next >= timelineDuration) {
-          setIsTimelinePlaying(false);
-          return timelineDuration;
-        }
-        return next;
-      });
-    }, 50);
-
-    return () => clearInterval(timer);
-  }, [isTimelinePlaying, playbackRate, timelineDuration, usesMediaPlaybackClock]);
+  const {
+    audioMixer,
+    isTimelinePlaying,
+    nudgePlayheadSeconds,
+    playheadSeconds: boundedPlayheadSeconds,
+    playbackRate,
+    playbackRates,
+    resetTimelineZoom,
+    setAudioMixerGain,
+    setIsTimelinePlaying,
+    setPlayheadSeconds,
+    setPlayheadSecondsClamped,
+    setPlayheadSecondsFromMedia,
+    setPlaybackRate,
+    setTimelinePlaybackActive,
+    setTimelineTool,
+    setTimelineZoom,
+    setTrimEndSeconds,
+    setTrimInFromPlayhead,
+    setTrimOutFromPlayhead,
+    setTrimStartSeconds,
+    timelineDuration,
+    timelineLaneControlState,
+    timelineLanes,
+    timelineRippleEnabled,
+    timelineSnapEnabled,
+    timelineTool,
+    timelineZoomPercent,
+    toggleAudioMixerMuted,
+    toggleLaneControl,
+    toggleTimelinePlayback,
+    toggleTimelineRipple,
+    toggleTimelineSnap,
+    zoomTimelineIn,
+    zoomTimelineOut,
+  } = timeline;
 
   const selectedPreset = useMemo<ExportPreset | undefined>(() => {
     const selected = presets.find((preset) => preset.id === exportForm.state.values.presetId);
@@ -489,450 +289,45 @@ export function useStudioController() {
     [ui.notices.directoryPickerTimedOut],
   );
 
-  const syncCaptureStatus = useCallback(
-    async (options?: { expectRunning?: boolean }): Promise<CaptureStatusResult | null> => {
-      for (let attempt = 0; attempt < captureStatusSyncAttempts; attempt += 1) {
-        const nextStatus = await engineApi.captureStatus();
-        queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-
-        if (
-          options?.expectRunning === undefined ||
-          nextStatus.isRunning === options.expectRunning
-        ) {
-          return nextStatus;
-        }
-
-        if (attempt < captureStatusSyncAttempts - 1) {
-          await delay(captureStatusSyncDelayMs);
-        }
-      }
-      return null;
-    },
-    [queryClient],
-  );
-
-  const startCaptureInternal = useCallback(async (): Promise<CaptureStatusResult> => {
-    const { captureSource, micEnabled } = settingsForm.state.values;
-
-    if (captureSource === "window") {
-      if (selectedWindowId === 0) {
-        throw new Error(ui.notices.selectWindowFirst);
-      }
-      return await engineApi.startWindowCapture(selectedWindowId, micEnabled);
-    }
-
-    return await engineApi.startDisplayCapture(micEnabled);
-  }, [selectedWindowId, settingsForm.state.values, ui.notices.selectWindowFirst]);
-
-  const refreshMutation = useMutation({
-    mutationFn: async () => {
-      const [ping, permissions, sources, captureStatus, exportInfo, project] = await Promise.all([
-        pingQuery.refetch(),
-        permissionsQuery.refetch(),
-        sourcesQuery.refetch(),
-        captureStatusQuery.refetch(),
-        exportInfoQuery.refetch(),
-        projectQuery.refetch(),
-        eventsQuery.refetch(),
-      ]);
-      const projectRecents = await projectRecentsQuery.refetch();
-
-      return {
-        ping: ping.data,
-        permissions: permissions.data,
-        sources: sources.data,
-        captureStatus: captureStatus.data,
-        exportInfo: exportInfo.data,
-        project: project.data,
-        projectRecents: projectRecents.data ?? emptyProjectRecents,
-      };
-    },
-    onError: (error) => {
-      setNotice({
-        kind: "error",
-        message: error instanceof Error ? mapActionErrorMessage(error) : ui.notices.refreshFailed,
-      });
-    },
-  });
-
-  const requestPermissionMutation = useMutation({
-    mutationFn: async (kind: "screen" | "mic" | "input") => {
-      if (kind === "screen") {
-        await engineApi.requestScreenRecordingPermission();
-      }
-      if (kind === "mic") {
-        await engineApi.requestMicrophonePermission();
-      }
-      if (kind === "input") {
-        await engineApi.requestInputMonitoringPermission();
-      }
-      const [nextPermissions, nextSources] = await Promise.all([
-        engineApi.getPermissions(),
-        kind === "screen" ? engineApi.listSources().catch(() => null) : Promise.resolve(null),
-      ]);
-      queryClient.setQueryData(studioQueryKeys.permissions(), nextPermissions);
-      if (nextSources) {
-        queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
-        if (!nextSources.windows.some((windowItem) => windowItem.id === selectedWindowId)) {
-          settingsForm.setFieldValue("selectedWindowId", nextSources.windows[0]?.id ?? 0);
-        }
-      }
-      return nextPermissions;
-    },
-    onSuccess: () => {
-      setNotice({ kind: "success", message: ui.notices.permissionsRefreshed });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const startPreviewMutation = useMutation({
-    mutationFn: async () => await startCaptureInternal(),
-    onSuccess: async (nextStatus) => {
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-      const syncedStatus = await syncCaptureStatus({ expectRunning: true });
-      if (!syncedStatus?.isRunning) {
-        setNotice({
-          kind: "error",
-          message: ui.notices.previewStateMismatch,
-        });
-        return;
-      }
-      setNotice({ kind: "success", message: ui.notices.captureStarted });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const stopPreviewMutation = useMutation({
-    mutationFn: async () => await engineApi.stopCapture(),
-    onSuccess: async (nextStatus) => {
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-      setIsTimelinePlaying(false);
-      await syncCaptureStatus({ expectRunning: false });
-      setNotice({ kind: "info", message: ui.notices.captureStopped });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const toggleRecordingMutation = useMutation({
-    mutationFn: async () => {
-      let status = captureStatusQuery.data;
-      if (!status?.isRunning) {
-        status = await startCaptureInternal();
-      }
-
-      if (status?.isRecording) {
-        await engineApi.stopRecording();
-        const stoppedStatus = await engineApi.stopCapture();
-        return {
-          nextStatus: stoppedStatus,
-          finished: true,
-        };
-      }
-
-      const recordingStatus = await engineApi.startRecording(
-        settingsForm.state.values.trackInputEvents,
-      );
-      return {
-        nextStatus: recordingStatus,
-        finished: false,
-      };
-    },
-    onSuccess: async ({ nextStatus, finished }) => {
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-      await syncCaptureStatus({ expectRunning: !finished });
-
-      if (finished) {
-        setIsTimelinePlaying(false);
-        setNotice({ kind: "success", message: ui.notices.recordingFinished });
-        return;
-      }
-
-      exportForm.setFieldValue("trimStartSeconds", 0);
-      exportForm.setFieldValue("trimEndSeconds", 0);
-      setPlayheadSeconds(0);
-
-      if (settingsForm.state.values.trackInputEvents && inputMonitoringDenied) {
-        setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
-      } else {
-        setNotice({ kind: "success", message: ui.notices.recordingStarted });
-      }
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const openProjectAtPath = useCallback(async (projectPath: string) => {
-    const nextProject = await engineApi.projectOpen(projectPath);
-    const nextStatus = await engineApi.captureStatus();
-    return { nextProject, nextStatus };
-  }, []);
-
-  const openProjectMutation = useMutation({
-    mutationFn: async () => {
-      const pickedPath = await pickDirectorySafely(projectQuery.data?.projectPath ?? undefined);
-      if (!pickedPath) {
-        return null;
-      }
-      return await openProjectAtPath(pickedPath);
-    },
-    onSuccess: (data) => {
-      if (!data) {
-        return;
-      }
-      queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
-      void queryClient.invalidateQueries({
-        queryKey: studioQueryKeys.projectRecents(recentsLimit),
-      });
-      setNotice({ kind: "success", message: ui.notices.projectOpened });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const openRecentProjectMutation = useMutation({
-    mutationFn: async (projectPath: string) => await openProjectAtPath(projectPath),
-    onSuccess: (data) => {
-      queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
-      void queryClient.invalidateQueries({
-        queryKey: studioQueryKeys.projectRecents(recentsLimit),
-      });
-      setNotice({ kind: "success", message: ui.notices.projectOpened });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const saveProjectMutation = useMutation({
-    mutationFn: async (saveAs: boolean) => {
-      let projectPath = projectQuery.data?.projectPath ?? undefined;
-      if (saveAs || !projectPath) {
-        projectPath =
-          (await pickDirectorySafely(projectQuery.data?.projectPath ?? undefined)) ?? undefined;
-      }
-      if (!projectPath) {
-        return null;
-      }
-      const nextProject = await engineApi.projectSave({
-        projectPath,
-        autoZoom: settingsForm.state.values.autoZoom,
-      });
-      return nextProject;
-    },
-    onSuccess: (nextProject) => {
-      if (!nextProject) {
-        return;
-      }
-      queryClient.setQueryData(studioQueryKeys.projectCurrent(), nextProject);
-      void queryClient.invalidateQueries({
-        queryKey: studioQueryKeys.projectRecents(recentsLimit),
-      });
-      setNotice({
-        kind: "success",
-        message: ui.notices.projectSaved(nextProject.projectPath ?? ui.labels.notSaved),
-      });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const exportMutation = useMutation({
-    mutationFn: async () => {
-      if (!recordingURL) {
-        throw new Error(ui.notices.exportMissingRecording);
-      }
-      if (!selectedPreset) {
-        throw new Error(ui.notices.exportMissingPreset);
-      }
-
-      const targetDirectory = await pickDirectorySafely(
-        projectQuery.data?.projectPath ?? undefined,
-      );
-      if (!targetDirectory) {
-        return null;
-      }
-
-      const extension = selectedPreset.fileType;
-      const safeFileName =
-        exportForm.state.values.fileName.trim().length > 0
-          ? exportForm.state.values.fileName.trim()
-          : "guerillaglass-export";
-
-      const outputURL = `${targetDirectory.replace(/[\\/]$/, "")}/${safeFileName}.${extension}`;
-      const trimStart =
-        exportForm.state.values.trimStartSeconds > 0
-          ? exportForm.state.values.trimStartSeconds
-          : undefined;
-      const trimEnd =
-        exportForm.state.values.trimEndSeconds > 0
-          ? exportForm.state.values.trimEndSeconds
-          : undefined;
-
-      return await engineApi.runExport({
-        outputURL,
-        presetId: selectedPreset.id,
-        trimStartSeconds: trimStart,
-        trimEndSeconds: trimEnd,
-      });
-    },
-    onSuccess: (result) => {
-      if (!result) {
-        return;
-      }
-      setNotice({ kind: "success", message: ui.notices.exportComplete(result.outputURL) });
-    },
-    onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
-    },
-  });
-
-  const busyMutations = [
+  const {
+    exportMutation,
+    isRefreshing,
+    isRunningAction,
+    openProjectMutation,
+    openRecentProjectMutation,
+    refreshAll,
     refreshMutation,
     requestPermissionMutation,
+    saveProjectMutation,
     startPreviewMutation,
     stopPreviewMutation,
     toggleRecordingMutation,
-    openProjectMutation,
-    openRecentProjectMutation,
-    saveProjectMutation,
-    exportMutation,
-  ];
+  } = useStudioActions({
+    queryClient,
+    ui,
+    mapActionErrorMessage,
+    setNotice,
+    setTimelinePlayback: setIsTimelinePlaying,
+    resetPlayhead: () => setPlayheadSeconds(0),
+    pickDirectorySafely,
+    selectedWindowId,
+    inputMonitoringDenied,
+    recordingURL,
+    selectedPreset,
+    recentsLimit,
+    settingsForm: settingsForm as unknown as SettingsFormApi,
+    exportForm: exportForm as unknown as ExportFormApi,
+    pingQuery,
+    permissionsQuery,
+    sourcesQuery,
+    captureStatusQuery,
+    exportInfoQuery,
+    projectQuery,
+    projectRecentsQuery,
+    eventsQuery,
+  });
 
-  const isRunningAction = busyMutations.some((mutation) => mutation.isPending);
-  const isRefreshing = refreshMutation.isPending || pingQuery.isPending;
   const recordingRequiredNotice = ui.helper.recordToEnableAction;
-
-  const setTimelineZoom = useCallback((nextZoomPercent: number) => {
-    setTimelineZoomPercent((current) =>
-      clamp(
-        Math.round(nextZoomPercent || current),
-        timelineZoomBounds.minPercent,
-        timelineZoomBounds.maxPercent,
-      ),
-    );
-  }, []);
-
-  const zoomTimelineIn = useCallback(() => {
-    setTimelineZoom(timelineZoomPercent + 25);
-  }, [setTimelineZoom, timelineZoomPercent]);
-
-  const zoomTimelineOut = useCallback(() => {
-    setTimelineZoom(timelineZoomPercent - 25);
-  }, [setTimelineZoom, timelineZoomPercent]);
-
-  const resetTimelineZoom = useCallback(() => {
-    setTimelineZoom(100);
-  }, [setTimelineZoom]);
-
-  const toggleTimelineSnap = useCallback(() => {
-    setTimelineSnapEnabled((current) => !current);
-  }, []);
-
-  const toggleTimelineRipple = useCallback(() => {
-    setTimelineRippleEnabled((current) => !current);
-  }, []);
-
-  const toggleLaneControl = useCallback(
-    (laneId: "video" | "audio", control: keyof TimelineLaneControlState) => {
-      setTimelineLaneControlState((current) => ({
-        ...current,
-        [laneId]: {
-          ...current[laneId],
-          [control]: !current[laneId][control],
-        },
-      }));
-    },
-    [],
-  );
-
-  const setAudioMixerGain = useCallback((target: "master" | "mic", gain: number) => {
-    const nextGain = clamp(gain, 0, 1);
-    setAudioMixer((current) => ({
-      ...current,
-      [target === "master" ? "masterGain" : "micGain"]: nextGain,
-    }));
-  }, []);
-
-  const toggleAudioMixerMuted = useCallback((target: "master" | "mic") => {
-    setAudioMixer((current) => ({
-      ...current,
-      [target === "master" ? "masterMuted" : "micMuted"]:
-        !current[target === "master" ? "masterMuted" : "micMuted"],
-    }));
-  }, []);
-
-  const setPlayheadSecondsClamped = useCallback(
-    (seconds: number) => {
-      setPlayheadSeconds(
-        clamp(snapToTimelineFrame(seconds, timelineSnapEnabled), 0, timelineDuration),
-      );
-    },
-    [timelineDuration, timelineSnapEnabled],
-  );
-
-  const setPlayheadSecondsFromMedia = useCallback(
-    (seconds: number) => {
-      setPlayheadSeconds(clamp(seconds, 0, timelineDuration));
-    },
-    [timelineDuration],
-  );
-
-  const setTimelinePlaybackActive = useCallback((isActive: boolean) => {
-    setIsTimelinePlaying(isActive);
-  }, []);
-
-  const setTrimStartSeconds = useCallback(
-    (seconds: number) => {
-      const nextTrimStart = clamp(
-        snapToTimelineFrame(seconds, timelineSnapEnabled),
-        0,
-        timelineDuration,
-      );
-      exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
-
-      const trimEndSeconds = exportForm.state.values.trimEndSeconds;
-      if (trimEndSeconds > 0 && nextTrimStart > trimEndSeconds) {
-        exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
-      }
-    },
-    [exportForm, timelineDuration, timelineSnapEnabled],
-  );
-
-  const setTrimEndSeconds = useCallback(
-    (seconds: number) => {
-      const nextTrimEnd = clamp(
-        snapToTimelineFrame(seconds, timelineSnapEnabled),
-        0,
-        timelineDuration,
-      );
-      exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
-
-      const trimStartSeconds = exportForm.state.values.trimStartSeconds;
-      if (trimStartSeconds > nextTrimEnd) {
-        exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
-      }
-    },
-    [exportForm, timelineDuration, timelineSnapEnabled],
-  );
-
-  const setTrimInFromPlayhead = useCallback(() => {
-    setTrimStartSeconds(boundedPlayheadSeconds);
-  }, [boundedPlayheadSeconds, setTrimStartSeconds]);
-
-  const setTrimOutFromPlayhead = useCallback(() => {
-    setTrimEndSeconds(boundedPlayheadSeconds);
-  }, [boundedPlayheadSeconds, setTrimEndSeconds]);
 
   const selectTimelineClip = useCallback(
     (params: {
@@ -1000,264 +395,58 @@ export function useStudioController() {
     setRawInspectorSelection(emptyInspectorSelection);
   }, []);
 
-  const nudgePlayheadSeconds = useCallback(
-    (deltaSeconds: number) => {
-      setPlayheadSeconds((current) =>
-        clamp(
-          snapToTimelineFrame(current + deltaSeconds, timelineSnapEnabled),
-          0,
-          timelineDuration,
-        ),
-      );
-    },
-    [timelineDuration, timelineSnapEnabled],
-  );
-
-  const toggleTimelinePlayback = useCallback(() => {
-    setIsTimelinePlaying((previous) => !previous);
-  }, []);
-
-  const setLeftPaneWidth = useCallback((widthPx: number) => {
-    setLayout((current) => {
-      const nextWidth = clamp(
-        Math.round(widthPx),
-        studioLayoutBounds.leftPaneMinWidthPx,
-        studioLayoutBounds.leftPaneMaxWidthPx,
-      );
-      if (current.leftPaneWidthPx === nextWidth && !current.leftCollapsed) {
-        return current;
-      }
-      return {
-        ...current,
-        leftPaneWidthPx: nextWidth,
-        leftCollapsed: false,
-      };
-    });
-  }, []);
-
-  const setRightPaneWidth = useCallback((widthPx: number) => {
-    setLayout((current) => {
-      const nextWidth = clamp(
-        Math.round(widthPx),
-        studioLayoutBounds.rightPaneMinWidthPx,
-        studioLayoutBounds.rightPaneMaxWidthPx,
-      );
-      if (current.rightPaneWidthPx === nextWidth && !current.rightCollapsed) {
-        return current;
-      }
-      return {
-        ...current,
-        rightPaneWidthPx: nextWidth,
-        rightCollapsed: false,
-      };
-    });
-  }, []);
-
-  const setTimelineHeight = useCallback((heightPx: number) => {
-    setLayout((current) => {
-      const nextHeight = clamp(
-        Math.round(heightPx),
-        studioLayoutBounds.timelineMinHeightPx,
-        studioLayoutBounds.timelineMaxHeightPx,
-      );
-      if (current.timelineHeightPx === nextHeight && !current.timelineCollapsed) {
-        return current;
-      }
-      return {
-        ...current,
-        timelineHeightPx: nextHeight,
-        timelineCollapsed: false,
-      };
-    });
-  }, []);
-
-  const toggleTimelineCollapsed = useCallback(() => {
-    setLayout((current) => ({
-      ...current,
-      timelineCollapsed: !current.timelineCollapsed,
-    }));
-  }, []);
-
-  const setTimelineCollapsed = useCallback((collapsed: boolean) => {
-    setLayout((current) => {
-      if (current.timelineCollapsed === collapsed) {
-        return current;
-      }
-      return {
-        ...current,
-        timelineCollapsed: collapsed,
-      };
-    });
-  }, []);
-
-  const toggleLeftPaneCollapsed = useCallback(() => {
-    setLayout((current) => ({
-      ...current,
-      leftCollapsed: !current.leftCollapsed,
-    }));
-  }, []);
-
-  const setLeftPaneCollapsed = useCallback((collapsed: boolean) => {
-    setLayout((current) => {
-      if (current.leftCollapsed === collapsed) {
-        return current;
-      }
-      return {
-        ...current,
-        leftCollapsed: collapsed,
-      };
-    });
-  }, []);
-
-  const toggleRightPaneCollapsed = useCallback(() => {
-    setLayout((current) => ({
-      ...current,
-      rightCollapsed: !current.rightCollapsed,
-    }));
-  }, []);
-
-  const setRightPaneCollapsed = useCallback((collapsed: boolean) => {
-    setLayout((current) => {
-      if (current.rightCollapsed === collapsed) {
-        return current;
-      }
-      return {
-        ...current,
-        rightCollapsed: collapsed,
-      };
-    });
-  }, []);
-
-  const setLastRoute = useCallback((route: string) => {
-    setLayout((current) => {
-      const nextRoute = normalizeStudioLayoutRoute(route);
-      if (current.lastRoute === nextRoute) {
-        return current;
-      }
-
-      const requiredPresetVersion = requiredLayoutPresetVersionForRoute(nextRoute);
-      const appliedPresetVersion = current.presetVersionByRoute[nextRoute] ?? 0;
-      const routePresetNeedsUpgrade = appliedPresetVersion < requiredPresetVersion;
-
-      if (current.presetRoutesApplied.includes(nextRoute) && !routePresetNeedsUpgrade) {
-        return {
-          ...current,
-          lastRoute: nextRoute,
-        };
-      }
-
-      const preset = dominantLayoutPresetForRoute(nextRoute);
-      return {
-        ...current,
-        ...preset,
-        lastRoute: nextRoute,
-        presetRoutesApplied: Array.from(new Set([...current.presetRoutesApplied, nextRoute])),
-        presetVersionByRoute: {
-          ...current.presetVersionByRoute,
-          [nextRoute]: requiredPresetVersion,
-        },
-      };
-    });
-  }, []);
-
-  const setLocale = useCallback((nextLocale: StudioLocale) => {
-    setLayout((current) => ({
-      ...current,
-      locale: nextLocale,
-    }));
-  }, []);
-
-  const setDensityMode = useCallback((nextDensityMode: StudioDensityMode) => {
-    setLayout((current) => {
-      if (current.densityMode === nextDensityMode) {
-        return current;
-      }
-      return {
-        ...current,
-        densityMode: nextDensityMode,
-      };
-    });
-  }, []);
-
-  const resetLayout = useCallback(() => {
-    setLayout((current) => {
-      const preset = dominantLayoutPresetForRoute(current.lastRoute);
-      return {
-        ...defaultStudioLayoutState,
-        ...preset,
-        lastRoute: current.lastRoute,
-        locale: current.locale,
-        densityMode: current.densityMode,
-        presetRoutesApplied: [current.lastRoute],
-        presetVersionByRoute: {
-          [current.lastRoute]: requiredLayoutPresetVersionForRoute(current.lastRoute),
-        },
-      };
-    });
-  }, []);
-
-  const refreshAll = useCallback(async () => {
-    await refreshMutation.mutateAsync();
-  }, [refreshMutation]);
-
-  const runHostCommand = useCallback(
-    (command: HostMenuCommand) => {
-      switch (command) {
-        case "app.refresh":
+  const runHostCommand = useMemo(
+    () =>
+      createHostCommandRunnerFromHandlers({
+        appRefresh: () => {
           void refreshMutation.mutateAsync();
-          break;
-        case "app.locale.enUS":
+        },
+        appLocaleEnUS: () => {
           setLocale("en-US");
-          break;
-        case "app.locale.deDE":
+        },
+        appLocaleDeDE: () => {
           setLocale("de-DE");
-          break;
-        case "capture.toggleRecording":
+        },
+        captureToggleRecording: () => {
           void toggleRecordingMutation.mutateAsync();
-          break;
-        case "capture.startPreview":
+        },
+        captureStartPreview: () => {
           void startPreviewMutation.mutateAsync();
-          break;
-        case "capture.stopPreview":
+        },
+        captureStopPreview: () => {
           void stopPreviewMutation.mutateAsync();
-          break;
-        case "timeline.playPause":
+        },
+        timelinePlayPause: () => {
           toggleTimelinePlayback();
-          break;
-        case "timeline.trimIn":
+        },
+        timelineTrimIn: () => {
           setTrimInFromPlayhead();
-          break;
-        case "timeline.trimOut":
+        },
+        timelineTrimOut: () => {
           setTrimOutFromPlayhead();
-          break;
-        case "timeline.togglePanel":
+        },
+        timelineTogglePanel: () => {
           toggleTimelineCollapsed();
-          break;
-        case "view.density.comfortable":
+        },
+        viewDensityComfortable: () => {
           setDensityMode("comfortable");
-          break;
-        case "view.density.compact":
+        },
+        viewDensityCompact: () => {
           setDensityMode("compact");
-          break;
-        case "file.openProject":
+        },
+        fileOpenProject: () => {
           void openProjectMutation.mutateAsync();
-          break;
-        case "file.saveProject":
+        },
+        fileSaveProject: () => {
           void saveProjectMutation.mutateAsync(false);
-          break;
-        case "file.saveProjectAs":
+        },
+        fileSaveProjectAs: () => {
           void saveProjectMutation.mutateAsync(true);
-          break;
-        case "file.export":
+        },
+        fileExport: () => {
           void exportMutation.mutateAsync();
-          break;
-        default: {
-          const _exhaustiveCheck: never = command;
-          void _exhaustiveCheck;
-          throw new Error("Unhandled host command");
-        }
-      }
-    },
+        },
+      }),
     [
       exportMutation,
       openProjectMutation,
@@ -1275,159 +464,20 @@ export function useStudioController() {
     ],
   );
 
-  useHotkey(
-    studioShortcuts.save.hotkey,
-    (event) => {
-      if (event.shiftKey) {
-        return;
-      }
-      event.preventDefault();
-      runHostCommand("file.saveProject");
-    },
-    {
-      ignoreInputs: false,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
+  const clearNotice = useCallback(() => {
+    setNotice(null);
+  }, []);
 
-  useHotkey(
-    studioShortcuts.saveAs.hotkey,
-    (event) => {
-      event.preventDefault();
-      runHostCommand("file.saveProjectAs");
-    },
-    {
-      ignoreInputs: false,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
-
-  useHotkey(
-    studioShortcuts.export.hotkey,
-    (event) => {
-      event.preventDefault();
-      runHostCommand("file.export");
-    },
-    {
-      ignoreInputs: false,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
-
-  useHotkey(
-    "Escape",
-    () => {
-      clearInspectorSelection();
-      setNotice(null);
-    },
-    { ignoreInputs: false },
-  );
-
-  useHotkey(
-    studioShortcuts.playPause.hotkey,
-    (event) => {
-      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      runHostCommand("timeline.playPause");
-    },
-    {
-      ignoreInputs: true,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
-
-  useHotkey(
-    studioShortcuts.record.hotkey,
-    (event) => {
-      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      runHostCommand("capture.toggleRecording");
-    },
-    {
-      ignoreInputs: true,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
-
-  useHotkey(
-    studioShortcuts.trimIn.hotkey,
-    (event) => {
-      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      runHostCommand("timeline.trimIn");
-    },
-    {
-      ignoreInputs: true,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
-
-  useHotkey(
-    studioShortcuts.trimOut.hotkey,
-    (event) => {
-      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      runHostCommand("timeline.trimOut");
-    },
-    {
-      ignoreInputs: true,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
-
-  useHotkey(
-    studioShortcuts.timelineBlade.hotkey,
-    (event) => {
-      if (!settingsForm.state.values.singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      setTimelineTool("blade");
-    },
-    {
-      ignoreInputs: true,
-      preventDefault: false,
-      stopPropagation: false,
-    },
-  );
+  useStudioHotkeys({
+    runHostCommand,
+    singleKeyShortcutsEnabled: settingsForm.state.values.singleKeyShortcutsEnabled,
+    clearInspectorSelection,
+    clearNotice,
+    setTimelineTool,
+  });
 
   useEffect(() => {
-    const menuStateSender = window.ggHostSendMenuState;
-    if (!menuStateSender) {
-      return;
-    }
-
-    menuStateSender({
+    sendHostMenuState({
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
