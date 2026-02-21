@@ -500,7 +500,7 @@ guerillaglass/
 │     │  ├─ bun/
 │     │  └─ mainview/
 │     ├─ tests/
-│     ├─ playwright/tests/
+│     │  └─ ui/
 │     ├─ electrobun.config.ts
 │     ├─ tailwind.config.mjs
 │     └─ vite.config.ts

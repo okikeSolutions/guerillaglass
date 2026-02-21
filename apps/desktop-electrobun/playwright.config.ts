@@ -2,7 +2,7 @@ import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./playwright/tests",
+  testDir: "./tests/ui",
   testMatch: "**/*.smoke.ts",
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
