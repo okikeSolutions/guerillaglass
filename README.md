@@ -70,6 +70,11 @@ bun run js:lint
 # TypeScript gate (oxfmt + oxlint + typecheck + desktop tests)
 bun run gate:typescript
 
+# Public/exported API docs coverage gates
+bun run docs:check
+bun run docs:check:ts
+bun run docs:check:native
+
 # Swift format/lint/test/build gate
 bun run gate
 
@@ -104,6 +109,7 @@ bun run desktop:test:ui
 ## Docs
 
 - Product spec: `/docs/SPEC.md`
+- Docs coverage thresholds: `/docs/doc_coverage_policy.json`
 - Hybrid architecture: `/docs/ARCHITECTURE.md`
 - Desktop accessibility + hotkey policy: `/docs/DESKTOP_ACCESSIBILITY.md`
 - Agent repo conventions: `/AGENTS.md`
