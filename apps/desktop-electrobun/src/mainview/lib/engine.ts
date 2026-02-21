@@ -18,155 +18,84 @@ import {
   type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import type { HostMenuState } from "../../shared/bridgeRpc";
+import type { HostMenuState, WindowBridgeBindings } from "../../shared/bridgeRpc";
 
-declare global {
-  interface Window {
-    ggEnginePing?: () => Promise<unknown>;
-    ggEngineGetPermissions?: () => Promise<unknown>;
-    ggEngineRequestScreenRecordingPermission?: () => Promise<unknown>;
-    ggEngineRequestMicrophonePermission?: () => Promise<unknown>;
-    ggEngineRequestInputMonitoringPermission?: () => Promise<unknown>;
-    ggEngineOpenInputMonitoringSettings?: () => Promise<unknown>;
-    ggEngineListSources?: () => Promise<unknown>;
-    ggEngineStartDisplayCapture?: (enableMic: boolean) => Promise<unknown>;
-    ggEngineStartWindowCapture?: (windowId: number, enableMic: boolean) => Promise<unknown>;
-    ggEngineStopCapture?: () => Promise<unknown>;
-    ggEngineStartRecording?: (trackInputEvents: boolean) => Promise<unknown>;
-    ggEngineStopRecording?: () => Promise<unknown>;
-    ggEngineCaptureStatus?: () => Promise<unknown>;
-    ggEngineExportInfo?: () => Promise<unknown>;
-    ggEngineRunExport?: (params: {
-      outputURL: string;
-      presetId: string;
-      trimStartSeconds?: number;
-      trimEndSeconds?: number;
-    }) => Promise<unknown>;
-    ggEngineProjectCurrent?: () => Promise<unknown>;
-    ggEngineProjectOpen?: (projectPath: string) => Promise<unknown>;
-    ggEngineProjectSave?: (params: {
-      projectPath?: string;
-      autoZoom?: AutoZoomSettings;
-    }) => Promise<unknown>;
-    ggEngineProjectRecents?: (limit?: number) => Promise<unknown>;
-    ggPickDirectory?: (startingFolder?: string) => Promise<string | null>;
-    ggReadTextFile?: (filePath: string) => Promise<string>;
-    ggHostSendMenuState?: (state: HostMenuState) => void;
-  }
-}
-
-function requireBridge<TArgs extends unknown[], TResult>(
-  bridge: ((...args: TArgs) => Promise<TResult>) | undefined,
-  name: string,
-): (...args: TArgs) => Promise<TResult> {
+function requireBridge<K extends keyof WindowBridgeBindings>(
+  name: K,
+): NonNullable<WindowBridgeBindings[K]> {
+  const bridgeWindow = window as Window & WindowBridgeBindings;
+  const bridge = bridgeWindow[name];
   if (!bridge) {
-    throw new Error(`Missing Electrobun bridge: ${name}`);
+    throw new Error(`Missing Electrobun bridge: ${String(name)}`);
   }
-  return bridge;
+  return bridge as NonNullable<WindowBridgeBindings[K]>;
 }
 
 export const engineApi = {
   async ping(): Promise<PingResult> {
-    return pingResultSchema.parse(await requireBridge(window.ggEnginePing, "ggEnginePing")());
+    return pingResultSchema.parse(await requireBridge("ggEnginePing")());
   },
 
   async getPermissions(): Promise<PermissionsResult> {
-    return permissionsResultSchema.parse(
-      await requireBridge(window.ggEngineGetPermissions, "ggEngineGetPermissions")(),
-    );
+    return permissionsResultSchema.parse(await requireBridge("ggEngineGetPermissions")());
   },
 
   async requestScreenRecordingPermission() {
     return actionResultSchema.parse(
-      await requireBridge(
-        window.ggEngineRequestScreenRecordingPermission,
-        "ggEngineRequestScreenRecordingPermission",
-      )(),
+      await requireBridge("ggEngineRequestScreenRecordingPermission")(),
     );
   },
 
   async requestMicrophonePermission() {
-    return actionResultSchema.parse(
-      await requireBridge(
-        window.ggEngineRequestMicrophonePermission,
-        "ggEngineRequestMicrophonePermission",
-      )(),
-    );
+    return actionResultSchema.parse(await requireBridge("ggEngineRequestMicrophonePermission")());
   },
 
   async requestInputMonitoringPermission() {
     return actionResultSchema.parse(
-      await requireBridge(
-        window.ggEngineRequestInputMonitoringPermission,
-        "ggEngineRequestInputMonitoringPermission",
-      )(),
+      await requireBridge("ggEngineRequestInputMonitoringPermission")(),
     );
   },
 
   async openInputMonitoringSettings() {
-    return actionResultSchema.parse(
-      await requireBridge(
-        window.ggEngineOpenInputMonitoringSettings,
-        "ggEngineOpenInputMonitoringSettings",
-      )(),
-    );
+    return actionResultSchema.parse(await requireBridge("ggEngineOpenInputMonitoringSettings")());
   },
 
   async listSources(): Promise<SourcesResult> {
-    return sourcesResultSchema.parse(
-      await requireBridge(window.ggEngineListSources, "ggEngineListSources")(),
-    );
+    return sourcesResultSchema.parse(await requireBridge("ggEngineListSources")());
   },
 
   async startDisplayCapture(enableMic: boolean): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge(
-        window.ggEngineStartDisplayCapture,
-        "ggEngineStartDisplayCapture",
-      )(enableMic),
+      await requireBridge("ggEngineStartDisplayCapture")(enableMic),
     );
   },
 
   async startWindowCapture(windowId: number, enableMic: boolean): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineStartWindowCapture, "ggEngineStartWindowCapture")(
-        windowId,
-        enableMic,
-      ),
+      await requireBridge("ggEngineStartWindowCapture")(windowId, enableMic),
     );
   },
 
   async stopCapture(): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineStopCapture, "ggEngineStopCapture")(),
-    );
+    return captureStatusResultSchema.parse(await requireBridge("ggEngineStopCapture")());
   },
 
   async startRecording(trackInputEvents: boolean): Promise<CaptureStatusResult> {
     return captureStatusResultSchema.parse(
-      await requireBridge(
-        window.ggEngineStartRecording,
-        "ggEngineStartRecording",
-      )(trackInputEvents),
+      await requireBridge("ggEngineStartRecording")(trackInputEvents),
     );
   },
 
   async stopRecording(): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineStopRecording, "ggEngineStopRecording")(),
-    );
+    return captureStatusResultSchema.parse(await requireBridge("ggEngineStopRecording")());
   },
 
   async captureStatus(): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge(window.ggEngineCaptureStatus, "ggEngineCaptureStatus")(),
-    );
+    return captureStatusResultSchema.parse(await requireBridge("ggEngineCaptureStatus")());
   },
 
   async exportInfo() {
-    return exportInfoResultSchema.parse(
-      await requireBridge(window.ggEngineExportInfo, "ggEngineExportInfo")(),
-    );
+    return exportInfoResultSchema.parse(await requireBridge("ggEngineExportInfo")());
   },
 
   async runExport(params: {
@@ -175,48 +104,46 @@ export const engineApi = {
     trimStartSeconds?: number;
     trimEndSeconds?: number;
   }) {
-    return exportRunResultSchema.parse(
-      await requireBridge(window.ggEngineRunExport, "ggEngineRunExport")(params),
-    );
+    return exportRunResultSchema.parse(await requireBridge("ggEngineRunExport")(params));
   },
 
   async projectCurrent(): Promise<ProjectState> {
-    return projectStateSchema.parse(
-      await requireBridge(window.ggEngineProjectCurrent, "ggEngineProjectCurrent")(),
-    );
+    return projectStateSchema.parse(await requireBridge("ggEngineProjectCurrent")());
   },
 
   async projectOpen(projectPath: string): Promise<ProjectState> {
-    return projectStateSchema.parse(
-      await requireBridge(window.ggEngineProjectOpen, "ggEngineProjectOpen")(projectPath),
-    );
+    return projectStateSchema.parse(await requireBridge("ggEngineProjectOpen")(projectPath));
   },
 
   async projectSave(params: {
     projectPath?: string;
     autoZoom?: AutoZoomSettings;
   }): Promise<ProjectState> {
-    return projectStateSchema.parse(
-      await requireBridge(window.ggEngineProjectSave, "ggEngineProjectSave")(params),
-    );
+    return projectStateSchema.parse(await requireBridge("ggEngineProjectSave")(params));
   },
 
   async projectRecents(limit?: number): Promise<ProjectRecentsResult> {
-    return projectRecentsResultSchema.parse(
-      await requireBridge(window.ggEngineProjectRecents, "ggEngineProjectRecents")(limit),
-    );
+    return projectRecentsResultSchema.parse(await requireBridge("ggEngineProjectRecents")(limit));
   },
 };
 
 export const desktopApi = {
   async pickDirectory(startingFolder?: string): Promise<string | null> {
-    return await requireBridge(window.ggPickDirectory, "ggPickDirectory")(startingFolder);
+    return await requireBridge("ggPickDirectory")(startingFolder);
   },
 
   async readTextFile(filePath: string): Promise<string> {
-    return await requireBridge(window.ggReadTextFile, "ggReadTextFile")(filePath);
+    return await requireBridge("ggReadTextFile")(filePath);
   },
 };
+
+export function sendHostMenuState(state: HostMenuState): void {
+  const sender = (window as Window & WindowBridgeBindings).ggHostSendMenuState;
+  if (!sender) {
+    return;
+  }
+  sender(state);
+}
 
 export function parseInputEventLog(raw: string): InputEvent[] {
   const parsed = JSON.parse(raw) as unknown;

@@ -6,13 +6,13 @@ import Electrobun, {
   Updater,
   Utils,
 } from "electrobun/bun";
-import type { AutoZoomSettings } from "@guerillaglass/engine-protocol";
 import { EngineClient } from "./engineClient";
 import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../shared/bridgeRpc";
 import { extractMenuAction } from "./menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "./menu/builders";
 import { routeMenuAction } from "./menu/router";
 import { readAllowedTextFile } from "./fileAccess";
+import { createEngineBridgeHandlers } from "./bridgeHandlers";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -138,58 +138,14 @@ try {
 
 const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
   handlers: {
-    requests: {
-      ggEnginePing: async () => engineClient.ping(),
-      ggEngineGetPermissions: async () => engineClient.getPermissions(),
-      ggEngineRequestScreenRecordingPermission: async () =>
-        engineClient.requestScreenRecordingPermission(),
-      ggEngineRequestMicrophonePermission: async () => engineClient.requestMicrophonePermission(),
-      ggEngineRequestInputMonitoringPermission: async () =>
-        engineClient.requestInputMonitoringPermission(),
-      ggEngineOpenInputMonitoringSettings: async () => engineClient.openInputMonitoringSettings(),
-      ggEngineListSources: async () => engineClient.listSources(),
-      ggEngineStartDisplayCapture: async ({ enableMic }: { enableMic: boolean }) =>
-        engineClient.startDisplayCapture(enableMic),
-      ggEngineStartWindowCapture: async ({
-        windowId,
-        enableMic,
-      }: {
-        windowId: number;
-        enableMic: boolean;
-      }) => engineClient.startWindowCapture(windowId, enableMic),
-      ggEngineStopCapture: async () => engineClient.stopCapture(),
-      ggEngineStartRecording: async ({ trackInputEvents }: { trackInputEvents: boolean }) =>
-        engineClient.startRecording(trackInputEvents),
-      ggEngineStopRecording: async () => engineClient.stopRecording(),
-      ggEngineCaptureStatus: async () => engineClient.captureStatus(),
-      ggEngineExportInfo: async () => engineClient.exportInfo(),
-      ggEngineRunExport: async (params: {
-        outputURL: string;
-        presetId: string;
-        trimStartSeconds?: number;
-        trimEndSeconds?: number;
-      }) => engineClient.runExport(params),
-      ggEngineProjectCurrent: async () => {
-        const projectState = await engineClient.projectCurrent();
-        currentProjectPath = projectState.projectPath;
-        return projectState;
+    requests: createEngineBridgeHandlers({
+      engineClient,
+      pickDirectory,
+      readTextFile,
+      setCurrentProjectPath: (projectPath) => {
+        currentProjectPath = projectPath;
       },
-      ggEngineProjectOpen: async ({ projectPath }: { projectPath: string }) =>
-        engineClient.projectOpen(projectPath).then((projectState) => {
-          currentProjectPath = projectState.projectPath;
-          return projectState;
-        }),
-      ggEngineProjectSave: async (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) =>
-        engineClient.projectSave(params).then((projectState) => {
-          currentProjectPath = projectState.projectPath;
-          return projectState;
-        }),
-      ggEngineProjectRecents: async ({ limit }: { limit?: number }) =>
-        engineClient.projectRecents(limit),
-      ggPickDirectory: async ({ startingFolder }: { startingFolder?: string }) =>
-        pickDirectory(startingFolder),
-      ggReadTextFile: async ({ filePath }: { filePath: string }) => readTextFile(filePath),
-    },
+    }),
     messages: {
       hostMenuState: (nextState: HostMenuState) => {
         updateHostMenuState({ ...hostMenuState, ...nextState });
