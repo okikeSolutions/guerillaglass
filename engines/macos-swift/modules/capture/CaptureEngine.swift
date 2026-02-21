@@ -23,7 +23,17 @@ public final class CaptureEngine: NSObject, ObservableObject {
         self?.handleAudioBuffer(buffer, time: time)
     }
 
+    typealias ShareableWindowsProvider = @Sendable () async throws -> [SCWindow]
+
     var windowsByID: [CGWindowID: SCWindow] = [:]
+    var shareableWindowsProvider: ShareableWindowsProvider = {
+        let content = try await SCShareableContent.excludingDesktopWindows(
+            true,
+            onScreenWindowsOnly: true
+        )
+        return content.windows
+    }
+
     var captureFrameRate: Int = CaptureFrameRatePolicy.defaultValue
     var recordingState = RecordingState()
     @MainActor private var pickerContinuation: CheckedContinuation<SCContentFilter, Error>?

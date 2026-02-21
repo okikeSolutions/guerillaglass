@@ -37,6 +37,7 @@
     "coverage:typescript": "bun run desktop:test:coverage",
     "coverage:rust": "./Scripts/rust_coverage.sh",
     "coverage:swift": "./Scripts/swift_coverage.sh",
+    "coverage:check": "./Scripts/coverage_check.sh",
     "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
   },
   "devDependencies": {
