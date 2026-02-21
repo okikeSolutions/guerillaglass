@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { captureTargetLabelFromMetadata } from "../src/mainview/app/routes/captureTargetLabel";
+import { formatCaptureTargetLabelFromMetadata } from "../src/mainview/app/studio/model/captureTargetLabelFormatter";
 
 const formatInteger = (value: number): string => String(Math.trunc(value));
 
 describe("capture target label", () => {
   test("returns null when metadata is unavailable", () => {
     expect(
-      captureTargetLabelFromMetadata({
+      formatCaptureTargetLabelFromMetadata({
         metadata: null,
         displayLabel: "Display",
         windowLabel: "Window",
@@ -18,7 +18,7 @@ describe("capture target label", () => {
 
   test("formats display metadata", () => {
     expect(
-      captureTargetLabelFromMetadata({
+      formatCaptureTargetLabelFromMetadata({
         metadata: {
           source: "display",
           window: null,
@@ -35,7 +35,7 @@ describe("capture target label", () => {
 
   test("formats window metadata with identity and dimensions", () => {
     expect(
-      captureTargetLabelFromMetadata({
+      formatCaptureTargetLabelFromMetadata({
         metadata: {
           source: "window",
           window: { id: 42, appName: "Xcode", title: "Simulator" },
@@ -52,7 +52,7 @@ describe("capture target label", () => {
 
   test("falls back to generic window label when identity is missing", () => {
     expect(
-      captureTargetLabelFromMetadata({
+      formatCaptureTargetLabelFromMetadata({
         metadata: {
           source: "window",
           window: null,

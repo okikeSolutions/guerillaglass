@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { EngineClient } from "../src/bun/engineClient";
+import { EngineClient } from "../src/bun/engine/client";
 
 type EngineFixture = {
   name: string;

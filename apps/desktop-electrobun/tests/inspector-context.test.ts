@@ -4,7 +4,7 @@ import {
   normalizeInspectorSelection,
   resolveInspectorView,
   selectionFromPreset,
-} from "../src/mainview/app/studio/inspectorContext";
+} from "../src/mainview/app/studio/model/inspectorSelectionModel";
 
 describe("inspector context", () => {
   test("resolves default inspector labels by mode", () => {

@@ -4,7 +4,7 @@ import {
   buildModeItems,
   buildTelemetryBadges,
   buildUtilityActions,
-} from "../src/mainview/app/routes/StudioShellHeader";
+} from "../src/mainview/app/studio/layout/StudioShellHeader";
 
 type HeaderStudio = Parameters<typeof buildTelemetryBadges>[0];
 

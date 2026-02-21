@@ -6,7 +6,7 @@ import {
   studioIconToneClass,
   studioToggleToneClass,
   studioToneClass,
-} from "../src/mainview/app/routes/studioSemanticTone";
+} from "../src/mainview/app/studio/model/studioSemanticTone";
 
 describe("studio semantic tones", () => {
   test("maps semantic states to stable token classes", () => {
