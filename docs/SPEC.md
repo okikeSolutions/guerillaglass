@@ -1,4 +1,4 @@
-# Spec.md — guerillglass (Open-source Cross-Platform Creator Recorder & Editor)
+# Spec.md — Guerilla Glass (Open-source Cross-Platform Creator Recorder & Editor)
 
 ## 1) Goal
 
@@ -170,6 +170,7 @@ Notes:
 - Trim in/out
 - Preview playback + scrubber + playback speed control
 - In `Edit`, the media element is the playback clock authority; transport/timeline state mirrors media play/pause/time events to avoid dual-clock drift.
+- Media source/waveform hydration should follow query-driven loading/caching flows instead of effect-chained state updates.
 - Timeline tool discipline (`Select` / `Trim` / `Blade`) with snap/ripple toggles
 - Timeline zoom controls and per-lane lock/mute/solo controls
 
@@ -224,6 +225,7 @@ Creator Studio implementation requirements:
 - Right inspector is contextual (`capture`, `effects`, `export`, `project`) and selection-aware.
 - Bottom timeline is always present and treated as a first-class editing surface.
 - Capture onboarding and permission prompts must be integrated into the workflow without turning the shell into a diagnostics dashboard.
+- Renderer effects hygiene: avoid direct state updates in effects for derivable/query-backed state; prefer query/memoized/controller-derived data flows.
 - Project lifecycle remains first-class in shell:
   - open existing project
   - save/save as

@@ -1,6 +1,6 @@
-# Contributing to guerillaglass
+# Contributing to Guerilla Glass
 
-Thanks for your interest in contributing. Guerillaglass is a cross-platform creator recorder/editor with a hybrid setup: Electrobun desktop shell + native per-OS engines behind a shared protocol.
+Thanks for your interest in contributing. Guerilla Glass is a cross-platform creator recorder/editor with a hybrid setup: Electrobun desktop shell + native per-OS engines behind a shared protocol.
 
 ## Product direction
 - Professional creator workflow: `Record -> Edit -> Deliver`
@@ -14,8 +14,9 @@ Thanks for your interest in contributing. Guerillaglass is a cross-platform crea
 - macOS 13.0+ (required for full native macOS capture/export flow and full gate)
 
 ## Build
-```
-swift build
+```bash
+bun run swift:build
+bun run desktop:build
 ```
 
 ## Run desktop shell
@@ -33,8 +34,15 @@ bun run desktop:build
 - Microphone access is required when mic capture is enabled.
 
 ## Test
+```bash
+bun run gate
 ```
-swift test
+
+For narrower iteration:
+
+```bash
+bun run swift:test
+bun run desktop:test
 ```
 
 ## Style

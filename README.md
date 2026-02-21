@@ -1,6 +1,6 @@
-# guerillaglass
+# Guerilla Glass
 
-Guerillaglass is an open-source, cross-platform creator recorder/editor with cinematic automation.
+Guerilla Glass is an open-source, cross-platform creator recorder/editor with cinematic automation.
 
 North star:
 

@@ -1,5 +1,13 @@
 # You Might Not Need an Effect
 
+## Repository policy note
+
+For this repository, effect hygiene is enforced in CI/local linting:
+
+- Prefer query/controller-derived state for async data flows.
+- Avoid direct React state updates inside effects when state can be derived during render or via query cache updates.
+- Run `bun run js:lint:react-effects` (or `bun run js:lint`) to apply the guard in `Scripts/lint_no_state_updates_in_effect.mjs`.
+
 Source: [https://react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect)
 
 Effects are an escape hatch from the React paradigm. They let you “step outside” of React and synchronize your components with some external system like a non-React widget, network, or the browser DOM. If there is no external system involved (for example, if you want to update a component’s state when some props or state change), you shouldn’t need an Effect. Removing unnecessary Effects will make your code easier to follow, faster to run, and less error-prone.

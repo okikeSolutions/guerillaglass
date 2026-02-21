@@ -1,6 +1,6 @@
-# Guerillaglass Desktop (Electrobun)
+# Guerilla Glass Desktop (Electrobun)
 
-This app is the new desktop shell for Guerillaglass using Electrobun + React + Tailwind + shadcn base components.
+This app is the new desktop shell for Guerilla Glass using Electrobun + React + Tailwind + shadcn base components.
 
 It talks to the native Swift engine (`guerillaglass-engine`) over stdio with a typed protocol defined in `/packages/engine-protocol`.
 

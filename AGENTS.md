@@ -37,6 +37,8 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
   Runs `oxfmt --check` on workspace JS/TS code.
 - **JS/TS lint:** `bun run js:lint`  
   Runs `oxlint -c oxlint.config.mjs --deny-warnings --type-aware` with the repo’s strict Oxlint config (including React Hooks checks).
+- **React effect guard lint:** `bun run js:lint:react-effects`  
+  Runs the custom guard that rejects direct React state updates in effects (`Scripts/lint_no_state_updates_in_effect.mjs`).
 - **TypeScript gate (format + lint + typecheck + tests):** `bun run gate:typescript`  
   Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → desktop shell typecheck → protocol package typecheck → desktop tests.
 - **Full gate (rust + typescript + swift):** `bun run gate`  
