@@ -19,7 +19,7 @@ import {
   Video,
 } from "lucide-react";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,72 @@ function localizeTelemetryHealthReason(
   }
 }
 
+function HeaderIconBadge({
+  tone,
+  srLabel,
+  tooltip,
+  children,
+}: {
+  tone: Parameters<typeof studioBadgeToneClass>[0];
+  srLabel: string;
+  tooltip: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Badge
+            className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass(tone)}`}
+            variant="outline"
+          />
+        }
+      >
+        {children}
+        <span className="sr-only">{srLabel}</span>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function HeaderIconButton({
+  onClick,
+  disabled,
+  title,
+  srLabel,
+  tooltip,
+  icon,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  srLabel: string;
+  tooltip: ReactNode;
+  icon: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="outline"
+            className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+          />
+        }
+      >
+        {icon}
+        <span className="sr-only">{srLabel}</span>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function StudioShellLayout() {
   const studio = useStudio();
   const navigate = useNavigate();
@@ -105,6 +171,68 @@ export function StudioShellLayout() {
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
+  const modeItems = [
+    {
+      route: "/capture" as const,
+      to: "/$locale/capture" as const,
+      label: studio.ui.modes.capture,
+      icon: Video,
+      active: captureActive,
+    },
+    {
+      route: "/edit" as const,
+      to: "/$locale/edit" as const,
+      label: studio.ui.modes.edit,
+      icon: Scissors,
+      active: editActive,
+    },
+    {
+      route: "/deliver" as const,
+      to: "/$locale/deliver" as const,
+      label: studio.ui.modes.deliver,
+      icon: HardDriveDownload,
+      active: deliverActive,
+    },
+  ];
+  const telemetryBadges = [
+    {
+      id: "status",
+      tone: "neutral" as const,
+      srLabel: studio.ui.labels.status,
+      tooltip: `${studio.ui.labels.status}: ${studio.captureStatusLabel}`,
+      icon: <CircleDot className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "duration",
+      tone: "neutral" as const,
+      srLabel: studio.ui.labels.duration,
+      tooltip: `${studio.ui.labels.duration}: ${studio.formatDuration(
+        studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+      )}`,
+      icon: <Clock3 className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "dropped-frames",
+      tone: "neutral" as const,
+      srLabel: studio.ui.labels.droppedFrames,
+      tooltip: `${studio.ui.labels.droppedFrames}: ${telemetryDroppedFrames}`,
+      icon: <Activity className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "audio-level",
+      tone: "neutral" as const,
+      srLabel: studio.ui.labels.audioLevel,
+      tooltip: `${studio.ui.labels.audioLevel}: ${telemetryAudioLevel}`,
+      icon: <AudioLines className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "health",
+      tone: telemetryHealthTone,
+      srLabel: studio.ui.labels.health,
+      tooltip: `${studio.ui.labels.health}: ${telemetryHealthReason ?? telemetryHealthLabel}`,
+      icon: <ShieldCheck className={`h-3.5 w-3.5 ${studioIconToneClass(telemetryHealthTone)}`} />,
+    },
+  ];
   const shortcutPlatform = normalizeShortcutDisplayPlatform(
     typeof navigator === "undefined"
       ? undefined
@@ -112,6 +240,72 @@ export function StudioShellLayout() {
           navigator.platform ??
           navigator.userAgent),
   );
+  const utilityActions = [
+    {
+      id: "refresh",
+      onClick: () => void studio.refreshAll(),
+      disabled: studio.isRunningAction || studio.isRefreshing,
+      srLabel: studio.ui.actions.refresh,
+      tooltip: studio.ui.actions.refresh,
+      icon: <RefreshCcw className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "save",
+      onClick: () => void studio.saveProjectMutation.mutateAsync(false),
+      disabled: studio.isRunningAction || !studio.recordingURL,
+      title: recordingActionDisabledReason,
+      srLabel: studio.ui.actions.saveProject,
+      tooltip: (
+        <ShortcutHint
+          label={studio.ui.actions.saveProject}
+          keys={studioShortcutDisplayTokens("save", { platform: shortcutPlatform })}
+        />
+      ),
+      icon: <Save className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "export",
+      onClick: () => void studio.exportMutation.mutateAsync(),
+      disabled: studio.isRunningAction || !studio.recordingURL,
+      title: recordingActionDisabledReason,
+      srLabel: studio.ui.actions.exportNow,
+      tooltip: (
+        <ShortcutHint
+          label={studio.ui.actions.exportNow}
+          keys={studioShortcutDisplayTokens("export", { platform: shortcutPlatform })}
+        />
+      ),
+      icon: <HardDriveDownload className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "toggle-left-pane",
+      onClick: studio.toggleLeftPaneCollapsed,
+      srLabel: studio.ui.actions.toggleLeftPane,
+      tooltip: studio.ui.actions.toggleLeftPane,
+      icon: <PanelLeftClose className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "toggle-right-pane",
+      onClick: studio.toggleRightPaneCollapsed,
+      srLabel: studio.ui.actions.toggleRightPane,
+      tooltip: studio.ui.actions.toggleRightPane,
+      icon: <PanelRightClose className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "toggle-timeline",
+      onClick: studio.toggleTimelineCollapsed,
+      srLabel: studio.ui.actions.toggleTimeline,
+      tooltip: studio.ui.actions.toggleTimeline,
+      icon: <SplitSquareVertical className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+    {
+      id: "reset-layout",
+      onClick: studio.resetLayout,
+      srLabel: studio.ui.actions.resetLayout,
+      tooltip: studio.ui.actions.resetLayout,
+      icon: <LayoutPanelTop className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    },
+  ];
 
   useEffect(() => {
     if (activeLocale === studio.locale) {
@@ -137,63 +331,27 @@ export function StudioShellLayout() {
               <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-start">
                 <h1 className="mr-2 text-sm font-semibold tracking-tight">{studio.ui.app.title}</h1>
                 <ButtonGroup className="gg-toolbar-group gap-1 rounded-lg border p-1">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Link
-                          to="/$locale/capture"
-                          params={{ locale: activeLocale }}
-                          className={modeIconClass(captureActive)}
-                          aria-current={captureActive ? "page" : undefined}
-                          onClick={() => setLastRoute("/capture")}
+                  {modeItems.map((item) => (
+                    <Tooltip key={item.route}>
+                      <TooltipTrigger
+                        render={
+                          <Link
+                            to={item.to}
+                            params={{ locale: activeLocale }}
+                            className={modeIconClass(item.active)}
+                            aria-current={item.active ? "page" : undefined}
+                            onClick={() => setLastRoute(item.route)}
+                          />
+                        }
+                      >
+                        <item.icon
+                          className={`h-3.5 w-3.5 ${studioIconToneClass(item.active ? "selected" : "neutral")}`}
                         />
-                      }
-                    >
-                      <Video
-                        className={`h-3.5 w-3.5 ${studioIconToneClass(captureActive ? "selected" : "neutral")}`}
-                      />
-                      <span className="sr-only">{studio.ui.modes.capture}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{studio.ui.modes.capture}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Link
-                          to="/$locale/edit"
-                          params={{ locale: activeLocale }}
-                          className={modeIconClass(editActive)}
-                          aria-current={editActive ? "page" : undefined}
-                          onClick={() => setLastRoute("/edit")}
-                        />
-                      }
-                    >
-                      <Scissors
-                        className={`h-3.5 w-3.5 ${studioIconToneClass(editActive ? "selected" : "neutral")}`}
-                      />
-                      <span className="sr-only">{studio.ui.modes.edit}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{studio.ui.modes.edit}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Link
-                          to="/$locale/deliver"
-                          params={{ locale: activeLocale }}
-                          className={modeIconClass(deliverActive)}
-                          aria-current={deliverActive ? "page" : undefined}
-                          onClick={() => setLastRoute("/deliver")}
-                        />
-                      }
-                    >
-                      <HardDriveDownload
-                        className={`h-3.5 w-3.5 ${studioIconToneClass(deliverActive ? "selected" : "neutral")}`}
-                      />
-                      <span className="sr-only">{studio.ui.modes.deliver}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{studio.ui.modes.deliver}</TooltipContent>
-                  </Tooltip>
+                        <span className="sr-only">{item.label}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>{item.label}</TooltipContent>
+                    </Tooltip>
+                  ))}
                 </ButtonGroup>
               </div>
 
@@ -265,82 +423,16 @@ export function StudioShellLayout() {
                 </ButtonGroup>
 
                 <div className="gg-toolbar-group flex items-center gap-1 rounded-lg border p-1">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Badge
-                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
-                          variant="outline"
-                        />
-                      }
+                  {telemetryBadges.map((badge) => (
+                    <HeaderIconBadge
+                      key={badge.id}
+                      tone={badge.tone}
+                      srLabel={badge.srLabel}
+                      tooltip={badge.tooltip}
                     >
-                      <CircleDot className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />
-                      <span className="sr-only">{studio.ui.labels.status}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Badge
-                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
-                          variant="outline"
-                        />
-                      }
-                    >
-                      <Clock3 className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />
-                      <span className="sr-only">{studio.ui.labels.duration}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {`${studio.ui.labels.duration}: ${studio.formatDuration(
-                        studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
-                      )}`}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Badge
-                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
-                          variant="outline"
-                        />
-                      }
-                    >
-                      <Activity className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />
-                      <span className="sr-only">{studio.ui.labels.droppedFrames}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{`${studio.ui.labels.droppedFrames}: ${telemetryDroppedFrames}`}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Badge
-                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("neutral")}`}
-                          variant="outline"
-                        />
-                      }
-                    >
-                      <AudioLines className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />
-                      <span className="sr-only">{studio.ui.labels.audioLevel}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{`${studio.ui.labels.audioLevel}: ${telemetryAudioLevel}`}</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Badge
-                          className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass(telemetryHealthTone)}`}
-                          variant="outline"
-                        />
-                      }
-                    >
-                      <ShieldCheck
-                        className={`h-3.5 w-3.5 ${studioIconToneClass(telemetryHealthTone)}`}
-                      />
-                      <span className="sr-only">{studio.ui.labels.health}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{`${studio.ui.labels.health}: ${telemetryHealthReason ?? telemetryHealthLabel}`}</TooltipContent>
-                  </Tooltip>
+                      {badge.icon}
+                    </HeaderIconBadge>
+                  ))}
                 </div>
               </div>
 
@@ -390,137 +482,17 @@ export function StudioShellLayout() {
                   </Tooltip>
                 ) : null}
 
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={() => void studio.refreshAll()}
-                        disabled={studio.isRunningAction || studio.isRefreshing}
-                      />
-                    }
-                  >
-                    <RefreshCcw className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.refresh}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.refresh}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={() => void studio.saveProjectMutation.mutateAsync(false)}
-                        disabled={studio.isRunningAction || !studio.recordingURL}
-                        title={recordingActionDisabledReason}
-                      />
-                    }
-                  >
-                    <Save className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.saveProject}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <ShortcutHint
-                      label={studio.ui.actions.saveProject}
-                      keys={studioShortcutDisplayTokens("save", {
-                        platform: shortcutPlatform,
-                      })}
-                    />
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={() => void studio.exportMutation.mutateAsync()}
-                        disabled={studio.isRunningAction || !studio.recordingURL}
-                        title={recordingActionDisabledReason}
-                      />
-                    }
-                  >
-                    <HardDriveDownload className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.exportNow}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <ShortcutHint
-                      label={studio.ui.actions.exportNow}
-                      keys={studioShortcutDisplayTokens("export", {
-                        platform: shortcutPlatform,
-                      })}
-                    />
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={studio.toggleLeftPaneCollapsed}
-                      />
-                    }
-                  >
-                    <PanelLeftClose className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.toggleLeftPane}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.toggleLeftPane}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={studio.toggleRightPaneCollapsed}
-                      />
-                    }
-                  >
-                    <PanelRightClose className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.toggleRightPane}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.toggleRightPane}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={studio.toggleTimelineCollapsed}
-                      />
-                    }
-                  >
-                    <SplitSquareVertical className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.toggleTimeline}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.toggleTimeline}</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-                        onClick={studio.resetLayout}
-                      />
-                    }
-                  >
-                    <LayoutPanelTop className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.resetLayout}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{studio.ui.actions.resetLayout}</TooltipContent>
-                </Tooltip>
+                {utilityActions.map((action) => (
+                  <HeaderIconButton
+                    key={action.id}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                    title={action.title}
+                    srLabel={action.srLabel}
+                    tooltip={action.tooltip}
+                    icon={action.icon}
+                  />
+                ))}
               </div>
             </div>
           </TooltipProvider>
