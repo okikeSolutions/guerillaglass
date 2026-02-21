@@ -6,6 +6,7 @@ type BridgeHandlerDependencies = {
   engineClient: EngineClient;
   pickDirectory: (startingFolder?: string) => Promise<string | null>;
   readTextFile: (filePath: string) => Promise<string>;
+  resolveMediaSourceURL: (filePath: string) => Promise<string>;
   setCurrentProjectPath: (projectPath: string | null) => void;
 };
 
@@ -13,6 +14,7 @@ export function createEngineBridgeHandlers({
   engineClient,
   pickDirectory,
   readTextFile,
+  resolveMediaSourceURL,
   setCurrentProjectPath,
 }: BridgeHandlerDependencies): BridgeRequestHandlerMap {
   return createBunBridgeHandlers({
@@ -54,5 +56,6 @@ export function createEngineBridgeHandlers({
     ggEngineProjectRecents: async ({ limit }) => engineClient.projectRecents(limit),
     ggPickDirectory: async ({ startingFolder }) => pickDirectory(startingFolder),
     ggReadTextFile: async ({ filePath }) => readTextFile(filePath),
+    ggResolveMediaSourceURL: async ({ filePath }) => resolveMediaSourceURL(filePath),
   });
 }

@@ -16,6 +16,7 @@ import { captureTargetLabelFromMetadata } from "./captureTargetLabel";
 import { EditorWorkspace } from "./EditorWorkspace";
 import { InspectorPanel } from "./InspectorPanel";
 import { TimelineDock } from "./TimelineDock";
+import { useRecordingMediaSource } from "./useRecordingMediaSource";
 import {
   StudioPane,
   StudioPaneBody,
@@ -27,6 +28,7 @@ import {
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
+  const recordingMediaSource = useRecordingMediaSource(studio.recordingURL);
   const activeCaptureMetadata = studio.captureStatusQuery.data?.captureMetadata;
   const selectedWindow = studio.windowChoices.find(
     (windowItem) => windowItem.id === studio.selectedWindowId,
@@ -220,13 +222,22 @@ export function CaptureRoute() {
               <div className="gg-preview-stage-wrap">
                 <AspectRatio ratio={16 / 9} className="h-full w-full">
                   <div className="gg-preview-stage">
-                    {studio.captureStatusQuery.data?.isRunning ? (
+                    {studio.captureStatusQuery.data?.isRecording ? (
                       <div className="space-y-2 text-center">
                         <p className="text-sm font-medium">{studio.ui.helper.activePreviewTitle}</p>
                         <p className="text-xs text-muted-foreground">
                           {studio.ui.helper.activePreviewBody}
                         </p>
                       </div>
+                    ) : recordingMediaSource ? (
+                      <video
+                        key={recordingMediaSource}
+                        src={recordingMediaSource}
+                        className="h-full w-full rounded-md object-contain"
+                        preload="metadata"
+                        controls
+                        playsInline
+                      />
                     ) : (
                       <Empty className="max-w-lg border-0 bg-transparent p-6">
                         <EmptyHeader>

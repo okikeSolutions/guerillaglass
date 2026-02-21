@@ -34,7 +34,17 @@ North star:
 Renderer hardening (current):
 
 - Desktop bridge text file reads are restricted to `.json` files under the active project directory or OS temp directories.
+- Desktop bridge media source resolution is restricted to known video extensions (`.mov`, `.mp4`, `.m4v`, `.webm`) under the active project directory or OS temp directories.
 - Renderer HTML ships with a restrictive Content Security Policy.
+
+Playback transport hardening (current):
+
+- Local recordings are served through an in-process loopback media server (`http://127.0.0.1:<port>/media/<token>`) instead of direct `file://` playback.
+- Media URLs are tokenized with ephemeral UUID path segments and TTL/size-pruned in-memory token storage.
+- Media server bind strategy prefers OS-assigned ephemeral binding (`port: 0`) and falls back to reserved loopback ephemeral ports with collision retries.
+- The media route supports `GET`/`HEAD` with byte-range responses (`206` / `416`) for scrub/seek behavior.
+- Only allowlisted non-file pass-through schemes are accepted (`stub`).
+- Requests are restricted to loopback hostnames and include defensive response headers (`no-store`, `nosniff`, no-referrer).
 
 ## Engine Client Reliability Policy
 
