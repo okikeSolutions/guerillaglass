@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Run documentation coverage gate (TypeScript surfaces)
+        run: bun run docs:check:ts
+
       - name: Run TypeScript gate
         run: bun run gate:typescript
 

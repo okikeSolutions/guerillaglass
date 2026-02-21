@@ -8,7 +8,7 @@
   "scripts": {
     "gate": "./Scripts/full_gate.sh",
     "gate:rust": "./Scripts/rust_gate.sh",
-    "gate:typescript": "bun run js:format:check && bun run js:lint && bun run desktop:typecheck && bun run protocol:typecheck && bun run desktop:test",
+    "gate:typescript": "bun run js:format:check && bun run js:lint && bun run docs:check:ts && bun run desktop:typecheck && bun run protocol:typecheck && bun run desktop:test",
     "js:format": "bunx oxfmt --write apps packages",
     "js:format:check": "bunx oxfmt --check apps packages",
     "js:lint": "bunx oxlint -c oxlint.config.mjs --deny-warnings --type-aware apps packages && bun run js:lint:react-effects",
@@ -33,6 +33,9 @@
     "desktop:test:ui:headed": "cd apps/desktop-electrobun && bun run test:ui:headed",
     "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
     "protocol:typecheck": "cd packages/engine-protocol && bun run typecheck",
+    "docs:check": "bun ./Scripts/docs_gate.mjs",
+    "docs:check:ts": "bun ./Scripts/docs_gate.mjs --scope=ts",
+    "docs:check:native": "bun ./Scripts/docs_gate.mjs --scope=native",
     "coverage": "./Scripts/coverage.sh",
     "coverage:typescript": "bun run desktop:test:coverage",
     "coverage:rust": "./Scripts/rust_coverage.sh",

@@ -12,6 +12,9 @@ bun run js:format:check
 echo "==> js lint (oxlint)"
 bun run js:lint
 
+echo "==> docs gate (typescript surfaces)"
+bun run docs:check:ts
+
 echo "==> desktop typecheck"
 (cd apps/desktop-electrobun && bun run typecheck)
 
