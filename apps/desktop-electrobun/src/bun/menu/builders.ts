@@ -122,7 +122,12 @@ export function buildApplicationMenu(
       action: "menu.file",
       submenu: [
         ...buildAppSectionCommands("file", state, locale),
-        ...(platform !== "darwin" ? [separator, { role: "quit" }] : []),
+        separator,
+        {
+          label: labels.quit,
+          action: "app.quit",
+          accelerator: "q",
+        },
       ],
     },
     {

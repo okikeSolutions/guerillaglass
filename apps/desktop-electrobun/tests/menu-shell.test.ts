@@ -64,6 +64,22 @@ describe("shell menu helpers", () => {
     );
     expect(saveItem).toEqual(expect.objectContaining({ enabled: false, accelerator: "s" }));
 
+    const darwinFileMenu = darwinMenu.find(
+      (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
+        isNormalApplicationItem(item) && item.label === "File",
+    );
+    expect(darwinFileMenu).toBeDefined();
+    const darwinFileSubmenu: ApplicationMenuItemConfig[] = darwinFileMenu?.submenu ?? [];
+    const darwinQuitItem = darwinFileSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Quit",
+    );
+    expect(darwinQuitItem).toEqual(
+      expect.objectContaining({
+        action: "app.quit",
+        accelerator: "q",
+      }),
+    );
+
     const viewMenu = windowsMenu.find(
       (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
         isNormalApplicationItem(item) && item.label === "View",
