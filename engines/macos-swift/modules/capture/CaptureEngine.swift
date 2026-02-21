@@ -17,14 +17,14 @@ public final class CaptureEngine: NSObject, ObservableObject {
     let ciContext = CIContext(options: nil)
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
     let recordingQueue = DispatchQueue(label: "gg.capture.recording")
-    private let telemetryQueue = DispatchQueue(label: "gg.capture.telemetry")
+    let telemetryStore = CaptureTelemetryStore()
     private var stream: SCStream?
     lazy var audioCapture = AudioCapture { [weak self] buffer, time in
         self?.handleAudioBuffer(buffer, time: time)
     }
 
     var windowsByID: [CGWindowID: SCWindow] = [:]
-    private var telemetryState = TelemetryState()
+    var captureFrameRate: Int = CaptureFrameRatePolicy.defaultValue
     var recordingState = RecordingState()
     @MainActor private var pickerContinuation: CheckedContinuation<SCContentFilter, Error>?
 
@@ -44,24 +44,19 @@ public final class CaptureEngine: NSObject, ObservableObject {
         public let totalFrames: Int
         public let droppedFrames: Int
         public let droppedFramePercent: Double
+        public let sourceDroppedFrames: Int
+        public let sourceDroppedFramePercent: Double
+        public let writerDroppedFrames: Int
+        public let writerBackpressureDrops: Int
+        public let writerDroppedFramePercent: Double
+        public let achievedFps: Double
         public let audioLevelDbfs: Double?
     }
 
-    private struct TelemetryState {
-        var totalFrames: Int = 0
-        var droppedFrames: Int = 0
-        var audioLevelDbfs: Double?
-        var lastCompleteFramePTSSeconds: Double?
-
-        var droppedFramePercent: Double {
-            guard totalFrames > 0 else { return 0 }
-            return (Double(droppedFrames) / Double(totalFrames)) * 100
-        }
-    }
-
-    public func startDisplayCapture(enableMic: Bool = false) async throws {
+    public func startDisplayCapture(enableMic: Bool = false, targetFrameRate: Int = 30) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -79,13 +74,14 @@ public final class CaptureEngine: NSObject, ObservableObject {
             configuration.width = display.width
             configuration.height = display.height
             configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
             configuration.showsCursor = true
 
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
 
             self.stream = stream
+            captureFrameRate = frameRate
             try await stream.startCapture()
             await MainActor.run {
                 self.isRunning = true
@@ -98,9 +94,14 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
     }
 
-    public func startWindowCapture(windowID: CGWindowID, enableMic: Bool = false) async throws {
+    public func startWindowCapture(
+        windowID: CGWindowID,
+        enableMic: Bool = false,
+        targetFrameRate: Int = 30
+    ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -120,7 +121,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             configuration.width = max(1, Int(round(window.frame.width * scale)))
             configuration.height = max(1, Int(round(window.frame.height * scale)))
             configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
             configuration.showsCursor = true
             configuration.scalesToFit = true
 
@@ -128,6 +129,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
 
             self.stream = stream
+            captureFrameRate = frameRate
             try await stream.startCapture()
             await MainActor.run {
                 self.isRunning = true
@@ -152,10 +154,11 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @available(macOS 14.0, *)
     public func startCaptureUsingPicker(
         style: SCShareableContentStyle,
-        enableMic: Bool = false
+        enableMic: Bool = false,
+        targetFrameRate: Int = 30
     ) async throws {
         let filter = try await pickContent(style: style)
-        try await startCapture(using: filter, enableMic: enableMic)
+        try await startCapture(using: filter, enableMic: enableMic, targetFrameRate: targetFrameRate)
     }
 
     @MainActor
@@ -170,6 +173,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         latestFrame = nil
         self.stream = nil
         captureDescriptor = nil
+        captureFrameRate = CaptureFrameRatePolicy.defaultValue
         resetTelemetry()
     }
 
@@ -213,69 +217,6 @@ extension CaptureEngine {
         }
     }
 
-    public func telemetrySnapshot() -> CaptureTelemetrySnapshot {
-        telemetryQueue.sync {
-            CaptureTelemetrySnapshot(
-                totalFrames: telemetryState.totalFrames,
-                droppedFrames: telemetryState.droppedFrames,
-                droppedFramePercent: telemetryState.droppedFramePercent,
-                audioLevelDbfs: telemetryState.audioLevelDbfs
-            )
-        }
-    }
-
-    func resetTelemetry() {
-        telemetryQueue.sync {
-            telemetryState = TelemetryState()
-        }
-    }
-
-    func recordVideoSample(status: SCFrameStatus?, sampleBuffer: CMSampleBuffer) {
-        telemetryQueue.async { [weak self] in
-            guard let self else { return }
-            guard status == nil || status == .complete else { return }
-
-            let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-            let expectedFrameIntervalSeconds = 1.0 / 30.0
-
-            if !pts.isNumeric {
-                telemetryState.totalFrames += 1
-                return
-            }
-
-            let ptsSeconds = pts.seconds
-            if let previousPTS = telemetryState.lastCompleteFramePTSSeconds {
-                let deltaSeconds = max(0, ptsSeconds - previousPTS)
-                let missedFrames = CaptureTelemetryMath.estimateMissedFrames(
-                    deltaSeconds: deltaSeconds,
-                    expectedFrameIntervalSeconds: expectedFrameIntervalSeconds
-                )
-                if missedFrames > 0 {
-                    telemetryState.droppedFrames += missedFrames
-                    telemetryState.totalFrames += missedFrames + 1
-                } else {
-                    telemetryState.totalFrames += 1
-                }
-            } else {
-                telemetryState.totalFrames += 1
-            }
-            telemetryState.lastCompleteFramePTSSeconds = ptsSeconds
-        }
-    }
-
-    func recordAudioLevel(_ level: Double?) {
-        guard let level else { return }
-        telemetryQueue.async { [weak self] in
-            guard let self else { return }
-            let smoothingFactor = 0.18
-            if let previous = telemetryState.audioLevelDbfs {
-                telemetryState.audioLevelDbfs = previous + (level - previous) * smoothingFactor
-            } else {
-                telemetryState.audioLevelDbfs = level
-            }
-        }
-    }
-
     func frameStatus(for sampleBuffer: CMSampleBuffer) -> SCFrameStatus? {
         guard let attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(
             sampleBuffer,
@@ -289,9 +230,14 @@ extension CaptureEngine {
         return SCFrameStatus(rawValue: rawStatus)
     }
 
-    private func startCapture(using filter: SCContentFilter, enableMic: Bool) async throws {
+    private func startCapture(
+        using filter: SCContentFilter,
+        enableMic: Bool,
+        targetFrameRate: Int
+    ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -301,7 +247,7 @@ extension CaptureEngine {
         do {
             let configuration = SCStreamConfiguration()
             configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 30)
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
             configuration.showsCursor = true
 
             if #available(macOS 14.0, *) {
@@ -318,6 +264,7 @@ extension CaptureEngine {
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
 
             self.stream = stream
+            captureFrameRate = frameRate
             try await stream.startCapture()
             await MainActor.run {
                 self.isRunning = true

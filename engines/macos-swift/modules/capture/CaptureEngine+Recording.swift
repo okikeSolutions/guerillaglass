@@ -19,6 +19,7 @@ public extension CaptureEngine {
             throw CaptureError.captureNotRunning
         }
         resetTelemetry()
+        let expectedFrameRate = max(1, captureFrameRate)
 
         let outputURL = makeRecordingURL()
         Self.logger.info("Start recording to \(outputURL.path, privacy: .private(mask: .hash))")
@@ -40,7 +41,7 @@ public extension CaptureEngine {
                         configuration: AssetWriter.Configuration(
                             fileType: .mov,
                             codec: .h264,
-                            expectedFrameRate: 30
+                            expectedFrameRate: expectedFrameRate
                         )
                     )
                     engine.recordingState = RecordingState(
@@ -154,7 +155,9 @@ public extension CaptureEngine {
                     }
                 }
             }
-            writer.appendVideo(sampleBuffer: sampleBuffer)
+            writer.appendVideo(sampleBuffer: sampleBuffer) { [weak self] outcome in
+                self?.recordWriterAppendOutcome(outcome)
+            }
         }
     }
 

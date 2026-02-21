@@ -36,4 +36,37 @@ final class CaptureTelemetryMathTests: XCTestCase {
             0
         )
     }
+
+    func testPercentageHandlesValidAndEmptyDenominators() {
+        XCTAssertEqual(
+            CaptureTelemetryMath.percentage(numerator: 5, denominator: 200),
+            2.5,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            CaptureTelemetryMath.percentage(numerator: 1, denominator: 0),
+            0
+        )
+    }
+
+    func testAchievedFramesPerSecondUsesPTSWindow() {
+        XCTAssertEqual(
+            CaptureTelemetryMath.achievedFramesPerSecond(
+                frameCount: 121,
+                firstPTSSeconds: 0,
+                lastPTSSeconds: 4
+            ),
+            30,
+            accuracy: 0.000_001
+        )
+
+        XCTAssertEqual(
+            CaptureTelemetryMath.achievedFramesPerSecond(
+                frameCount: 1,
+                firstPTSSeconds: 0,
+                lastPTSSeconds: 4
+            ),
+            0
+        )
+    }
 }
