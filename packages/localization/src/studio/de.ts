@@ -1,5 +1,6 @@
 import type { StudioMessages } from "./en";
 
+/** German (DE) studio localization dictionary. */
 export const deDE: StudioMessages = {
   app: {
     title: "Guerillaglass",

@@ -10,6 +10,7 @@ type BridgeHandlerDependencies = {
   setCurrentProjectPath: (projectPath: string | null) => void;
 };
 
+/** Creates bridge RPC handlers backed by the desktop engine client. */
 export function createEngineBridgeHandlers({
   engineClient,
   pickDirectory,

@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { engineMethods } from "./methods";
 
+/** Input Monitoring permission states returned by the native engine. */
 export const inputMonitoringStatusSchema = z.enum(["notDetermined", "denied", "authorized"]);
 
+/** Auto-zoom project settings shared between renderer and native engine. */
 export const autoZoomSettingsSchema = z.object({
   isEnabled: z.boolean(),
   intensity: z.number().min(0).max(1),
   minimumKeyframeInterval: z.number().positive(),
 });
 
+/** Optional capture metadata embedded in capture status and project state. */
 export const captureMetadataSchema = z
   .object({
     window: z
@@ -32,6 +35,7 @@ export const captureMetadataSchema = z
   })
   .nullable();
 
+/** Input event payload captured during recording. */
 export const inputEventSchema = z.object({
   type: z.enum(["cursorMoved", "mouseDown", "mouseUp"]),
   timestamp: z.number().nonnegative(),
@@ -42,11 +46,13 @@ export const inputEventSchema = z.object({
   button: z.enum(["left", "right", "other"]).optional(),
 });
 
+/** Input event log written by engines that support input tracking. */
 export const inputEventLogSchema = z.object({
   schemaVersion: z.literal(1),
   events: z.array(inputEventSchema),
 });
 
+/** Result payload for `system.ping`. */
 export const pingResultSchema = z.object({
   app: z.string().min(1),
   engineVersion: z.string().min(1),
@@ -54,6 +60,7 @@ export const pingResultSchema = z.object({
   platform: z.string().min(1),
 });
 
+/** Result payload for `engine.capabilities`. */
 export const capabilitiesResultSchema = z.object({
   protocolVersion: z.string().min(1),
   platform: z.string().min(1),
@@ -75,23 +82,27 @@ export const capabilitiesResultSchema = z.object({
   }),
 });
 
+/** Result payload for `permissions.get`. */
 export const permissionsResultSchema = z.object({
   screenRecordingGranted: z.boolean(),
   microphoneGranted: z.boolean(),
   inputMonitoring: inputMonitoringStatusSchema,
 });
 
+/** Generic success/failure payload for permission action requests. */
 export const actionResultSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
 });
 
+/** Display capture source descriptor. */
 export const displaySourceSchema = z.object({
   id: z.number().int().nonnegative(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
 });
 
+/** Window capture source descriptor. */
 export const windowSourceSchema = z.object({
   id: z.number().int().nonnegative(),
   title: z.string(),
@@ -101,27 +112,34 @@ export const windowSourceSchema = z.object({
   isOnScreen: z.boolean(),
 });
 
+/** Result payload for `sources.list`. */
 export const sourcesResultSchema = z.object({
   displays: z.array(displaySourceSchema),
   windows: z.array(windowSourceSchema),
 });
 
+/** Health severity for capture telemetry. */
 export const captureHealthSchema = z.enum(["good", "warning", "critical"]);
+/** Optional reason code associated with non-good telemetry health. */
 export const captureHealthReasonSchema = z.enum([
   "engine_error",
   "high_dropped_frame_rate",
   "elevated_dropped_frame_rate",
   "low_microphone_level",
 ]);
+/** Supported capture frame rates for all engines. */
 export const captureFrameRates = [24, 30, 60] as const;
+/** Default capture frame rate used when request params omit `captureFps`. */
 export const defaultCaptureFrameRate: (typeof captureFrameRates)[number] = 30;
 const [captureFrameRate24, captureFrameRate30, captureFrameRate60] = captureFrameRates;
+/** Zod schema for engine-supported capture FPS values. */
 export const captureFrameRateSchema = z.union([
   z.literal(captureFrameRate24),
   z.literal(captureFrameRate30),
   z.literal(captureFrameRate60),
 ]);
 
+/** Default telemetry object used by older engine responses. */
 export const defaultCaptureTelemetry = {
   totalFrames: 0,
   droppedFrames: 0,
@@ -155,6 +173,7 @@ export const defaultCaptureTelemetry = {
     | null;
 };
 
+/** Capture telemetry payload returned by `capture.status`. */
 export const captureTelemetrySchema = z.object({
   totalFrames: z.number().int().nonnegative(),
   droppedFrames: z.number().int().nonnegative(),
@@ -170,6 +189,7 @@ export const captureTelemetrySchema = z.object({
   healthReason: captureHealthReasonSchema.nullable(),
 });
 
+/** Result payload for capture and recording lifecycle methods. */
 export const captureStatusResultSchema = z.object({
   isRunning: z.boolean(),
   isRecording: z.boolean(),
@@ -181,6 +201,7 @@ export const captureStatusResultSchema = z.object({
   telemetry: captureTelemetrySchema.optional().default(defaultCaptureTelemetry),
 });
 
+/** Export preset descriptor returned by `export.info`. */
 export const exportPresetSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -190,10 +211,12 @@ export const exportPresetSchema = z.object({
   fileType: z.enum(["mp4", "mov"]),
 });
 
+/** Result payload for `export.info`. */
 export const exportInfoResultSchema = z.object({
   presets: z.array(exportPresetSchema),
 });
 
+/** Result payload for `export.run`. */
 export const exportRunResultSchema = z.object({
   outputURL: z.string().min(1),
 });
@@ -346,6 +369,7 @@ export const projectRecentsRequestSchema = requestBaseSchema.extend({
     .default({}),
 });
 
+/** Discriminated union of all request payloads supported by the engine. */
 export const engineRequestSchema = z.discriminatedUnion("method", [
   systemPingRequestSchema,
   engineCapabilitiesRequestSchema,
@@ -369,6 +393,7 @@ export const engineRequestSchema = z.discriminatedUnion("method", [
   projectRecentsRequestSchema,
 ]);
 
+/** Error code values returned on failed engine responses. */
 export const engineErrorCodeSchema = z.enum([
   "invalid_request",
   "invalid_params",
@@ -377,23 +402,27 @@ export const engineErrorCodeSchema = z.enum([
   "runtime_error",
 ]);
 
+/** Error object shape returned by failed engine responses. */
 export const engineErrorSchema = z.object({
   code: engineErrorCodeSchema,
   message: z.string().min(1),
 });
 
+/** Success response envelope. */
 export const engineSuccessResponseSchema = z.object({
   id: z.string().min(1),
   ok: z.literal(true),
   result: z.unknown(),
 });
 
+/** Error response envelope. */
 export const engineErrorResponseSchema = z.object({
   id: z.string().min(1),
   ok: z.literal(false),
   error: engineErrorSchema,
 });
 
+/** Union of success and error engine response envelopes. */
 export const engineResponseSchema = z.union([
   engineSuccessResponseSchema,
   engineErrorResponseSchema,
@@ -422,6 +451,7 @@ export type AutoZoomSettings = z.infer<typeof autoZoomSettingsSchema>;
 export type InputEvent = z.infer<typeof inputEventSchema>;
 export type InputEventLog = z.infer<typeof inputEventLogSchema>;
 
+/** Builds and validates a typed engine request payload. */
 export function buildRequest<TMethod extends EngineRequest["method"]>(
   method: TMethod,
   params: Extract<EngineRequest, { method: TMethod }>["params"],
@@ -433,6 +463,7 @@ export function buildRequest<TMethod extends EngineRequest["method"]>(
   >;
 }
 
+/** Parses and validates an engine response payload. */
 export function parseResponse(raw: unknown): EngineResponse {
   return engineResponseSchema.parse(raw);
 }

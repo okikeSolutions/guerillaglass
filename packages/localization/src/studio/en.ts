@@ -1,3 +1,4 @@
+/** English (US) studio localization dictionary. */
 export const enUS = {
   app: {
     title: "Guerillaglass",
@@ -301,4 +302,5 @@ type WidenLiterals<T> = T extends string
             ? { [K in keyof T]: WidenLiterals<T[K]> }
             : T;
 
+/** Studio message contract widened from the base English locale dictionary. */
 export type StudioMessages = WidenLiterals<typeof enUS>;

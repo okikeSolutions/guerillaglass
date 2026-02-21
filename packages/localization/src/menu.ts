@@ -1,5 +1,6 @@
 import { normalizeStudioLocale, type StudioLocale } from "./studio";
 
+/** Localized labels used to build desktop application and tray menus. */
 export type DesktopMenuMessages = {
   file: string;
   openProject: string;
@@ -97,6 +98,7 @@ const desktopMenuMessagesByLocale: Record<StudioLocale, DesktopMenuMessages> = {
   },
 };
 
+/** Returns localized desktop menu labels for the requested locale. */
 export function getDesktopMenuMessages(locale: string | null | undefined): DesktopMenuMessages {
   return desktopMenuMessagesByLocale[normalizeStudioLocale(locale)];
 }

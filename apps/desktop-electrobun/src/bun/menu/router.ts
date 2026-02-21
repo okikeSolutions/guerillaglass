@@ -8,6 +8,7 @@ type MenuActionHandlers = {
   quit: () => void;
 };
 
+/** Routes desktop menu actions to host command and shell handlers. */
 export function routeMenuAction(action: string, handlers: MenuActionHandlers): void {
   const command = decodeHostMenuAction(action);
   if (command) {

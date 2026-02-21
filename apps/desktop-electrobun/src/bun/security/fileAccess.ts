@@ -88,6 +88,7 @@ function ensurePathWithinAllowedRoots(
   return canonicalTargetPath;
 }
 
+/** Resolves and validates a JSON text file path for bridge reads. */
 export function resolveAllowedTextFilePath(
   filePath: string,
   options: ReadTextFileOptions = {},
@@ -104,6 +105,7 @@ export function resolveAllowedTextFilePath(
   return ensurePathWithinAllowedRoots(resolvedPath, options);
 }
 
+/** Resolves and validates a supported media file path for bridge reads. */
 export function resolveAllowedMediaFilePath(
   filePath: string,
   options: ResolveAllowedMediaFileOptions = {},
@@ -138,6 +140,7 @@ export function resolveAllowedMediaFilePath(
   return canonicalPath;
 }
 
+/** Reads a validated JSON text file with size and root constraints applied. */
 export async function readAllowedTextFile(
   filePath: string,
   options: ReadTextFileOptions = {},
