@@ -36,7 +36,6 @@ function mockBunServe(config: MockServeConfig = {}) {
   const originalServe = Bun.serve;
   let activeFetchHandler: FetchHandler | null = null;
   let activeErrorHandler: ErrorHandler | null = null;
-  let sessionCookie: string | null = null;
   let invocationCount = 0;
   const requestedPorts: number[] = [];
   let remainingEaddrinuseAttempts = config.eaddrinuseAttempts ?? 0;
@@ -79,25 +78,8 @@ function mockBunServe(config: MockServeConfig = {}) {
         throw new Error("Media handler is not registered yet.");
       }
       const headers = new Headers(init?.headers);
-      if (sessionCookie && !headers.has("cookie")) {
-        headers.set("cookie", sessionCookie);
-      }
       const request = new Request(input, { ...init, headers });
-      const response = await activeFetchHandler(request, {} as ServeHandle);
-      const setCookie = response.headers.get("set-cookie");
-      if (setCookie) {
-        const [cookiePair] = setCookie.split(";");
-        sessionCookie = cookiePair?.trim() || null;
-      }
-      return response;
-    },
-    async dispatchWithoutSessionCookie(input: string, init?: RequestInit): Promise<Response> {
-      if (!activeFetchHandler) {
-        throw new Error("Media handler is not registered yet.");
-      }
-      const headers = new Headers(init?.headers);
-      headers.delete("cookie");
-      return await activeFetchHandler(new Request(input, { ...init, headers }), {} as ServeHandle);
+      return await activeFetchHandler(request, {} as ServeHandle);
     },
     async dispatchUnhandledError(error = new Error("boom")): Promise<Response> {
       if (!activeErrorHandler) {
@@ -156,7 +138,7 @@ describe("media server", () => {
     }
   });
 
-  test("supports HEAD and returns 416 for invalid ranges", async () => {
+  test("supports HEAD, serves first segment for multi-range, and returns 416 for invalid ranges", async () => {
     const fixture = await createTempFile("head.mov", "0123456789");
     const server = new MediaServer();
     const serve = mockBunServe();
@@ -178,7 +160,9 @@ describe("media server", () => {
       const multiRangeResponse = await serve.dispatch(resolved, {
         headers: { range: "bytes=0-2,4-6" },
       });
-      expect(multiRangeResponse.status).toBe(416);
+      expect(multiRangeResponse.status).toBe(206);
+      expect(multiRangeResponse.headers.get("content-range")).toBe("bytes 0-2/10");
+      expect(await multiRangeResponse.text()).toBe("012");
     } finally {
       serve.restore();
       server.stop();
@@ -318,18 +302,21 @@ describe("media server", () => {
     }
   });
 
-  test("rejects replay from a client without the bound session cookie", async () => {
-    const fixture = await createTempFile("cookie-replay.mov", "0123456789");
+  test("allows repeat range requests without relying on cookies", async () => {
+    const fixture = await createTempFile("repeat-range.mov", "0123456789");
     const server = new MediaServer();
     const serve = mockBunServe();
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
       const firstResponse = await serve.dispatch(resolved);
       expect(firstResponse.status).toBe(200);
-      expect(firstResponse.headers.get("set-cookie")).toContain("gg_media_session=");
+      expect(firstResponse.headers.get("set-cookie")).toBe(null);
 
-      const replayResponse = await serve.dispatchWithoutSessionCookie(resolved);
-      expect(replayResponse.status).toBe(404);
+      const repeatRangeResponse = await serve.dispatch(resolved, {
+        headers: { range: "bytes=0-3" },
+      });
+      expect(repeatRangeResponse.status).toBe(206);
+      expect(await repeatRangeResponse.text()).toBe("0123");
     } finally {
       serve.restore();
       server.stop();

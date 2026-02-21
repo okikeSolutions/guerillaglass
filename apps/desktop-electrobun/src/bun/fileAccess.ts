@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { isSupportedMediaPath } from "./mediaPolicy";
 
 const DEFAULT_MAX_TEXT_READ_BYTES = 5 * 1024 * 1024;
@@ -33,6 +34,31 @@ function canonicalizePath(candidatePath: string): string {
   } catch {
     return path.resolve(candidatePath);
   }
+}
+
+function normalizeLocalFilePathInput(filePath: string): string {
+  const trimmedPath = filePath.trim();
+  if (!/^file:\/\//i.test(trimmedPath)) {
+    return trimmedPath;
+  }
+
+  let parsedURL: URL;
+  try {
+    parsedURL = new URL(trimmedPath);
+  } catch {
+    throw new Error("A valid local file path is required.");
+  }
+
+  if (parsedURL.protocol !== "file:") {
+    throw new Error("A valid local file path is required.");
+  }
+
+  const host = parsedURL.hostname.toLowerCase();
+  if (host && host !== "localhost") {
+    throw new Error("Only local file URLs are supported.");
+  }
+
+  return fileURLToPath(parsedURL);
 }
 
 function isPathWithinRoot(targetPath: string, rootPath: string): boolean {
@@ -70,7 +96,7 @@ export function resolveAllowedTextFilePath(
     throw new Error("A file path is required.");
   }
 
-  const resolvedPath = path.resolve(filePath);
+  const resolvedPath = path.resolve(normalizeLocalFilePathInput(filePath));
   if (path.extname(resolvedPath).toLowerCase() !== ".json") {
     throw new Error("Only .json files can be read through the desktop bridge.");
   }
@@ -86,7 +112,7 @@ export function resolveAllowedMediaFilePath(
     throw new Error("A file path is required.");
   }
 
-  const resolvedPath = path.resolve(filePath);
+  const resolvedPath = path.resolve(normalizeLocalFilePathInput(filePath));
   if (!isSupportedMediaPath(resolvedPath)) {
     throw new Error("Only video media files can be read through the desktop bridge.");
   }
