@@ -1,8 +1,7 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PanelImperativeHandle } from "react-resizable-panels";
+import type { ReactNode } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { useStudio } from "../studio/context";
 import { studioLayoutBounds } from "../studio/studioLayoutState";
+import { useEditorWorkspaceLayout } from "./useEditorWorkspaceLayout";
 
 type EditorWorkspaceProps = {
   leftPane: ReactNode;
@@ -11,8 +10,8 @@ type EditorWorkspaceProps = {
   bottomPane: ReactNode;
 };
 
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(Math.max(value, minimum), maximum);
+function toPxSize(value: number): string {
+  return `${Math.max(value, 0)}px`;
 }
 
 export function EditorWorkspace({
@@ -21,330 +20,26 @@ export function EditorWorkspace({
   rightPane,
   bottomPane,
 }: EditorWorkspaceProps) {
-  const studio = useStudio();
-  const layout = studio.layout;
-  const setLeftPaneCollapsed = studio.setLeftPaneCollapsed;
-  const setRightPaneCollapsed = studio.setRightPaneCollapsed;
-  const setTimelineCollapsed = studio.setTimelineCollapsed;
-  const setLeftPaneWidth = studio.setLeftPaneWidth;
-  const setRightPaneWidth = studio.setRightPaneWidth;
-  const setTimelineHeight = studio.setTimelineHeight;
-  const workspaceContentPreferredMinHeightPx = 220;
-  const timelineHandleHeightPx = 10;
-  const verticalGroupContainerRef = useRef<HTMLDivElement | null>(null);
-  const [verticalGroupHeightPx, setVerticalGroupHeightPx] = useState<number | null>(null);
-
-  const toPxSize = useCallback((value: number) => `${Math.max(value, 0)}px`, []);
-  const leftPanelRef = useRef<PanelImperativeHandle | null>(null);
-  const rightPanelRef = useRef<PanelImperativeHandle | null>(null);
-  const timelinePanelRef = useRef<PanelImperativeHandle | null>(null);
-  const isPointerResizingRef = useRef(false);
-  const resizeStepPx = 8;
-  const resizeStepPxLarge = 32;
-  const timelineResizeStepPx = 8;
-  const timelineResizeStepPxLarge = 32;
-  const leftPanelKey = layout.leftCollapsed ? "left-collapsed" : "left-expanded";
-  const rightPanelKey = layout.rightCollapsed ? "right-collapsed" : "right-expanded";
-  const timelinePanelKey = layout.timelineCollapsed ? "timeline-collapsed" : "timeline-expanded";
-
-  useEffect(() => {
-    const container = verticalGroupContainerRef.current;
-    if (!container) {
-      return;
-    }
-    const updateHeight = () => {
-      setVerticalGroupHeightPx(Math.round(container.getBoundingClientRect().height));
-    };
-    updateHeight();
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  const workspaceContentMinHeightPx = useMemo(() => {
-    if (verticalGroupHeightPx == null) {
-      return workspaceContentPreferredMinHeightPx;
-    }
-    const maxPermittedMinHeight = Math.max(
-      0,
-      verticalGroupHeightPx - timelineHandleHeightPx - studioLayoutBounds.timelineMinHeightPx,
-    );
-    return Math.min(workspaceContentPreferredMinHeightPx, maxPermittedMinHeight);
-  }, [verticalGroupHeightPx, workspaceContentPreferredMinHeightPx]);
-
-  const timelineHeightBounds = useMemo(() => {
-    if (verticalGroupHeightPx == null) {
-      return {
-        minPx: studioLayoutBounds.timelineMinHeightPx,
-        maxPx: studioLayoutBounds.timelineMaxHeightPx,
-      };
-    }
-    const maxTimelineByAvailableSpace = Math.max(
-      0,
-      verticalGroupHeightPx - timelineHandleHeightPx - workspaceContentMinHeightPx,
-    );
-    const minPx = Math.min(studioLayoutBounds.timelineMinHeightPx, maxTimelineByAvailableSpace);
-    const maxPx = Math.min(studioLayoutBounds.timelineMaxHeightPx, maxTimelineByAvailableSpace);
-    return {
-      minPx,
-      maxPx: Math.max(minPx, maxPx),
-    };
-  }, [verticalGroupHeightPx, workspaceContentMinHeightPx]);
-  const timelineHeightPx = useMemo(
-    () => clamp(layout.timelineHeightPx, timelineHeightBounds.minPx, timelineHeightBounds.maxPx),
-    [layout.timelineHeightPx, timelineHeightBounds.maxPx, timelineHeightBounds.minPx],
-  );
-
-  useEffect(() => {
-    const clearPointerResize = () => {
-      isPointerResizingRef.current = false;
-    };
-    window.addEventListener("pointerup", clearPointerResize);
-    window.addEventListener("pointercancel", clearPointerResize);
-    return () => {
-      window.removeEventListener("pointerup", clearPointerResize);
-      window.removeEventListener("pointercancel", clearPointerResize);
-    };
-  }, []);
-
-  const markPointerResizeStart = useCallback(() => {
-    isPointerResizingRef.current = true;
-  }, []);
-
-  const commitHorizontalPanelLayout = useCallback(() => {
-    if (!isPointerResizingRef.current) {
-      return;
-    }
-    const leftPanel = leftPanelRef.current;
-    const rightPanel = rightPanelRef.current;
-    if (!leftPanel || !rightPanel) {
-      return;
-    }
-
-    const leftSize = leftPanel.getSize();
-    const rightSize = rightPanel.getSize();
-    const leftCollapsed = leftPanel.isCollapsed() || leftSize.inPixels <= 1;
-    const rightCollapsed = rightPanel.isCollapsed() || rightSize.inPixels <= 1;
-    const nextLeftWidth = clamp(
-      Math.round(leftSize.inPixels),
-      studioLayoutBounds.leftPaneMinWidthPx,
-      studioLayoutBounds.leftPaneMaxWidthPx,
-    );
-    const nextRightWidth = clamp(
-      Math.round(rightSize.inPixels),
-      studioLayoutBounds.rightPaneMinWidthPx,
-      studioLayoutBounds.rightPaneMaxWidthPx,
-    );
-
-    const currentLayout = layout;
-
-    if (leftCollapsed !== currentLayout.leftCollapsed) {
-      setLeftPaneCollapsed(leftCollapsed);
-    }
-    if (rightCollapsed !== currentLayout.rightCollapsed) {
-      setRightPaneCollapsed(rightCollapsed);
-    }
-
-    if (!leftCollapsed && Math.abs(nextLeftWidth - currentLayout.leftPaneWidthPx) > 1) {
-      setLeftPaneWidth(nextLeftWidth);
-    }
-    if (!rightCollapsed && Math.abs(nextRightWidth - currentLayout.rightPaneWidthPx) > 1) {
-      setRightPaneWidth(nextRightWidth);
-    }
-  }, [layout, setLeftPaneCollapsed, setLeftPaneWidth, setRightPaneCollapsed, setRightPaneWidth]);
-
-  const commitTimelinePanelLayout = useCallback(() => {
-    if (!isPointerResizingRef.current) {
-      return;
-    }
-    const timelinePanel = timelinePanelRef.current;
-    if (!timelinePanel) {
-      return;
-    }
-
-    const timelineSize = timelinePanel.getSize();
-    const timelineCollapsed = timelinePanel.isCollapsed() || timelineSize.inPixels <= 1;
-    const nextTimelineHeight = clamp(
-      Math.round(timelineSize.inPixels),
-      timelineHeightBounds.minPx,
-      timelineHeightBounds.maxPx,
-    );
-
-    const currentLayout = layout;
-
-    if (timelineCollapsed !== currentLayout.timelineCollapsed) {
-      setTimelineCollapsed(timelineCollapsed);
-    }
-    if (!timelineCollapsed && Math.abs(nextTimelineHeight - currentLayout.timelineHeightPx) > 1) {
-      setTimelineHeight(nextTimelineHeight);
-    }
-  }, [
+  const {
+    studio,
     layout,
-    setTimelineCollapsed,
-    setTimelineHeight,
-    timelineHeightBounds.maxPx,
-    timelineHeightBounds.minPx,
-  ]);
-
-  const resizeLeftPaneFromKeyboard = useCallback(
-    (deltaPx: number) => {
-      const leftPanel = leftPanelRef.current;
-      if (!leftPanel) {
-        return;
-      }
-      const nextWidth = layout.leftPaneWidthPx + deltaPx;
-      if (layout.leftCollapsed) {
-        setLeftPaneCollapsed(false);
-        leftPanel.expand();
-      }
-      leftPanel.resize(toPxSize(nextWidth));
-      setLeftPaneWidth(nextWidth);
-    },
-    [
-      layout.leftCollapsed,
-      layout.leftPaneWidthPx,
-      setLeftPaneCollapsed,
-      setLeftPaneWidth,
-      toPxSize,
-    ],
-  );
-
-  const resizeRightPaneFromKeyboard = useCallback(
-    (deltaPx: number) => {
-      const rightPanel = rightPanelRef.current;
-      if (!rightPanel) {
-        return;
-      }
-      const nextWidth = layout.rightPaneWidthPx + deltaPx;
-      if (layout.rightCollapsed) {
-        setRightPaneCollapsed(false);
-        rightPanel.expand();
-      }
-      rightPanel.resize(toPxSize(nextWidth));
-      setRightPaneWidth(nextWidth);
-    },
-    [
-      layout.rightCollapsed,
-      layout.rightPaneWidthPx,
-      setRightPaneCollapsed,
-      setRightPaneWidth,
-      toPxSize,
-    ],
-  );
-
-  const resizeTimelineFromKeyboard = useCallback(
-    (deltaPx: number) => {
-      const timelinePanel = timelinePanelRef.current;
-      if (!timelinePanel) {
-        return;
-      }
-      if (layout.timelineCollapsed) {
-        setTimelineCollapsed(false);
-        timelinePanel.expand();
-      }
-      const nextHeight = clamp(
-        timelineHeightPx + deltaPx,
-        timelineHeightBounds.minPx,
-        timelineHeightBounds.maxPx,
-      );
-      timelinePanel.resize(toPxSize(nextHeight));
-      setTimelineHeight(nextHeight);
-    },
-    [
-      layout.timelineCollapsed,
-      setTimelineCollapsed,
-      setTimelineHeight,
-      timelineHeightPx,
-      timelineHeightBounds.maxPx,
-      timelineHeightBounds.minPx,
-      toPxSize,
-    ],
-  );
-
-  useEffect(() => {
-    const leftPanel = leftPanelRef.current;
-    if (!leftPanel) {
-      return;
-    }
-
-    if (layout.leftCollapsed) {
-      if (!leftPanel.isCollapsed()) {
-        leftPanel.collapse();
-      }
-      return;
-    }
-
-    const nextWidth = clamp(
-      layout.leftPaneWidthPx,
-      studioLayoutBounds.leftPaneMinWidthPx,
-      studioLayoutBounds.leftPaneMaxWidthPx,
-    );
-    if (leftPanel.isCollapsed()) {
-      leftPanel.expand();
-    }
-    const currentWidth = leftPanel.getSize().inPixels;
-    if (Math.abs(currentWidth - nextWidth) > 1) {
-      leftPanel.resize(toPxSize(nextWidth));
-    }
-  }, [layout.leftCollapsed, layout.leftPaneWidthPx, toPxSize]);
-
-  useEffect(() => {
-    const rightPanel = rightPanelRef.current;
-    if (!rightPanel) {
-      return;
-    }
-
-    if (layout.rightCollapsed) {
-      if (!rightPanel.isCollapsed()) {
-        rightPanel.collapse();
-      }
-      return;
-    }
-
-    const nextWidth = clamp(
-      layout.rightPaneWidthPx,
-      studioLayoutBounds.rightPaneMinWidthPx,
-      studioLayoutBounds.rightPaneMaxWidthPx,
-    );
-    if (rightPanel.isCollapsed()) {
-      rightPanel.expand();
-    }
-    const currentWidth = rightPanel.getSize().inPixels;
-    if (Math.abs(currentWidth - nextWidth) > 1) {
-      rightPanel.resize(toPxSize(nextWidth));
-    }
-  }, [layout.rightCollapsed, layout.rightPaneWidthPx, toPxSize]);
-
-  useEffect(() => {
-    const timelinePanel = timelinePanelRef.current;
-    if (!timelinePanel) {
-      return;
-    }
-
-    if (layout.timelineCollapsed) {
-      if (!timelinePanel.isCollapsed()) {
-        timelinePanel.collapse();
-      }
-      return;
-    }
-
-    if (timelinePanel.isCollapsed()) {
-      timelinePanel.expand();
-    }
-    const currentHeight = timelinePanel.getSize().inPixels;
-    if (Math.abs(currentHeight - timelineHeightPx) > 1) {
-      timelinePanel.resize(toPxSize(timelineHeightPx));
-    }
-  }, [
-    layout.timelineCollapsed,
+    verticalGroupContainerRef,
+    leftPanelRef,
+    rightPanelRef,
+    timelinePanelRef,
+    workspaceContentMinHeightPx,
+    timelineHeightBounds,
     timelineHeightPx,
-    timelineHeightBounds.maxPx,
-    timelineHeightBounds.minPx,
-    toPxSize,
-  ]);
+    leftPanelKey,
+    rightPanelKey,
+    timelinePanelKey,
+    markPointerResizeStart,
+    commitHorizontalPanelLayout,
+    commitTimelinePanelLayout,
+    leftResizeKeyDown,
+    rightResizeKeyDown,
+    timelineResizeKeyDown,
+  } = useEditorWorkspaceLayout();
 
   return (
     <div ref={verticalGroupContainerRef} className="h-full min-h-0 overflow-hidden">
@@ -386,32 +81,7 @@ export function EditorWorkspace({
               aria-valuemin={studioLayoutBounds.leftPaneMinWidthPx}
               aria-valuemax={studioLayoutBounds.leftPaneMaxWidthPx}
               aria-valuenow={layout.leftPaneWidthPx}
-              onKeyDown={(event) => {
-                const step = event.shiftKey ? resizeStepPxLarge : resizeStepPx;
-                if (event.key === "ArrowLeft") {
-                  event.preventDefault();
-                  resizeLeftPaneFromKeyboard(-step);
-                  return;
-                }
-                if (event.key === "ArrowRight") {
-                  event.preventDefault();
-                  resizeLeftPaneFromKeyboard(step);
-                  return;
-                }
-                if (event.key === "Home") {
-                  event.preventDefault();
-                  resizeLeftPaneFromKeyboard(
-                    studioLayoutBounds.leftPaneMinWidthPx - layout.leftPaneWidthPx,
-                  );
-                  return;
-                }
-                if (event.key === "End") {
-                  event.preventDefault();
-                  resizeLeftPaneFromKeyboard(
-                    studioLayoutBounds.leftPaneMaxWidthPx - layout.leftPaneWidthPx,
-                  );
-                }
-              }}
+              onKeyDown={leftResizeKeyDown}
             />
             <ResizablePanel
               id="editor-center-pane"
@@ -428,32 +98,7 @@ export function EditorWorkspace({
               aria-valuemin={studioLayoutBounds.rightPaneMinWidthPx}
               aria-valuemax={studioLayoutBounds.rightPaneMaxWidthPx}
               aria-valuenow={layout.rightPaneWidthPx}
-              onKeyDown={(event) => {
-                const step = event.shiftKey ? resizeStepPxLarge : resizeStepPx;
-                if (event.key === "ArrowLeft") {
-                  event.preventDefault();
-                  resizeRightPaneFromKeyboard(step);
-                  return;
-                }
-                if (event.key === "ArrowRight") {
-                  event.preventDefault();
-                  resizeRightPaneFromKeyboard(-step);
-                  return;
-                }
-                if (event.key === "Home") {
-                  event.preventDefault();
-                  resizeRightPaneFromKeyboard(
-                    studioLayoutBounds.rightPaneMinWidthPx - layout.rightPaneWidthPx,
-                  );
-                  return;
-                }
-                if (event.key === "End") {
-                  event.preventDefault();
-                  resizeRightPaneFromKeyboard(
-                    studioLayoutBounds.rightPaneMaxWidthPx - layout.rightPaneWidthPx,
-                  );
-                }
-              }}
+              onKeyDown={rightResizeKeyDown}
             />
             <ResizablePanel
               id="editor-right-pane"
@@ -470,6 +115,7 @@ export function EditorWorkspace({
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>
+
         <ResizableHandle
           withHandle
           className="gg-timeline-resize-handle"
@@ -478,29 +124,9 @@ export function EditorWorkspace({
           aria-valuemin={timelineHeightBounds.minPx}
           aria-valuemax={timelineHeightBounds.maxPx}
           aria-valuenow={layout.timelineCollapsed ? 0 : timelineHeightPx}
-          onKeyDown={(event) => {
-            const step = event.shiftKey ? timelineResizeStepPxLarge : timelineResizeStepPx;
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              resizeTimelineFromKeyboard(-step);
-              return;
-            }
-            if (event.key === "ArrowUp") {
-              event.preventDefault();
-              resizeTimelineFromKeyboard(step);
-              return;
-            }
-            if (event.key === "Home") {
-              event.preventDefault();
-              resizeTimelineFromKeyboard(timelineHeightBounds.minPx - timelineHeightPx);
-              return;
-            }
-            if (event.key === "End") {
-              event.preventDefault();
-              resizeTimelineFromKeyboard(timelineHeightBounds.maxPx - timelineHeightPx);
-            }
-          }}
+          onKeyDown={timelineResizeKeyDown}
         />
+
         <ResizablePanel
           id="workspace-timeline-pane"
           key={timelinePanelKey}
