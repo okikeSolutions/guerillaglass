@@ -1,11 +1,13 @@
 import Foundation
 
+/// Capture health severity levels derived from runtime telemetry.
 public enum CaptureTelemetryHealthState: String {
     case good
     case warning
     case critical
 }
 
+/// Capture health reason codes used by protocol and UI surfaces.
 public enum CaptureTelemetryHealthReason: String {
     case engineError = "engine_error"
     case highDroppedFrameRate = "high_dropped_frame_rate"
@@ -13,6 +15,7 @@ public enum CaptureTelemetryHealthReason: String {
     case lowMicrophoneLevel = "low_microphone_level"
 }
 
+/// Evaluated capture health state plus optional reason.
 public struct CaptureTelemetryHealth: Equatable {
     public var state: CaptureTelemetryHealthState
     public var reason: CaptureTelemetryHealthReason?
@@ -26,6 +29,7 @@ public struct CaptureTelemetryHealth: Equatable {
     }
 }
 
+/// Input fields required to evaluate capture health for a recording session.
 public struct CaptureTelemetryHealthInput {
     public let totalFrames: Int
     public let droppedFramePercent: Double
@@ -54,6 +58,7 @@ public struct CaptureTelemetryHealthInput {
     }
 }
 
+/// Computes health state from capture telemetry inputs.
 public enum CaptureTelemetryHealthEvaluator {
     private static let minimumDroppedFrameSamples = 90
 

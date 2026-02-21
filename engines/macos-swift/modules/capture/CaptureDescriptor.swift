@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 
+/// Immutable descriptor of the current capture source geometry and scale.
 public struct CaptureDescriptor: Equatable {
     public struct WindowTarget: Equatable {
         public let id: CGWindowID

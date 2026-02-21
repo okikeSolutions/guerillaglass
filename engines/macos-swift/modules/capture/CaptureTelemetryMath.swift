@@ -1,5 +1,6 @@
 import Foundation
 
+/// Shared telemetry math helpers used by capture health calculations.
 public enum CaptureTelemetryMath {
     public static func estimateMissedFrames(
         deltaSeconds: Double,

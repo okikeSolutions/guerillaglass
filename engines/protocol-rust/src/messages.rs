@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+/// Protocol version shared between shell and native engines.
 pub const PROTOCOL_VERSION: &str = "2";
 
+/// Request envelope sent over line-delimited JSON transport.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EngineRequest {
     pub id: String,
@@ -14,11 +16,13 @@ pub struct EngineRequest {
 include!(concat!(env!("OUT_DIR"), "/engine_methods_generated.rs"));
 
 impl EngineRequest {
+    /// Attempts to map the raw method string to a known engine method variant.
     pub fn method_kind(&self) -> Option<EngineMethod> {
         EngineMethod::try_from(self.method.as_str()).ok()
     }
 }
 
+/// Stable engine error codes serialized in snake_case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProtocolErrorCode {
@@ -29,12 +33,14 @@ pub enum ProtocolErrorCode {
     RuntimeError,
 }
 
+/// Error payload returned by failed responses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EngineError {
     pub code: ProtocolErrorCode,
     pub message: String,
 }
 
+/// Success response envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EngineSuccessResponse {
     pub id: String,
@@ -42,6 +48,7 @@ pub struct EngineSuccessResponse {
     pub result: Value,
 }
 
+/// Error response envelope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EngineErrorResponse {
     pub id: String,
@@ -49,6 +56,7 @@ pub struct EngineErrorResponse {
     pub error: EngineError,
 }
 
+/// Untagged response union used by line codecs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum EngineResponse {
@@ -56,14 +64,17 @@ pub enum EngineResponse {
     Error(EngineErrorResponse),
 }
 
+/// Decodes a JSON request line into a typed request envelope.
 pub fn decode_request_line(line: &str) -> Result<EngineRequest, serde_json::Error> {
     serde_json::from_str(line)
 }
 
+/// Encodes a typed response envelope into a JSON line.
 pub fn encode_response_line(response: &EngineResponse) -> Result<String, serde_json::Error> {
     serde_json::to_string(response)
 }
 
+/// Creates a success response payload for a request id.
 pub fn success(id: impl Into<String>, result: Value) -> EngineResponse {
     EngineResponse::Success(EngineSuccessResponse {
         id: id.into(),
@@ -72,6 +83,7 @@ pub fn success(id: impl Into<String>, result: Value) -> EngineResponse {
     })
 }
 
+/// Creates an error response payload for a request id.
 pub fn failure(
     id: impl Into<String>,
     code: ProtocolErrorCode,

@@ -4,6 +4,7 @@ import Export
 import Foundation
 import ScreenCaptureKit
 
+/// Primary ScreenCaptureKit capture coordinator for display and window capture sessions.
 public final class CaptureEngine: NSObject, ObservableObject {
     @Published public private(set) var latestFrame: CGImage?
     @Published public private(set) var isRunning: Bool = false

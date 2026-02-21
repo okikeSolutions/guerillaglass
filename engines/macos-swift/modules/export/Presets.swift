@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 
+/// Export preset descriptor shared between engine and desktop shell.
 public struct ExportPreset: Identifiable, Hashable {
     public let id: String
     public let name: String
@@ -32,6 +33,7 @@ public struct ExportPreset: Identifiable, Hashable {
     }
 }
 
+/// Built-in export preset catalog.
 public enum Presets {
     public static let h2641080p30 = ExportPreset(
         id: "h264-1080p-30",
