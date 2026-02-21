@@ -9,6 +9,10 @@ Scripts/rust_gate.sh
 echo "==> typescript gate"
 Scripts/typescript_gate.sh
 
+# Run docs gate for Swift/Rust surfaces
+echo "==> docs gate (native surfaces)"
+bun run docs:check:native
+
 # Run SwiftFormat
 echo "==> swiftformat"
 swiftformat .

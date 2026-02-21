@@ -1,0 +1,50 @@
+{
+  "typescript": [
+    {
+      "name": "engine-protocol-public-api",
+      "roots": ["packages/engine-protocol/src"],
+      "extensions": [".ts"],
+      "minimumCoverage": 0.18
+    },
+    {
+      "name": "localization-public-api",
+      "roots": ["packages/localization/src"],
+      "extensions": [".ts"],
+      "minimumCoverage": 1
+    },
+    {
+      "name": "desktop-bridge-public-api",
+      "roots": ["apps/desktop-electrobun/src/bun"],
+      "extensions": [".ts"],
+      "minimumCoverage": 1
+    }
+  ],
+  "swift": [
+    {
+      "name": "protocol-swift-public-surface",
+      "roots": ["engines/protocol-swift"],
+      "extensions": [".swift"],
+      "minimumCoverage": 1
+    },
+    {
+      "name": "macos-engine-public-surface",
+      "roots": ["engines/macos-swift"],
+      "extensions": [".swift"],
+      "minimumCoverage": 0.2
+    }
+  ],
+  "rust": [
+    {
+      "name": "protocol-rust-public-api",
+      "roots": ["engines/protocol-rust/src"],
+      "extensions": [".rs"],
+      "minimumCoverage": 1
+    },
+    {
+      "name": "native-foundation-public-api",
+      "roots": ["engines/native-foundation/src"],
+      "extensions": [".rs"],
+      "minimumCoverage": 1
+    }
+  ]
+}
