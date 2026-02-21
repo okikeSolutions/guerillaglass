@@ -1,5 +1,6 @@
 import Foundation
 
+/// Errors surfaced by the capture engine lifecycle and source selection flow.
 public enum CaptureError: LocalizedError {
     case noDisplayAvailable
     case screenRecordingDenied

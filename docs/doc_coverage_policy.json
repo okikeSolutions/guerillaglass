@@ -4,7 +4,7 @@
       "name": "engine-protocol-public-api",
       "roots": ["packages/engine-protocol/src"],
       "extensions": [".ts"],
-      "minimumCoverage": 0.18
+      "minimumCoverage": 0.4
     },
     {
       "name": "localization-public-api",
@@ -30,7 +30,7 @@
       "name": "macos-engine-public-surface",
       "roots": ["engines/macos-swift"],
       "extensions": [".swift"],
-      "minimumCoverage": 0.2
+      "minimumCoverage": 0.26
     }
   ],
   "rust": [
