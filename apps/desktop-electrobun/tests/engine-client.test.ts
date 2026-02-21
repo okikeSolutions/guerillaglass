@@ -231,6 +231,23 @@ describe("engine client resilience", () => {
     }
   });
 
+  test("does not apply a default timeout to capture.startWindow", async () => {
+    const client = new EngineClient(HANGING_ENGINE_PATH, 50);
+
+    try {
+      const captureOutcome = await Promise.race([
+        client
+          .startWindowCapture(0, false)
+          .then(() => "resolved")
+          .catch((error: Error) => `rejected:${error.message}`),
+        wait(200).then(() => "pending"),
+      ]);
+      expect(captureOutcome).toBe("pending");
+    } finally {
+      await client.stop();
+    }
+  });
+
   test("fails pending requests quickly when engine exits", async () => {
     const client = new EngineClient(CRASHING_ENGINE_PATH, 5000);
     const startedAt = Date.now();

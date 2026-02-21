@@ -163,7 +163,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
 
     @available(macOS 14.0, *)
     public func startCaptureUsingPicker(
-        style: SCShareableContentStyle,
+        style: SCShareableContentStyle? = nil,
         enableMic: Bool = false,
         targetFrameRate: Int = 30
     ) async throws {
@@ -289,14 +289,14 @@ extension CaptureEngine {
 
     @available(macOS 14.0, *)
     @MainActor
-    private func pickContent(style: SCShareableContentStyle) async throws -> SCContentFilter {
+    private func pickContent(style: SCShareableContentStyle?) async throws -> SCContentFilter {
         if pickerContinuation != nil {
             throw CaptureError.pickerAlreadyActive
         }
 
         let picker = SCContentSharingPicker.shared
         var configuration = SCContentSharingPickerConfiguration()
-        configuration.allowedPickerModes = style == .display ? .singleDisplay : .singleWindow
+        configuration.allowedPickerModes = [.singleDisplay, .singleWindow]
         configuration.excludedWindowIDs = []
         if let bundleID = Bundle.main.bundleIdentifier {
             configuration.excludedBundleIDs = [bundleID]
@@ -310,7 +310,11 @@ extension CaptureEngine {
 
         return try await withCheckedThrowingContinuation { continuation in
             pickerContinuation = continuation
-            picker.present(using: style)
+            if let style {
+                picker.present(using: style)
+            } else {
+                picker.present()
+            }
         }
     }
 

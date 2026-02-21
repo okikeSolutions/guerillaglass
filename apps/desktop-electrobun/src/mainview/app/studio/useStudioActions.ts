@@ -154,23 +154,44 @@ export function useStudioActions({
     [queryClient],
   );
 
-  const startCaptureInternal = useCallback(async (): Promise<CaptureStatusResult> => {
-    await ensureScreenRecordingPermission();
+  const startCaptureInternal = useCallback(
+    async (options?: { preferWindowPicker?: boolean }): Promise<CaptureStatusResult> => {
+      await ensureScreenRecordingPermission();
 
-    const { captureSource, micEnabled, captureFps } = settingsForm.state.values;
-    if (captureSource === "window") {
-      if (selectedWindowId === 0) {
-        throw new Error(ui.notices.selectWindowFirst);
+      const { captureSource, micEnabled, captureFps } = settingsForm.state.values;
+      if (captureSource === "window") {
+        const windowId = options?.preferWindowPicker ? 0 : selectedWindowId;
+        if (windowId === 0 && !options?.preferWindowPicker) {
+          throw new Error(ui.notices.selectWindowFirst);
+        }
+        if (!options?.preferWindowPicker) {
+          return await engineApi.startWindowCapture(windowId, micEnabled, captureFps);
+        }
+
+        try {
+          return await engineApi.startWindowCapture(0, micEnabled, captureFps);
+        } catch (error) {
+          const unsupportedPickerOnMacOS13 =
+            error instanceof Error &&
+            /windowid must be greater than 0 on macos 13/i.test(error.message);
+          if (!unsupportedPickerOnMacOS13) {
+            throw error;
+          }
+          if (selectedWindowId === 0) {
+            throw new Error(ui.notices.selectWindowFirst);
+          }
+          return await engineApi.startWindowCapture(selectedWindowId, micEnabled, captureFps);
+        }
       }
-      return await engineApi.startWindowCapture(selectedWindowId, micEnabled, captureFps);
-    }
-    return await engineApi.startDisplayCapture(micEnabled, captureFps);
-  }, [
-    ensureScreenRecordingPermission,
-    selectedWindowId,
-    settingsForm.state.values,
-    ui.notices.selectWindowFirst,
-  ]);
+      return await engineApi.startDisplayCapture(micEnabled, captureFps);
+    },
+    [
+      ensureScreenRecordingPermission,
+      selectedWindowId,
+      settingsForm.state.values,
+      ui.notices.selectWindowFirst,
+    ],
+  );
 
   const refreshMutation = useMutation({
     mutationFn: async () => {
@@ -271,7 +292,9 @@ export function useStudioActions({
     mutationFn: async () => {
       let status = captureStatusQuery.data;
       if (!status?.isRunning) {
-        status = await startCaptureInternal();
+        status = await startCaptureInternal({
+          preferWindowPicker: settingsForm.state.values.captureSource === "window",
+        });
       }
 
       if (status?.isRecording) {

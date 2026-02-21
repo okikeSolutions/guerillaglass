@@ -85,11 +85,26 @@ extension EngineService {
         }
 
         do {
-            try await captureEngine.startWindowCapture(
-                windowID: CGWindowID(windowID),
-                enableMic: enableMic,
-                targetFrameRate: captureFps
-            )
+            if windowID == 0 {
+                if #available(macOS 14.0, *) {
+                    try await captureEngine.startCaptureUsingPicker(
+                        enableMic: enableMic,
+                        targetFrameRate: captureFps
+                    )
+                } else {
+                    return .failure(
+                        id: id,
+                        code: "invalid_params",
+                        message: "windowId must be greater than 0 on macOS 13"
+                    )
+                }
+            } else {
+                try await captureEngine.startWindowCapture(
+                    windowID: CGWindowID(windowID),
+                    enableMic: enableMic,
+                    targetFrameRate: captureFps
+                )
+            }
             return captureStatusResponse(id: id)
         } catch {
             return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
