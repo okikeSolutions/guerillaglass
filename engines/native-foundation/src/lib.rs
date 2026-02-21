@@ -9,13 +9,18 @@ use std::path::{Path, PathBuf};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
+/// Native foundation engine version identifier.
 pub const ENGINE_VERSION: &str = "0.4.0-native-foundation";
+/// Native foundation phase reported in capability responses.
 pub const ENGINE_PHASE: &str = "foundation";
 const MAX_RECENT_PROJECTS: usize = 20;
 const DEFAULT_RECENTS_LIMIT: usize = 10;
 
+/// Runtime configuration for the native foundation engine loop.
 pub struct EngineRuntimeConfig {
+    /// Platform identifier returned in capability and ping payloads.
     pub platform: &'static str,
+    /// Path to persisted recents index used by project methods.
     pub recents_index_path: PathBuf,
 }
 
@@ -420,6 +425,7 @@ fn write_response(stdout: &mut io::Stdout, response: EngineResponse) {
     }
 }
 
+/// Runs the native foundation stdio request loop until stdin is closed.
 pub fn run_engine(config: EngineRuntimeConfig) {
     let stdin = io::stdin();
     let mut stdout = io::stdout();

@@ -1,5 +1,6 @@
 import Foundation
 
+/// JSON-compatible value container used by engine request and response payloads.
 public enum JSONValue: Codable, Equatable {
     case string(String)
     case number(Double)
@@ -85,6 +86,7 @@ public enum JSONValue: Codable, Equatable {
     }
 }
 
+/// Request envelope sent from the desktop shell to the native engine.
 public struct EngineRequest: Codable, Equatable {
     public let id: String
     public let method: String
@@ -97,6 +99,7 @@ public struct EngineRequest: Codable, Equatable {
     }
 }
 
+/// Error payload returned for failed engine responses.
 public struct EngineError: Codable, Equatable {
     public let code: String
     public let message: String
@@ -108,6 +111,7 @@ public struct EngineError: Codable, Equatable {
 }
 
 // swiftlint:disable identifier_name
+/// Response envelope returned by the native engine.
 public struct EngineResponse: Codable, Equatable {
     public let id: String
     public let ok: Bool
@@ -132,10 +136,12 @@ public struct EngineResponse: Codable, Equatable {
 
 // swiftlint:enable identifier_name
 
+/// Errors thrown while decoding or encoding protocol lines.
 public enum EngineProtocolError: Error {
     case invalidLine
 }
 
+/// Line-delimited JSON codec for engine request and response transport.
 public enum EngineLineCodec {
     private static let decoder = JSONDecoder()
     private static let encoder = JSONEncoder()

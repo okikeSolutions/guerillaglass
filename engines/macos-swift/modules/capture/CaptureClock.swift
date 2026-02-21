@@ -2,6 +2,7 @@ import CoreMedia
 import Foundation
 import QuartzCore
 
+/// Monotonic capture clock used for media timing.
 public struct CaptureClock {
     public init() {}
 

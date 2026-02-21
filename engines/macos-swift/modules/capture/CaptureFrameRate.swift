@@ -1,5 +1,6 @@
 import Foundation
 
+/// Policy helpers for supported capture frame rates.
 public enum CaptureFrameRatePolicy {
     public static let supportedValues: [Int] = [24, 30, 60]
     public static let defaultValue: Int = 30
