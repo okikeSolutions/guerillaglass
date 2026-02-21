@@ -4,12 +4,15 @@ import os from "node:os";
 import path from "node:path";
 
 const DEFAULT_MAX_TEXT_READ_BYTES = 5 * 1024 * 1024;
+const mediaExtensions = new Set([".mov", ".mp4", ".m4v", ".webm"]);
 
 type ReadTextFileOptions = {
   currentProjectPath?: string | null;
   maxBytes?: number;
   tempDirectory?: string;
 };
+
+type ResolveAllowedMediaFileOptions = Omit<ReadTextFileOptions, "maxBytes">;
 
 function canonicalizePath(candidatePath: string): string {
   try {
@@ -22,6 +25,31 @@ function canonicalizePath(candidatePath: string): string {
 function isPathWithinRoot(targetPath: string, rootPath: string): boolean {
   const relative = path.relative(rootPath, targetPath);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function allowedRoots(options: ResolveAllowedMediaFileOptions): string[] {
+  const projectPath = options.currentProjectPath?.trim();
+  const roots = new Set<string>([
+    canonicalizePath(options.tempDirectory ?? os.tmpdir()),
+    canonicalizePath("/tmp"),
+  ]);
+  if (projectPath) {
+    roots.add(canonicalizePath(path.resolve(projectPath)));
+  }
+  return Array.from(roots);
+}
+
+function ensurePathWithinAllowedRoots(
+  resolvedPath: string,
+  options: ResolveAllowedMediaFileOptions = {},
+): string {
+  const roots = allowedRoots(options);
+  const canonicalTargetPath = canonicalizePath(resolvedPath);
+  const isAllowed = roots.some((rootPath) => isPathWithinRoot(canonicalTargetPath, rootPath));
+  if (!isAllowed) {
+    throw new Error("Access denied: file path is outside allowed project and temp directories.");
+  }
+  return canonicalTargetPath;
 }
 
 export function resolveAllowedTextFilePath(
@@ -37,24 +65,23 @@ export function resolveAllowedTextFilePath(
     throw new Error("Only .json files can be read through the desktop bridge.");
   }
 
-  const projectPath = options.currentProjectPath?.trim();
-  const roots = new Set<string>([
-    canonicalizePath(options.tempDirectory ?? os.tmpdir()),
-    canonicalizePath("/tmp"),
-  ]);
-  if (projectPath) {
-    roots.add(canonicalizePath(path.resolve(projectPath)));
+  return ensurePathWithinAllowedRoots(resolvedPath, options);
+}
+
+export function resolveAllowedMediaFilePath(
+  filePath: string,
+  options: ResolveAllowedMediaFileOptions = {},
+): string {
+  if (typeof filePath !== "string" || filePath.trim().length === 0) {
+    throw new Error("A file path is required.");
   }
 
-  const canonicalTargetPath = canonicalizePath(resolvedPath);
-  const isAllowed = Array.from(roots).some((rootPath) =>
-    isPathWithinRoot(canonicalTargetPath, rootPath),
-  );
-  if (!isAllowed) {
-    throw new Error("Access denied: file path is outside allowed project and temp directories.");
+  const resolvedPath = path.resolve(filePath);
+  if (!mediaExtensions.has(path.extname(resolvedPath).toLowerCase())) {
+    throw new Error("Only video media files can be read through the desktop bridge.");
   }
 
-  return canonicalTargetPath;
+  return ensurePathWithinAllowedRoots(resolvedPath, options);
 }
 
 export async function readAllowedTextFile(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useStudio } from "../studio/context";
@@ -7,7 +7,7 @@ import { InspectorPanel } from "./InspectorPanel";
 import { TimelineDock } from "./TimelineDock";
 import { ProjectUtilityPanel } from "./ProjectUtilityPanel";
 import { captureTargetLabelFromMetadata } from "./captureTargetLabel";
-import { toMediaSourceURL } from "./mediaSource";
+import { useRecordingMediaSource } from "./useRecordingMediaSource";
 import {
   StudioPane,
   StudioPaneBody,
@@ -33,7 +33,7 @@ export function EditRoute() {
     ui,
   } = studio;
   const mediaRef = useRef<HTMLVideoElement | null>(null);
-  const recordingMediaSource = useMemo(() => toMediaSourceURL(recordingURL), [recordingURL]);
+  const recordingMediaSource = useRecordingMediaSource(recordingURL);
   const activeCaptureMetadata =
     captureStatusQuery.data?.captureMetadata ?? projectQuery.data?.captureMetadata ?? null;
   const activeCaptureTarget = captureTargetLabelFromMetadata({

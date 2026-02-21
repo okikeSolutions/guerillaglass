@@ -11,8 +11,9 @@ import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../shared
 import { extractMenuAction } from "./menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "./menu/builders";
 import { routeMenuAction } from "./menu/router";
-import { readAllowedTextFile } from "./fileAccess";
+import { readAllowedTextFile, resolveAllowedMediaFilePath } from "./fileAccess";
 import { createEngineBridgeHandlers } from "./bridgeHandlers";
+import { MediaServer } from "./mediaServer";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -62,6 +63,14 @@ async function readTextFile(filePath: string): Promise<string> {
     currentProjectPath,
     tempDirectory: process.env.TMPDIR,
   });
+}
+
+async function resolveMediaSourceURL(filePath: string): Promise<string> {
+  const allowedMediaPath = resolveAllowedMediaFilePath(filePath, {
+    currentProjectPath,
+    tempDirectory: process.env.TMPDIR,
+  });
+  return await mediaServer.resolveMediaSourceURL(allowedMediaPath);
 }
 
 function applyShellMenus() {
@@ -128,6 +137,7 @@ function handleShellAction(action: string) {
 }
 
 const engineClient = new EngineClient();
+const mediaServer = new MediaServer();
 await engineClient.start();
 try {
   const initialProject = await engineClient.projectCurrent();
@@ -142,6 +152,7 @@ const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
       engineClient,
       pickDirectory,
       readTextFile,
+      resolveMediaSourceURL,
       setCurrentProjectPath: (projectPath) => {
         currentProjectPath = projectPath;
       },
@@ -183,6 +194,7 @@ Electrobun.events.on("application-menu-clicked", (event: unknown) => {
 mainWindow.on("close", async () => {
   linuxTray?.remove();
   linuxTray = null;
+  mediaServer.stop();
   await engineClient.stop();
   Utils.quit();
 });

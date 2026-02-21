@@ -135,6 +135,10 @@ export const desktopApi = {
   async readTextFile(filePath: string): Promise<string> {
     return await requireBridge("ggReadTextFile")(filePath);
   },
+
+  async resolveMediaSourceURL(filePath: string): Promise<string> {
+    return await requireBridge("ggResolveMediaSourceURL")(filePath);
+  },
 };
 
 export function sendHostMenuState(state: HostMenuState): void {

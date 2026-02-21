@@ -12,6 +12,7 @@ Creator Studio reliability + workflow notes (current):
 
 - Dialog-driven project/export actions now treat host RPC dialog timeouts as recoverable and show actionable guidance instead of hard-failing the workflow.
 - Transport actions (`Start Preview`, record toggles, `Stop Preview`) reconcile with fresh `capture.status` reads so UI state is not left stale after command dispatch.
+- Recording playback prefers loopback tokenized media URLs (instead of raw `file://`), with bridge-level allowed-root checks for media paths, a small allowlist for non-file URL schemes (`stub`), and resilient loopback bind fallback when `port: 0` is unsupported.
 - Timeline now includes pro-style controls: tool mode (`Select`/`Trim`/`Blade`), snap/ripple toggles, zoom controls, and lane lock/mute/solo toggles.
 - Capture inspector now includes source monitor and audio mixer surfaces (master + mic level/mute controls).
 - Project utility rail now includes a lightweight media-bin summary for current recording and event-log assets.

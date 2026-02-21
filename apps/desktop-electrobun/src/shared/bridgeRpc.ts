@@ -129,6 +129,9 @@ export const bridgeRequestDefinitions = {
   ggReadTextFile: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
     (filePath) => ({ filePath }),
   ),
+  ggResolveMediaSourceURL: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
+    (filePath) => ({ filePath }),
+  ),
 } as const;
 
 type BridgeRequestDefinitions = typeof bridgeRequestDefinitions;

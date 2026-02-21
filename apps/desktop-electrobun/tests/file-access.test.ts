@@ -1,8 +1,12 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { readAllowedTextFile, resolveAllowedTextFilePath } from "../src/bun/fileAccess";
+import {
+  readAllowedTextFile,
+  resolveAllowedMediaFilePath,
+  resolveAllowedTextFilePath,
+} from "../src/bun/fileAccess";
 
 function createTempDirectory(prefix: string): string {
   return mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -85,6 +89,77 @@ describe("file access policy", () => {
       ).rejects.toThrow("File too large");
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("allows media files inside the project directory", () => {
+    const projectDir = createTempDirectory("gg-project-media-access-");
+    try {
+      const assetsDir = path.join(projectDir, "Assets");
+      const filePath = path.join(assetsDir, "capture.mp4");
+      mkdirSync(assetsDir, { recursive: true });
+      writeFileSync(filePath, "video-bytes", "utf8");
+
+      const resolvedPath = resolveAllowedMediaFilePath(filePath, {
+        currentProjectPath: projectDir,
+        tempDirectory: "/var/empty",
+      });
+      expect(resolvedPath).toBe(realpathSync(filePath));
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects disallowed media extension for media bridge reads", () => {
+    const tempDir = createTempDirectory("gg-file-access-");
+    try {
+      const filePath = path.join(tempDir, "capture.avi");
+      writeFileSync(filePath, "avi-bytes", "utf8");
+      expect(() => resolveAllowedMediaFilePath(filePath)).toThrow(
+        "Only video media files can be read through the desktop bridge.",
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects media files outside allowed roots", () => {
+    const outsideDir = mkdtempSync(path.join(import.meta.dir, "gg-outside-media-"));
+    try {
+      const outsidePath = path.join(outsideDir, "capture.mov");
+      writeFileSync(outsidePath, "video-bytes", "utf8");
+      expect(() =>
+        resolveAllowedMediaFilePath(outsidePath, {
+          currentProjectPath: "/definitely/not-this-path",
+          tempDirectory: "/var/empty",
+        }),
+      ).toThrow("Access denied");
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects symlinked media paths that escape allowed roots", () => {
+    const projectDir = createTempDirectory("gg-project-media-access-");
+    const outsideDir = mkdtempSync(path.join(import.meta.dir, "gg-outside-media-target-"));
+    try {
+      const outsideMediaPath = path.join(outsideDir, "outside.mov");
+      writeFileSync(outsideMediaPath, "video-bytes", "utf8");
+
+      const projectMediaDir = path.join(projectDir, "Assets");
+      mkdirSync(projectMediaDir, { recursive: true });
+      const symlinkPath = path.join(projectMediaDir, "linked.mov");
+      symlinkSync(outsideMediaPath, symlinkPath);
+
+      expect(() =>
+        resolveAllowedMediaFilePath(symlinkPath, {
+          currentProjectPath: projectDir,
+          tempDirectory: "/var/empty",
+        }),
+      ).toThrow("Access denied");
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+      rmSync(outsideDir, { recursive: true, force: true });
     }
   });
 });
