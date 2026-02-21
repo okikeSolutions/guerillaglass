@@ -33,6 +33,10 @@
     "desktop:test:ui:headed": "cd apps/desktop-electrobun && bun run test:ui:headed",
     "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
     "protocol:typecheck": "cd packages/engine-protocol && bun run typecheck",
+    "coverage": "./Scripts/coverage.sh",
+    "coverage:typescript": "bun run desktop:test:coverage",
+    "coverage:rust": "./Scripts/rust_coverage.sh",
+    "coverage:swift": "./Scripts/swift_coverage.sh",
     "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
   },
   "devDependencies": {
