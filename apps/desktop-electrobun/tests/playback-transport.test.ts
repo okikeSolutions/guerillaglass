@@ -3,12 +3,12 @@ import {
   advancePlaybackSeconds,
   toDisplayClockSeconds,
   toEditClockSeconds,
-} from "../src/mainview/app/studio/usePlaybackTransport";
+} from "../src/mainview/app/studio/hooks/timeline/usePlaybackTransport";
 import {
   frameIndexToSeconds,
   quantizeSecondsToFrame,
   secondsToFrameIndex,
-} from "../src/mainview/app/studio/timelineTimebase";
+} from "../src/mainview/app/studio/model/timelineFrameTimebase";
 
 describe("playback transport", () => {
   test("advances display clock continuously based on elapsed milliseconds", () => {

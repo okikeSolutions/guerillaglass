@@ -6,7 +6,7 @@ import {
   readAllowedTextFile,
   resolveAllowedMediaFilePath,
   resolveAllowedTextFilePath,
-} from "../src/bun/fileAccess";
+} from "../src/bun/security/fileAccess";
 
 function createTempDirectory(prefix: string): string {
   return mkdtempSync(path.join(os.tmpdir(), prefix));

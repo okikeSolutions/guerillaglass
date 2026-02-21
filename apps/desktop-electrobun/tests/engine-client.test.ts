@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { EngineClient, resolveEnginePath } from "../src/bun/engineClient";
+import { EngineClient, resolveEnginePath } from "../src/bun/engine/client";
 
 const BUN_BASE_DIR = path.resolve(import.meta.dir, "../src/bun");
 const LINUX_STUB_PATH = path.resolve(

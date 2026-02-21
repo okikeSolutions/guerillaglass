@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { enUS } from "@guerillaglass/localization";
-import { InspectorPanel } from "../src/mainview/app/routes/InspectorPanel";
-import { StudioProvider } from "../src/mainview/app/studio/context";
-import type { InspectorSelection, StudioMode } from "../src/mainview/app/studio/inspectorContext";
-import type { StudioController } from "../src/mainview/app/studio/useStudioController";
+import { InspectorPanel } from "../src/mainview/app/studio/panels/InspectorPanel";
+import { StudioProvider } from "../src/mainview/app/studio/state/StudioProvider";
+import type {
+  InspectorSelection,
+  StudioMode,
+} from "../src/mainview/app/studio/model/inspectorSelectionModel";
+import type { StudioController } from "../src/mainview/app/studio/hooks/core/useStudioController";
 
 function makeStudioMock(selection: InspectorSelection): StudioController {
   return {

@@ -3,7 +3,7 @@ import type { CaptureTelemetry } from "@guerillaglass/engine-protocol";
 import {
   buildCaptureTelemetryPresentation,
   buildDroppedFramesTooltip,
-} from "../src/mainview/app/studio/captureTelemetryPresentation";
+} from "../src/mainview/app/studio/model/captureTelemetryViewModel";
 
 const formatter = {
   formatInteger: (value: number) => value.toFixed(0),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { toMediaSourceURL } from "../src/mainview/app/routes/mediaSource";
+import { toMediaSourceURL } from "../src/mainview/app/studio/model/mediaSourceUrl";
 
 describe("media source URL", () => {
   test("returns null when recording URL is empty", () => {
