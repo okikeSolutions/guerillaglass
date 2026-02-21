@@ -62,40 +62,223 @@ class EngineClientError extends Error {
   }
 }
 
-const defaultRequestTimeoutByMethod: Readonly<Record<EngineRequest["method"], number>> = {
-  "system.ping": 3000,
-  "engine.capabilities": 5000,
-  "permissions.get": 5000,
-  "permissions.requestScreenRecording": 10_000,
-  "permissions.requestMicrophone": 10_000,
-  "permissions.requestInputMonitoring": 10_000,
-  "permissions.openInputMonitoringSettings": 5000,
-  "sources.list": 8000,
-  "capture.startDisplay": 15_000,
-  "capture.startWindow": 15_000,
-  "capture.stop": 10_000,
-  "recording.start": 15_000,
-  "recording.stop": 15_000,
-  "capture.status": 5000,
-  "export.info": 10_000,
-  // 0 disables timeout: exports can legitimately run for long recordings.
-  "export.run": 0,
-  "project.current": 5000,
-  "project.open": 20_000,
-  "project.save": 20_000,
-  "project.recents": 5000,
+type EngineMethodDefinition<TResult, TArgs extends unknown[]> = {
+  method: EngineRequest["method"];
+  toParams: (...args: TArgs) => unknown;
+  schema: { parse: (value: unknown) => TResult };
+  timeoutMs: number;
+  retryableRead: boolean;
 };
 
-const retryableReadMethods = new Set<EngineRequest["method"]>([
-  "system.ping",
-  "engine.capabilities",
-  "permissions.get",
-  "sources.list",
-  "capture.status",
-  "export.info",
-  "project.current",
-  "project.recents",
-]);
+const emptyParams = () => ({});
+
+const engineMethodDefinitions = {
+  ping: {
+    method: "system.ping",
+    toParams: emptyParams,
+    schema: pingResultSchema,
+    timeoutMs: 3000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof pingResultSchema.parse>>, []>,
+  capabilities: {
+    method: "engine.capabilities",
+    toParams: emptyParams,
+    schema: capabilitiesResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof capabilitiesResultSchema.parse>>,
+    []
+  >,
+  getPermissions: {
+    method: "permissions.get",
+    toParams: emptyParams,
+    schema: permissionsResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof permissionsResultSchema.parse>>, []>,
+  requestScreenRecordingPermission: {
+    method: "permissions.requestScreenRecording",
+    toParams: emptyParams,
+    schema: actionResultSchema,
+    timeoutMs: 10_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  requestMicrophonePermission: {
+    method: "permissions.requestMicrophone",
+    toParams: emptyParams,
+    schema: actionResultSchema,
+    timeoutMs: 10_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  requestInputMonitoringPermission: {
+    method: "permissions.requestInputMonitoring",
+    toParams: emptyParams,
+    schema: actionResultSchema,
+    timeoutMs: 10_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  openInputMonitoringSettings: {
+    method: "permissions.openInputMonitoringSettings",
+    toParams: emptyParams,
+    schema: actionResultSchema,
+    timeoutMs: 5000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  listSources: {
+    method: "sources.list",
+    toParams: emptyParams,
+    schema: sourcesResultSchema,
+    timeoutMs: 8000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof sourcesResultSchema.parse>>, []>,
+  startDisplayCapture: {
+    method: "capture.startDisplay",
+    toParams: (enableMic: boolean) => ({ enableMic }),
+    schema: captureStatusResultSchema,
+    timeoutMs: 15_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    [enableMic: boolean]
+  >,
+  startWindowCapture: {
+    method: "capture.startWindow",
+    toParams: (windowId: number, enableMic: boolean) => ({ windowId, enableMic }),
+    schema: captureStatusResultSchema,
+    timeoutMs: 15_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    [windowId: number, enableMic: boolean]
+  >,
+  stopCapture: {
+    method: "capture.stop",
+    toParams: emptyParams,
+    schema: captureStatusResultSchema,
+    timeoutMs: 10_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    []
+  >,
+  startRecording: {
+    method: "recording.start",
+    toParams: (trackInputEvents: boolean) => ({ trackInputEvents }),
+    schema: captureStatusResultSchema,
+    timeoutMs: 15_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    [trackInputEvents: boolean]
+  >,
+  stopRecording: {
+    method: "recording.stop",
+    toParams: emptyParams,
+    schema: captureStatusResultSchema,
+    timeoutMs: 15_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    []
+  >,
+  captureStatus: {
+    method: "capture.status",
+    toParams: emptyParams,
+    schema: captureStatusResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    []
+  >,
+  exportInfo: {
+    method: "export.info",
+    toParams: emptyParams,
+    schema: exportInfoResultSchema,
+    timeoutMs: 10_000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof exportInfoResultSchema.parse>>, []>,
+  runExport: {
+    method: "export.run",
+    toParams: (params: {
+      outputURL: string;
+      presetId: string;
+      trimStartSeconds?: number;
+      trimEndSeconds?: number;
+    }) => params,
+    schema: exportRunResultSchema,
+    // 0 disables timeout: exports can legitimately run for long recordings.
+    timeoutMs: 0,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof exportRunResultSchema.parse>>,
+    [
+      params: {
+        outputURL: string;
+        presetId: string;
+        trimStartSeconds?: number;
+        trimEndSeconds?: number;
+      },
+    ]
+  >,
+  projectCurrent: {
+    method: "project.current",
+    toParams: emptyParams,
+    schema: projectStateSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof projectStateSchema.parse>>, []>,
+  projectOpen: {
+    method: "project.open",
+    toParams: (projectPath: string) => ({ projectPath }),
+    schema: projectStateSchema,
+    timeoutMs: 20_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof projectStateSchema.parse>>,
+    [projectPath: string]
+  >,
+  projectSave: {
+    method: "project.save",
+    toParams: (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) => params,
+    schema: projectStateSchema,
+    timeoutMs: 20_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof projectStateSchema.parse>>,
+    [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
+  >,
+  projectRecents: {
+    method: "project.recents",
+    toParams: (limit?: number) => ({ limit }),
+    schema: projectRecentsResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof projectRecentsResultSchema.parse>>,
+    [limit?: number]
+  >,
+} as const;
+
+const requestMethodPolicy = Object.freeze(
+  Object.fromEntries(
+    Object.values(engineMethodDefinitions).map((definition) => [
+      definition.method,
+      { timeoutMs: definition.timeoutMs, retryableRead: definition.retryableRead },
+    ]),
+  ) as Record<EngineRequest["method"], { timeoutMs: number; retryableRead: boolean }>,
+);
+
+const defaultRequestTimeoutByMethod = Object.fromEntries(
+  Object.entries(requestMethodPolicy).map(([method, policy]) => [method, policy.timeoutMs]),
+) as Readonly<Record<EngineRequest["method"], number>>;
+
+const retryableReadMethods = new Set<EngineRequest["method"]>(
+  Object.entries(requestMethodPolicy)
+    .filter(([, policy]) => policy.retryableRead)
+    .map(([method]) => method as EngineRequest["method"]),
+);
 
 const retryableTransportErrors = new Set<EngineClientErrorCode>([
   "ENGINE_PROCESS_UNAVAILABLE",
@@ -327,78 +510,86 @@ export class EngineClient {
   }
 
   async ping() {
-    return pingResultSchema.parse(await this.request("system.ping", {}));
+    const definition = engineMethodDefinitions.ping;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async capabilities() {
-    return capabilitiesResultSchema.parse(await this.request("engine.capabilities", {}));
+    const definition = engineMethodDefinitions.capabilities;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async getPermissions() {
-    return permissionsResultSchema.parse(await this.request("permissions.get", {}));
+    const definition = engineMethodDefinitions.getPermissions;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async requestScreenRecordingPermission() {
-    return actionResultSchema.parse(await this.request("permissions.requestScreenRecording", {}));
+    const definition = engineMethodDefinitions.requestScreenRecordingPermission;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async requestMicrophonePermission() {
-    return actionResultSchema.parse(await this.request("permissions.requestMicrophone", {}));
+    const definition = engineMethodDefinitions.requestMicrophonePermission;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async requestInputMonitoringPermission() {
-    return actionResultSchema.parse(await this.request("permissions.requestInputMonitoring", {}));
+    const definition = engineMethodDefinitions.requestInputMonitoringPermission;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async openInputMonitoringSettings() {
-    return actionResultSchema.parse(
-      await this.request("permissions.openInputMonitoringSettings", {}),
-    );
+    const definition = engineMethodDefinitions.openInputMonitoringSettings;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async listSources() {
-    return sourcesResultSchema.parse(await this.request("sources.list", {}));
+    const definition = engineMethodDefinitions.listSources;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async startDisplayCapture(enableMic: boolean) {
-    return captureStatusResultSchema.parse(
-      await this.request("capture.startDisplay", {
-        enableMic,
-      }),
-    );
+    const definition = engineMethodDefinitions.startDisplayCapture;
+    return this.callAndParse(definition.method, definition.toParams(enableMic), definition.schema);
   }
 
   async startWindowCapture(windowId: number, enableMic: boolean) {
-    return captureStatusResultSchema.parse(
-      await this.request("capture.startWindow", {
-        windowId,
-        enableMic,
-      }),
+    const definition = engineMethodDefinitions.startWindowCapture;
+    return this.callAndParse(
+      definition.method,
+      definition.toParams(windowId, enableMic),
+      definition.schema,
     );
   }
 
   async stopCapture() {
-    return captureStatusResultSchema.parse(await this.request("capture.stop", {}));
+    const definition = engineMethodDefinitions.stopCapture;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async startRecording(trackInputEvents: boolean) {
-    return captureStatusResultSchema.parse(
-      await this.request("recording.start", {
-        trackInputEvents,
-      }),
+    const definition = engineMethodDefinitions.startRecording;
+    return this.callAndParse(
+      definition.method,
+      definition.toParams(trackInputEvents),
+      definition.schema,
     );
   }
 
   async stopRecording() {
-    return captureStatusResultSchema.parse(await this.request("recording.stop", {}));
+    const definition = engineMethodDefinitions.stopRecording;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async captureStatus() {
-    return captureStatusResultSchema.parse(await this.request("capture.status", {}));
+    const definition = engineMethodDefinitions.captureStatus;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async exportInfo() {
-    return exportInfoResultSchema.parse(await this.request("export.info", {}));
+    const definition = engineMethodDefinitions.exportInfo;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async runExport(params: {
@@ -407,29 +598,43 @@ export class EngineClient {
     trimStartSeconds?: number;
     trimEndSeconds?: number;
   }) {
-    return exportRunResultSchema.parse(await this.request("export.run", params));
+    const definition = engineMethodDefinitions.runExport;
+    return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
   }
 
   async projectCurrent() {
-    return projectStateSchema.parse(await this.request("project.current", {}));
+    const definition = engineMethodDefinitions.projectCurrent;
+    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
   async projectOpen(projectPath: string) {
-    return projectStateSchema.parse(await this.request("project.open", { projectPath }));
+    const definition = engineMethodDefinitions.projectOpen;
+    return this.callAndParse(
+      definition.method,
+      definition.toParams(projectPath),
+      definition.schema,
+    );
   }
 
   async projectSave(params: { projectPath?: string; autoZoom?: AutoZoomSettings }) {
-    return projectStateSchema.parse(await this.request("project.save", params));
+    const definition = engineMethodDefinitions.projectSave;
+    return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
   }
 
   async projectRecents(limit?: number) {
-    return projectRecentsResultSchema.parse(await this.request("project.recents", { limit }));
+    const definition = engineMethodDefinitions.projectRecents;
+    return this.callAndParse(definition.method, definition.toParams(limit), definition.schema);
   }
 
-  private async request<TMethod extends EngineRequest["method"]>(
-    method: TMethod,
-    params: Extract<EngineRequest, { method: TMethod }>["params"],
-  ): Promise<unknown> {
+  private async callAndParse<TResult>(
+    method: EngineRequest["method"],
+    params: unknown,
+    schema: { parse: (value: unknown) => TResult },
+  ): Promise<TResult> {
+    return schema.parse(await this.request(method, params));
+  }
+
+  private async request(method: EngineRequest["method"], params: unknown): Promise<unknown> {
     let attempt = 0;
     while (true) {
       try {

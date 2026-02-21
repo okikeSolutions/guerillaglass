@@ -171,13 +171,120 @@ function SelectionDetails({ selection }: { selection: InspectorSelection }) {
   }
 }
 
-function CaptureInspectorContent() {
+type AutoZoomSectionProps = {
+  headingIcon?: ReactNode;
+  showMinimumKeyframeInterval?: boolean;
+  showAudioMixer?: boolean;
+  sliderClassName?: string;
+};
+
+function AutoZoomSection({
+  headingIcon,
+  showMinimumKeyframeInterval = false,
+  showAudioMixer = false,
+  sliderClassName,
+}: AutoZoomSectionProps) {
   const studio = useStudio();
   const telemetry = studio.captureStatusQuery.data?.telemetry;
   const rawMeter =
     telemetry?.audioLevelDbfs == null ? 0 : clampDbfsToMeter(telemetry.audioLevelDbfs);
   const masterMeter = studio.audioMixer.masterMuted ? 0 : rawMeter * studio.audioMixer.masterGain;
   const micMeter = studio.audioMixer.micMuted ? 0 : rawMeter * studio.audioMixer.micGain;
+
+  return (
+    <studio.settingsForm.Field name="autoZoom">
+      {(field) => (
+        <div className="space-y-2 px-0.5">
+          <p className="gg-utility-label inline-flex items-center gap-1">
+            {headingIcon}
+            {studio.ui.labels.autoZoomSection}
+          </p>
+          <Field>
+            <FieldLabel className="items-center">
+              <Checkbox
+                checked={field.state.value.isEnabled}
+                onCheckedChange={(checked) =>
+                  field.handleChange({
+                    ...field.state.value,
+                    isEnabled: checked,
+                  })
+                }
+              />
+              {studio.ui.labels.autoZoomEnabled}
+            </FieldLabel>
+          </Field>
+          <Field>
+            <FieldLabel>
+              {studio.ui.labels.autoZoomIntensity(Math.round(field.state.value.intensity * 100))}
+            </FieldLabel>
+            <FieldContent>
+              <Slider
+                className={sliderClassName}
+                min={0}
+                max={1}
+                step={0.05}
+                value={[field.state.value.intensity]}
+                onValueChange={(nextValue) =>
+                  field.handleChange({
+                    ...field.state.value,
+                    intensity: readSliderValue(nextValue),
+                  })
+                }
+              />
+            </FieldContent>
+          </Field>
+          {showMinimumKeyframeInterval ? (
+            <Field>
+              <FieldLabel>{studio.ui.labels.minimumKeyframeInterval}</FieldLabel>
+              <FieldContent>
+                <Input
+                  type="number"
+                  min={0.01}
+                  step={0.01}
+                  value={Number(field.state.value.minimumKeyframeInterval.toFixed(2))}
+                  onChange={(event) =>
+                    field.handleChange({
+                      ...field.state.value,
+                      minimumKeyframeInterval: Math.max(0.01, Number(event.target.value) || 0.01),
+                    })
+                  }
+                />
+              </FieldContent>
+            </Field>
+          ) : null}
+          {showAudioMixer ? (
+            <div className="space-y-2 pt-1">
+              <p className="gg-utility-label">{studio.ui.labels.audioMixer}</p>
+              <AudioMixerChannel
+                label={studio.ui.labels.masterChannel}
+                value={studio.audioMixer.masterGain}
+                level={masterMeter}
+                muted={studio.audioMixer.masterMuted}
+                muteLabel={studio.ui.labels.mute}
+                unmuteLabel={studio.ui.labels.unmute}
+                onValueChange={(value) => studio.setAudioMixerGain("master", value)}
+                onToggleMuted={() => studio.toggleAudioMixerMuted("master")}
+              />
+              <AudioMixerChannel
+                label={studio.ui.labels.microphone}
+                value={studio.audioMixer.micGain}
+                level={micMeter}
+                muted={studio.audioMixer.micMuted}
+                muteLabel={studio.ui.labels.mute}
+                unmuteLabel={studio.ui.labels.unmute}
+                onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
+                onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
+              />
+            </div>
+          ) : null}
+        </div>
+      )}
+    </studio.settingsForm.Field>
+  );
+}
+
+function CaptureInspectorContent() {
+  const studio = useStudio();
   const captureSource = studio.settingsForm.state.values.captureSource;
 
   return (
@@ -222,90 +329,11 @@ function CaptureInspectorContent() {
       </InspectorSection>
 
       <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
-        <studio.settingsForm.Field name="autoZoom">
-          {(field) => (
-            <div className="space-y-2 px-0.5">
-              <p className="gg-utility-label">{studio.ui.labels.autoZoomSection}</p>
-              <Field>
-                <FieldLabel className="items-center">
-                  <Checkbox
-                    checked={field.state.value.isEnabled}
-                    onCheckedChange={(checked) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        isEnabled: checked,
-                      })
-                    }
-                  />
-                  {studio.ui.labels.autoZoomEnabled}
-                </FieldLabel>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  {studio.ui.labels.autoZoomIntensity(
-                    Math.round(field.state.value.intensity * 100),
-                  )}
-                </FieldLabel>
-                <FieldContent>
-                  <Slider
-                    className="gg-inspector-slider"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={[field.state.value.intensity]}
-                    onValueChange={(nextValue) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        intensity: readSliderValue(nextValue),
-                      })
-                    }
-                  />
-                </FieldContent>
-              </Field>
-              <Field>
-                <FieldLabel>{studio.ui.labels.minimumKeyframeInterval}</FieldLabel>
-                <FieldContent>
-                  <Input
-                    type="number"
-                    min={0.01}
-                    step={0.01}
-                    value={Number(field.state.value.minimumKeyframeInterval.toFixed(2))}
-                    onChange={(event) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        minimumKeyframeInterval: Math.max(0.01, Number(event.target.value) || 0.01),
-                      })
-                    }
-                  />
-                </FieldContent>
-              </Field>
-
-              <div className="space-y-2 pt-1">
-                <p className="gg-utility-label">{studio.ui.labels.audioMixer}</p>
-                <AudioMixerChannel
-                  label={studio.ui.labels.masterChannel}
-                  value={studio.audioMixer.masterGain}
-                  level={masterMeter}
-                  muted={studio.audioMixer.masterMuted}
-                  muteLabel={studio.ui.labels.mute}
-                  unmuteLabel={studio.ui.labels.unmute}
-                  onValueChange={(value) => studio.setAudioMixerGain("master", value)}
-                  onToggleMuted={() => studio.toggleAudioMixerMuted("master")}
-                />
-                <AudioMixerChannel
-                  label={studio.ui.labels.microphone}
-                  value={studio.audioMixer.micGain}
-                  level={micMeter}
-                  muted={studio.audioMixer.micMuted}
-                  muteLabel={studio.ui.labels.mute}
-                  unmuteLabel={studio.ui.labels.unmute}
-                  onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
-                  onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
-                />
-              </div>
-            </div>
-          )}
-        </studio.settingsForm.Field>
+        <AutoZoomSection
+          showMinimumKeyframeInterval
+          showAudioMixer
+          sliderClassName="gg-inspector-slider"
+        />
       </InspectorSection>
 
       <InspectorSection title={studio.ui.inspectorTabs.advanced.toUpperCase()}>
@@ -434,50 +462,7 @@ function EditInspectorContent({ selection }: { selection: InspectorSelection }) 
       </InspectorSection>
 
       <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
-        <studio.settingsForm.Field name="autoZoom">
-          {(field) => (
-            <div className="space-y-2 px-0.5">
-              <p className="gg-utility-label inline-flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5" /> {studio.ui.labels.autoZoomSection}
-              </p>
-              <Field>
-                <FieldLabel className="items-center">
-                  <Checkbox
-                    checked={field.state.value.isEnabled}
-                    onCheckedChange={(checked) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        isEnabled: checked,
-                      })
-                    }
-                  />
-                  {studio.ui.labels.autoZoomEnabled}
-                </FieldLabel>
-              </Field>
-              <Field>
-                <FieldLabel>
-                  {studio.ui.labels.autoZoomIntensity(
-                    Math.round(field.state.value.intensity * 100),
-                  )}
-                </FieldLabel>
-                <FieldContent>
-                  <Slider
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={[field.state.value.intensity]}
-                    onValueChange={(nextValue) =>
-                      field.handleChange({
-                        ...field.state.value,
-                        intensity: readSliderValue(nextValue),
-                      })
-                    }
-                  />
-                </FieldContent>
-              </Field>
-            </div>
-          )}
-        </studio.settingsForm.Field>
+        <AutoZoomSection headingIcon={<Sparkles className="h-3.5 w-3.5" />} />
       </InspectorSection>
     </>
   );
