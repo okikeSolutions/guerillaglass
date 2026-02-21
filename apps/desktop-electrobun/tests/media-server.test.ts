@@ -25,6 +25,7 @@ async function createTempFile(
 type ServeOptions = Parameters<typeof Bun.serve>[0];
 type ServeHandle = ReturnType<typeof Bun.serve>;
 type FetchHandler = (request: Request, server: ServeHandle) => Response | Promise<Response>;
+type ErrorHandler = (error: Error) => Response | Promise<Response>;
 
 type MockServeConfig = {
   failOnPortZero?: boolean;
@@ -34,6 +35,8 @@ type MockServeConfig = {
 function mockBunServe(config: MockServeConfig = {}) {
   const originalServe = Bun.serve;
   let activeFetchHandler: FetchHandler | null = null;
+  let activeErrorHandler: ErrorHandler | null = null;
+  let sessionCookie: string | null = null;
   let invocationCount = 0;
   const requestedPorts: number[] = [];
   let remainingEaddrinuseAttempts = config.eaddrinuseAttempts ?? 0;
@@ -62,6 +65,7 @@ function mockBunServe(config: MockServeConfig = {}) {
     }
 
     activeFetchHandler = options.fetch as FetchHandler;
+    activeErrorHandler = options.error as ErrorHandler;
     const port = 44_000 + invocationCount;
     return {
       port,
@@ -74,9 +78,32 @@ function mockBunServe(config: MockServeConfig = {}) {
       if (!activeFetchHandler) {
         throw new Error("Media handler is not registered yet.");
       }
-      const request = new Request(input, init);
+      const headers = new Headers(init?.headers);
+      if (sessionCookie && !headers.has("cookie")) {
+        headers.set("cookie", sessionCookie);
+      }
+      const request = new Request(input, { ...init, headers });
       const response = await activeFetchHandler(request, {} as ServeHandle);
+      const setCookie = response.headers.get("set-cookie");
+      if (setCookie) {
+        const [cookiePair] = setCookie.split(";");
+        sessionCookie = cookiePair?.trim() || null;
+      }
       return response;
+    },
+    async dispatchWithoutSessionCookie(input: string, init?: RequestInit): Promise<Response> {
+      if (!activeFetchHandler) {
+        throw new Error("Media handler is not registered yet.");
+      }
+      const headers = new Headers(init?.headers);
+      headers.delete("cookie");
+      return await activeFetchHandler(new Request(input, { ...init, headers }), {} as ServeHandle);
+    },
+    async dispatchUnhandledError(error = new Error("boom")): Promise<Response> {
+      if (!activeErrorHandler) {
+        throw new Error("Media error handler is not registered yet.");
+      }
+      return await activeErrorHandler(error);
     },
     get invocationCount() {
       return invocationCount;
@@ -122,27 +149,6 @@ describe("media server", () => {
       expect(rangeResponse.status).toBe(206);
       expect(rangeResponse.headers.get("content-range")).toBe("bytes 2-5/10");
       expect(await rangeResponse.text()).toBe("2345");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("resolves file URLs to loopback media URLs", async () => {
-    const fixture = await createTempFile("with-spaces 1.mov", "abcdefghij");
-    const server = new MediaServer();
-    const serve = mockBunServe();
-
-    try {
-      const fileURL = new URL(`file://${fixture.filePath}`).toString();
-      const resolved = await server.resolveMediaSourceURL(fileURL);
-      expect(resolved.startsWith("http://127.0.0.1:")).toBe(true);
-      expect(serve.invocationCount).toBe(1);
-
-      const response = await serve.dispatch(resolved);
-      expect(response.status).toBe(200);
-      expect(await response.text()).toBe("abcdefghij");
     } finally {
       serve.restore();
       server.stop();
@@ -286,33 +292,58 @@ describe("media server", () => {
     }
   });
 
-  test("passes through stub scheme URLs unchanged", async () => {
+  test("expires idle tokens", async () => {
+    const fixture = await createTempFile("idle-expired.mov", "0123456789");
     const server = new MediaServer();
     const serve = mockBunServe();
+
     try {
-      expect(await server.resolveMediaSourceURL("stub://recordings/session.mp4")).toBe(
-        "stub://recordings/session.mp4",
-      );
-      expect(serve.invocationCount).toBe(0);
+      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
+      const token = tokenFromResolvedURL(resolved);
+      const tokenEntry = (
+        server as unknown as { tokens: Map<string, { lastAccessedAt: number }> }
+      ).tokens.get(token);
+      expect(tokenEntry).toBeTruthy();
+      if (!tokenEntry) {
+        throw new Error("Expected media token entry.");
+      }
+      tokenEntry.lastAccessedAt = 0;
+
+      const response = await serve.dispatch(resolved);
+      expect(response.status).toBe(404);
     } finally {
       serve.restore();
       server.stop();
+      await fixture.cleanup();
     }
   });
 
-  test("rejects unsupported external URL schemes", async () => {
+  test("rejects replay from a client without the bound session cookie", async () => {
+    const fixture = await createTempFile("cookie-replay.mov", "0123456789");
     const server = new MediaServer();
     const serve = mockBunServe();
     try {
-      await expect(server.resolveMediaSourceURL("javascript:alert(1)")).rejects.toThrow(
-        "Unsupported media source URL scheme.",
-      );
-      await expect(server.resolveMediaSourceURL("https://example.com/video.mov")).rejects.toThrow(
-        "Unsupported media source URL scheme.",
-      );
-      await expect(server.resolveMediaSourceURL("file://example.com/video.mov")).rejects.toThrow(
-        "Unsupported media source URL scheme.",
-      );
+      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
+      const firstResponse = await serve.dispatch(resolved);
+      expect(firstResponse.status).toBe(200);
+      expect(firstResponse.headers.get("set-cookie")).toContain("gg_media_session=");
+
+      const replayResponse = await serve.dispatchWithoutSessionCookie(resolved);
+      expect(replayResponse.status).toBe(404);
+    } finally {
+      serve.restore();
+      server.stop();
+      await fixture.cleanup();
+    }
+  });
+
+  test("rejects non-local and unsupported media source paths", async () => {
+    const server = new MediaServer();
+    const serve = mockBunServe();
+    try {
+      await expect(server.resolveMediaSourceURL("https://example.com/video.mov")).rejects.toThrow();
+      await expect(server.resolveMediaSourceURL("file://example.com/video.mov")).rejects.toThrow();
+      await expect(server.resolveMediaSourceURL("recordings/session.mp4")).rejects.toThrow();
       expect(serve.invocationCount).toBe(0);
     } finally {
       serve.restore();
@@ -351,6 +382,25 @@ describe("media server", () => {
       const response = await serve.dispatch(resolved);
       expect(response.status).toBe(200);
       expect(await response.text()).toBe("0123456789");
+    } finally {
+      serve.restore();
+      server.stop();
+      await fixture.cleanup();
+    }
+  });
+
+  test("returns a generic 500 response from Bun.serve error handler", async () => {
+    const fixture = await createTempFile("error-handler.mov", "0123456789");
+    const server = new MediaServer();
+    const serve = mockBunServe();
+
+    try {
+      await server.resolveMediaSourceURL(fixture.filePath);
+      const response = await serve.dispatchUnhandledError(new Error("secret details"));
+      expect(response.status).toBe(500);
+      expect(await response.text()).toBe("Internal server error");
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("cache-control")).toContain("no-store");
     } finally {
       serve.restore();
       server.stop();

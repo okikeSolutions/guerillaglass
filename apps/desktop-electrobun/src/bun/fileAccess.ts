@@ -1,10 +1,11 @@
-import { realpathSync, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { isSupportedMediaPath } from "./mediaPolicy";
 
 const DEFAULT_MAX_TEXT_READ_BYTES = 5 * 1024 * 1024;
-const mediaExtensions = new Set([".mov", ".mp4", ".m4v", ".webm"]);
+const mediaTempFilePrefix = "guerillaglass-";
 
 type ReadTextFileOptions = {
   currentProjectPath?: string | null;
@@ -13,6 +14,18 @@ type ReadTextFileOptions = {
 };
 
 type ResolveAllowedMediaFileOptions = Omit<ReadTextFileOptions, "maxBytes">;
+
+function tempRootPath(options: ResolveAllowedMediaFileOptions): string {
+  return canonicalizePath(options.tempDirectory ?? os.tmpdir());
+}
+
+function projectRootPath(options: ResolveAllowedMediaFileOptions): string | null {
+  const projectPath = options.currentProjectPath?.trim();
+  if (!projectPath) {
+    return null;
+  }
+  return canonicalizePath(path.resolve(projectPath));
+}
 
 function canonicalizePath(candidatePath: string): string {
   try {
@@ -28,13 +41,10 @@ function isPathWithinRoot(targetPath: string, rootPath: string): boolean {
 }
 
 function allowedRoots(options: ResolveAllowedMediaFileOptions): string[] {
-  const projectPath = options.currentProjectPath?.trim();
-  const roots = new Set<string>([
-    canonicalizePath(options.tempDirectory ?? os.tmpdir()),
-    canonicalizePath("/tmp"),
-  ]);
-  if (projectPath) {
-    roots.add(canonicalizePath(path.resolve(projectPath)));
+  const roots = new Set<string>([tempRootPath(options)]);
+  const projectRoot = projectRootPath(options);
+  if (projectRoot) {
+    roots.add(projectRoot);
   }
   return Array.from(roots);
 }
@@ -77,11 +87,29 @@ export function resolveAllowedMediaFilePath(
   }
 
   const resolvedPath = path.resolve(filePath);
-  if (!mediaExtensions.has(path.extname(resolvedPath).toLowerCase())) {
+  if (!isSupportedMediaPath(resolvedPath)) {
     throw new Error("Only video media files can be read through the desktop bridge.");
   }
 
-  return ensurePathWithinAllowedRoots(resolvedPath, options);
+  const canonicalPath = ensurePathWithinAllowedRoots(resolvedPath, options);
+  const projectRoot = projectRootPath(options);
+  if (projectRoot && isPathWithinRoot(canonicalPath, projectRoot)) {
+    return canonicalPath;
+  }
+
+  const tempRoot = tempRootPath(options);
+  if (!isPathWithinRoot(canonicalPath, tempRoot)) {
+    throw new Error("Access denied: file path is outside allowed project and temp directories.");
+  }
+
+  const mediaFileName = path.basename(canonicalPath).toLowerCase();
+  if (!mediaFileName.startsWith(mediaTempFilePrefix)) {
+    throw new Error(
+      "Access denied: temporary media file must use the Guerillaglass temp naming prefix.",
+    );
+  }
+
+  return canonicalPath;
 }
 
 export async function readAllowedTextFile(
@@ -89,7 +117,7 @@ export async function readAllowedTextFile(
   options: ReadTextFileOptions = {},
 ): Promise<string> {
   const resolvedPath = resolveAllowedTextFilePath(filePath, options);
-  const fileStat = statSync(resolvedPath);
+  const fileStat = await stat(resolvedPath);
   if (!fileStat.isFile()) {
     throw new Error("Path must point to a file.");
   }

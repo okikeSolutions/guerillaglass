@@ -110,6 +110,39 @@ describe("file access policy", () => {
     }
   });
 
+  test("allows Guerillaglass-prefixed media files in the temporary directory", () => {
+    const tempDir = createTempDirectory("gg-media-temp-access-");
+    try {
+      const filePath = path.join(tempDir, "guerillaglass-recording-session.mov");
+      writeFileSync(filePath, "video-bytes", "utf8");
+
+      const resolvedPath = resolveAllowedMediaFilePath(filePath, {
+        tempDirectory: os.tmpdir(),
+      });
+      expect(resolvedPath).toBe(realpathSync(filePath));
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects temporary media files without Guerillaglass naming prefix", () => {
+    const tempDir = createTempDirectory("gg-media-temp-access-");
+    try {
+      const filePath = path.join(tempDir, "capture.mov");
+      writeFileSync(filePath, "video-bytes", "utf8");
+
+      expect(() =>
+        resolveAllowedMediaFilePath(filePath, {
+          tempDirectory: os.tmpdir(),
+        }),
+      ).toThrow(
+        "Access denied: temporary media file must use the Guerillaglass temp naming prefix.",
+      );
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("rejects disallowed media extension for media bridge reads", () => {
     const tempDir = createTempDirectory("gg-file-access-");
     try {
