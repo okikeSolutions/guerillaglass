@@ -22,7 +22,7 @@
 - **Platform stub engines:** `engines/windows-stub/`, `engines/linux-stub/` — protocol-compatible stubs for parallel engine work.
 - **Swift protocol module (new):** `engines/protocol-swift/` — wire codec and typed message envelope models.
 - **Tests:** `Tests/` — `automationTests/`, `captureTests/`, `engineProtocolTests/`, `exportTests/`, `projectMigrationTests/`, `renderingDeterminismTests/`.
-- **Gate scripts (implementation):** `Scripts/` — `rust_gate.sh`, `typescript_gate.sh`, `full_gate.sh`, `coverage.sh`, `rust_coverage.sh`, `swift_coverage.sh`, `coverage_check.sh`.
+- **Gate scripts (implementation):** `Scripts/` — `rust_gate.sh`, `typescript_gate.sh`, `full_gate.sh`, `docs_gate.mjs`, `coverage.sh`, `rust_coverage.sh`, `swift_coverage.sh`, `coverage_check.sh`.
 - **Docs:** `docs/` — SPEC and other project docs.
 
 When adding modules or moving code, keep the spec’s architecture (§16–17) and update `AGENTS.md` / `docs/SPEC.md` if the tree changes.
@@ -40,9 +40,13 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **React effect guard lint:** `bun run js:lint:react-effects`  
   Runs the custom guard that rejects direct React state updates in effects (`Scripts/lint_no_state_updates_in_effect.mjs`).
 - **TypeScript gate (format + lint + typecheck + tests):** `bun run gate:typescript`  
-  Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → desktop shell typecheck → protocol package typecheck → desktop tests.
+  Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → docs coverage gate (TypeScript surfaces) → desktop shell typecheck → protocol package typecheck → desktop tests.
+- **Docs coverage gate (all surfaces):** `bun run docs:check`  
+  Runs coverage checks for TypeScript, Swift, and Rust public/exported API surfaces using `docs/doc_coverage_policy.json`.
+- **Docs coverage gate (TypeScript surfaces):** `bun run docs:check:ts`
+- **Docs coverage gate (native surfaces):** `bun run docs:check:native`
 - **Full gate (rust + typescript + swift):** `bun run gate`  
-  Runs: `gate:rust` → `gate:typescript` → SwiftFormat → SwiftLint → `swift test` → `swift build`. Use this to verify the project after changes.
+  Runs: `gate:rust` → `gate:typescript` → docs coverage gate (Swift/Rust surfaces) → SwiftFormat → SwiftLint → `swift test` → `swift build`. Use this to verify the project after changes.
 - **Desktop deps (workspace):** `bun install`
 - **Desktop shell dev:** `bun run desktop:dev`
 - **Desktop shell dev fallback (macOS app open):** `bun run desktop:dev:open`

@@ -89,6 +89,7 @@ Guerilla Glass should feel like a professional creator tool:
 - **Code quality tooling (no‑Xcode workflow):**
   - Formatter: **SwiftFormat** with a repo‑level `.swiftformat` config.
   - Linting: **SwiftLint** with `.swiftlint.yml` (editor plugin + CI checks).
+  - Public API documentation coverage gate: `Scripts/docs_gate.mjs` with thresholds in `docs/doc_coverage_policy.json`.
   - Optional: **Periphery** for dead‑code detection in later phases.
   - Build logs: **xcbeautify** for readable CLI output.
   - LSP: **xcode-build-server** to support Cursor/SweetPad indexing.
@@ -489,11 +490,13 @@ guerillaglass/
 ├─ Scripts/
 │  ├─ full_gate.sh
 │  ├─ rust_gate.sh
-│  └─ typescript_gate.sh
+│  ├─ typescript_gate.sh
+│  └─ docs_gate.mjs
 ├─ docs/
 │  ├─ SPEC.md
 │  ├─ ARCHITECTURE.md
-│  └─ DESKTOP_ACCESSIBILITY.md
+│  ├─ DESKTOP_ACCESSIBILITY.md
+│  └─ doc_coverage_policy.json
 ├─ apps/
 │  └─ desktop-electrobun/
 │     ├─ src/
