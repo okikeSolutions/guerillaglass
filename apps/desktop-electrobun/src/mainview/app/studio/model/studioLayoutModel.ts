@@ -44,21 +44,19 @@ const localizedRouteTargetByRoute: Record<StudioLayoutRoute, StudioLocalizedRout
   "/deliver": "/$locale/deliver",
 };
 
-const studioLayoutStorageCandidateSchema = z
-  .object({
-    leftPaneWidthPx: z.number().finite().optional(),
-    rightPaneWidthPx: z.number().finite().optional(),
-    leftCollapsed: z.boolean().optional(),
-    rightCollapsed: z.boolean().optional(),
-    timelineHeightPx: z.number().finite().optional(),
-    timelineCollapsed: z.boolean().optional(),
-    lastRoute: z.string().optional(),
-    locale: z.string().optional(),
-    densityMode: z.string().optional(),
-    presetRoutesApplied: z.array(z.string()).optional(),
-    presetVersionByRoute: z.record(z.string(), z.number().finite()).optional(),
-  })
-  .passthrough();
+const studioLayoutStorageCandidateSchema = z.looseObject({
+  leftPaneWidthPx: z.number().optional(),
+  rightPaneWidthPx: z.number().optional(),
+  leftCollapsed: z.boolean().optional(),
+  rightCollapsed: z.boolean().optional(),
+  timelineHeightPx: z.number().optional(),
+  timelineCollapsed: z.boolean().optional(),
+  lastRoute: z.string().optional(),
+  locale: z.string().optional(),
+  densityMode: z.string().optional(),
+  presetRoutesApplied: z.array(z.string()).optional(),
+  presetVersionByRoute: z.record(z.string(), z.number()).optional(),
+});
 
 export type StudioLayoutState = {
   leftPaneWidthPx: number;
