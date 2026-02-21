@@ -147,6 +147,7 @@ try {
 }
 
 const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
+  maxRequestTime: Infinity,
   handlers: {
     requests: createEngineBridgeHandlers({
       engineClient,

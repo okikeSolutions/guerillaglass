@@ -18,6 +18,7 @@ export class Electroview<TRPC = unknown> {
   constructor(options?: { rpc?: TRPC });
 
   static defineRPC<T extends { bun: RpcChannelSchema }>(_config: {
+    maxRequestTime?: number;
     handlers: unknown;
   }): {
     readonly request: RpcRequestClient<T["bun"]["requests"]>;
