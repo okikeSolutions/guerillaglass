@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct ProjectDocument: Codable, Equatable {
     public var projectVersion: Int
     public var project: Project

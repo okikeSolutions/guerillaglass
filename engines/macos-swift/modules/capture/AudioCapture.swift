@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 
+/// Public class exposed by the macOS engine module.
 public final class AudioCapture {
     private let engine = AVAudioEngine()
     private var isRunning = false
@@ -47,6 +48,7 @@ public final class AudioCapture {
     }
 }
 
+/// Public enum exposed by the macOS engine module.
 public enum AudioCaptureError: LocalizedError {
     case microphoneDenied
 

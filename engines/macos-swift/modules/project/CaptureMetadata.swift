@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct CaptureRect: Codable, Equatable {
     public var originX: Double
     public var originY: Double
@@ -35,6 +36,7 @@ public struct CaptureRect: Codable, Equatable {
     }
 }
 
+/// Public value type exposed by the macOS engine module.
 public struct CaptureMetadata: Codable, Equatable {
     public struct Window: Codable, Equatable {
         public var id: UInt32

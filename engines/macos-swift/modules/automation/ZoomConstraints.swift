@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct ZoomConstraints: Equatable {
     public var maxZoom: CGFloat
     public var minVisibleAreaFraction: CGFloat

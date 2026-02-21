@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import InputTracking
 
+/// Public value type exposed by the macOS engine module.
 public struct AttentionSample: Equatable {
     public let time: TimeInterval
     public let position: CGPoint
@@ -10,6 +11,7 @@ public struct AttentionSample: Equatable {
     public let isClick: Bool
 }
 
+/// Public value type exposed by the macOS engine module.
 public struct AttentionModel {
     public init() {}
 

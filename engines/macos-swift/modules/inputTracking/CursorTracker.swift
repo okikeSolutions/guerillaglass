@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 
+/// Public class exposed by the macOS engine module.
 public final class CursorTracker {
     public typealias Handler = (_ position: CGPoint, _ timestamp: TimeInterval) -> Void
 

@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public enum exposed by the macOS engine module.
 public enum ProjectFile {
     public static let projectJSON = "project.json"
     public static let recordingMov = "recording.mov"

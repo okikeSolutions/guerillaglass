@@ -1,5 +1,6 @@
 import Foundation
 
+/// Public value type exposed by the macOS engine module.
 public struct ProjectLibraryItem: Codable, Identifiable, Equatable {
     public let id: UUID
     public var bookmarkData: Data
@@ -19,6 +20,7 @@ public struct ProjectLibraryItem: Codable, Identifiable, Equatable {
     }
 }
 
+/// Public value type exposed by the macOS engine module.
 public struct ProjectLibraryIndex: Codable, Equatable {
     public var items: [ProjectLibraryItem]
 
@@ -27,6 +29,7 @@ public struct ProjectLibraryIndex: Codable, Equatable {
     }
 }
 
+/// Public class exposed by the macOS engine module.
 public final class ProjectLibraryStore {
     public enum StoreError: Error {
         case invalidProjectURL

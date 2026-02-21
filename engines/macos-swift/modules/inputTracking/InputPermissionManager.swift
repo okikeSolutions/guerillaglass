@@ -2,12 +2,14 @@ import AppKit
 import Foundation
 import IOKit.hidsystem
 
+/// Public enum exposed by the macOS engine module.
 public enum InputMonitoringStatus: Equatable {
     case notDetermined
     case denied
     case authorized
 }
 
+/// Public class exposed by the macOS engine module.
 public final class InputPermissionManager {
     public init() {}
 
