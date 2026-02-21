@@ -85,7 +85,7 @@ bun run desktop:test:coverage
 bun run desktop:test:ui
 ```
 
-Playwright smoke coverage in `apps/desktop-electrobun/playwright/tests/studio-shell.smoke.ts` includes:
+Playwright smoke coverage in `apps/desktop-electrobun/tests/ui/studio-shell.smoke.ts` includes:
 
 - Keyboard tab order checks for mode links.
 - Keyboard resizing checks for pane and timeline separators.
