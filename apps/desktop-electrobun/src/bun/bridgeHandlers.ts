@@ -56,6 +56,14 @@ export function createEngineBridgeHandlers({
     ggEngineProjectRecents: async ({ limit }) => engineClient.projectRecents(limit),
     ggPickDirectory: async ({ startingFolder }) => pickDirectory(startingFolder),
     ggReadTextFile: async ({ filePath }) => readTextFile(filePath),
-    ggResolveMediaSourceURL: async ({ filePath }) => resolveMediaSourceURL(filePath),
+    ggResolveMediaSourceURL: async ({ filePath }) => {
+      try {
+        return await resolveMediaSourceURL(filePath);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        console.warn(`ggResolveMediaSourceURL failed for "${filePath}": ${reason}`);
+        throw error;
+      }
+    },
   });
 }

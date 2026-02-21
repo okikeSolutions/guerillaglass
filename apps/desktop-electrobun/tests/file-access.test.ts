@@ -125,6 +125,28 @@ describe("file access policy", () => {
     }
   });
 
+  test("allows local file URLs for supported media paths", () => {
+    const tempDir = createTempDirectory("gg-media-temp-access-");
+    try {
+      const filePath = path.join(tempDir, "guerillaglass-recording-session.mov");
+      writeFileSync(filePath, "video-bytes", "utf8");
+      const fileURL = `file://${filePath}`;
+
+      const resolvedPath = resolveAllowedMediaFilePath(fileURL, {
+        tempDirectory: os.tmpdir(),
+      });
+      expect(resolvedPath).toBe(realpathSync(filePath));
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects non-local file URLs", () => {
+    expect(() =>
+      resolveAllowedMediaFilePath("file://example.com/tmp/guerillaglass-recording.mov"),
+    ).toThrow("Only local file URLs are supported.");
+  });
+
   test("rejects temporary media files without Guerillaglass naming prefix", () => {
     const tempDir = createTempDirectory("gg-media-temp-access-");
     try {

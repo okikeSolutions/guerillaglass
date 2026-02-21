@@ -7,12 +7,11 @@ const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;
 const mediaTokenIdleTtlMs = 60 * 1000;
 const maxMediaTokens = 512;
 const maxTokenPathSegmentLength = 160;
-const mediaSessionCookieName = "gg_media_session";
-const mediaSessionCookieMaxAgeSeconds = Math.max(1, Math.floor(mediaTokenAbsoluteTtlMs / 1000));
 const mediaServerPortFloor = 49_152;
 const mediaServerPortCeiling = 65_535;
 const mediaServerMaxBindAttempts = 10;
 const mediaRoutePrefix = "/media/";
+const mediaServerDebugLoggingEnabled = process.env.GG_MEDIA_SERVER_DEBUG === "1";
 
 const tokenPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -25,20 +24,16 @@ type MediaTokenEntry = {
   filePath: string;
   createdAt: number;
   lastAccessedAt: number;
-  sessionCookieValue: string | null;
 };
 
 type TokenPathResult = { token: string; response: null } | { token: null; response: Response };
 
-type SessionAuthResult =
-  | { setCookieHeader: string | null; response: null }
-  | { setCookieHeader: null; response: Response };
-
 function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
-  if (rangeHeader.includes(",")) {
-    return null;
-  }
-  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  const trimmedRangeHeader = rangeHeader.trim();
+  const firstRangeHeader = trimmedRangeHeader.includes(",")
+    ? `${trimmedRangeHeader.split(",")[0]?.trim() ?? ""}`
+    : trimmedRangeHeader;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(firstRangeHeader);
   if (!match) {
     return null;
   }
@@ -135,33 +130,6 @@ function mediaSecurityHeaders(): Record<string, string> {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
   };
-}
-
-function cookieValue(cookieHeader: string | null, key: string): string | null {
-  if (!cookieHeader) {
-    return null;
-  }
-  const cookies = cookieHeader.split(";");
-  for (const cookie of cookies) {
-    const [name, ...rawValueParts] = cookie.trim().split("=");
-    if (name !== key) {
-      continue;
-    }
-    const rawValue = rawValueParts.join("=");
-    if (!rawValue) {
-      return null;
-    }
-    try {
-      return decodeURIComponent(rawValue);
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function mediaSessionCookieHeader(value: string): string {
-  return `${mediaSessionCookieName}=${encodeURIComponent(value)}; Path=/media; HttpOnly; SameSite=Strict; Max-Age=${mediaSessionCookieMaxAgeSeconds}`;
 }
 
 export class MediaServer {
@@ -281,32 +249,12 @@ export class MediaServer {
     return { token, response: null };
   }
 
-  private authorizeSession(entry: MediaTokenEntry, request: Request): SessionAuthResult {
-    const requestSessionCookie = cookieValue(request.headers.get("cookie"), mediaSessionCookieName);
-    if (entry.sessionCookieValue) {
-      if (requestSessionCookie !== entry.sessionCookieValue) {
-        return { setCookieHeader: null, response: this.response(404, "Not found") };
-      }
-      return { setCookieHeader: null, response: null };
-    }
-
-    entry.sessionCookieValue = randomUUID();
+  private mediaHeaders(filePath: string): Record<string, string> {
     return {
-      setCookieHeader: mediaSessionCookieHeader(entry.sessionCookieValue),
-      response: null,
-    };
-  }
-
-  private mediaHeaders(filePath: string, setCookieHeader: string | null): Record<string, string> {
-    const headers: Record<string, string> = {
       ...mediaSecurityHeaders(),
       "accept-ranges": "bytes",
       "content-type": mediaTypeForPath(filePath),
     };
-    if (setCookieHeader) {
-      headers["set-cookie"] = setCookieHeader;
-    }
-    return headers;
   }
 
   private async handleRequest(request: Request): Promise<Response> {
@@ -321,6 +269,9 @@ export class MediaServer {
 
     const { token, response: tokenResponse } = this.tokenFromPath(url.pathname);
     if (tokenResponse) {
+      if (mediaServerDebugLoggingEnabled) {
+        console.info(`Media server rejected path: ${request.method} ${url.pathname}`);
+      }
       return tokenResponse;
     }
     if (!token) {
@@ -330,31 +281,38 @@ export class MediaServer {
     this.pruneTokens();
     const entry = this.tokens.get(token);
     if (!entry) {
+      if (mediaServerDebugLoggingEnabled) {
+        console.warn(`Media token not found (${token.slice(0, 8)}...)`);
+      }
       return this.response(404, "Not found");
     }
 
     const now = Date.now();
     if (this.isTokenExpired(entry, now)) {
       this.tokens.delete(token);
+      if (mediaServerDebugLoggingEnabled) {
+        console.warn(`Media token expired (${token.slice(0, 8)}...)`);
+      }
       return this.response(404, "Not found");
     }
 
     const file = Bun.file(entry.filePath);
     if (!(await file.exists())) {
+      if (mediaServerDebugLoggingEnabled) {
+        console.warn(`Media file missing: ${entry.filePath}`);
+      }
       return this.response(404, "Not found");
-    }
-
-    const { setCookieHeader, response: sessionResponse } = this.authorizeSession(entry, request);
-    if (sessionResponse) {
-      return sessionResponse;
     }
 
     entry.lastAccessedAt = now;
     const size = file.size;
-    const commonHeaders = this.mediaHeaders(entry.filePath, setCookieHeader);
+    const commonHeaders = this.mediaHeaders(entry.filePath);
 
     const rangeHeader = request.headers.get("range");
     if (!rangeHeader) {
+      if (mediaServerDebugLoggingEnabled) {
+        console.info(`Media served 200 (${token.slice(0, 8)}...) full file`);
+      }
       return new Response(request.method === "HEAD" ? null : file, {
         status: 200,
         headers: {
@@ -364,10 +322,13 @@ export class MediaServer {
       });
     }
 
+    const isMultiRangeRequest = rangeHeader.includes(",");
     const parsedRange = parseByteRange(rangeHeader, size);
     if (!parsedRange) {
+      if (mediaServerDebugLoggingEnabled) {
+        console.warn(`Media invalid range 416 (${token.slice(0, 8)}...) range="${rangeHeader}"`);
+      }
       return this.response(416, "Requested Range Not Satisfiable", {
-        ...(setCookieHeader ? { "set-cookie": setCookieHeader } : {}),
         "accept-ranges": "bytes",
         "content-range": `bytes */${size}`,
       });
@@ -376,6 +337,12 @@ export class MediaServer {
     const { start, end } = parsedRange;
     const chunkSize = end - start + 1;
     const chunk = file.slice(start, end + 1);
+
+    if (mediaServerDebugLoggingEnabled && isMultiRangeRequest) {
+      console.info(
+        `Media multi-range served first segment 206 (${token.slice(0, 8)}...) range="${rangeHeader}"`,
+      );
+    }
 
     return new Response(request.method === "HEAD" ? null : chunk, {
       status: 206,
@@ -414,7 +381,6 @@ export class MediaServer {
       filePath: normalizedPath,
       createdAt: Date.now(),
       lastAccessedAt: Date.now(),
-      sessionCookieValue: null,
     });
 
     return `${this.origin}/media/${encodeURIComponent(token)}`;
