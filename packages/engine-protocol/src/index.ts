@@ -220,7 +220,7 @@ const requestBaseSchema = z.object({
   id: z.string().min(1),
 });
 
-const emptyParamsSchema = z.object({}).passthrough().optional().default({});
+const emptyParamsSchema = z.looseObject({}).optional().default({});
 
 export const systemPingRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.SystemPing),
