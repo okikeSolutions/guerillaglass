@@ -65,6 +65,7 @@ impl State {
             "isRecording": self.is_recording,
             "recordingDurationSeconds": self.current_duration(),
             "recordingURL": self.recording_url,
+            "captureMetadata": self.capture_metadata,
             "lastError": self.last_error,
             "eventsURL": self.events_url,
             "telemetry": {
@@ -273,6 +274,7 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
         EngineMethod::CaptureStartDisplay => {
             state.is_running = true;
             state.capture_metadata = Some(json!({
+                "window": Value::Null,
                 "source": "display",
                 "contentRect": { "x": 0, "y": 0, "width": 1920, "height": 1080 },
                 "pixelScale": 1,
@@ -280,8 +282,17 @@ fn handle_request(state: &mut State, request: &EngineRequest) -> EngineResponse 
             success(&request.id, state.capture_status())
         }
         EngineMethod::CaptureStartWindow => {
+            let window_id = params
+                .get("windowId")
+                .and_then(Value::as_u64)
+                .unwrap_or(101);
             state.is_running = true;
             state.capture_metadata = Some(json!({
+                "window": {
+                    "id": window_id,
+                    "title": "Desktop",
+                    "appName": "System",
+                },
                 "source": "window",
                 "contentRect": { "x": 0, "y": 0, "width": 1280, "height": 720 },
                 "pixelScale": 1,

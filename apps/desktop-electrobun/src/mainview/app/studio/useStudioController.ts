@@ -370,6 +370,7 @@ export function useStudioController() {
   const recordingURL =
     captureStatusQuery.data?.recordingURL ?? projectQuery.data?.recordingURL ?? null;
   const eventsURL = captureStatusQuery.data?.eventsURL ?? projectQuery.data?.eventsURL ?? null;
+  const usesMediaPlaybackClock = activeMode === "edit" && Boolean(recordingURL);
 
   const eventsQuery = useQuery<InputEvent[]>({
     queryKey: studioQueryKeys.eventsLog(eventsURL),
@@ -440,7 +441,7 @@ export function useStudioController() {
   );
 
   useEffect(() => {
-    if (!isTimelinePlaying) {
+    if (!isTimelinePlaying || usesMediaPlaybackClock) {
       return;
     }
 
@@ -456,7 +457,7 @@ export function useStudioController() {
     }, 50);
 
     return () => clearInterval(timer);
-  }, [isTimelinePlaying, playbackRate, timelineDuration]);
+  }, [isTimelinePlaying, playbackRate, timelineDuration, usesMediaPlaybackClock]);
 
   const selectedPreset = useMemo<ExportPreset | undefined>(() => {
     const selected = presets.find((preset) => preset.id === exportForm.state.values.presetId);
@@ -565,8 +566,17 @@ export function useStudioController() {
       if (kind === "input") {
         await engineApi.requestInputMonitoringPermission();
       }
-      const nextPermissions = await engineApi.getPermissions();
+      const [nextPermissions, nextSources] = await Promise.all([
+        engineApi.getPermissions(),
+        kind === "screen" ? engineApi.listSources().catch(() => null) : Promise.resolve(null),
+      ]);
       queryClient.setQueryData(studioQueryKeys.permissions(), nextPermissions);
+      if (nextSources) {
+        queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
+        if (!nextSources.windows.some((windowItem) => windowItem.id === selectedWindowId)) {
+          settingsForm.setFieldValue("selectedWindowId", nextSources.windows[0]?.id ?? 0);
+        }
+      }
       return nextPermissions;
     },
     onSuccess: () => {
@@ -870,6 +880,17 @@ export function useStudioController() {
     },
     [timelineDuration, timelineSnapEnabled],
   );
+
+  const setPlayheadSecondsFromMedia = useCallback(
+    (seconds: number) => {
+      setPlayheadSeconds(clamp(seconds, 0, timelineDuration));
+    },
+    [timelineDuration],
+  );
+
+  const setTimelinePlaybackActive = useCallback((isActive: boolean) => {
+    setIsTimelinePlaying(isActive);
+  }, []);
 
   const setTrimStartSeconds = useCallback(
     (seconds: number) => {
@@ -1489,7 +1510,9 @@ export function useStudioController() {
     setAudioMixerGain,
     toggleAudioMixerMuted,
     setPlayheadSeconds: setPlayheadSecondsClamped,
+    setPlayheadSecondsFromMedia,
     setPlaybackRate,
+    setTimelinePlaybackActive,
     setTimelineTool,
     setTimelineZoom,
     setLocale,

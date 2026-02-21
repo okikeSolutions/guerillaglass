@@ -36,17 +36,36 @@ public struct CaptureRect: Codable, Equatable {
 }
 
 public struct CaptureMetadata: Codable, Equatable {
+    public struct Window: Codable, Equatable {
+        public var id: UInt32
+        public var title: String
+        public var appName: String
+
+        public init(id: UInt32, title: String, appName: String) {
+            self.id = id
+            self.title = title
+            self.appName = appName
+        }
+    }
+
     public enum Source: String, Codable {
         case display
         case window
     }
 
     public var source: Source
+    public var window: Window?
     public var contentRect: CaptureRect
     public var pixelScale: Double
 
-    public init(source: Source, contentRect: CaptureRect, pixelScale: Double) {
+    public init(
+        source: Source,
+        window: Window? = nil,
+        contentRect: CaptureRect,
+        pixelScale: Double
+    ) {
         self.source = source
+        self.window = window
         self.contentRect = contentRect
         self.pixelScale = pixelScale
     }

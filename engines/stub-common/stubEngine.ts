@@ -49,6 +49,11 @@ type State = {
     minimumKeyframeInterval: number;
   };
   captureMetadata: {
+    window: {
+      id: number;
+      title: string;
+      appName: string;
+    } | null;
     source: "display" | "window";
     contentRect: { x: number; y: number; width: number; height: number };
     pixelScale: number;
@@ -90,6 +95,7 @@ function statusResult(): Json {
     isRecording: state.isRecording,
     recordingDurationSeconds: state.recordingDurationSeconds + activeDuration,
     recordingURL: state.recordingURL,
+    captureMetadata: state.captureMetadata,
     lastError: state.lastError,
     eventsURL: state.eventsURL,
     telemetry: {
@@ -219,21 +225,32 @@ function handleRequest(platform: string, request: Request): Response {
       state.isRunning = true;
       state.lastError = null;
       state.captureMetadata = {
+        window: null,
         source: "display",
         contentRect: { x: 0, y: 0, width: 1920, height: 1080 },
         pixelScale: 1,
       };
       return success(request.id, statusResult());
 
-    case "capture.startWindow":
+    case "capture.startWindow": {
+      const requestedWindowId =
+        typeof params.windowId === "number" && Number.isFinite(params.windowId)
+          ? Math.max(0, Math.floor(params.windowId))
+          : 101;
       state.isRunning = true;
       state.lastError = null;
       state.captureMetadata = {
+        window: {
+          id: requestedWindowId,
+          title: "Stub Window",
+          appName: "StubApp",
+        },
         source: "window",
         contentRect: { x: 0, y: 0, width: 1280, height: 720 },
         pixelScale: 1,
       };
       return success(request.id, statusResult());
+    }
 
     case "capture.stop":
       if (state.isRecording && state.recordingStartedAt != null) {

@@ -1,4 +1,5 @@
 import Capture
+import CoreGraphics
 import EngineProtocol
 import Foundation
 import ScreenCaptureKit
@@ -14,6 +15,14 @@ extension EngineService {
     }
 
     func listSources() async throws -> JSONValue {
+        // Avoid blocking SCShareableContent calls when Screen Recording permission has not been granted yet.
+        guard CGPreflightScreenCaptureAccess() else {
+            return .object([
+                "displays": .array([]),
+                "windows": .array([])
+            ])
+        }
+
         let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
 
         let displays: [JSONValue] = content.displays.map { display in
