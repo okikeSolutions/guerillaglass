@@ -97,6 +97,7 @@ Playback transport hardening (current):
 - `permissions.openInputMonitoringSettings`
 - `sources.list`
 - `capture.startDisplay`
+- `capture.startCurrentWindow`
 - `capture.startWindow`
 - `capture.stop`
 - `recording.start`
@@ -139,9 +140,14 @@ Protocol compatibility policy for `capture.status`:
 Capture start requests support runtime capture cadence selection:
 
 - `capture.startDisplay.params.captureFps` (`24 | 30 | 60`, default `30`)
+- `capture.startCurrentWindow.params.captureFps` (`24 | 30 | 60`, default `30`)
 - `capture.startWindow.params.captureFps` (`24 | 30 | 60`, default `30`)
 
 Capture FPS is independent from export preset FPS. Export cadence remains defined by the selected export preset.
+
+Current-window semantics:
+
+- `capture.startCurrentWindow` is resolved engine-side against the frontmost shareable window, reducing shell-side fallback heuristics.
 
 ## Why This Split
 

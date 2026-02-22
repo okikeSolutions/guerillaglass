@@ -121,7 +121,7 @@ describe("engine client integration", () => {
       const sources = await client.listSources();
       expect(sources.displays.length).toBeGreaterThan(0);
 
-      const preview = await client.startDisplayCapture(false);
+      const preview = await client.startCurrentWindowCapture(false);
       expect(preview.isRunning).toBe(true);
 
       const recording = await client.startRecording(true);

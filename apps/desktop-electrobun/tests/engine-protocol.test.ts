@@ -39,6 +39,10 @@ describe("engine protocol", () => {
 
   test("builds and validates parity method requests", () => {
     const capabilitiesRequest = buildRequest("engine.capabilities", {});
+    const startCurrentWindowRequest = buildRequest("capture.startCurrentWindow", {
+      enableMic: false,
+      captureFps: 30,
+    });
     const startRecordingRequest = buildRequest("recording.start", { trackInputEvents: true });
     const saveProjectRequest = buildRequest("project.save", {
       projectPath: "/tmp/test.gglassproj",
@@ -53,6 +57,9 @@ describe("engine protocol", () => {
     });
 
     expect(engineRequestSchema.parse(capabilitiesRequest).method).toBe("engine.capabilities");
+    expect(engineRequestSchema.parse(startCurrentWindowRequest).method).toBe(
+      "capture.startCurrentWindow",
+    );
     expect(engineRequestSchema.parse(startRecordingRequest).method).toBe("recording.start");
     expect(engineRequestSchema.parse(saveProjectRequest).method).toBe("project.save");
     expect(engineRequestSchema.parse(recentsRequest).method).toBe("project.recents");

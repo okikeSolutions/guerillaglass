@@ -54,14 +54,11 @@ extension EngineService {
 
     func filteredWindows(from windows: [SCWindow]) -> [SCWindow] {
         windows.filter { window in
-            guard window.isOnScreen else { return false }
-            guard window.frame.width > 1, window.frame.height > 1 else { return false }
-            guard let app = window.owningApplication else { return false }
-            let bundleID = app.bundleIdentifier
-            if bundleID == "com.apple.WindowServer" || bundleID == "com.apple.dock" {
-                return false
-            }
-            return true
+            ShareableWindowFilter.shouldInclude(
+                bundleIdentifier: window.owningApplication?.bundleIdentifier,
+                frame: window.frame,
+                isOnScreen: window.isOnScreen
+            )
         }
     }
 }

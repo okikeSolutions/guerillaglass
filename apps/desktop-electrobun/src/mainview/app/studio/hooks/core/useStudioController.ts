@@ -16,6 +16,7 @@ import {
   normalizeInspectorSelection,
   selectionFromPreset,
 } from "../../model/inspectorSelectionModel";
+import { resolveSelectedWindowId } from "../../model/preferredWindowSelection";
 import { useStudioHotkeys } from "./useStudioHotkeys";
 import { useStudioLayoutController } from "./useStudioLayoutController";
 import { useStudioMutations, type ExportFormApi, type SettingsFormApi } from "./useStudioMutations";
@@ -202,11 +203,7 @@ export function useStudioController() {
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
   const selectedWindowId = useMemo(() => {
-    const selectedId = settingsForm.state.values.selectedWindowId;
-    if (windowChoices.some((windowItem) => windowItem.id === selectedId)) {
-      return selectedId;
-    }
-    return windowChoices[0]?.id ?? 0;
+    return resolveSelectedWindowId(windowChoices, settingsForm.state.values.selectedWindowId);
   }, [settingsForm.state.values.selectedWindowId, windowChoices]);
   const timelineFrameRate = useMemo(() => {
     const metadataFrameRate =

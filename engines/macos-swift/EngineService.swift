@@ -40,6 +40,9 @@ final class EngineService {
             "permissions.openInputMonitoringSettings": { id, _ in self.permissionsOpenInputMonitoringSettings(id: id) },
             "sources.list": { id, _ in await self.sourcesListResponse(id: id) },
             "capture.startDisplay": { id, params in await self.startDisplayResponse(id: id, params: params) },
+            "capture.startCurrentWindow": { id, params in
+                await self.startCurrentWindowResponse(id: id, params: params)
+            },
             "capture.startWindow": { id, params in await self.startWindowResponse(id: id, params: params) },
             "capture.stop": { id, _ in await self.stopCaptureResponse(id: id) },
             "recording.start": { id, params in await self.startRecordingResponse(id: id, params: params) },

@@ -370,6 +370,7 @@ export function StudioShellHeader({
     studio.settingsForm.setFieldValue("captureSource", "window");
     void studio.toggleRecordingMutation.mutateAsync({
       captureSourceOverride: "window",
+      preferCurrentWindow: true,
     });
   };
 

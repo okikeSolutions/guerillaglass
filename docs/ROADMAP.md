@@ -27,6 +27,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Add layout persistence (pane sizes/collapse/workspace restore)
 - [x] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
+- [x] Route `Current Window` recording through engine-side frontmost window resolution (`capture.startCurrentWindow`) instead of renderer-side source-order inference
 - [x] Handle host-dialog RPC timeouts as recoverable workflow interruptions with guidance copy
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
 - [x] Keep degraded-mode messaging visible near preview/recording context
@@ -116,6 +117,7 @@ Progress (current repo)
 - [x] Display capture preview (ScreenCaptureKit)
 - [x] Mic capture skeleton (permission + AVAudioEngine tap)
 - [x] Window capture UI + preview
+- [x] Engine-side frontmost current-window capture command (`capture.startCurrentWindow`)
 - [x] Trim + export
 - [x] Project schema + store (save/load on disk)
 - [x] Protocol-based project open/save flow in desktop shell

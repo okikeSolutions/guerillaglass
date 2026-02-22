@@ -232,6 +232,21 @@ function handleRequest(platform: string, request: Request): Response {
       };
       return success(request.id, statusResult());
 
+    case "capture.startCurrentWindow":
+      state.isRunning = true;
+      state.lastError = null;
+      state.captureMetadata = {
+        window: {
+          id: 101,
+          title: "Stub Window",
+          appName: "StubApp",
+        },
+        source: "window",
+        contentRect: { x: 0, y: 0, width: 1280, height: 720 },
+        pixelScale: 1,
+      };
+      return success(request.id, statusResult());
+
     case "capture.startWindow": {
       const requestedWindowId =
         typeof params.windowId === "number" && Number.isFinite(params.windowId)

@@ -162,6 +162,18 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
     }
 
+    public func startCurrentWindowCapture(
+        enableMic: Bool = false,
+        targetFrameRate: Int = 30
+    ) async throws {
+        let frontmostWindow = try await resolveFrontmostWindow()
+        try await startWindowCapture(
+            windowID: frontmostWindow.windowID,
+            enableMic: enableMic,
+            targetFrameRate: targetFrameRate
+        )
+    }
+
     @available(macOS 14.0, *)
     public func startCaptureUsingPicker(
         style: SCShareableContentStyle? = nil,
