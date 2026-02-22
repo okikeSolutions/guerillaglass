@@ -220,7 +220,7 @@ export function CaptureRoute() {
 
             <div className="gg-preview-workspace">
               <div className="gg-preview-stage-wrap">
-                <AspectRatio ratio={16 / 9} className="h-full w-full">
+                <AspectRatio ratio={16 / 9} className="h-auto w-auto">
                   <div className="gg-preview-stage">
                     {studio.captureStatusQuery.data?.isRecording ? (
                       <div className="space-y-2 text-center">
