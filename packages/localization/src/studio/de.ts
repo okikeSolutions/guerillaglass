@@ -25,6 +25,7 @@ export const deDE: StudioMessages = {
     exportMissingPreset: "Kein Export-Preset ausgewählt.",
     exportComplete: (outputURL: string) => `Export abgeschlossen: ${outputURL}`,
     projectOpened: "Projekt geöffnet.",
+    projectSaveTarget: (path: string) => `Projekt wird gespeichert unter ${path}...`,
     projectSaved: (path: string) => `Projekt gespeichert unter ${path}`,
     selectWindowFirst: "Wähle vor dem Start der Aufnahme ein Fenster aus.",
     screenPermissionRequired:
@@ -60,6 +61,8 @@ export const deDE: StudioMessages = {
     stopPreview: "Vorschau stoppen",
     startRecording: "Aufzeichnung starten",
     stopRecording: "Aufzeichnung stoppen",
+    recordCurrentWindow: "Aktuelles Fenster",
+    recordChooseWindow: "Fenster waehlen...",
     exportNow: "Exportieren",
     openProject: "Projekt öffnen",
     saveProject: "Projekt speichern",

@@ -22,6 +22,7 @@ export const enUS = {
     exportMissingPreset: "No export preset selected.",
     exportComplete: (outputURL: string) => `Export complete: ${outputURL}`,
     projectOpened: "Project opened.",
+    projectSaveTarget: (path: string) => `Saving project to ${path}...`,
     projectSaved: (path: string) => `Project saved to ${path}`,
     selectWindowFirst: "Select a window before starting capture.",
     screenPermissionRequired:
@@ -57,6 +58,8 @@ export const enUS = {
     stopPreview: "Stop Preview",
     startRecording: "Start Recording",
     stopRecording: "Stop Recording",
+    recordCurrentWindow: "Current Window",
+    recordChooseWindow: "Choose Window...",
     exportNow: "Export",
     openProject: "Open Project",
     saveProject: "Save Project",

@@ -14,6 +14,8 @@ import { routeMenuAction } from "../menu/router";
 import { readAllowedTextFile, resolveAllowedMediaFilePath } from "../security/fileAccess";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
 import { MediaServer } from "../media/server";
+import { pickPathForMode } from "../path/picker";
+import type { HostPathPickerMode } from "../../shared/bridgeRpc";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -25,6 +27,7 @@ let hostMenuState: HostMenuState = {
   canSave: false,
   canExport: false,
   isRecording: false,
+  recordingURL: null,
   locale: "en-US",
   densityMode: "comfortable",
 };
@@ -44,18 +47,25 @@ async function getMainViewURL(): Promise<string> {
   return "views://mainview/index.html";
 }
 
-async function pickDirectory(startingFolder?: string): Promise<string | null> {
-  const chosenPaths = await Utils.openFileDialog({
-    startingFolder: startingFolder ?? Utils.paths.documents,
-    canChooseFiles: false,
-    canChooseDirectory: true,
-    allowsMultipleSelection: false,
-    allowedFileTypes: "*",
+async function pickPath(params: {
+  mode: HostPathPickerMode;
+  startingFolder?: string;
+}): Promise<string | null> {
+  return await pickPathForMode(params.mode, {
+    currentProjectPath,
+    startingFolder: params.startingFolder,
+    documentsPath: Utils.paths.documents,
+    openFileDialog: Utils.openFileDialog,
+    saveFileDialog: (
+      Utils as unknown as {
+        saveFileDialog?: (options: {
+          startingFolder?: string;
+          defaultName?: string;
+          allowedFileTypes?: string | string[];
+        }) => Promise<string | string[] | null>;
+      }
+    ).saveFileDialog,
   });
-  if (!Array.isArray(chosenPaths) || chosenPaths.length === 0) {
-    return null;
-  }
-  return chosenPaths[0] ?? null;
 }
 
 async function readTextFile(filePath: string): Promise<string> {
@@ -103,11 +113,15 @@ function updateHostMenuState(nextState: HostMenuState) {
     hostMenuState.canSave !== nextState.canSave ||
     hostMenuState.canExport !== nextState.canExport ||
     hostMenuState.isRecording !== nextState.isRecording ||
+    hostMenuState.recordingURL !== nextState.recordingURL ||
     hostMenuState.locale !== nextState.locale ||
     hostMenuState.densityMode !== nextState.densityMode;
   if (!hasChange) {
     return;
   }
+  console.info(
+    `[host-menu] state changed canSave=${nextState.canSave} canExport=${nextState.canExport} isRecording=${nextState.isRecording} recordingURL=${nextState.recordingURL ?? "null"} locale=${nextState.locale ?? "en-US"} density=${nextState.densityMode ?? "comfortable"}`,
+  );
   hostMenuState = nextState;
   applyShellMenus();
 }
@@ -151,7 +165,7 @@ const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
   handlers: {
     requests: createEngineBridgeHandlers({
       engineClient,
-      pickDirectory,
+      pickPath,
       readTextFile,
       resolveMediaSourceURL,
       setCurrentProjectPath: (projectPath) => {

@@ -14,6 +14,7 @@ import type {
 } from "@guerillaglass/engine-protocol";
 import type { StudioMessages } from "@guerillaglass/localization";
 import { engineApi } from "@/lib/engine";
+import type { HostPathPickerMode } from "../../../../../shared/bridgeRpc";
 import { studioQueryKeys } from "./useStudioDataQueries";
 
 const captureStatusSyncAttempts = 4;
@@ -26,6 +27,11 @@ type RefetchableQuery<TData> = {
   data: TData | undefined;
   isPending: boolean;
   refetch: () => Promise<{ data: TData | undefined }>;
+};
+
+type ToggleRecordingOptions = {
+  captureSourceOverride?: CaptureSourceMode;
+  preferWindowPicker?: boolean;
 };
 
 export type SettingsFormApi = {
@@ -61,7 +67,10 @@ type UseStudioActionsOptions = {
   setNotice: (next: Notice) => void;
   setTimelinePlayback: (isPlaying: boolean) => void;
   resetPlayhead: () => void;
-  pickDirectorySafely: (startingFolder?: string) => Promise<string | null>;
+  pickPathSafely: (params: {
+    mode: HostPathPickerMode;
+    startingFolder?: string;
+  }) => Promise<string | null>;
   selectedWindowId: number;
   inputMonitoringDenied: boolean;
   recordingURL: string | null;
@@ -92,7 +101,7 @@ export function useStudioMutations({
   setNotice,
   setTimelinePlayback,
   resetPlayhead,
-  pickDirectorySafely,
+  pickPathSafely,
   selectedWindowId,
   inputMonitoringDenied,
   recordingURL,
@@ -155,17 +164,37 @@ export function useStudioMutations({
   );
 
   const startCaptureInternal = useCallback(
-    async (options?: { preferWindowPicker?: boolean }): Promise<CaptureStatusResult> => {
+    async (options?: {
+      captureSourceOverride?: CaptureSourceMode;
+      preferWindowPicker?: boolean;
+    }): Promise<CaptureStatusResult> => {
       await ensureScreenRecordingPermission();
 
-      const { captureSource, micEnabled, captureFps } = settingsForm.state.values;
+      const {
+        captureSource: configuredCaptureSource,
+        micEnabled,
+        captureFps,
+      } = settingsForm.state.values;
+      const captureSource = options?.captureSourceOverride ?? configuredCaptureSource;
       if (captureSource === "window") {
-        const windowId = options?.preferWindowPicker ? 0 : selectedWindowId;
-        if (windowId === 0 && !options?.preferWindowPicker) {
-          throw new Error(ui.notices.selectWindowFirst);
+        let resolvedWindowId = selectedWindowId;
+        if (resolvedWindowId === 0) {
+          const refreshedSources = await engineApi.listSources().catch(() => null);
+          if (refreshedSources) {
+            queryClient.setQueryData(studioQueryKeys.sources(), refreshedSources);
+            resolvedWindowId = refreshedSources.windows[0]?.id ?? 0;
+            if (resolvedWindowId !== 0) {
+              settingsForm.setFieldValue("selectedWindowId", resolvedWindowId);
+            }
+          }
         }
-        if (!options?.preferWindowPicker) {
-          return await engineApi.startWindowCapture(windowId, micEnabled, captureFps);
+
+        if (resolvedWindowId !== 0 && !options?.preferWindowPicker) {
+          return await engineApi.startWindowCapture(resolvedWindowId, micEnabled, captureFps);
+        }
+
+        if (resolvedWindowId === 0 && !options?.preferWindowPicker) {
+          throw new Error(ui.notices.selectWindowFirst);
         }
 
         try {
@@ -177,18 +206,19 @@ export function useStudioMutations({
           if (!unsupportedPickerOnMacOS13) {
             throw error;
           }
-          if (selectedWindowId === 0) {
+          if (resolvedWindowId === 0) {
             throw new Error(ui.notices.selectWindowFirst);
           }
-          return await engineApi.startWindowCapture(selectedWindowId, micEnabled, captureFps);
+          return await engineApi.startWindowCapture(resolvedWindowId, micEnabled, captureFps);
         }
       }
       return await engineApi.startDisplayCapture(micEnabled, captureFps);
     },
     [
       ensureScreenRecordingPermission,
+      queryClient,
       selectedWindowId,
-      settingsForm.state.values,
+      settingsForm,
       ui.notices.selectWindowFirst,
     ],
   );
@@ -289,11 +319,14 @@ export function useStudioMutations({
   });
 
   const toggleRecordingMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (options?: ToggleRecordingOptions) => {
       let status = captureStatusQuery.data;
       if (!status?.isRunning) {
         status = await startCaptureInternal({
-          preferWindowPicker: settingsForm.state.values.captureSource === "window",
+          captureSourceOverride: options?.captureSourceOverride,
+          preferWindowPicker:
+            options?.preferWindowPicker ??
+            (settingsForm.state.values.captureSource === "window" && selectedWindowId === 0),
         });
       }
 
@@ -347,7 +380,10 @@ export function useStudioMutations({
 
   const openProjectMutation = useMutation({
     mutationFn: async () => {
-      const pickedPath = await pickDirectorySafely(projectQuery.data?.projectPath ?? undefined);
+      const pickedPath = await pickPathSafely({
+        mode: "openProject",
+        startingFolder: projectQuery.data?.projectPath ?? undefined,
+      });
       if (!pickedPath) {
         return null;
       }
@@ -388,8 +424,15 @@ export function useStudioMutations({
     mutationFn: async (saveAs: boolean) => {
       let projectPath = projectQuery.data?.projectPath ?? undefined;
       if (saveAs || !projectPath) {
-        projectPath =
-          (await pickDirectorySafely(projectQuery.data?.projectPath ?? undefined)) ?? undefined;
+        const pickedPath = await pickPathSafely({
+          mode: "saveProjectAs",
+          startingFolder: projectQuery.data?.projectPath ?? undefined,
+        });
+        if (!pickedPath) {
+          return null;
+        }
+        projectPath = pickedPath;
+        setNotice({ kind: "info", message: ui.notices.projectSaveTarget(projectPath) });
       }
       if (!projectPath) {
         return null;
@@ -427,9 +470,10 @@ export function useStudioMutations({
         throw new Error(ui.notices.exportMissingPreset);
       }
 
-      const targetDirectory = await pickDirectorySafely(
-        projectQuery.data?.projectPath ?? undefined,
-      );
+      const targetDirectory = await pickPathSafely({
+        mode: "export",
+        startingFolder: projectQuery.data?.projectPath ?? undefined,
+      });
       if (!targetDirectory) {
         return null;
       }

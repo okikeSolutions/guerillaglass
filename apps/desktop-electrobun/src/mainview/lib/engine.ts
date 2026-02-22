@@ -20,7 +20,11 @@ import {
   type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import type { HostMenuState, WindowBridgeBindings } from "../../shared/bridgeRpc";
+import type {
+  HostMenuState,
+  HostPathPickerMode,
+  WindowBridgeBindings,
+} from "../../shared/bridgeRpc";
 
 function requireBridge<K extends keyof WindowBridgeBindings>(
   name: K,
@@ -137,8 +141,11 @@ export const engineApi = {
 };
 
 export const desktopApi = {
-  async pickDirectory(startingFolder?: string): Promise<string | null> {
-    return await requireBridge("ggPickDirectory")(startingFolder);
+  async pickPath(params: {
+    mode: HostPathPickerMode;
+    startingFolder?: string;
+  }): Promise<string | null> {
+    return await requireBridge("ggPickPath")(params);
   },
 
   async readTextFile(filePath: string): Promise<string> {

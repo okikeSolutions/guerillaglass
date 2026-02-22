@@ -21,6 +21,9 @@ function installMockBridge() {
       intensity: 1,
       minimumKeyframeInterval: 1 / 30,
     },
+    projectOpenCalls: 0,
+    projectSaveCalls: 0,
+    lastProjectSavePath: null as string | null,
   };
 
   const defaultCaptureMetadata = {
@@ -158,15 +161,19 @@ function installMockBridge() {
   });
 
   browserWindow.ggEngineProjectOpen = async (projectPath) => {
+    state.projectOpenCalls += 1;
     state.projectPath = projectPath;
     return browserWindow.ggEngineProjectCurrent();
   };
 
   browserWindow.ggEngineProjectSave = async ({ projectPath, autoZoom } = {}) => {
+    state.projectSaveCalls += 1;
     if (projectPath) {
       state.projectPath = projectPath;
+      state.lastProjectSavePath = projectPath;
     } else if (!state.projectPath) {
       state.projectPath = "/tmp/guerillaglass-ui-smoke.gglassproj";
+      state.lastProjectSavePath = state.projectPath;
     }
     if (autoZoom) {
       state.autoZoom = autoZoom;
@@ -184,13 +191,22 @@ function installMockBridge() {
     ],
   });
 
-  browserWindow.ggPickDirectory = async () => "/tmp";
+  browserWindow.ggPickPath = async ({ mode }: { mode: string }) => {
+    if (mode === "openProject") {
+      return "/tmp/mock-open.gglassproj";
+    }
+    if (mode === "saveProjectAs") {
+      return "/tmp/mock-save-as.gglassproj";
+    }
+    return "/tmp";
+  };
   browserWindow.ggReadTextFile = async () =>
     JSON.stringify({
       schemaVersion: 1,
       events: [],
     });
   browserWindow.ggHostSendMenuState = () => {};
+  browserWindow.__ggMockState = state;
 }
 
 function screenshotPath(name) {
@@ -282,11 +298,68 @@ test("starts preview and recording through the shell controls", async ({ page })
   await expect(page.getByText("Live preview active")).toBeVisible();
 
   await page.getByRole("button", { name: "Start Recording" }).click();
+  await page.getByRole("menuitem", { name: "Current Window" }).click();
   await expect(page.getByRole("button", { name: "Stop Recording" })).toBeVisible();
   await expect(page.getByText("Status: recording")).toBeVisible();
 
   await page.getByRole("link", { name: "Deliver" }).click();
   await expect(page.getByText("Recording URL: /tmp/guerillaglass-ui-smoke.mov")).toBeVisible();
+});
+
+test("routes host-menu save as to project.save with project package path", async ({ page }) => {
+  await page.goto("/");
+
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new CustomEvent("gg-host-menu-command", {
+        detail: { command: "file.saveProjectAs" },
+      }),
+    );
+  });
+
+  await expect
+    .poll(async () => {
+      const state = await page.evaluate(() => {
+        const mockState = (
+          window as Window & {
+            __ggMockState?: {
+              projectOpenCalls: number;
+              projectSaveCalls: number;
+              lastProjectSavePath: string | null;
+            };
+          }
+        ).__ggMockState;
+        return {
+          projectOpenCalls: mockState?.projectOpenCalls ?? 0,
+          projectSaveCalls: mockState?.projectSaveCalls ?? 0,
+          lastProjectSavePath: mockState?.lastProjectSavePath ?? null,
+        };
+      });
+
+      return state.projectSaveCalls;
+    })
+    .toBeGreaterThan(0);
+
+  const result = await page.evaluate(() => {
+    const mockState = (
+      window as Window & {
+        __ggMockState?: {
+          projectOpenCalls: number;
+          projectSaveCalls: number;
+          lastProjectSavePath: string | null;
+        };
+      }
+    ).__ggMockState;
+    return {
+      projectOpenCalls: mockState?.projectOpenCalls ?? 0,
+      projectSaveCalls: mockState?.projectSaveCalls ?? 0,
+      lastProjectSavePath: mockState?.lastProjectSavePath ?? null,
+    };
+  });
+
+  expect(result.projectOpenCalls).toBe(0);
+  expect(result.projectSaveCalls).toBeGreaterThan(0);
+  expect(result.lastProjectSavePath?.endsWith(".gglassproj")).toBe(true);
 });
 
 test("restores workspace route and pane collapse from persisted layout", async ({ page }) => {
@@ -413,6 +486,7 @@ test("applies single-key shortcuts only when enabled and outside interactive con
 test("keeps timeline playhead stable on pointer cancel", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Start Recording" }).click();
+  await page.getByRole("menuitem", { name: "Current Window" }).click();
 
   const timelineSurface = page.locator(".gg-timeline-surface");
   const surfaceBox = await timelineSurface.boundingBox();

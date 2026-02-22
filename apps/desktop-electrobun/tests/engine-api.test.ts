@@ -148,7 +148,8 @@ describe("renderer engine bridge", () => {
           },
         ],
       }),
-      ggPickDirectory: async () => "/tmp",
+      ggPickPath: async ({ mode }: { mode: string }) =>
+        mode === "saveProjectAs" ? "/tmp/alpha.gglassproj" : "/tmp",
       ggReadTextFile: async () =>
         JSON.stringify({
           schemaVersion: 1,
@@ -190,7 +191,7 @@ describe("renderer engine bridge", () => {
     const openedProject = await engineApi.projectOpen("/tmp/project.gglassproj");
     const savedProject = await engineApi.projectSave({ projectPath: "/tmp/project.gglassproj" });
     const recentProjects = await engineApi.projectRecents(5);
-    const picked = await desktopApi.pickDirectory();
+    const picked = await desktopApi.pickPath({ mode: "export" });
     const eventsRaw = await desktopApi.readTextFile("/tmp/events.json");
     const mediaSourceURL = await desktopApi.resolveMediaSourceURL("/tmp/out.mp4");
     sendHostMenuState({

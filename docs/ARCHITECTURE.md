@@ -56,7 +56,11 @@ Playback transport hardening (current):
 - Transient transport failures are retried in Bun for read-only methods only, using typed transport errors (not string matching).
 - Restart handling uses bounded attempts with backoff + jitter and a circuit-open cooldown after repeated crash loops.
 - Mutating methods (capture/recording start-stop, export run, project writes) are not auto-retried to avoid duplicate side effects.
-- Renderer directory-picker flows (`open project`, `save as`, export target selection) treat host RPC timeout responses as recoverable interruptions and show workflow guidance instead of a sticky fatal error state.
+- Renderer picker flows (`open project`, `save as`, export target selection) use a single host RPC (`ggPickPath`) with explicit modes: `openProject`, `saveProjectAs`, `export`.
+- `openProject` selections are constrained to `.gglassproj` package paths.
+- `saveProjectAs` prefers a native save dialog when the host runtime exposes one; otherwise it falls back to folder picking and host-side package-path resolution (`*.gglassproj`).
+- Renderer picker flows treat host RPC timeout responses as recoverable interruptions and show workflow guidance instead of a sticky fatal error state.
+- Renderer save flows surface the resolved target path before write confirmation.
 - Transport mutations (`start/stop preview`, record toggles) reconcile against follow-up `capture.status` polls before final notice state to reduce stale transport-state drift.
 
 ## Renderer UI State (Creator Studio)
