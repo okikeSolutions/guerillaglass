@@ -271,6 +271,20 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
             }));
             success(&request.id, state.capture_status())
         }
+        EngineMethod::CaptureStartCurrentWindow => {
+            state.is_running = true;
+            state.capture_metadata = Some(json!({
+                "window": {
+                    "id": 101,
+                    "title": "Desktop",
+                    "appName": "System",
+                },
+                "source": "window",
+                "contentRect": { "x": 0, "y": 0, "width": 1280, "height": 720 },
+                "pixelScale": 1,
+            }));
+            success(&request.id, state.capture_status())
+        }
         EngineMethod::CaptureStartWindow => {
             let window_id = params
                 .get("windowId")

@@ -70,7 +70,8 @@ Guerilla Glass should feel like a professional creator tool:
 - **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
   - `capture.status` telemetry emits machine-stable reason codes (`engine_error`, `high_dropped_frame_rate`, `elevated_dropped_frame_rate`, `low_microphone_level`); renderer localizes these codes for UI.
   - `capture.status` telemetry includes aggregate and channel-specific performance metrics (`sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`) for capture diagnostics.
-  - `capture.startDisplay` and `capture.startWindow` accept `captureFps` (`24 | 30 | 60`, default `30`) and this is decoupled from export preset FPS.
+  - `capture.startDisplay`, `capture.startCurrentWindow`, and `capture.startWindow` accept `captureFps` (`24 | 30 | 60`, default `30`) and this is decoupled from export preset FPS.
+  - `capture.startCurrentWindow` resolves the active frontmost shareable window in the engine, so renderer menu actions do not have to infer "current" from cached source ordering.
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Additive protocol evolution rule: new response fields should be optional or renderer-derivable so older engines remain compatible during rollout.
 - **Native engines (per platform):**

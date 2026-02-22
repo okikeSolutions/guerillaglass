@@ -79,6 +79,15 @@ export const engineApi = {
     );
   },
 
+  async startCurrentWindowCapture(
+    enableMic: boolean,
+    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+  ): Promise<CaptureStatusResult> {
+    return captureStatusResultSchema.parse(
+      await requireBridge("ggEngineStartCurrentWindowCapture")(enableMic, captureFps),
+    );
+  },
+
   async startWindowCapture(
     windowId: number,
     enableMic: boolean,

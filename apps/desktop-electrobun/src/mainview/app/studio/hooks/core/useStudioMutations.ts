@@ -15,6 +15,7 @@ import type {
 import type { StudioMessages } from "@guerillaglass/localization";
 import { engineApi } from "@/lib/engine";
 import type { HostPathPickerMode } from "../../../../../shared/bridgeRpc";
+import { resolveSelectedWindowId } from "../../model/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
 
 const captureStatusSyncAttempts = 4;
@@ -32,6 +33,7 @@ type RefetchableQuery<TData> = {
 type ToggleRecordingOptions = {
   captureSourceOverride?: CaptureSourceMode;
   preferWindowPicker?: boolean;
+  preferCurrentWindow?: boolean;
 };
 
 export type SettingsFormApi = {
@@ -118,6 +120,21 @@ export function useStudioMutations({
   projectRecentsQuery,
   eventsQuery,
 }: UseStudioActionsOptions) {
+  const reconcileSourcesAndSelectedWindow = useCallback(
+    (nextSources: SourcesResult, baselineSelectedWindowId = selectedWindowId): number => {
+      queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
+      const nextSelectedWindowId = resolveSelectedWindowId(
+        nextSources.windows,
+        baselineSelectedWindowId,
+      );
+      if (nextSelectedWindowId !== baselineSelectedWindowId) {
+        settingsForm.setFieldValue("selectedWindowId", nextSelectedWindowId);
+      }
+      return nextSelectedWindowId;
+    },
+    [queryClient, selectedWindowId, settingsForm],
+  );
+
   const ensureScreenRecordingPermission = useCallback(async (): Promise<void> => {
     let permissions = await engineApi.getPermissions();
     queryClient.setQueryData(studioQueryKeys.permissions(), permissions);
@@ -134,12 +151,9 @@ export function useStudioMutations({
 
     const nextSources = await engineApi.listSources().catch(() => null);
     if (nextSources) {
-      queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
-      if (!nextSources.windows.some((windowItem) => windowItem.id === selectedWindowId)) {
-        settingsForm.setFieldValue("selectedWindowId", nextSources.windows[0]?.id ?? 0);
-      }
+      reconcileSourcesAndSelectedWindow(nextSources);
     }
-  }, [queryClient, selectedWindowId, settingsForm, ui.notices.screenPermissionRequired]);
+  }, [queryClient, reconcileSourcesAndSelectedWindow, ui.notices.screenPermissionRequired]);
 
   const syncCaptureStatus = useCallback(
     async (options?: { expectRunning?: boolean }): Promise<CaptureStatusResult | null> => {
@@ -167,6 +181,7 @@ export function useStudioMutations({
     async (options?: {
       captureSourceOverride?: CaptureSourceMode;
       preferWindowPicker?: boolean;
+      preferCurrentWindow?: boolean;
     }): Promise<CaptureStatusResult> => {
       await ensureScreenRecordingPermission();
 
@@ -177,15 +192,18 @@ export function useStudioMutations({
       } = settingsForm.state.values;
       const captureSource = options?.captureSourceOverride ?? configuredCaptureSource;
       if (captureSource === "window") {
+        if (options?.preferCurrentWindow) {
+          return await engineApi.startCurrentWindowCapture(micEnabled, captureFps);
+        }
+
         let resolvedWindowId = selectedWindowId;
         if (resolvedWindowId === 0) {
           const refreshedSources = await engineApi.listSources().catch(() => null);
           if (refreshedSources) {
-            queryClient.setQueryData(studioQueryKeys.sources(), refreshedSources);
-            resolvedWindowId = refreshedSources.windows[0]?.id ?? 0;
-            if (resolvedWindowId !== 0) {
-              settingsForm.setFieldValue("selectedWindowId", resolvedWindowId);
-            }
+            resolvedWindowId = reconcileSourcesAndSelectedWindow(
+              refreshedSources,
+              resolvedWindowId,
+            );
           }
         }
 
@@ -216,7 +234,7 @@ export function useStudioMutations({
     },
     [
       ensureScreenRecordingPermission,
-      queryClient,
+      reconcileSourcesAndSelectedWindow,
       selectedWindowId,
       settingsForm,
       ui.notices.selectWindowFirst,
@@ -271,10 +289,7 @@ export function useStudioMutations({
       ]);
       queryClient.setQueryData(studioQueryKeys.permissions(), nextPermissions);
       if (nextSources) {
-        queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
-        if (!nextSources.windows.some((windowItem) => windowItem.id === selectedWindowId)) {
-          settingsForm.setFieldValue("selectedWindowId", nextSources.windows[0]?.id ?? 0);
-        }
+        reconcileSourcesAndSelectedWindow(nextSources);
       }
       return nextPermissions;
     },
@@ -327,6 +342,7 @@ export function useStudioMutations({
           preferWindowPicker:
             options?.preferWindowPicker ??
             (settingsForm.state.values.captureSource === "window" && selectedWindowId === 0),
+          preferCurrentWindow: options?.preferCurrentWindow,
         });
       }
 

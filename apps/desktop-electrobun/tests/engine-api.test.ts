@@ -104,6 +104,9 @@ describe("renderer engine bridge", () => {
       ggEngineStartDisplayCapture: async () => ({
         ...makeCaptureStatus({ isRunning: true }),
       }),
+      ggEngineStartCurrentWindowCapture: async () => ({
+        ...makeCaptureStatus({ isRunning: true }),
+      }),
       ggEngineStartWindowCapture: async () => ({
         ...makeCaptureStatus({ isRunning: true }),
       }),
@@ -178,6 +181,7 @@ describe("renderer engine bridge", () => {
     const exportInfo = await engineApi.exportInfo();
     const project = await engineApi.projectCurrent();
     const started = await engineApi.startDisplayCapture(true);
+    const startedCurrentWindow = await engineApi.startCurrentWindowCapture(true);
     const startedWindow = await engineApi.startWindowCapture(12, true);
     const recording = await engineApi.startRecording(true);
     const stoppedRecording = await engineApi.stopRecording();
@@ -214,6 +218,7 @@ describe("renderer engine bridge", () => {
     expect(exportInfo.presets[0]?.id).toBe("h264-1080p-30");
     expect(project.autoZoom.isEnabled).toBe(true);
     expect(started.isRunning).toBe(true);
+    expect(startedCurrentWindow.isRunning).toBe(true);
     expect(startedWindow.isRunning).toBe(true);
     expect(recording.isRecording).toBe(true);
     expect(stoppedRecording.isRecording).toBe(false);

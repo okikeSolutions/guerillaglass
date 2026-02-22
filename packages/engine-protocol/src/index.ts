@@ -305,6 +305,15 @@ export const captureStartDisplayRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for captureStartCurrentWindowRequestSchema. */
+export const captureStartCurrentWindowRequestSchema = requestBaseSchema.extend({
+  method: z.literal(engineMethods.CaptureStartCurrentWindow),
+  params: z.object({
+    enableMic: z.boolean().optional().default(false),
+    captureFps: captureFrameRateSchema.optional().default(defaultCaptureFrameRate),
+  }),
+});
+
 /** Engine protocol schema for captureStartWindowRequestSchema. */
 export const captureStartWindowRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.CaptureStartWindow),
@@ -403,6 +412,7 @@ export const engineRequestSchema = z.discriminatedUnion("method", [
   permissionsOpenInputSettingsRequestSchema,
   sourcesListRequestSchema,
   captureStartDisplayRequestSchema,
+  captureStartCurrentWindowRequestSchema,
   captureStartWindowRequestSchema,
   captureStopRequestSchema,
   recordingStartRequestSchema,

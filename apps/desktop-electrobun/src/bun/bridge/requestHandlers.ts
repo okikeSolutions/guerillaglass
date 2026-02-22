@@ -33,6 +33,8 @@ export function createEngineBridgeHandlers({
     ggEngineListSources: async () => engineClient.listSources(),
     ggEngineStartDisplayCapture: async ({ enableMic, captureFps }) =>
       engineClient.startDisplayCapture(enableMic, captureFps),
+    ggEngineStartCurrentWindowCapture: async ({ enableMic, captureFps }) =>
+      engineClient.startCurrentWindowCapture(enableMic, captureFps),
     ggEngineStartWindowCapture: async ({ windowId, enableMic, captureFps }) =>
       engineClient.startWindowCapture(windowId, enableMic, captureFps),
     ggEngineStopCapture: async () => engineClient.stopCapture(),

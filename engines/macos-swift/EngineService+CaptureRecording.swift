@@ -111,6 +111,27 @@ extension EngineService {
         }
     }
 
+    func startCurrentWindowResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
+        let enableMic = params["enableMic"]?.boolValue ?? false
+        guard let captureFps = resolveCaptureFrameRate(from: params) else {
+            return .failure(
+                id: id,
+                code: "invalid_params",
+                message: captureFrameRateValidationMessage()
+            )
+        }
+
+        do {
+            try await captureEngine.startCurrentWindowCapture(
+                enableMic: enableMic,
+                targetFrameRate: captureFps
+            )
+            return captureStatusResponse(id: id)
+        } catch {
+            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
+        }
+    }
+
     func stopCaptureResponse(id: String) async -> EngineResponse {
         await captureEngine.stopCapture()
         await stopInputTrackingIfNeeded()

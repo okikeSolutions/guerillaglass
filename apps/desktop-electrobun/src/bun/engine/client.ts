@@ -145,6 +145,16 @@ const engineMethodDefinitions = {
     Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
     [enableMic: boolean, captureFps: CaptureFrameRate]
   >,
+  startCurrentWindowCapture: {
+    method: "capture.startCurrentWindow",
+    toParams: (enableMic: boolean, captureFps: CaptureFrameRate) => ({ enableMic, captureFps }),
+    schema: captureStatusResultSchema,
+    timeoutMs: 15_000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    [enableMic: boolean, captureFps: CaptureFrameRate]
+  >,
   startWindowCapture: {
     method: "capture.startWindow",
     toParams: (windowId: number, enableMic: boolean, captureFps: CaptureFrameRate) => ({
@@ -564,6 +574,18 @@ export class EngineClient {
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ) {
     const definition = engineMethodDefinitions.startDisplayCapture;
+    return this.callAndParse(
+      definition.method,
+      definition.toParams(enableMic, captureFps),
+      definition.schema,
+    );
+  }
+
+  async startCurrentWindowCapture(
+    enableMic: boolean,
+    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+  ) {
+    const definition = engineMethodDefinitions.startCurrentWindowCapture;
     return this.callAndParse(
       definition.method,
       definition.toParams(enableMic, captureFps),

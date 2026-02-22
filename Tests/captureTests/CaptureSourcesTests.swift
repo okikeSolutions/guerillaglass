@@ -77,47 +77,25 @@ final class CaptureSourcesTests: XCTestCase {
     }
 
     func testShouldIncludeShareableWindowFiltersExpectedWindows() {
-        XCTAssertFalse(
-            CaptureEngine.shouldIncludeShareableWindow(
-                .init(bundleIdentifier: nil, frame: CGRect(x: 0, y: 0, width: 100, height: 100), isOnScreen: true)
-            )
-        )
-        XCTAssertFalse(
-            CaptureEngine.shouldIncludeShareableWindow(
-                .init(
-                    bundleIdentifier: "com.apple.WindowServer",
-                    frame: CGRect(x: 0, y: 0, width: 100, height: 100),
-                    isOnScreen: true
+        func assertExcluded(
+            bundleIdentifier: String?,
+            frame: CGRect = CGRect(x: 0, y: 0, width: 100, height: 100),
+            isOnScreen: Bool = true
+        ) {
+            XCTAssertFalse(
+                CaptureEngine.shouldIncludeShareableWindow(
+                    .init(bundleIdentifier: bundleIdentifier, frame: frame, isOnScreen: isOnScreen)
                 )
             )
-        )
-        XCTAssertFalse(
-            CaptureEngine.shouldIncludeShareableWindow(
-                .init(
-                    bundleIdentifier: "com.apple.dock",
-                    frame: CGRect(x: 0, y: 0, width: 100, height: 100),
-                    isOnScreen: true
-                )
-            )
-        )
-        XCTAssertFalse(
-            CaptureEngine.shouldIncludeShareableWindow(
-                .init(
-                    bundleIdentifier: "com.example.app",
-                    frame: CGRect(x: 0, y: 0, width: 1, height: 300),
-                    isOnScreen: true
-                )
-            )
-        )
-        XCTAssertFalse(
-            CaptureEngine.shouldIncludeShareableWindow(
-                .init(
-                    bundleIdentifier: "com.example.app",
-                    frame: CGRect(x: 0, y: 0, width: 200, height: 200),
-                    isOnScreen: false
-                )
-            )
-        )
+        }
+
+        assertExcluded(bundleIdentifier: nil)
+        assertExcluded(bundleIdentifier: "com.apple.WindowServer")
+        assertExcluded(bundleIdentifier: "com.apple.dock")
+        assertExcluded(bundleIdentifier: "com.apple.systemuiserver")
+        assertExcluded(bundleIdentifier: "com.example.app", frame: CGRect(x: 0, y: 0, width: 1, height: 300))
+        assertExcluded(bundleIdentifier: "com.example.app", isOnScreen: false)
+
         XCTAssertTrue(
             CaptureEngine.shouldIncludeShareableWindow(
                 .init(

@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import ScreenCaptureKit
 
@@ -9,13 +10,11 @@ extension CaptureEngine {
     }
 
     static func shouldIncludeShareableWindow(_ metadata: ShareableWindowMetadata) -> Bool {
-        guard metadata.isOnScreen else { return false }
-        guard metadata.frame.width > 1, metadata.frame.height > 1 else { return false }
-        guard let bundleID = metadata.bundleIdentifier else { return false }
-        if bundleID == "com.apple.WindowServer" || bundleID == "com.apple.dock" {
-            return false
-        }
-        return true
+        ShareableWindowFilter.shouldInclude(
+            bundleIdentifier: metadata.bundleIdentifier,
+            frame: metadata.frame,
+            isOnScreen: metadata.isOnScreen
+        )
     }
 
     public func refreshShareableContent() async {
@@ -39,6 +38,37 @@ extension CaptureEngine {
         if let match = windows.first(where: { $0.windowID == windowID }) {
             return match
         }
+        throw CaptureError.windowNotFound
+    }
+
+    func resolveFrontmostWindow() async throws -> SCWindow {
+        let windows = try await Self.filteredWindows(from: shareableWindowsProvider())
+        await cacheShareableWindows(windows)
+
+        guard !windows.isEmpty else {
+            throw CaptureError.windowNotFound
+        }
+
+        let frontmostProcessID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        if let frontmostProcessID {
+            if let frontmostWindowID = Self.frontmostWindowID(for: frontmostProcessID) {
+                if let exactMatch = windows.first(where: { $0.windowID == frontmostWindowID }) {
+                    return exactMatch
+                }
+            }
+
+            let frontmostApplicationWindows = windows.filter {
+                $0.owningApplication?.processID == frontmostProcessID
+            }
+            if let preferredFrontmostApplicationWindow = Self.preferredWindow(from: frontmostApplicationWindows) {
+                return preferredFrontmostApplicationWindow
+            }
+        }
+
+        if let preferredWindow = Self.preferredWindow(from: windows) {
+            return preferredWindow
+        }
+
         throw CaptureError.windowNotFound
     }
 
@@ -67,5 +97,58 @@ extension CaptureEngine {
                     )
                 )
             }
+    }
+
+    private static func preferredWindow(from windows: [SCWindow]) -> SCWindow? {
+        windows.max { left, right in
+            let leftArea = left.frame.width * left.frame.height
+            let rightArea = right.frame.width * right.frame.height
+            if leftArea != rightArea {
+                return leftArea < rightArea
+            }
+
+            let leftHasTitle = !(left.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let rightHasTitle = !(right.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if leftHasTitle != rightHasTitle {
+                return !leftHasTitle && rightHasTitle
+            }
+
+            return left.windowID > right.windowID
+        }
+    }
+
+    private static func frontmostWindowID(for processID: pid_t) -> CGWindowID? {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard
+            let rawWindowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+        else {
+            return nil
+        }
+
+        for windowInfo in rawWindowList {
+            guard let ownerPID = (windowInfo[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value else {
+                continue
+            }
+            guard ownerPID == processID else {
+                continue
+            }
+
+            let layer = (windowInfo[kCGWindowLayer as String] as? NSNumber)?.intValue ?? 0
+            if layer != 0 {
+                continue
+            }
+
+            let alpha = (windowInfo[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
+            if alpha <= 0 {
+                continue
+            }
+
+            guard let windowNumber = windowInfo[kCGWindowNumber as String] as? NSNumber else {
+                continue
+            }
+            return CGWindowID(windowNumber.uint32Value)
+        }
+
+        return nil
     }
 }

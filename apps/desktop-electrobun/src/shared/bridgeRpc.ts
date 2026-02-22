@@ -79,6 +79,11 @@ export const bridgeRequestDefinitions = {
     CaptureStatusResult,
     [enableMic: boolean, captureFps: CaptureFrameRate]
   >((enableMic, captureFps) => ({ enableMic, captureFps })),
+  ggEngineStartCurrentWindowCapture: defineBridgeRequest<
+    { enableMic: boolean; captureFps: CaptureFrameRate },
+    CaptureStatusResult,
+    [enableMic: boolean, captureFps: CaptureFrameRate]
+  >((enableMic, captureFps) => ({ enableMic, captureFps })),
   ggEngineStartWindowCapture: defineBridgeRequest<
     { windowId: number; enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,

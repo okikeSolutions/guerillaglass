@@ -98,6 +98,12 @@ function installMockBridge() {
     return captureStatus();
   };
 
+  browserWindow.ggEngineStartCurrentWindowCapture = async () => {
+    state.isRunning = true;
+    state.lastError = null;
+    return captureStatus();
+  };
+
   browserWindow.ggEngineStartWindowCapture = async () => {
     state.isRunning = true;
     state.lastError = null;

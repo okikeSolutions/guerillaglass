@@ -46,3 +46,25 @@ public struct ShareableWindow: Identifiable, Hashable {
         }
     }
 }
+
+/// Shared inclusion policy for ScreenCaptureKit shareable windows across engine surfaces.
+public enum ShareableWindowFilter {
+    public static let excludedBundleIdentifiers: Set<String> = [
+        "com.apple.WindowServer",
+        "com.apple.dock",
+        "com.apple.controlcenter",
+        "com.apple.systemuiserver",
+        "com.apple.notificationcenterui"
+    ]
+
+    public static func shouldInclude(
+        bundleIdentifier: String?,
+        frame: CGRect,
+        isOnScreen: Bool
+    ) -> Bool {
+        guard isOnScreen else { return false }
+        guard frame.width > 1, frame.height > 1 else { return false }
+        guard let bundleIdentifier else { return false }
+        return !excludedBundleIdentifiers.contains(bundleIdentifier)
+    }
+}

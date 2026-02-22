@@ -9,6 +9,7 @@ export const engineMethods = {
   PermissionsOpenInputMonitoringSettings: "permissions.openInputMonitoringSettings",
   SourcesList: "sources.list",
   CaptureStartDisplay: "capture.startDisplay",
+  CaptureStartCurrentWindow: "capture.startCurrentWindow",
   CaptureStartWindow: "capture.startWindow",
   CaptureStop: "capture.stop",
   RecordingStart: "recording.start",
