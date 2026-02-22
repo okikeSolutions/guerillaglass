@@ -3,12 +3,10 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   redirect,
 } from "@tanstack/react-router";
 import { normalizeStudioLocale } from "@guerillaglass/localization";
-import { CaptureRoute } from "../studio/routes/CaptureRoute";
-import { DeliverRoute } from "../studio/routes/DeliverRoute";
-import { EditRoute } from "../studio/routes/EditRoute";
 import { StudioShellLayout } from "../studio/layout/StudioShellLayout";
 import {
   getInitialStudioLocale,
@@ -16,6 +14,16 @@ import {
   localizedRouteTargetFor,
   type StudioLayoutRoute,
 } from "../studio/model/studioLayoutModel";
+
+const CaptureRoute = lazyRouteComponent(
+  () => import("../studio/routes/CaptureRoute"),
+  "CaptureRoute",
+);
+const EditRoute = lazyRouteComponent(() => import("../studio/routes/EditRoute"), "EditRoute");
+const DeliverRoute = lazyRouteComponent(
+  () => import("../studio/routes/DeliverRoute"),
+  "DeliverRoute",
+);
 
 function redirectToLocalizedRoute(route: StudioLayoutRoute, locale: string): never {
   throw redirect({
