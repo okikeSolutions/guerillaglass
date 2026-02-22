@@ -234,7 +234,10 @@ Creator Studio implementation requirements:
   - preserve project state for repeat exports
   - Open Project picker targets `.gglassproj` packages (project container contract).
   - Save As resolves and validates target package paths in host shell code; renderer receives the final path.
-  - Save As uses a native save panel when available in the host runtime, with a folder-picker fallback that still resolves to a `*.gglassproj` path.
+  - Save As uses a native save panel when available in the host runtime.
+  - Save As fallback uses an open picker that accepts either a `*.gglassproj` file path or a directory, then resolves to a final `*.gglassproj` target path in host shell code.
+  - Save path collisions may require explicit host confirmation before replacing an existing project package.
+  - Save/Save As/Export picker defaults should start in platform Videos/Movies directories, with Documents as a host fallback.
 - Project utility panel must provide:
   - active project metadata (name/path, capture metadata, URLs, duration)
   - recent projects list with one-action reopen from the utility rail
@@ -348,6 +351,7 @@ Project container:
 
 - File extension: `.gglassproj`
 - macOS: treated as a **package** (single file in Finder, directory on disk)
+- Desktop shell build hooks register `.gglassproj` as a package document type on macOS by writing `UTExportedTypeDeclarations` (custom project UTI) and `CFBundleDocumentTypes` (`LSItemContentTypes` + `LSTypeIsPackage`) into generated `Info.plist`.
 - Cross‑platform: other OSes see a folder with the same contents
 
 Project directory contents:

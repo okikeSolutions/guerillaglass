@@ -60,6 +60,15 @@ bun run desktop:test:ui
 bun run desktop:build
 ```
 
+## Project Package Registration (macOS)
+
+- Guerilla Glass projects use the `.gglassproj` package format.
+- During desktop build packaging, Electrobun hooks run `scripts/configure-macos-project-package.ts`.
+- The hook updates and validates generated `Info.plist` entries:
+  - `UTExportedTypeDeclarations` for `com.okikeSolutions.guerillaglass.project`
+  - `CFBundleDocumentTypes` with `LSItemContentTypes` and `LSTypeIsPackage=true`
+- Result: Finder treats `.gglassproj` as a package item (single project item by default, directory on disk).
+
 ## Key Paths
 
 - UI shell: `/apps/desktop-electrobun/src/mainview`
