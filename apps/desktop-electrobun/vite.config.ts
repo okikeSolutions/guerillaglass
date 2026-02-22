@@ -9,6 +9,25 @@ export default defineConfig({
   build: {
     outDir: "../../dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return;
+          }
+          if (id.includes("/@tanstack/")) {
+            return "vendor-tanstack";
+          }
+          if (id.includes("/lucide-react/")) {
+            return "vendor-icons";
+          }
+          if (id.includes("/zod/")) {
+            return "vendor-zod";
+          }
+          return;
+        },
+      },
+    },
   },
   server: {
     port: 5173,
