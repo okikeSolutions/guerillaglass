@@ -413,7 +413,7 @@ export function StudioShellHeader({
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-center">
-            <ButtonGroup className="gg-toolbar-group gap-1 rounded-lg border p-1">
+            <ButtonGroup className="gg-capture-button-group gg-toolbar-group gap-1 rounded-lg border p-1">
               <Tooltip>
                 <TooltipTrigger
                   render={
