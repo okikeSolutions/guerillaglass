@@ -21,4 +21,9 @@ export default {
       bundleCEF: false,
     },
   },
+  scripts: {
+    // Mark .gglassproj as a macOS package document type in generated Info.plist files.
+    postBuild: "scripts/configure-macos-project-package.ts",
+    postWrap: "scripts/configure-macos-project-package.ts",
+  },
 } satisfies ElectrobunConfig;
