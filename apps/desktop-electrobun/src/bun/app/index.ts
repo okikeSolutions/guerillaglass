@@ -6,6 +6,8 @@ import Electrobun, {
   Updater,
   Utils,
 } from "electrobun/bun";
+import { constants as fsConstants } from "node:fs";
+import { access } from "node:fs/promises";
 import { EngineClient } from "../engine/client";
 import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
 import { extractMenuAction } from "../menu/actions";
@@ -51,20 +53,36 @@ async function pickPath(params: {
   mode: HostPathPickerMode;
   startingFolder?: string;
 }): Promise<string | null> {
+  const defaultPickerFolder = Utils.paths.videos ?? Utils.paths.documents;
+  const saveFileDialog = Utils.saveFileDialog;
+
   return await pickPathForMode(params.mode, {
     currentProjectPath,
     startingFolder: params.startingFolder,
-    documentsPath: Utils.paths.documents,
-    openFileDialog: Utils.openFileDialog,
-    saveFileDialog: (
-      Utils as unknown as {
-        saveFileDialog?: (options: {
-          startingFolder?: string;
-          defaultName?: string;
-          allowedFileTypes?: string | string[];
-        }) => Promise<string | string[] | null>;
+    defaultFolder: defaultPickerFolder,
+    // Keep dialog calls bound to Utils to avoid runtime method-context issues.
+    openFileDialog: (options) => Utils.openFileDialog(options),
+    saveFileDialog: saveFileDialog ? (options) => saveFileDialog(options) : undefined,
+    pathExists: async (filePath) => {
+      try {
+        await access(filePath, fsConstants.F_OK);
+        return true;
+      } catch {
+        return false;
       }
-    ).saveFileDialog,
+    },
+    confirmOverwritePath: async (filePath) => {
+      const result = await Utils.showMessageBox({
+        type: "question",
+        title: "Replace Project?",
+        message: "A project already exists at this location.",
+        detail: filePath,
+        buttons: ["Replace", "Cancel"],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      return result.response === 0;
+    },
   });
 }
 

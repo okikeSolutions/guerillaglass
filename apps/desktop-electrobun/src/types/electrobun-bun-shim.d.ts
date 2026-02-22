@@ -91,6 +91,7 @@ export const Updater: {
 export const Utils: {
   readonly paths: {
     readonly documents: string;
+    readonly videos?: string;
   };
   openFileDialog(options: {
     startingFolder?: string;
@@ -104,6 +105,15 @@ export const Utils: {
     defaultName?: string;
     allowedFileTypes?: string | string[];
   }) => Promise<string | string[] | null>;
+  showMessageBox(options: {
+    type?: "info" | "warning" | "error" | "question";
+    title?: string;
+    message?: string;
+    detail?: string;
+    buttons?: string[];
+    defaultId?: number;
+    cancelId?: number;
+  }): Promise<{ response: number }>;
   openExternal(url: string): Promise<void>;
   quit(): void;
 };

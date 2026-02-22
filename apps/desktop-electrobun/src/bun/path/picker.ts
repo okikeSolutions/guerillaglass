@@ -20,9 +20,11 @@ type SaveFileDialogOptions = {
 type FileDialogDependencies = {
   currentProjectPath?: string | null;
   startingFolder?: string;
-  documentsPath: string;
+  defaultFolder: string;
   openFileDialog: (options: OpenFileDialogOptions) => Promise<string[]>;
   saveFileDialog?: (options: SaveFileDialogOptions) => Promise<string | string[] | null>;
+  pathExists?: (filePath: string) => Promise<boolean>;
+  confirmOverwritePath?: (filePath: string) => Promise<boolean>;
 };
 
 function trimTrailingSeparators(path: string): string {
@@ -118,9 +120,9 @@ function buildProjectPackageName(currentProjectPath?: string | null): string {
 function resolveStartingFolder(params: {
   startingFolder?: string;
   currentProjectPath?: string | null;
-  documentsPath: string;
+  defaultFolder: string;
 }): string {
-  const candidate = params.startingFolder ?? params.currentProjectPath ?? params.documentsPath;
+  const candidate = params.startingFolder ?? params.currentProjectPath ?? params.defaultFolder;
   if (candidate.toLowerCase().endsWith(projectPackageExtension)) {
     return getParentPath(candidate);
   }
@@ -137,7 +139,21 @@ function resolveFirstPath(value: string | string[] | null | undefined): string |
   return value;
 }
 
-function resolveSaveAsProjectPath(params: {
+function resolveSaveDialogProjectPath(selectedPath: string): string {
+  const trimmedPath = trimTrailingSeparators(selectedPath);
+  if (trimmedPath.toLowerCase().endsWith(projectPackageExtension)) {
+    return trimmedPath;
+  }
+  return `${trimmedPath}${projectPackageExtension}`;
+}
+
+function joinPath(directoryPath: string, fileName: string): string {
+  const trimmedDirectory = trimTrailingSeparators(directoryPath);
+  const separator = inferPathSeparator(trimmedDirectory);
+  return `${trimmedDirectory}${separator}${fileName}`;
+}
+
+function resolveSaveTargetFromOpenSelection(params: {
   selectedPath: string;
   currentProjectPath?: string | null;
 }): string {
@@ -145,17 +161,21 @@ function resolveSaveAsProjectPath(params: {
   if (selectedPath.toLowerCase().endsWith(projectPackageExtension)) {
     return selectedPath;
   }
-  const separator = inferPathSeparator(selectedPath);
-  const projectPackageName = buildProjectPackageName(params.currentProjectPath);
-  return `${selectedPath}${separator}${projectPackageName}`;
+  return joinPath(selectedPath, buildProjectPackageName(params.currentProjectPath));
 }
 
-function resolveSaveDialogProjectPath(selectedPath: string): string {
-  const trimmedPath = trimTrailingSeparators(selectedPath);
-  if (trimmedPath.toLowerCase().endsWith(projectPackageExtension)) {
-    return trimmedPath;
+async function confirmOverwriteIfNeeded(
+  projectPath: string,
+  dependencies: Pick<FileDialogDependencies, "pathExists" | "confirmOverwritePath">,
+): Promise<boolean> {
+  if (!dependencies.pathExists || !dependencies.confirmOverwritePath) {
+    return true;
   }
-  return `${trimmedPath}${projectPackageExtension}`;
+  const exists = await dependencies.pathExists(projectPath);
+  if (!exists) {
+    return true;
+  }
+  return await dependencies.confirmOverwritePath(projectPath);
 }
 
 /** Opens the host file/save picker for a workflow mode and returns a resolved path target. */
@@ -166,7 +186,7 @@ export async function pickPathForMode(
   const startingFolder = resolveStartingFolder({
     startingFolder: dependencies.startingFolder,
     currentProjectPath: dependencies.currentProjectPath,
-    documentsPath: dependencies.documentsPath,
+    defaultFolder: dependencies.defaultFolder,
   });
 
   if (mode === "openProject") {
@@ -186,6 +206,8 @@ export async function pickPathForMode(
   }
 
   if (mode === "saveProjectAs") {
+    let saveTargetPath: string | null = null;
+
     if (typeof dependencies.saveFileDialog === "function") {
       try {
         const selectedPath = resolveFirstPath(
@@ -196,30 +218,45 @@ export async function pickPathForMode(
           }),
         );
         if (selectedPath) {
-          return resolveSaveDialogProjectPath(selectedPath);
+          saveTargetPath = resolveSaveDialogProjectPath(selectedPath);
+        } else {
+          return null;
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        console.warn(`saveFileDialog failed, falling back to folder picker: ${reason}`);
+        console.warn(`saveFileDialog failed, falling back to open picker: ${reason}`);
       }
     }
 
-    const selectedPath = resolveFirstPath(
-      await dependencies.openFileDialog({
-        startingFolder,
-        canChooseFiles: false,
-        canChooseDirectory: true,
-        allowsMultipleSelection: false,
-        allowedFileTypes: "*",
-      }),
-    );
-    if (!selectedPath) {
+    if (!saveTargetPath) {
+      if (typeof dependencies.saveFileDialog !== "function") {
+        console.info(
+          "saveFileDialog is unavailable; using open picker fallback for saveProjectAs.",
+        );
+      }
+      const selectedPath = resolveFirstPath(
+        await dependencies.openFileDialog({
+          startingFolder,
+          canChooseFiles: true,
+          canChooseDirectory: true,
+          allowsMultipleSelection: false,
+          allowedFileTypes: "gglassproj",
+        }),
+      );
+      if (!selectedPath) {
+        return null;
+      }
+      saveTargetPath = resolveSaveTargetFromOpenSelection({
+        selectedPath,
+        currentProjectPath: dependencies.currentProjectPath,
+      });
+    }
+
+    if (!(await confirmOverwriteIfNeeded(saveTargetPath, dependencies))) {
       return null;
     }
-    return resolveSaveAsProjectPath({
-      selectedPath,
-      currentProjectPath: dependencies.currentProjectPath,
-    });
+
+    return saveTargetPath;
   }
 
   const selectedPath = resolveFirstPath(
