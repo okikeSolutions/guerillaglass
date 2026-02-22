@@ -291,6 +291,10 @@
     background-color: color-mix(in oklab, var(--gg-surface-1) 40%, transparent);
   }
 
+  .gg-capture-button-group > [data-slot] ~ [data-slot] {
+    border-left-width: 1px !important;
+  }
+
   .gg-surface-block {
     border: 1px solid var(--gg-border-subtle);
     background-color: color-mix(in oklab, var(--gg-surface-1) 66%, transparent);
