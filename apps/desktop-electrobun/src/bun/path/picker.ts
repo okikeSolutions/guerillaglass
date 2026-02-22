@@ -38,7 +38,7 @@ function inferPathSeparator(path: string): "/" | "\\" {
 function getPathBaseName(path: string): string {
   const trimmedPath = trimTrailingSeparators(path);
   const segments = trimmedPath.split(/[\\/]/);
-  return segments.at(-1) ?? "";
+  return segments.pop() ?? "";
 }
 
 function getParentPath(path: string): string {
