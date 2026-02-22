@@ -106,6 +106,25 @@ final class CaptureSourcesTests: XCTestCase {
             )
         )
     }
+
+    func testPreferredWindowOrderingUsesLowerWindowIDAsFinalTieBreaker() {
+        let candidateLowID = CaptureEngine.PreferredWindowCandidate(
+            windowID: 11,
+            area: 640_000,
+            hasTitle: true
+        )
+        let candidateHighID = CaptureEngine.PreferredWindowCandidate(
+            windowID: 22,
+            area: 640_000,
+            hasTitle: true
+        )
+
+        let preferred = [candidateHighID, candidateLowID].max {
+            CaptureEngine.arePreferredWindowsInIncreasingOrder(left: $0, right: $1)
+        }
+
+        XCTAssertEqual(preferred?.windowID, 11)
+    }
 }
 
 private enum CaptureSourcesTestError: Error, LocalizedError, Equatable {

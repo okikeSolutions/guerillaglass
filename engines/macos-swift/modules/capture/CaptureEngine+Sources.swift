@@ -3,6 +3,24 @@ import CoreGraphics
 import ScreenCaptureKit
 
 extension CaptureEngine {
+    struct PreferredWindowCandidate {
+        let windowID: CGWindowID
+        let area: Double
+        let hasTitle: Bool
+
+        init(windowID: CGWindowID, area: Double, hasTitle: Bool) {
+            self.windowID = windowID
+            self.area = area
+            self.hasTitle = hasTitle
+        }
+
+        init(window: SCWindow) {
+            windowID = window.windowID
+            area = window.frame.width * window.frame.height
+            hasTitle = !(window.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
     struct ShareableWindowMetadata {
         let bundleIdentifier: String?
         let frame: CGRect
@@ -101,20 +119,29 @@ extension CaptureEngine {
 
     private static func preferredWindow(from windows: [SCWindow]) -> SCWindow? {
         windows.max { left, right in
-            let leftArea = left.frame.width * left.frame.height
-            let rightArea = right.frame.width * right.frame.height
-            if leftArea != rightArea {
-                return leftArea < rightArea
-            }
-
-            let leftHasTitle = !(left.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            let rightHasTitle = !(right.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            if leftHasTitle != rightHasTitle {
-                return !leftHasTitle && rightHasTitle
-            }
-
-            return left.windowID > right.windowID
+            arePreferredWindowsInIncreasingOrder(
+                left: PreferredWindowCandidate(window: left),
+                right: PreferredWindowCandidate(window: right)
+            )
         }
+    }
+
+    static func arePreferredWindowsInIncreasingOrder(
+        left: PreferredWindowCandidate,
+        right: PreferredWindowCandidate
+    ) -> Bool {
+        if left.area != right.area {
+            return left.area < right.area
+        }
+
+        if left.hasTitle != right.hasTitle {
+            return !left.hasTitle && right.hasTitle
+        }
+
+        // This comparator is used with `max`; returning `left > right` here
+        // keeps lower window IDs as the final tie-break winner, matching
+        // the TypeScript selector (`candidate.id < best.id`).
+        return left.windowID > right.windowID
     }
 
     private static func frontmostWindowID(for processID: pid_t) -> CGWindowID? {
