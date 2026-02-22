@@ -1,10 +1,13 @@
-import type { BridgeRequestHandlerMap } from "../../shared/bridgeRpc";
+import type { BridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridgeRpc";
 import { createBunBridgeHandlers } from "../../shared/bridgeBindings";
 import type { EngineClient } from "../engine/client";
 
 type BridgeHandlerDependencies = {
   engineClient: EngineClient;
-  pickDirectory: (startingFolder?: string) => Promise<string | null>;
+  pickPath: (params: {
+    mode: HostPathPickerMode;
+    startingFolder?: string;
+  }) => Promise<string | null>;
   readTextFile: (filePath: string) => Promise<string>;
   resolveMediaSourceURL: (filePath: string) => Promise<string>;
   setCurrentProjectPath: (projectPath: string | null) => void;
@@ -13,7 +16,7 @@ type BridgeHandlerDependencies = {
 /** Creates bridge RPC handlers backed by the desktop engine client. */
 export function createEngineBridgeHandlers({
   engineClient,
-  pickDirectory,
+  pickPath,
   readTextFile,
   resolveMediaSourceURL,
   setCurrentProjectPath,
@@ -55,7 +58,7 @@ export function createEngineBridgeHandlers({
       return projectState;
     },
     ggEngineProjectRecents: async ({ limit }) => engineClient.projectRecents(limit),
-    ggPickDirectory: async ({ startingFolder }) => pickDirectory(startingFolder),
+    ggPickPath: async ({ mode, startingFolder }) => pickPath({ mode, startingFolder }),
     ggReadTextFile: async ({ filePath }) => readTextFile(filePath),
     ggResolveMediaSourceURL: async ({ filePath }) => {
       try {

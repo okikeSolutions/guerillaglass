@@ -39,9 +39,13 @@ export type HostMenuState = {
   canSave: boolean;
   canExport: boolean;
   isRecording: boolean;
+  recordingURL?: string | null;
   locale?: string;
   densityMode?: "comfortable" | "compact";
 };
+
+/** Host path-picker modes used by renderer workflows. */
+export type HostPathPickerMode = "openProject" | "saveProjectAs" | "export";
 
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
@@ -122,11 +126,11 @@ export const bridgeRequestDefinitions = {
     ProjectRecentsResult,
     [limit?: number]
   >((limit) => ({ limit })),
-  ggPickDirectory: defineBridgeRequest<
-    { startingFolder?: string },
+  ggPickPath: defineBridgeRequest<
+    { mode: HostPathPickerMode; startingFolder?: string },
     string | null,
-    [startingFolder?: string]
-  >((startingFolder) => ({ startingFolder })),
+    [params: { mode: HostPathPickerMode; startingFolder?: string }]
+  >((params) => params),
   ggReadTextFile: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
     (filePath) => ({ filePath }),
   ),

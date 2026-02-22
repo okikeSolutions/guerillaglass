@@ -99,6 +99,11 @@ export const Utils: {
     allowsMultipleSelection?: boolean;
     allowedFileTypes?: string | string[];
   }): Promise<string[]>;
+  saveFileDialog?: (options: {
+    startingFolder?: string;
+    defaultName?: string;
+    allowedFileTypes?: string | string[];
+  }) => Promise<string | string[] | null>;
   openExternal(url: string): Promise<void>;
   quit(): void;
 };

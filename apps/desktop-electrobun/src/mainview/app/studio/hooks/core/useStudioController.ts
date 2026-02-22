@@ -8,7 +8,7 @@ import {
 } from "@guerillaglass/engine-protocol";
 import { getStudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@/lib/engine";
-import type { HostMenuCommand } from "../../../../../shared/bridgeRpc";
+import type { HostMenuCommand, HostPathPickerMode } from "../../../../../shared/bridgeRpc";
 import { createHostCommandRunnerFromHandlers } from "../../../../../shared/hostCommandRegistry";
 import {
   emptyInspectorSelection,
@@ -289,10 +289,13 @@ export function useStudioController() {
     [activeMode, rawInspectorSelection],
   );
 
-  const pickDirectorySafely = useCallback(
-    async (startingFolder?: string): Promise<string | null> => {
+  const pickPathSafely = useCallback(
+    async (params: {
+      mode: HostPathPickerMode;
+      startingFolder?: string;
+    }): Promise<string | null> => {
       try {
-        return await desktopApi.pickDirectory(startingFolder);
+        return await desktopApi.pickPath(params);
       } catch (error) {
         if (isBridgeTimeoutError(error)) {
           setNotice({
@@ -327,7 +330,7 @@ export function useStudioController() {
     setNotice,
     setTimelinePlayback: setIsTimelinePlaying,
     resetPlayhead: () => setPlayheadSeconds(0),
-    pickDirectorySafely,
+    pickPathSafely,
     selectedWindowId,
     inputMonitoringDenied,
     recordingURL,
@@ -426,7 +429,7 @@ export function useStudioController() {
           setLocale("de-DE");
         },
         captureToggleRecording: () => {
-          void toggleRecordingMutation.mutateAsync();
+          void toggleRecordingMutation.mutateAsync(undefined);
         },
         captureStartPreview: () => {
           void startPreviewMutation.mutateAsync();
@@ -499,6 +502,7 @@ export function useStudioController() {
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
+      recordingURL,
       locale,
       densityMode: layout.densityMode,
     });

@@ -231,6 +231,9 @@ Creator Studio implementation requirements:
   - open existing project
   - save/save as
   - preserve project state for repeat exports
+  - Open Project picker targets `.gglassproj` packages (project container contract).
+  - Save As resolves and validates target package paths in host shell code; renderer receives the final path.
+  - Save As uses a native save panel when available in the host runtime, with a folder-picker fallback that still resolves to a `*.gglassproj` path.
 - Project utility panel must provide:
   - active project metadata (name/path, capture metadata, URLs, duration)
   - recent projects list with one-action reopen from the utility rail

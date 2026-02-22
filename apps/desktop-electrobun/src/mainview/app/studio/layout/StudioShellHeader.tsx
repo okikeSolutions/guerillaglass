@@ -4,6 +4,7 @@ import {
   AudioLines,
   CircleDot,
   Clock3,
+  ChevronDown,
   HardDriveDownload,
   LayoutPanelTop,
   Pause,
@@ -24,6 +25,12 @@ import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ShortcutHint } from "@/components/ui/shortcut-hint";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -357,6 +364,22 @@ export function StudioShellHeader({
   const utilityActions = buildUtilityActions(studio, shortcutPlatform);
   const isRecording = Boolean(studio.captureStatusQuery.data?.isRecording);
   const permissionTone = studio.permissionsQuery.data?.screenRecordingGranted ? "live" : "error";
+  const isCaptureActionDisabled = studio.isRunningAction;
+
+  const startCurrentWindowRecording = () => {
+    studio.settingsForm.setFieldValue("captureSource", "window");
+    void studio.toggleRecordingMutation.mutateAsync({
+      captureSourceOverride: "window",
+    });
+  };
+
+  const startRecordingWithWindowPicker = () => {
+    studio.settingsForm.setFieldValue("captureSource", "window");
+    void studio.toggleRecordingMutation.mutateAsync({
+      captureSourceOverride: "window",
+      preferWindowPicker: true,
+    });
+  };
 
   return (
     <header className="gg-shell-header px-4 py-2">
@@ -421,40 +444,78 @@ export function StudioShellHeader({
                 </TooltipContent>
               </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-sm"
-                      variant="outline"
-                      className={studioButtonToneClass(isRecording ? "record" : "neutral")}
-                      onClick={() => void studio.toggleRecordingMutation.mutateAsync()}
-                      disabled={studio.isRunningAction}
-                    />
-                  }
-                >
-                  <Video
-                    className={`h-4 w-4 ${studioIconToneClass(isRecording ? "record" : "neutral")}`}
-                  />
-                  <span className="sr-only">
-                    {studio.captureStatusQuery.data?.isRecording
-                      ? studio.ui.actions.stopRecording
-                      : studio.ui.actions.startRecording}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <ShortcutHint
-                    label={
-                      studio.captureStatusQuery.data?.isRecording
-                        ? studio.ui.actions.stopRecording
-                        : studio.ui.actions.startRecording
+              {isRecording ? (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="outline"
+                        className={studioButtonToneClass("record")}
+                        onClick={() => void studio.toggleRecordingMutation.mutateAsync(undefined)}
+                        disabled={isCaptureActionDisabled}
+                      />
                     }
-                    keys={studioShortcutDisplayTokens("record", {
-                      platform: shortcutPlatform,
-                    })}
-                  />
-                </TooltipContent>
-              </Tooltip>
+                  >
+                    <Video className={`h-4 w-4 ${studioIconToneClass("record")}`} />
+                    <span className="sr-only">{studio.ui.actions.stopRecording}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <ShortcutHint
+                      label={studio.ui.actions.stopRecording}
+                      keys={studioShortcutDisplayTokens("record", {
+                        platform: shortcutPlatform,
+                      })}
+                    />
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              size="icon-sm"
+                              variant="outline"
+                              className={`${studioButtonToneClass("neutral")} w-10`}
+                              disabled={isCaptureActionDisabled}
+                            />
+                          }
+                        />
+                      }
+                    >
+                      <Video className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
+                      <ChevronDown className={`h-3 w-3 ${studioIconToneClass("neutral")}`} />
+                      <span className="sr-only">{studio.ui.actions.startRecording}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <ShortcutHint
+                        label={studio.ui.actions.startRecording}
+                        keys={studioShortcutDisplayTokens("record", {
+                          platform: shortcutPlatform,
+                        })}
+                      />
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent align="center" sideOffset={6} className="w-auto min-w-30">
+                    <DropdownMenuItem
+                      onClick={startCurrentWindowRecording}
+                      disabled={isCaptureActionDisabled}
+                    >
+                      {studio.ui.actions.recordCurrentWindow}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={startRecordingWithWindowPicker}
+                      disabled={isCaptureActionDisabled}
+                    >
+                      {studio.ui.actions.recordChooseWindow}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </ButtonGroup>
 
             <div className="gg-toolbar-group flex items-center gap-1 rounded-lg border p-1">
