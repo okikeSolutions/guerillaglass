@@ -10,7 +10,32 @@ import type {
 import type { StudioController } from "../src/mainview/app/studio/hooks/core/useStudioController";
 
 function makeStudioMock(selection: InspectorSelection): StudioController {
+  const settingsValues = {
+    captureSource: "window" as const,
+    selectedWindowId: 42,
+    captureFps: 60 as const,
+    micEnabled: true,
+    trackInputEvents: true,
+    singleKeyShortcutsEnabled: true,
+    autoZoom: {
+      isEnabled: true,
+      intensity: 1,
+      minimumKeyframeInterval: 1 / 30,
+    },
+  };
+
   return {
+    audioMixer: {
+      masterGain: 0.8,
+      masterMuted: false,
+      micGain: 0.9,
+      micMuted: false,
+    },
+    captureStatusQuery: {
+      data: {
+        telemetry: null,
+      },
+    },
     exportForm: {
       state: {
         values: {
@@ -21,7 +46,12 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
     },
     formatAspectRatio: (width: number, height: number) => `${width}:${height}`,
     formatDecimal: (value: number) => value.toFixed(2),
+    formatInteger: (value: number) => String(Math.round(value)),
     inspectorSelection: selection,
+    setAudioMixerGain: () => {},
+    setPlayheadSeconds: () => {},
+    setTrimEndSeconds: () => {},
+    setTrimStartSeconds: () => {},
     selectedPreset: {
       id: "preset-1",
       name: "1080p",
@@ -32,6 +62,26 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
       audioBitRate: 192_000,
       fileType: "mp4",
     },
+    settingsForm: {
+      state: {
+        values: settingsValues,
+      },
+      Field: ({
+        name,
+        children,
+      }: {
+        name: keyof typeof settingsValues;
+        children: (field: {
+          state: { value: unknown };
+          handleChange: (nextValue: unknown) => void;
+        }) => unknown;
+      }) =>
+        children({
+          state: { value: settingsValues[name] },
+          handleChange: () => {},
+        }),
+    },
+    toggleAudioMixerMuted: () => {},
     ui: enUS,
   } as unknown as StudioController;
 }
@@ -62,10 +112,13 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Video Clip Inspector");
     expect(html).toContain("Selected Clip");
-    expect(html).not.toContain("Lane: Video");
+    expect(html).toContain("Lane: Video");
+    expect(html).toContain("Set Trim In To Clip Start");
+    expect(html).not.toContain("Trim Window");
+    expect(html).not.toContain("Active Preset");
   });
 
-  test("renders preset-focused details for preset selection", () => {
+  test("renders preset-focused details while keeping deliver controls", () => {
     const html = render("deliver", {
       kind: "exportPreset",
       presetId: "preset-1",
@@ -76,6 +129,22 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Preset Inspector");
     expect(html).toContain("Selected Preset");
-    expect(html).not.toContain("File Type: mp4");
+    expect(html).toContain("File Type: mp4");
+    expect(html).toContain("Active Preset");
+    expect(html).toContain("Trim Window");
+  });
+
+  test("renders capture-window details while keeping capture controls", () => {
+    const html = render("capture", {
+      kind: "captureWindow",
+      windowId: 42,
+      appName: "Safari",
+      title: "Docs",
+    });
+    expect(html).toContain("Window Inspector");
+    expect(html).toContain("Selected Window");
+    expect(html).toContain("Window ID: 42");
+    expect(html).toContain("CAPTURE");
+    expect(html).toContain("EFFECTS");
   });
 });
