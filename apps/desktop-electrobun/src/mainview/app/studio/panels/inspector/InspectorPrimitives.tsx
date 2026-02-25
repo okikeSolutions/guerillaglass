@@ -21,13 +21,15 @@ export function InspectorSection({
   title,
   children,
   className,
+  defaultOpen = false,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
+  defaultOpen?: boolean;
 }) {
   return (
-    <Collapsible defaultOpen={false} className={cn("gg-inspector-section", className)}>
+    <Collapsible defaultOpen={defaultOpen} className={cn("gg-inspector-section", className)}>
       <CollapsibleTrigger className="gg-inspector-section-trigger">
         <ChevronRight className="gg-inspector-section-chevron" />
         <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>

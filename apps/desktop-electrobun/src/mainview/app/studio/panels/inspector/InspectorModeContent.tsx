@@ -1,11 +1,9 @@
 import { Keyboard, Mic, MousePointer, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { captureFrameRates } from "@guerillaglass/engine-protocol";
-import { Button } from "@/components/ui/button";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Slider } from "@/components/ui/slider";
 import { buildCaptureTelemetryPresentation } from "../../model/captureTelemetryViewModel";
-import type { InspectorSelection } from "../../model/inspectorSelectionModel";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
   AudioMixerChannel,
@@ -259,50 +257,11 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
   );
 }
 
-export function EditInspectorContent({
-  selection,
-  studio,
-}: {
-  selection: InspectorSelection;
-  studio: InspectorModeStudio;
-}) {
+export function EditInspectorContent({ studio }: { studio: InspectorModeStudio }) {
   return (
     <>
       <InspectorSection title={studio.ui.inspectorTabs.project.toUpperCase()}>
-        {selection.kind === "timelineClip" ? (
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => studio.setTrimStartSeconds(selection.startSeconds)}
-            >
-              {studio.ui.inspector.actions.setTrimInToClipStart}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => studio.setTrimEndSeconds(selection.endSeconds)}
-            >
-              {studio.ui.inspector.actions.setTrimOutToClipEnd}
-            </Button>
-          </div>
-        ) : null}
-
-        {selection.kind === "timelineMarker" ? (
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => studio.setPlayheadSeconds(selection.timestampSeconds)}
-            >
-              {studio.ui.inspector.actions.jumpPlayheadToMarker}
-            </Button>
-          </div>
-        ) : null}
-
-        {selection.kind === "none" ? (
-          <p className="gg-copy-meta">{studio.ui.helper.activePreviewBody}</p>
-        ) : null}
+        <p className="gg-copy-meta">{studio.ui.helper.activePreviewBody}</p>
       </InspectorSection>
 
       <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
