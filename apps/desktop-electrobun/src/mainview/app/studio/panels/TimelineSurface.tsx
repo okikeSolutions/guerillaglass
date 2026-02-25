@@ -62,6 +62,7 @@ type TimelineSurfaceProps = {
   onToggleLaneLocked: (laneId: "video" | "audio") => void;
   onToggleLaneMuted: (laneId: "video" | "audio") => void;
   onToggleLaneSolo: (laneId: "video" | "audio") => void;
+  onClearSelection: () => void;
   selectedClip: TimelineSelectedClip;
   selectedMarkerId: string | null;
   onSelectClip: (params: {
@@ -245,10 +246,12 @@ function useTimelineDragController(params: {
   onSetPlayheadSeconds: (seconds: number) => void;
   onSetTrimStartSeconds: (seconds: number) => void;
   onSetTrimEndSeconds: (seconds: number) => void;
+  onClearSelection: () => void;
 }) {
   const {
     durationSeconds,
     trackOverlayRef,
+    onClearSelection,
     onSetPlayheadSeconds,
     onSetTrimStartSeconds,
     onSetTrimEndSeconds,
@@ -321,9 +324,10 @@ function useTimelineDragController(params: {
       if (!trackRect || event.clientX < trackRect.left || event.clientX > trackRect.right) {
         return;
       }
+      onClearSelection();
       beginDrag(event, "playhead");
     },
-    [beginDrag, trackOverlayRef],
+    [beginDrag, onClearSelection, trackOverlayRef],
   );
 
   const onSurfacePointerMove = useCallback(
@@ -649,6 +653,7 @@ export function TimelineSurface({
   onToggleLaneLocked,
   onToggleLaneMuted,
   onToggleLaneSolo,
+  onClearSelection,
   selectedClip,
   selectedMarkerId,
   onSelectClip,
@@ -667,6 +672,7 @@ export function TimelineSurface({
     onSetPlayheadSeconds,
     onSetTrimStartSeconds,
     onSetTrimEndSeconds,
+    onClearSelection,
   });
 
   const effectiveTrimEnd = trimEndSeconds > 0 ? trimEndSeconds : durationSeconds;
@@ -710,6 +716,9 @@ export function TimelineSurface({
             } else if (event.key === "ArrowRight") {
               event.preventDefault();
               onNudgePlayheadSeconds(event.shiftKey ? 1 : 0.1);
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              onClearSelection();
             }
           }}
           onPointerDown={onSurfacePointerDown}

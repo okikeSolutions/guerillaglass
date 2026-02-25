@@ -1,13 +1,22 @@
 import { MonitorCog } from "lucide-react";
 import { useMemo } from "react";
 import { useStudio } from "../state/StudioProvider";
-import { resolveInspectorView, type StudioMode } from "../model/inspectorSelectionModel";
+import {
+  resolveInspectorView,
+  type InspectorView,
+  type StudioMode,
+} from "../model/inspectorSelectionModel";
 import {
   CaptureInspectorContent,
   DeliverInspectorContent,
   EditInspectorContent,
 } from "./inspector/InspectorModeContent";
-import { SelectionDetails } from "./inspector/SelectionDetails";
+import {
+  SelectionDetailsCaptureWindow,
+  SelectionDetailsExportPreset,
+  SelectionDetailsTimelineClip,
+  SelectionDetailsTimelineMarker,
+} from "./inspector/SelectionDetails";
 import {
   StudioPane,
   StudioPaneBody,
@@ -19,6 +28,51 @@ import {
 type InspectorPanelProps = {
   mode: StudioMode;
 };
+
+function renderInspectorContent(params: {
+  view: InspectorView;
+  selection: ReturnType<typeof useStudio>["inspectorSelection"];
+  studio: ReturnType<typeof useStudio>;
+}) {
+  const { view, selection, studio } = params;
+
+  switch (view.id) {
+    case "captureDefault":
+      return <CaptureInspectorContent studio={studio} />;
+    case "editDefault":
+      return <EditInspectorContent studio={studio} />;
+    case "deliverDefault":
+      return <DeliverInspectorContent studio={studio} />;
+    case "timelineClipVideo":
+    case "timelineClipAudio":
+      return selection.kind === "timelineClip" ? (
+        <SelectionDetailsTimelineClip selection={selection} studio={studio} />
+      ) : null;
+    case "timelineMarker":
+      return selection.kind === "timelineMarker" ? (
+        <SelectionDetailsTimelineMarker selection={selection} studio={studio} />
+      ) : null;
+    case "captureWindow":
+      return selection.kind === "captureWindow" ? (
+        <>
+          <SelectionDetailsCaptureWindow selection={selection} studio={studio} />
+          <CaptureInspectorContent studio={studio} />
+        </>
+      ) : null;
+    case "exportPreset":
+      return selection.kind === "exportPreset" ? (
+        <>
+          <SelectionDetailsExportPreset selection={selection} studio={studio} />
+          <DeliverInspectorContent studio={studio} />
+        </>
+      ) : null;
+    default: {
+      const _exhaustiveCheck: never = view.id;
+      void _exhaustiveCheck;
+      return null;
+    }
+  }
+}
 
 export function InspectorPanel({ mode }: InspectorPanelProps) {
   const studio = useStudio();
@@ -35,13 +89,7 @@ export function InspectorPanel({ mode }: InspectorPanelProps) {
         <StudioPaneSubtitle>{viewText.subtitle}</StudioPaneSubtitle>
       </StudioPaneHeader>
       <StudioPaneBody className="gg-inspector-pane-body gg-copy-compact">
-        {selection.kind !== "none" ? (
-          <SelectionDetails selection={selection} studio={studio} />
-        ) : null}
-
-        {mode === "capture" ? <CaptureInspectorContent studio={studio} /> : null}
-        {mode === "edit" ? <EditInspectorContent selection={selection} studio={studio} /> : null}
-        {mode === "deliver" ? <DeliverInspectorContent studio={studio} /> : null}
+        {renderInspectorContent({ view, selection, studio })}
       </StudioPaneBody>
     </StudioPane>
   );

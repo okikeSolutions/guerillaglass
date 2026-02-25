@@ -1,8 +1,12 @@
 import type { StudioController } from "../../hooks/core/useStudioController";
 import type { InspectorSelection } from "../../model/inspectorSelectionModel";
+import { Button } from "@/components/ui/button";
 import { InspectorDetailRows, InspectorSection } from "./InspectorPrimitives";
 
-type SelectionDetailsStudio = Pick<StudioController, "ui" | "formatDecimal">;
+type SelectionDetailsStudio = Pick<
+  StudioController,
+  "formatDecimal" | "setPlayheadSeconds" | "setTrimEndSeconds" | "setTrimStartSeconds" | "ui"
+>;
 
 type TimelineClipSelection = Extract<InspectorSelection, { kind: "timelineClip" }>;
 type TimelineMarkerSelection = Extract<InspectorSelection, { kind: "timelineMarker" }>;
@@ -29,7 +33,7 @@ function localizeTimelineMarkerKind(
   return studio.ui.labels.timelineMarkerMove;
 }
 
-function SelectionDetailsTimelineClip({
+export function SelectionDetailsTimelineClip({
   selection,
   studio,
 }: {
@@ -37,30 +41,48 @@ function SelectionDetailsTimelineClip({
   studio: SelectionDetailsStudio;
 }) {
   return (
-    <InspectorSection title={studio.ui.inspector.cards.selectedClip}>
-      <InspectorDetailRows
-        rows={[
-          {
-            value: `${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`,
-          },
-          {
-            value: `${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`,
-          },
-          {
-            value: `${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`,
-          },
-          {
-            value: `${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
-              Math.max(0, selection.endSeconds - selection.startSeconds),
-            )}s`,
-          },
-        ]}
-      />
+    <InspectorSection title={studio.ui.inspector.cards.selectedClip} defaultOpen>
+      <div className="space-y-2">
+        <InspectorDetailRows
+          rows={[
+            {
+              value: `${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`,
+            },
+            {
+              value: `${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`,
+            },
+            {
+              value: `${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`,
+            },
+            {
+              value: `${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
+                Math.max(0, selection.endSeconds - selection.startSeconds),
+              )}s`,
+            },
+          ]}
+        />
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => studio.setTrimStartSeconds(selection.startSeconds)}
+          >
+            {studio.ui.inspector.actions.setTrimInToClipStart}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => studio.setTrimEndSeconds(selection.endSeconds)}
+          >
+            {studio.ui.inspector.actions.setTrimOutToClipEnd}
+          </Button>
+        </div>
+      </div>
     </InspectorSection>
   );
 }
 
-function SelectionDetailsTimelineMarker({
+export function SelectionDetailsTimelineMarker({
   selection,
   studio,
 }: {
@@ -68,23 +90,34 @@ function SelectionDetailsTimelineMarker({
   studio: SelectionDetailsStudio;
 }) {
   return (
-    <InspectorSection title={studio.ui.inspector.cards.selectedEventMarker}>
-      <InspectorDetailRows
-        rows={[
-          {
-            value: `${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`,
-          },
-          {
-            value: `${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`,
-          },
-          { value: `${studio.ui.inspector.fields.density}: ${selection.density}` },
-        ]}
-      />
+    <InspectorSection title={studio.ui.inspector.cards.selectedEventMarker} defaultOpen>
+      <div className="space-y-2">
+        <InspectorDetailRows
+          rows={[
+            {
+              value: `${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`,
+            },
+            {
+              value: `${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`,
+            },
+            { value: `${studio.ui.inspector.fields.density}: ${selection.density}` },
+          ]}
+        />
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => studio.setPlayheadSeconds(selection.timestampSeconds)}
+          >
+            {studio.ui.inspector.actions.jumpPlayheadToMarker}
+          </Button>
+        </div>
+      </div>
     </InspectorSection>
   );
 }
 
-function SelectionDetailsCaptureWindow({
+export function SelectionDetailsCaptureWindow({
   selection,
   studio,
 }: {
@@ -92,7 +125,7 @@ function SelectionDetailsCaptureWindow({
   studio: SelectionDetailsStudio;
 }) {
   return (
-    <InspectorSection title={studio.ui.inspector.cards.selectedWindow}>
+    <InspectorSection title={studio.ui.inspector.cards.selectedWindow} defaultOpen>
       <InspectorDetailRows
         rows={[
           { value: `${studio.ui.inspector.fields.app}: ${selection.appName}` },
@@ -107,7 +140,7 @@ function SelectionDetailsCaptureWindow({
   );
 }
 
-function SelectionDetailsExportPreset({
+export function SelectionDetailsExportPreset({
   selection,
   studio,
 }: {
@@ -115,7 +148,7 @@ function SelectionDetailsExportPreset({
   studio: SelectionDetailsStudio;
 }) {
   return (
-    <InspectorSection title={studio.ui.inspector.cards.selectedPreset}>
+    <InspectorSection title={studio.ui.inspector.cards.selectedPreset} defaultOpen>
       <InspectorDetailRows
         rows={[
           { value: selection.name },
@@ -125,32 +158,4 @@ function SelectionDetailsExportPreset({
       />
     </InspectorSection>
   );
-}
-
-export function SelectionDetails({
-  selection,
-  studio,
-}: {
-  selection: InspectorSelection;
-  studio: SelectionDetailsStudio;
-}) {
-  if (selection.kind === "none") {
-    return null;
-  }
-
-  switch (selection.kind) {
-    case "timelineClip":
-      return <SelectionDetailsTimelineClip selection={selection} studio={studio} />;
-    case "timelineMarker":
-      return <SelectionDetailsTimelineMarker selection={selection} studio={studio} />;
-    case "captureWindow":
-      return <SelectionDetailsCaptureWindow selection={selection} studio={studio} />;
-    case "exportPreset":
-      return <SelectionDetailsExportPreset selection={selection} studio={studio} />;
-    default: {
-      const _exhaustiveCheck: never = selection;
-      void _exhaustiveCheck;
-      return null;
-    }
-  }
 }
