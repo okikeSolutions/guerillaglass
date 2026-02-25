@@ -78,7 +78,12 @@ Creator Studio pro-UI parity backlog (next pass):
     - Audio lanes render waveform bars using decoded media when available, with input-event-derived fallback waveform generation.
     - Playback transport now uses dual clocks: a smooth display clock for playhead rendering and a frame-quantized edit clock for trim/blade/snap actions.
     - Edit-route media sync uses `requestVideoFrameCallback` (with `requestAnimationFrame` fallback) instead of coarse `timeupdate` playhead stepping.
-  - [ ] Improve inspector context switching so clip/marker/source selection immediately swaps to specific controls with minimal generic scaffolding.
+  - [x] Improve inspector context switching so clip/marker/source selection immediately swaps to specific controls with minimal generic scaffolding.
+  - Implementation notes:
+    - Inspector body rendering now routes from a single `resolveInspectorView(...).id` dispatch path, keeping header/body view mapping in sync.
+    - Timeline clip and marker selections render dedicated control blocks (timing details + direct actions) without default mode scaffolding.
+    - Capture-window and export-preset selections keep their selection-specific details while retaining core mode controls for continuity.
+    - Timeline empty-track pointer-down and `Escape` clear inspector selection and return to mode-default inspector content.
   - [ ] Add a persistent technical feedback strip (dropped frames, CPU, memory, bitrate/audio level, recording health) with OBS-style immediate visibility.
 - Phase C — Docking architecture
   - [ ] Implement true docking (tear-off/floating panels, drag/snap docking zones, saved workspace presets: `Edit`, `Color`, `Audio`, `Stream`).
