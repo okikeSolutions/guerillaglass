@@ -33,10 +33,19 @@ extension EngineService {
                     "inputTracking": .bool(true)
                 ]),
                 "export": .object([
-                    "presets": .bool(true)
+                    "presets": .bool(true),
+                    "cutPlan": .bool(true)
                 ]),
                 "project": .object([
                     "openSave": .bool(true)
+                ]),
+                "agent": .object([
+                    "preflight": .bool(true),
+                    "run": .bool(true),
+                    "status": .bool(true),
+                    "apply": .bool(true),
+                    "localOnly": .bool(true),
+                    "runtimeBudgetMinutes": .number(10)
                 ])
             ])
         )

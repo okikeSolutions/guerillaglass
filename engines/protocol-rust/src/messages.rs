@@ -30,6 +30,10 @@ pub enum ProtocolErrorCode {
     InvalidParams,
     UnsupportedMethod,
     PermissionDenied,
+    NeedsConfirmation,
+    QaFailed,
+    MissingLocalModel,
+    InvalidCutPlan,
     RuntimeError,
 }
 

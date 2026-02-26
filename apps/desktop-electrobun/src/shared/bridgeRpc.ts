@@ -1,9 +1,13 @@
 import type {
+  AgentPreflightResult,
+  AgentRunResult,
+  AgentStatusResult,
   ActionResult,
   AutoZoomSettings,
   CaptureFrameRate,
   CaptureStatusResult,
   ExportInfoResult,
+  ExportRunCutPlanResult,
   ExportRunResult,
   PermissionsResult,
   PingResult,
@@ -61,6 +65,48 @@ function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
 export const bridgeRequestDefinitions = {
   ggEnginePing: defineBridgeRequest<undefined, PingResult, []>(() => undefined),
   ggEngineGetPermissions: defineBridgeRequest<undefined, PermissionsResult, []>(() => undefined),
+  ggEngineAgentPreflight: defineBridgeRequest<
+    {
+      runtimeBudgetMinutes?: number;
+      transcriptionProvider?: "none" | "imported_transcript";
+      importedTranscriptPath?: string;
+    },
+    AgentPreflightResult,
+    [
+      params?: {
+        runtimeBudgetMinutes?: number;
+        transcriptionProvider?: "none" | "imported_transcript";
+        importedTranscriptPath?: string;
+      },
+    ]
+  >((params) => params ?? {}),
+  ggEngineAgentRun: defineBridgeRequest<
+    {
+      preflightToken: string;
+      runtimeBudgetMinutes?: number;
+      transcriptionProvider?: "none" | "imported_transcript";
+      importedTranscriptPath?: string;
+      force?: boolean;
+    },
+    AgentRunResult,
+    [
+      params: {
+        preflightToken: string;
+        runtimeBudgetMinutes?: number;
+        transcriptionProvider?: "none" | "imported_transcript";
+        importedTranscriptPath?: string;
+        force?: boolean;
+      },
+    ]
+  >((params) => params),
+  ggEngineAgentStatus: defineBridgeRequest<{ jobId: string }, AgentStatusResult, [jobId: string]>(
+    (jobId) => ({ jobId }),
+  ),
+  ggEngineAgentApply: defineBridgeRequest<
+    { jobId: string; destructiveIntent?: boolean },
+    ActionResult,
+    [params: { jobId: string; destructiveIntent?: boolean }]
+  >((params) => params),
   ggEngineRequestScreenRecordingPermission: defineBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
   ),
@@ -114,6 +160,15 @@ export const bridgeRequestDefinitions = {
         trimEndSeconds?: number;
       },
     ]
+  >((params) => params),
+  ggEngineRunCutPlanExport: defineBridgeRequest<
+    {
+      outputURL: string;
+      presetId: string;
+      jobId: string;
+    },
+    ExportRunCutPlanResult,
+    [params: { outputURL: string; presetId: string; jobId: string }]
   >((params) => params),
   ggEngineProjectCurrent: defineBridgeRequest<undefined, ProjectState, []>(() => undefined),
   ggEngineProjectOpen: defineBridgeRequest<

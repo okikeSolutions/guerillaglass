@@ -1,0 +1,15 @@
+{
+  "segments": [
+    {
+      "text": "Hook action payoff takeaway",
+      "startSeconds": 0,
+      "endSeconds": 2
+    }
+  ],
+  "words": [
+    { "word": "Hook", "startSeconds": 0, "endSeconds": 0.5 },
+    { "word": "action", "startSeconds": 0.5, "endSeconds": 1.0 },
+    { "word": "payoff", "startSeconds": 1.0, "endSeconds": 1.5 },
+    { "word": "takeaway", "startSeconds": 1.5, "endSeconds": 2.0 }
+  ]
+}

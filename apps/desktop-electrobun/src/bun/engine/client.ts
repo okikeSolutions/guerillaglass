@@ -1,12 +1,16 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
+  agentPreflightResultSchema,
+  agentRunResultSchema,
+  agentStatusResultSchema,
   actionResultSchema,
   capabilitiesResultSchema,
   buildRequest,
   captureStatusResultSchema,
   defaultCaptureFrameRate,
   exportInfoResultSchema,
+  exportRunCutPlanResultSchema,
   exportRunResultSchema,
   parseResponse,
   permissionsResultSchema,
@@ -14,9 +18,11 @@ import {
   pingResultSchema,
   projectStateSchema,
   sourcesResultSchema,
+  type AgentRunResult,
   type AutoZoomSettings,
   type CaptureFrameRate,
   type EngineRequest,
+  type TranscriptionProvider,
 } from "@guerillaglass/engine-protocol";
 
 type PendingRequest = {
@@ -92,6 +98,70 @@ const engineMethodDefinitions = {
   } satisfies EngineMethodDefinition<
     Awaited<ReturnType<typeof capabilitiesResultSchema.parse>>,
     []
+  >,
+  agentPreflight: {
+    method: "agent.preflight",
+    toParams: (params?: {
+      runtimeBudgetMinutes?: number;
+      transcriptionProvider?: TranscriptionProvider;
+      importedTranscriptPath?: string;
+    }) => params ?? {},
+    schema: agentPreflightResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof agentPreflightResultSchema.parse>>,
+    [
+      params?: {
+        runtimeBudgetMinutes?: number;
+        transcriptionProvider?: TranscriptionProvider;
+        importedTranscriptPath?: string;
+      },
+    ]
+  >,
+  agentRun: {
+    method: "agent.run",
+    toParams: (params: {
+      preflightToken: string;
+      runtimeBudgetMinutes?: number;
+      transcriptionProvider?: TranscriptionProvider;
+      importedTranscriptPath?: string;
+      force?: boolean;
+    }) => params,
+    schema: agentRunResultSchema,
+    timeoutMs: 0,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof agentRunResultSchema.parse>>,
+    [
+      params: {
+        preflightToken: string;
+        runtimeBudgetMinutes?: number;
+        transcriptionProvider?: TranscriptionProvider;
+        importedTranscriptPath?: string;
+        force?: boolean;
+      },
+    ]
+  >,
+  agentStatus: {
+    method: "agent.status",
+    toParams: (jobId: string) => ({ jobId }),
+    schema: agentStatusResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof agentStatusResultSchema.parse>>,
+    [jobId: string]
+  >,
+  agentApply: {
+    method: "agent.apply",
+    toParams: (params: { jobId: string; destructiveIntent?: boolean }) => params,
+    schema: actionResultSchema,
+    timeoutMs: 8000,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof actionResultSchema.parse>>,
+    [params: { jobId: string; destructiveIntent?: boolean }]
   >,
   getPermissions: {
     method: "permissions.get",
@@ -240,6 +310,16 @@ const engineMethodDefinitions = {
       },
     ]
   >,
+  runCutPlanExport: {
+    method: "export.runCutPlan",
+    toParams: (params: { outputURL: string; presetId: string; jobId: string }) => params,
+    schema: exportRunCutPlanResultSchema,
+    timeoutMs: 0,
+    retryableRead: false,
+  } satisfies EngineMethodDefinition<
+    Awaited<ReturnType<typeof exportRunCutPlanResultSchema.parse>>,
+    [params: { outputURL: string; presetId: string; jobId: string }]
+  >,
   projectCurrent: {
     method: "project.current",
     toParams: emptyParams,
@@ -316,10 +396,58 @@ type EngineClientOptions = {
   maxRetryAttempts?: number;
 };
 
+type ValidationIssue = {
+  path: Array<string | number>;
+  message: string;
+};
+
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   });
+}
+
+function isValidationIssue(value: unknown): value is ValidationIssue {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as { path?: unknown; message?: unknown };
+  return Array.isArray(candidate.path) && typeof candidate.message === "string";
+}
+
+function extractValidationIssues(error: unknown): ValidationIssue[] {
+  if (Array.isArray(error) && error.every((issue) => isValidationIssue(issue))) {
+    return error;
+  }
+  if (!error || typeof error !== "object") {
+    return [];
+  }
+  const issues = (error as { issues?: unknown }).issues;
+  if (!Array.isArray(issues)) {
+    return [];
+  }
+  return issues.filter((issue): issue is ValidationIssue => isValidationIssue(issue));
+}
+
+function formatValidationIssue(issue: ValidationIssue): string {
+  const path = issue.path.length > 0 ? issue.path.join(".") : "params";
+  return `${path}: ${issue.message}`;
+}
+
+function toInvalidParamsError(method: string, error: unknown): Error {
+  const issues = extractValidationIssues(error);
+  if (issues.length === 0) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+  const details = issues
+    .slice(0, 3)
+    .map((issue) => formatValidationIssue(issue))
+    .join("; ");
+  const hint =
+    method === "agent.run"
+      ? "Call agent.preflight first and pass the returned preflightToken to agent.run."
+      : "Check request fields against the engine protocol schema.";
+  return new Error(`invalid_params: ${method} request validation failed (${details}). ${hint}`);
 }
 
 function findWorkspaceRoot(startDir: string): string | null {
@@ -539,6 +667,50 @@ export class EngineClient {
     return this.callAndParse(definition.method, definition.toParams(), definition.schema);
   }
 
+  async agentPreflight(params?: {
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: TranscriptionProvider;
+    importedTranscriptPath?: string;
+  }) {
+    const definition = engineMethodDefinitions.agentPreflight;
+    return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
+  }
+
+  async agentRun(params: {
+    preflightToken: string;
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: TranscriptionProvider;
+    importedTranscriptPath?: string;
+    force?: boolean;
+  }): Promise<AgentRunResult> {
+    const definition = engineMethodDefinitions.agentRun;
+    return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
+  }
+
+  /**
+   * Sends a raw request payload directly to the engine without protocol request-shape validation.
+   *
+   * Intended for integration tests and diagnostics where callers need engine-originated errors.
+   */
+  async sendRaw(method: string, params: unknown, options?: { timeoutMs?: number }) {
+    const trimmedMethod = method.trim();
+    if (!trimmedMethod) {
+      throw new Error("invalid_params: method is required");
+    }
+    const timeoutMs = this.resolveRawRequestTimeoutMs(trimmedMethod, options?.timeoutMs);
+    return this.requestRaw(trimmedMethod, params, timeoutMs);
+  }
+
+  async agentStatus(jobId: string) {
+    const definition = engineMethodDefinitions.agentStatus;
+    return this.callAndParse(definition.method, definition.toParams(jobId), definition.schema);
+  }
+
+  async agentApply(params: { jobId: string; destructiveIntent?: boolean }) {
+    const definition = engineMethodDefinitions.agentApply;
+    return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
+  }
+
   async getPermissions() {
     const definition = engineMethodDefinitions.getPermissions;
     return this.callAndParse(definition.method, definition.toParams(), definition.schema);
@@ -645,6 +817,11 @@ export class EngineClient {
     return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
   }
 
+  async runCutPlanExport(params: { outputURL: string; presetId: string; jobId: string }) {
+    const definition = engineMethodDefinitions.runCutPlanExport;
+    return this.callAndParse(definition.method, definition.toParams(params), definition.schema);
+  }
+
   async projectCurrent() {
     const definition = engineMethodDefinitions.projectCurrent;
     return this.callAndParse(definition.method, definition.toParams(), definition.schema);
@@ -693,6 +870,11 @@ export class EngineClient {
     }
   }
 
+  private async requestRaw(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
+    await this.start();
+    return this.dispatchRawRequest(method, params, timeoutMs);
+  }
+
   private async dispatchRequest(
     method: EngineRequest["method"],
     params: unknown,
@@ -701,10 +883,12 @@ export class EngineClient {
     if (!this.stdin) {
       throw new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable");
     }
-    const request = buildRequest(
-      method as EngineRequest["method"],
-      params as never,
-    ) as EngineRequest;
+    let request: EngineRequest;
+    try {
+      request = buildRequest(method as EngineRequest["method"], params as never) as EngineRequest;
+    } catch (error) {
+      throw toInvalidParamsError(method, error);
+    }
     const payload = `${JSON.stringify(request)}\n`;
 
     return new Promise<unknown>((resolve, reject) => {
@@ -738,6 +922,55 @@ export class EngineClient {
           clearTimeout(timeout);
         }
         this.pending.delete(request.id);
+        reject(
+          new EngineClientError(
+            "ENGINE_STDIO_WRITE_FAILED",
+            "Failed to write request to engine stdin",
+            error,
+          ),
+        );
+      }
+    });
+  }
+
+  private dispatchRawRequest(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
+    if (!this.stdin) {
+      throw new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable");
+    }
+    const requestId = crypto.randomUUID();
+    const payload = `${JSON.stringify({ id: requestId, method, params: params ?? {} })}\n`;
+
+    return new Promise<unknown>((resolve, reject) => {
+      const timeout =
+        Number.isFinite(timeoutMs) && timeoutMs > 0
+          ? setTimeout(() => {
+              this.pending.delete(requestId);
+              reject(
+                new EngineClientError(
+                  "ENGINE_REQUEST_TIMEOUT",
+                  `Engine request timed out: ${method}`,
+                ),
+              );
+            }, timeoutMs)
+          : undefined;
+
+      this.pending.set(requestId, { resolve, reject, timeout });
+      const stdin = this.stdin;
+      if (!stdin) {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        this.pending.delete(requestId);
+        reject(new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable"));
+        return;
+      }
+      try {
+        stdin.write(textEncoder.encode(payload));
+      } catch (error) {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+        this.pending.delete(requestId);
         reject(
           new EngineClientError(
             "ENGINE_STDIO_WRITE_FAILED",
@@ -906,6 +1139,16 @@ export class EngineClient {
 
   private resolveRequestTimeoutMs(method: EngineRequest["method"]): number {
     return this.requestTimeoutByMethod[method] ?? this.requestTimeoutMs;
+  }
+
+  private resolveRawRequestTimeoutMs(method: string, explicitTimeoutMs?: number): number {
+    if (typeof explicitTimeoutMs === "number") {
+      return explicitTimeoutMs;
+    }
+    if (method in requestMethodPolicy) {
+      return this.resolveRequestTimeoutMs(method as EngineRequest["method"]);
+    }
+    return this.requestTimeoutMs;
   }
 
   private shouldRetryRequest(

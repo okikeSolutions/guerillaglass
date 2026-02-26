@@ -17,6 +17,7 @@ extension EngineService {
             let savedProject = try projectStore.loadProject(at: URL(fileURLWithPath: projectPath, isDirectory: true))
             currentProjectURL = savedProject.url
             currentProjectDocument = savedProject.document
+            hasUnsavedProjectChanges = false
 
             let recordingURL = projectStore.resolveRecordingURL(for: savedProject)
             if FileManager.default.fileExists(atPath: recordingURL.path) {
@@ -87,6 +88,7 @@ extension EngineService {
 
             currentProjectURL = destinationURL
             currentProjectDocument = writtenDocument
+            hasUnsavedProjectChanges = false
             if let eventsSource {
                 currentEventsURL = destinationURL.appendingPathComponent(eventsSource.lastPathComponent)
             }
@@ -133,6 +135,8 @@ extension EngineService {
         } else {
             payload["captureMetadata"] = .null
         }
+
+        payload["agentAnalysis"] = agentAnalysisSummaryJSON(from: project.agentAnalysis)
 
         return .object(payload)
     }
@@ -210,5 +214,26 @@ extension EngineService {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+
+    private func agentAnalysisSummaryJSON(from metadata: AgentAnalysisMetadata?) -> JSONValue {
+        guard let metadata,
+              let latestRunID = metadata.latestRunID,
+              let runSummary = latestAgentRunSummary()
+        else {
+            return .object([
+                "latestJobId": .null,
+                "latestStatus": .null,
+                "qaPassed": .null,
+                "updatedAt": .null
+            ])
+        }
+
+        return .object([
+            "latestJobId": .string(latestRunID),
+            "latestStatus": .string(runSummary.status.rawValue),
+            "qaPassed": runSummary.qaReport.map { .bool($0.passed) } ?? .null,
+            "updatedAt": .string(runSummary.updatedAt)
+        ])
     }
 }

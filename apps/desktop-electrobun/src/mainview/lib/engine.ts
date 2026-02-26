@@ -1,8 +1,12 @@
 import {
+  agentPreflightResultSchema,
+  agentRunResultSchema,
+  agentStatusResultSchema,
   actionResultSchema,
   captureStatusResultSchema,
   defaultCaptureFrameRate,
   exportInfoResultSchema,
+  exportRunCutPlanResultSchema,
   exportRunResultSchema,
   inputEventLogSchema,
   permissionsResultSchema,
@@ -44,6 +48,32 @@ export const engineApi = {
 
   async getPermissions(): Promise<PermissionsResult> {
     return permissionsResultSchema.parse(await requireBridge("ggEngineGetPermissions")());
+  },
+
+  async agentPreflight(params?: {
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: "none" | "imported_transcript";
+    importedTranscriptPath?: string;
+  }) {
+    return agentPreflightResultSchema.parse(await requireBridge("ggEngineAgentPreflight")(params));
+  },
+
+  async agentRun(params: {
+    preflightToken: string;
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: "none" | "imported_transcript";
+    importedTranscriptPath?: string;
+    force?: boolean;
+  }) {
+    return agentRunResultSchema.parse(await requireBridge("ggEngineAgentRun")(params));
+  },
+
+  async agentStatus(jobId: string) {
+    return agentStatusResultSchema.parse(await requireBridge("ggEngineAgentStatus")(jobId));
+  },
+
+  async agentApply(params: { jobId: string; destructiveIntent?: boolean }) {
+    return actionResultSchema.parse(await requireBridge("ggEngineAgentApply")(params));
   },
 
   async requestScreenRecordingPermission() {
@@ -127,6 +157,12 @@ export const engineApi = {
     trimEndSeconds?: number;
   }) {
     return exportRunResultSchema.parse(await requireBridge("ggEngineRunExport")(params));
+  },
+
+  async runCutPlanExport(params: { outputURL: string; presetId: string; jobId: string }) {
+    return exportRunCutPlanResultSchema.parse(
+      await requireBridge("ggEngineRunCutPlanExport")(params),
+    );
   },
 
   async projectCurrent(): Promise<ProjectState> {

@@ -24,6 +24,10 @@ export function createEngineBridgeHandlers({
   return createBunBridgeHandlers({
     ggEnginePing: async () => engineClient.ping(),
     ggEngineGetPermissions: async () => engineClient.getPermissions(),
+    ggEngineAgentPreflight: async (params) => engineClient.agentPreflight(params),
+    ggEngineAgentRun: async (params) => engineClient.agentRun(params),
+    ggEngineAgentStatus: async ({ jobId }) => engineClient.agentStatus(jobId),
+    ggEngineAgentApply: async (params) => engineClient.agentApply(params),
     ggEngineRequestScreenRecordingPermission: async () =>
       engineClient.requestScreenRecordingPermission(),
     ggEngineRequestMicrophonePermission: async () => engineClient.requestMicrophonePermission(),
@@ -44,6 +48,7 @@ export function createEngineBridgeHandlers({
     ggEngineCaptureStatus: async () => engineClient.captureStatus(),
     ggEngineExportInfo: async () => engineClient.exportInfo(),
     ggEngineRunExport: async (params) => engineClient.runExport(params),
+    ggEngineRunCutPlanExport: async (params) => engineClient.runCutPlanExport(params),
     ggEngineProjectCurrent: async () => {
       const projectState = await engineClient.projectCurrent();
       setCurrentProjectPath(projectState.projectPath);

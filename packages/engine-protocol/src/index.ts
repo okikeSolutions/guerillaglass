@@ -76,10 +76,29 @@ export const capabilitiesResultSchema = z.object({
   }),
   export: z.object({
     presets: z.boolean(),
+    cutPlan: z.boolean().optional().default(false),
   }),
   project: z.object({
     openSave: z.boolean(),
   }),
+  agent: z
+    .object({
+      preflight: z.boolean(),
+      run: z.boolean(),
+      status: z.boolean(),
+      apply: z.boolean(),
+      localOnly: z.boolean().optional().default(true),
+      runtimeBudgetMinutes: z.number().int().positive().optional().default(10),
+    })
+    .optional()
+    .default({
+      preflight: false,
+      run: false,
+      status: false,
+      apply: false,
+      localOnly: true,
+      runtimeBudgetMinutes: 10,
+    }),
 });
 
 /** Result payload for `permissions.get`. */
@@ -221,6 +240,155 @@ export const exportRunResultSchema = z.object({
   outputURL: z.string().min(1),
 });
 
+/** Agent job lifecycle statuses. */
+export const agentJobStatusSchema = z.enum([
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+  "blocked",
+]);
+
+/** Artifact kinds emitted by `agent.run`. */
+export const agentArtifactKindSchema = z.enum([
+  "transcript.full.v1",
+  "transcript.words.v1",
+  "beat-map.v1",
+  "qa-report.v1",
+  "cut-plan.v1",
+  "run-summary.v1",
+]);
+
+/** Single persisted agent artifact descriptor. */
+export const agentArtifactSchema = z.object({
+  kind: agentArtifactKindSchema,
+  path: z.string().min(1),
+});
+
+/** Supported transcription providers for Agent Mode v1. */
+export const transcriptionProviderSchema = z.enum(["none", "imported_transcript"]);
+
+/** Single imported transcript segment entry with absolute timing in seconds. */
+export const importedTranscriptSegmentSchema = z
+  .object({
+    text: z.string().min(1),
+    startSeconds: z.number().min(0),
+    endSeconds: z.number().min(0),
+  })
+  .refine((segment) => segment.endSeconds > segment.startSeconds, {
+    message: "Imported transcript segment endSeconds must be greater than startSeconds.",
+    path: ["endSeconds"],
+  });
+
+/** Single imported transcript word entry with absolute timing in seconds. */
+export const importedTranscriptWordSchema = z
+  .object({
+    word: z.string().min(1),
+    startSeconds: z.number().min(0),
+    endSeconds: z.number().min(0),
+  })
+  .refine((word) => word.endSeconds > word.startSeconds, {
+    message: "Imported transcript word endSeconds must be greater than startSeconds.",
+    path: ["endSeconds"],
+  });
+
+/** Canonical imported transcript payload accepted by Agent Mode v1. */
+export const importedTranscriptSchema = z
+  .object({
+    segments: z.array(importedTranscriptSegmentSchema).optional().default([]),
+    words: z.array(importedTranscriptWordSchema).optional().default([]),
+  })
+  .refine((transcript) => transcript.segments.length > 0 || transcript.words.length > 0, {
+    message: "Imported transcript must contain at least one segment or one word entry.",
+    path: ["segments"],
+  });
+
+/** Machine-readable reasons emitted by Agent Mode preflight. */
+export const agentPreflightBlockingReasonSchema = z.enum([
+  "missing_project",
+  "missing_recording",
+  "invalid_runtime_budget",
+  "source_too_long",
+  "source_duration_invalid",
+  "missing_local_model",
+  "missing_imported_transcript",
+  "invalid_imported_transcript",
+  "no_audio_track",
+  "silent_audio",
+]);
+
+/** Machine-readable reasons emitted by Agent Mode run/status payloads. */
+export const agentRunBlockingReasonSchema = z.enum([
+  "missing_project",
+  "missing_recording",
+  "invalid_runtime_budget",
+  "source_too_long",
+  "source_duration_invalid",
+  "missing_local_model",
+  "missing_imported_transcript",
+  "invalid_imported_transcript",
+  "no_audio_track",
+  "silent_audio",
+  "empty_transcript",
+  "weak_narrative_structure",
+]);
+
+/** Narrative QA gate report produced by `agent.run`. */
+export const agentQAReportSchema = z.object({
+  passed: z.boolean(),
+  score: z.number().min(0).max(1),
+  coverage: z.object({
+    hook: z.boolean(),
+    action: z.boolean(),
+    payoff: z.boolean(),
+    takeaway: z.boolean(),
+  }),
+  missingBeats: z.array(z.enum(["hook", "action", "payoff", "takeaway"])).default([]),
+});
+
+/** Summary payload for agent pipeline execution. */
+export const agentRunSummarySchema = z.object({
+  jobId: z.string().min(1),
+  status: agentJobStatusSchema,
+  runtimeBudgetMinutes: z.number().int().positive(),
+  qaReport: agentQAReportSchema.nullable(),
+  blockingReason: agentRunBlockingReasonSchema.nullable(),
+  updatedAt: z.string().datetime(),
+});
+
+/** Result payload for `agent.preflight`. */
+export const agentPreflightResultSchema = z.object({
+  ready: z.boolean(),
+  blockingReasons: z.array(agentPreflightBlockingReasonSchema),
+  canApplyDestructive: z.boolean(),
+  transcriptionProvider: transcriptionProviderSchema,
+  preflightToken: z.string().min(1).nullable(),
+});
+
+/** Result payload for `agent.run`. */
+export const agentRunResultSchema = z.object({
+  jobId: z.string().min(1),
+  status: agentJobStatusSchema,
+});
+
+/** Result payload for `agent.status`. */
+export const agentStatusResultSchema = agentRunSummarySchema;
+
+/** Result payload for `export.runCutPlan`. */
+export const exportRunCutPlanResultSchema = z.object({
+  outputURL: z.string().min(1),
+  appliedSegments: z.number().int().nonnegative(),
+});
+
+/** Project-level summary for the latest agent run metadata. */
+export const projectAgentAnalysisSummarySchema = z.object({
+  latestJobId: z.string().nullable(),
+  latestStatus: agentJobStatusSchema.nullable(),
+  qaPassed: z.boolean().nullable(),
+  updatedAt: z.string().datetime().nullable(),
+});
+
 /** Engine protocol schema for projectStateSchema. */
 export const projectStateSchema = z.object({
   projectPath: z.string().nullable(),
@@ -228,6 +396,12 @@ export const projectStateSchema = z.object({
   eventsURL: z.string().nullable(),
   autoZoom: autoZoomSettingsSchema,
   captureMetadata: captureMetadataSchema,
+  agentAnalysis: projectAgentAnalysisSummarySchema.optional().default({
+    latestJobId: null,
+    latestStatus: null,
+    qaPassed: null,
+    updatedAt: null,
+  }),
 });
 
 /** Engine protocol schema for projectRecentItemSchema. */
@@ -258,6 +432,45 @@ export const systemPingRequestSchema = requestBaseSchema.extend({
 export const engineCapabilitiesRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.EngineCapabilities),
   params: emptyParamsSchema,
+});
+
+/** Engine protocol schema for agentPreflightRequestSchema. */
+export const agentPreflightRequestSchema = requestBaseSchema.extend({
+  method: z.literal(engineMethods.AgentPreflight),
+  params: z.object({
+    runtimeBudgetMinutes: z.number().int().positive().max(60).optional().default(10),
+    transcriptionProvider: transcriptionProviderSchema.optional().default("none"),
+    importedTranscriptPath: z.string().min(1).optional(),
+  }),
+});
+
+/** Engine protocol schema for agentRunRequestSchema. */
+export const agentRunRequestSchema = requestBaseSchema.extend({
+  method: z.literal(engineMethods.AgentRun),
+  params: z.object({
+    preflightToken: z.string().min(1),
+    runtimeBudgetMinutes: z.number().int().positive().max(60).optional().default(10),
+    transcriptionProvider: transcriptionProviderSchema.optional().default("none"),
+    importedTranscriptPath: z.string().min(1).optional(),
+    force: z.boolean().optional().default(false),
+  }),
+});
+
+/** Engine protocol schema for agentStatusRequestSchema. */
+export const agentStatusRequestSchema = requestBaseSchema.extend({
+  method: z.literal(engineMethods.AgentStatus),
+  params: z.object({
+    jobId: z.string().min(1),
+  }),
+});
+
+/** Engine protocol schema for agentApplyRequestSchema. */
+export const agentApplyRequestSchema = requestBaseSchema.extend({
+  method: z.literal(engineMethods.AgentApply),
+  params: z.object({
+    jobId: z.string().min(1),
+    destructiveIntent: z.boolean().optional().default(false),
+  }),
 });
 
 /** Engine protocol schema for permissionsGetRequestSchema. */
@@ -367,6 +580,16 @@ export const exportRunRequestSchema = requestBaseSchema.extend({
   }),
 });
 
+/** Engine protocol schema for exportRunCutPlanRequestSchema. */
+export const exportRunCutPlanRequestSchema = requestBaseSchema.extend({
+  method: z.literal(engineMethods.ExportRunCutPlan),
+  params: z.object({
+    outputURL: z.string().min(1),
+    presetId: z.string().min(1),
+    jobId: z.string().min(1),
+  }),
+});
+
 /** Engine protocol schema for projectCurrentRequestSchema. */
 export const projectCurrentRequestSchema = requestBaseSchema.extend({
   method: z.literal(engineMethods.ProjectCurrent),
@@ -405,6 +628,10 @@ export const projectRecentsRequestSchema = requestBaseSchema.extend({
 export const engineRequestSchema = z.discriminatedUnion("method", [
   systemPingRequestSchema,
   engineCapabilitiesRequestSchema,
+  agentPreflightRequestSchema,
+  agentRunRequestSchema,
+  agentStatusRequestSchema,
+  agentApplyRequestSchema,
   permissionsGetRequestSchema,
   permissionsRequestScreenRequestSchema,
   permissionsRequestMicrophoneRequestSchema,
@@ -420,6 +647,7 @@ export const engineRequestSchema = z.discriminatedUnion("method", [
   captureStatusRequestSchema,
   exportInfoRequestSchema,
   exportRunRequestSchema,
+  exportRunCutPlanRequestSchema,
   projectCurrentRequestSchema,
   projectOpenRequestSchema,
   projectSaveRequestSchema,
@@ -432,6 +660,10 @@ export const engineErrorCodeSchema = z.enum([
   "invalid_params",
   "unsupported_method",
   "permission_denied",
+  "needs_confirmation",
+  "qa_failed",
+  "missing_local_model",
+  "invalid_cut_plan",
   "runtime_error",
 ]);
 
@@ -493,6 +725,38 @@ export type ExportPreset = z.infer<typeof exportPresetSchema>;
 export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;
 /** Type alias for ExportRunResult. */
 export type ExportRunResult = z.infer<typeof exportRunResultSchema>;
+/** Type alias for AgentJobStatus. */
+export type AgentJobStatus = z.infer<typeof agentJobStatusSchema>;
+/** Type alias for AgentArtifactKind. */
+export type AgentArtifactKind = z.infer<typeof agentArtifactKindSchema>;
+/** Type alias for AgentArtifact. */
+export type AgentArtifact = z.infer<typeof agentArtifactSchema>;
+/** Type alias for TranscriptionProvider. */
+export type TranscriptionProvider = z.infer<typeof transcriptionProviderSchema>;
+/** Type alias for ImportedTranscriptSegment. */
+export type ImportedTranscriptSegment = z.infer<typeof importedTranscriptSegmentSchema>;
+/** Type alias for ImportedTranscriptWord. */
+export type ImportedTranscriptWord = z.infer<typeof importedTranscriptWordSchema>;
+/** Type alias for ImportedTranscript. */
+export type ImportedTranscript = z.infer<typeof importedTranscriptSchema>;
+/** Type alias for AgentPreflightBlockingReason. */
+export type AgentPreflightBlockingReason = z.infer<typeof agentPreflightBlockingReasonSchema>;
+/** Type alias for AgentRunBlockingReason. */
+export type AgentRunBlockingReason = z.infer<typeof agentRunBlockingReasonSchema>;
+/** Type alias for AgentQAReport. */
+export type AgentQAReport = z.infer<typeof agentQAReportSchema>;
+/** Type alias for AgentRunSummary. */
+export type AgentRunSummary = z.infer<typeof agentRunSummarySchema>;
+/** Type alias for AgentPreflightResult. */
+export type AgentPreflightResult = z.infer<typeof agentPreflightResultSchema>;
+/** Type alias for AgentRunResult. */
+export type AgentRunResult = z.infer<typeof agentRunResultSchema>;
+/** Type alias for AgentStatusResult. */
+export type AgentStatusResult = z.infer<typeof agentStatusResultSchema>;
+/** Type alias for ExportRunCutPlanResult. */
+export type ExportRunCutPlanResult = z.infer<typeof exportRunCutPlanResultSchema>;
+/** Type alias for ProjectAgentAnalysisSummary. */
+export type ProjectAgentAnalysisSummary = z.infer<typeof projectAgentAnalysisSummarySchema>;
 /** Type alias for ProjectState. */
 export type ProjectState = z.infer<typeof projectStateSchema>;
 /** Type alias for ProjectRecentItem. */

@@ -30,6 +30,7 @@ North star:
 3. Bun `EngineClient` sends JSON line requests to the Swift sidecar.
 4. Swift sidecar dispatches methods to native APIs (`ScreenCaptureKit`, `AVFoundation`, Input Monitoring checks).
 5. Response envelopes are validated in TypeScript with Zod before UI rendering.
+6. Agent Mode jobs write structured artifacts into the active project package (`analysis/*.v1.json`) and expose status/artifact access via protocol methods.
 
 Renderer hardening (current):
 
@@ -93,6 +94,11 @@ Playback transport hardening (current):
 
 - `system.ping`
 - `engine.capabilities`
+- `agent.preflight`
+- `agent.run`
+- `agent.run` executes a deterministic local pipeline service (`transcribe -> beatMap -> qa -> cutPlan`).
+- `agent.status`
+- `agent.apply`
 - `permissions.get`
 - `permissions.requestScreenRecording`
 - `permissions.requestMicrophone`
@@ -108,6 +114,19 @@ Playback transport hardening (current):
 - `capture.status`
 - `export.info`
 - `export.run`
+- `export.runCutPlan`
+- Agent flows should call `agent.preflight` first and only run when `ready=true`.
+- `agent.run` enforces preflight-first sequencing by requiring a valid short-lived `preflightToken`.
+- Transcription input is provider-driven: `none` (returns `missing_local_model`) or `imported_transcript`.
+- Imported transcript input is explicit JSON (`segments[]` and/or `words[]` with timed entries).
+- For `imported_transcript`, narrative QA derives beat coverage from transcript content (not source-duration heuristics).
+- `agent.apply` and `export.runCutPlan` share one canonical cut-plan execution path.
+- Cut-plan artifacts are frame-based (`startFrame`/`endFrame`, `sourceFPS`) to avoid time rounding drift.
+- Agent run metadata is canonicalized in `analysis/run-summary.v1.json`; project-level summaries derive from that manifest.
+- Agent preflight blocks weak-input runs (`no_audio_track`, `silent_audio`) before apply/export is possible.
+- `agent.status` remains compact (`status` + optional `blockingReason`) for deterministic automation logic.
+- Narrative QA failures with non-empty transcripts report `blockingReason=weak_narrative_structure` (reserved `empty_transcript` for token-empty transcripts).
+- Desktop engine client exposes `sendRaw(method, params)` for test/diagnostic flows that need engine-originated errors without request schema pre-validation.
 - `project.current`
 - `project.open`
 - `project.save`
