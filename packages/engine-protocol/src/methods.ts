@@ -2,6 +2,10 @@
 export const engineMethods = {
   SystemPing: "system.ping",
   EngineCapabilities: "engine.capabilities",
+  AgentPreflight: "agent.preflight",
+  AgentRun: "agent.run",
+  AgentStatus: "agent.status",
+  AgentApply: "agent.apply",
   PermissionsGet: "permissions.get",
   PermissionsRequestScreenRecording: "permissions.requestScreenRecording",
   PermissionsRequestMicrophone: "permissions.requestMicrophone",
@@ -17,6 +21,7 @@ export const engineMethods = {
   CaptureStatus: "capture.status",
   ExportInfo: "export.info",
   ExportRun: "export.run",
+  ExportRunCutPlan: "export.runCutPlan",
   ProjectCurrent: "project.current",
   ProjectOpen: "project.open",
   ProjectSave: "project.save",

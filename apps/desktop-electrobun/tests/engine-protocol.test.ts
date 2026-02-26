@@ -2,12 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
 import {
+  agentStatusResultSchema,
   buildRequest,
   capabilitiesResultSchema,
   captureStatusResultSchema,
   defaultCaptureTelemetry,
   engineRequestSchema,
   exportInfoResultSchema,
+  importedTranscriptSchema,
   parseResponse,
   permissionsResultSchema,
   projectRecentsResultSchema,
@@ -27,14 +29,28 @@ describe("engine protocol", () => {
       path.join(fixtureDir, "project-recents.request.json"),
       "utf8",
     );
+    const importedTranscriptValidRaw = fs.readFileSync(
+      path.join(fixtureDir, "imported-transcript.valid.json"),
+      "utf8",
+    );
+    const importedTranscriptInvalidRaw = fs.readFileSync(
+      path.join(fixtureDir, "imported-transcript.invalid.json"),
+      "utf8",
+    );
 
     const capabilitiesRequest = JSON.parse(capabilitiesRaw);
     const saveRequest = JSON.parse(saveRaw);
     const recentsRequest = JSON.parse(recentsRaw);
+    const importedTranscriptValid = JSON.parse(importedTranscriptValidRaw);
+    const importedTranscriptInvalid = JSON.parse(importedTranscriptInvalidRaw);
 
     expect(engineRequestSchema.parse(capabilitiesRequest).method).toBe("engine.capabilities");
     expect(engineRequestSchema.parse(saveRequest).method).toBe("project.save");
     expect(engineRequestSchema.parse(recentsRequest).method).toBe("project.recents");
+    expect(importedTranscriptSchema.parse(importedTranscriptValid).segments.length).toBeGreaterThan(
+      0,
+    );
+    expect(() => importedTranscriptSchema.parse(importedTranscriptInvalid)).toThrow();
   });
 
   test("builds and validates parity method requests", () => {
@@ -44,6 +60,25 @@ describe("engine protocol", () => {
       captureFps: 30,
     });
     const startRecordingRequest = buildRequest("recording.start", { trackInputEvents: true });
+    const agentPreflightRequest = buildRequest("agent.preflight", {
+      runtimeBudgetMinutes: 10,
+      transcriptionProvider: "none",
+    });
+    const agentRunRequest = buildRequest("agent.run", {
+      preflightToken: "preflight-token-123",
+      runtimeBudgetMinutes: 10,
+      transcriptionProvider: "none",
+      force: false,
+    });
+    const agentApplyRequest = buildRequest("agent.apply", {
+      jobId: "job-123",
+      destructiveIntent: true,
+    });
+    const runCutPlanRequest = buildRequest("export.runCutPlan", {
+      outputURL: "/tmp/export.mp4",
+      presetId: "h264-1080p-30",
+      jobId: "job-123",
+    });
     const saveProjectRequest = buildRequest("project.save", {
       projectPath: "/tmp/test.gglassproj",
       autoZoom: {
@@ -61,6 +96,10 @@ describe("engine protocol", () => {
       "capture.startCurrentWindow",
     );
     expect(engineRequestSchema.parse(startRecordingRequest).method).toBe("recording.start");
+    expect(engineRequestSchema.parse(agentPreflightRequest).method).toBe("agent.preflight");
+    expect(engineRequestSchema.parse(agentRunRequest).method).toBe("agent.run");
+    expect(engineRequestSchema.parse(agentApplyRequest).method).toBe("agent.apply");
+    expect(engineRequestSchema.parse(runCutPlanRequest).method).toBe("export.runCutPlan");
     expect(engineRequestSchema.parse(saveProjectRequest).method).toBe("project.save");
     expect(engineRequestSchema.parse(recentsRequest).method).toBe("project.recents");
   });
@@ -81,9 +120,18 @@ describe("engine protocol", () => {
       },
       export: {
         presets: true,
+        cutPlan: true,
       },
       project: {
         openSave: true,
+      },
+      agent: {
+        preflight: true,
+        run: true,
+        status: true,
+        apply: true,
+        localOnly: true,
+        runtimeBudgetMinutes: 10,
       },
     });
 
@@ -155,6 +203,12 @@ describe("engine protocol", () => {
         minimumKeyframeInterval: 1 / 30,
       },
       captureMetadata: null,
+      agentAnalysis: {
+        latestJobId: "job-123",
+        latestStatus: "completed",
+        qaPassed: true,
+        updatedAt: "2026-02-25T10:00:00.000Z",
+      },
     });
 
     const recents = projectRecentsResultSchema.parse({
@@ -166,6 +220,24 @@ describe("engine protocol", () => {
         },
       ],
     });
+    const blockedAgentStatus = agentStatusResultSchema.parse({
+      jobId: "job-456",
+      status: "blocked",
+      runtimeBudgetMinutes: 10,
+      qaReport: {
+        passed: false,
+        score: 0.25,
+        coverage: {
+          hook: true,
+          action: false,
+          payoff: false,
+          takeaway: false,
+        },
+        missingBeats: ["action", "payoff", "takeaway"],
+      },
+      blockingReason: "weak_narrative_structure",
+      updatedAt: "2026-02-25T10:00:00.000Z",
+    });
 
     expect(capabilities.capture.display).toBe(true);
     expect(permissions.inputMonitoring).toBe("notDetermined");
@@ -175,6 +247,8 @@ describe("engine protocol", () => {
     expect(captureStatus.captureMetadata?.window?.id).toBe(42);
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
+    expect(projectState.agentAnalysis.latestJobId).toBe("job-123");
+    expect(blockedAgentStatus.blockingReason).toBe("weak_narrative_structure");
     expect(recents.items[0]?.displayName).toBe("project");
   });
 

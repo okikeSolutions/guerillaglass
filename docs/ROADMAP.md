@@ -137,6 +137,7 @@ Progress (current repo)
 - Auto-zoom planning + constraints
 - Background framing
 - Vertical export with re-planned camera
+- Agent Mode v1 (Guerilla Glass-native, local-only rough-cut pipeline)
 - Windows/Linux native engine parity expansion (capture/audio/export protocol coverage)
 - Localization: add/refresh localized strings for all new UI and errors
 - Post‑localization polish audit (UI/UX, performance, accessibility)
@@ -145,6 +146,15 @@ Progress (current repo)
 
 - [x] Input Monitoring permission flow + event tracking
 - [x] Auto-zoom planning + constraints (planner + renderer wiring + UI tuning)
+- [x] Agent Mode protocol surface (`agent.preflight`, `agent.run`, `agent.status`, `agent.apply`, `export.runCutPlan`) across TypeScript/Swift/Rust contracts
+- [x] Agent Mode v1 artifact contract persisted inside project packages (`analysis/*.v1.json`)
+- [x] Narrative QA hard gate enforced for apply/export cut-plan operations
+- [x] Project schema v4 migration path for agent-analysis metadata index
+- [x] Deterministic local agent pipeline service with frame-based cut plans and canonical `run-summary` manifest
+- [x] Agent preflight token handshake (`agent.run` requires `preflightToken`) and explicit imported transcript contract
+- [x] Imported-transcript runs use transcript-driven beat coverage (no duration-only QA gating for short clips)
+- [x] Agent status semantics refined: `weak_narrative_structure` vs `empty_transcript` for clearer automation branching
+- [x] Desktop engine client validation normalization + raw RPC diagnostic path (`sendRaw`) for deterministic agent-debug workflows
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
 - [ ] Windows native capture/audio/export parity milestones

@@ -280,3 +280,46 @@ describe("engine client resilience", () => {
     }
   });
 });
+
+describe("engine client validation", () => {
+  async function captureError<T>(operation: Promise<T>): Promise<Error> {
+    try {
+      await operation;
+      throw new Error("Expected operation to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      return error as Error;
+    }
+  }
+
+  test("normalizes typed request validation errors to invalid_params", async () => {
+    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    try {
+      const error = await captureError(
+        client.agentRun({
+          preflightToken: "",
+          runtimeBudgetMinutes: 10,
+          transcriptionProvider: "imported_transcript",
+          importedTranscriptPath: "/tmp/example.json",
+        }),
+      );
+      expect(error.message).toContain("invalid_params: agent.run request validation failed");
+      expect(error.message).toContain("Call agent.preflight first");
+      expect(error.message).toContain("params.preflightToken");
+    } finally {
+      await client.stop();
+    }
+  });
+
+  test("sendRaw surfaces engine-originated invalid_params responses", async () => {
+    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    try {
+      const error = await captureError(client.sendRaw("agent.run", {}));
+      expect(error.message).toContain(
+        "invalid_params: agent.preflight must be called first. preflightToken is required.",
+      );
+    } finally {
+      await client.stop();
+    }
+  });
+});

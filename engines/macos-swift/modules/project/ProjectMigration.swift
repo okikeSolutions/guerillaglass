@@ -33,9 +33,13 @@ public enum ProjectMigration {
 
         switch probe.projectVersion {
         case 1:
-            return try migrateV1ToV3(data, decoder: decoder)
+            let v3Data = try migrateV1ToV3(data, decoder: decoder)
+            return try migrateV3ToV4(v3Data, decoder: decoder)
         case 2:
-            return try migrateV2ToV3(data, decoder: decoder)
+            let v3Data = try migrateV2ToV3(data, decoder: decoder)
+            return try migrateV3ToV4(v3Data, decoder: decoder)
+        case 3:
+            return try migrateV3ToV4(data, decoder: decoder)
         case ProjectSchemaVersion.current:
             return data
         default:
@@ -52,7 +56,7 @@ public enum ProjectMigration {
             captureMetadata: nil
         )
         let document = ProjectDocument(
-            projectVersion: ProjectSchemaVersion.current,
+            projectVersion: 3,
             project: project,
             recordingFileName: documentV1.recordingFileName,
             systemAudioFileName: documentV1.systemAudioFileName,
@@ -65,7 +69,17 @@ public enum ProjectMigration {
 
     private static func migrateV2ToV3(_ data: Data, decoder: JSONDecoder) throws -> Data {
         var document = try decoder.decode(ProjectDocument.self, from: data)
+        document.projectVersion = 3
+        let encoder = ProjectStore.makeDefaultEncoder()
+        return try encoder.encode(document)
+    }
+
+    private static func migrateV3ToV4(_ data: Data, decoder: JSONDecoder) throws -> Data {
+        var document = try decoder.decode(ProjectDocument.self, from: data)
         document.projectVersion = ProjectSchemaVersion.current
+        if document.project.agentAnalysis == nil {
+            document.project.agentAnalysis = AgentAnalysisMetadata()
+        }
         let encoder = ProjectStore.makeDefaultEncoder()
         return try encoder.encode(document)
     }

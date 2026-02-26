@@ -17,6 +17,8 @@ final class EngineService {
     var currentProjectURL: URL?
     var currentProjectDocument = ProjectDocument()
     var currentEventsURL: URL?
+    var hasUnsavedProjectChanges = false
+    var agentPreflightSessions: [String: AgentPreflightSession] = [:]
 
     func handleLine(_ line: String) async -> EngineResponse {
         do {
@@ -33,6 +35,10 @@ final class EngineService {
         let handlers: [String: MethodHandler] = [
             "system.ping": { id, _ in self.pingResponse(id: id) },
             "engine.capabilities": { id, _ in self.capabilitiesResponse(id: id) },
+            "agent.preflight": { id, params in await self.agentPreflightResponse(id: id, params: params) },
+            "agent.run": { id, params in await self.agentRunResponse(id: id, params: params) },
+            "agent.status": { id, params in self.agentStatusResponse(id: id, params: params) },
+            "agent.apply": { id, params in self.agentApplyResponse(id: id, params: params) },
             "permissions.get": { id, _ in self.permissionsGet(id: id) },
             "permissions.requestScreenRecording": { id, _ in await self.permissionsRequestScreenRecording(id: id) },
             "permissions.requestMicrophone": { id, _ in await self.permissionsRequestMicrophone(id: id) },
@@ -50,6 +56,7 @@ final class EngineService {
             "capture.status": { id, _ in self.captureStatusResponse(id: id) },
             "export.info": { id, _ in self.exportInfoResponse(id: id) },
             "export.run": { id, params in await self.exportRunResponse(id: id, params: params) },
+            "export.runCutPlan": { id, params in await self.exportRunCutPlanResponse(id: id, params: params) },
             "project.current": { id, _ in self.projectStateResponse(id: id) },
             "project.open": { id, params in self.projectOpenResponse(id: id, params: params) },
             "project.save": { id, params in self.projectSaveResponse(id: id, params: params) },

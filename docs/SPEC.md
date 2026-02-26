@@ -245,6 +245,104 @@ Creator Studio implementation requirements:
 Execution tracking, rollout sequencing, and backlog checklists for the Creator Studio shell are maintained in `docs/ROADMAP.md`.
 Detailed accessibility policy and verification steps remain in `docs/DESKTOP_ACCESSIBILITY.md`.
 
+### 7.7 Agent Mode v1 (local-only)
+
+Goal:
+
+- From an existing project recording, run a local rough-cut pipeline end-to-end with no human intervention unless blocked by QA or destructive confirmation.
+
+Scope (v1):
+
+- Deterministic local pipeline service: `transcribe -> beatMap -> qa -> cutPlan` under `agent.run`.
+- Local transcript analysis with word timings.
+- `agent.preflight` is required before `agent.run` so agents can fail fast on blockers without trial/error runs.
+- Narrative beat mapping with canonical structure: `hook -> action -> payoff -> takeaway`.
+- Strict narrative QA gate before `agent.apply` and `export.runCutPlan`.
+- Deterministic cut-plan apply/export path for repeatable behavior.
+- Guerilla Glass-native implementation only (no external editor/plugin integration in v1).
+- Transcription is explicit and pluggable via provider contract:
+  - `none` provider: returns `missing_local_model`.
+  - `imported_transcript` provider: reads imported transcript JSON input.
+
+Hard rules:
+
+- `agent.apply` and `export.runCutPlan` are blocked when narrative QA fails.
+- Destructive apply operations require explicit confirmation (`destructiveIntent=true`) when unsaved project changes are present.
+- `agent.apply` is a strict alias to `export.runCutPlan`; there is one canonical cut-plan execution engine.
+- `run-summary.v1` is the canonical agent manifest; project summary state derives from this artifact.
+- Agent artifacts are written under the project package `analysis/` directory.
+- Cut-plan segments are frame-based (`startFrame`/`endFrame`) with source FPS metadata.
+- `force` is debug-only (disabled in production unless `GG_AGENT_ALLOW_FORCE=1`).
+- v1 source target: recordings up to 10 minutes.
+- `agent.status` is intentionally compact: one `status` field plus optional `blockingReason`.
+- `agent.run` requires a valid short-lived `preflightToken` from `agent.preflight` (TTL: 60 seconds).
+
+Protocol surface:
+
+- `agent.preflight`
+- `agent.run`
+- `agent.status`
+- `agent.apply`
+- `export.runCutPlan`
+
+`agent.preflight` result contract:
+
+- `ready: boolean`
+- `blockingReasons: AgentBlockingReason[]`
+- `canApplyDestructive: boolean`
+- `preflightToken: string | null` (`null` unless `ready=true`)
+
+`agent.run` request contract additions:
+
+- `preflightToken: string` (required; must match latest preflight inputs and active project/recording state)
+
+`agent.status.blockingReason` values (when present):
+
+- `empty_transcript`: transcript has no usable timed tokens.
+- `weak_narrative_structure`: transcript exists, but QA coverage is missing one or more required beats.
+
+Imported transcript contract (`imported_transcript` provider):
+
+- JSON object with one or both arrays:
+  - `segments[]` with `{ text, startSeconds, endSeconds }`
+  - `words[]` with `{ word, startSeconds, endSeconds }`
+- Timing invariants:
+  - `startSeconds >= 0`
+  - `endSeconds > startSeconds`
+- At least one valid segment or one valid word is required.
+- Reference fixtures:
+  - `packages/engine-protocol/fixtures/imported-transcript.valid.json`
+  - `packages/engine-protocol/fixtures/imported-transcript.invalid.json`
+
+Error model additions:
+
+- `needs_confirmation`
+- `qa_failed`
+- `missing_local_model`
+- `invalid_cut_plan`
+
+Agent runbook (required order):
+
+1. `agent.preflight`
+2. If `ready=true`, call `agent.run` with returned `preflightToken`.
+3. Poll `agent.status` until terminal (`completed` or `blocked`/`failed`).
+4. Call `agent.apply` (handle `needs_confirmation` by retrying with `destructiveIntent=true` when intended).
+5. Call `export.runCutPlan` for deterministic export.
+
+Retry rules:
+
+- If run/apply returns preflight-token mismatch/expiry errors, rerun `agent.preflight` and retry with the new token.
+- If `qaReport.missingBeats` is non-empty, regenerate transcript/beat quality before apply/export.
+
+Artifact contract (project-relative paths):
+
+- `analysis/transcript.full.v1.json`
+- `analysis/transcript.words.v1.json`
+- `analysis/beat-map.v1.json`
+- `analysis/qa-report.v1.json`
+- `analysis/cut-plan.v1.json`
+- `analysis/run-summary.v1.json`
+
 ---
 
 ## 8) Permissions & fallbacks

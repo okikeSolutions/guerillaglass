@@ -160,6 +160,7 @@ extension EngineService {
             if let descriptor = captureEngine.captureDescriptor {
                 currentProjectDocument.project.captureMetadata = makeCaptureMetadata(from: descriptor)
             }
+            hasUnsavedProjectChanges = true
             return captureStatusResponse(id: id)
         } catch {
             return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
@@ -173,6 +174,7 @@ extension EngineService {
         if let recordingURL = captureEngine.recordingURL {
             currentProjectDocument.recordingFileName = recordingURL.lastPathComponent
         }
+        hasUnsavedProjectChanges = true
 
         return captureStatusResponse(id: id)
     }

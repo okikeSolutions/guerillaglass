@@ -6,17 +6,20 @@ public struct Project: Codable, Identifiable, Equatable {
     public var createdAt: Date
     public var autoZoom: AutoZoomSettings
     public var captureMetadata: CaptureMetadata?
+    public var agentAnalysis: AgentAnalysisMetadata?
 
     public init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
         autoZoom: AutoZoomSettings = AutoZoomSettings(),
-        captureMetadata: CaptureMetadata? = nil
+        captureMetadata: CaptureMetadata? = nil,
+        agentAnalysis: AgentAnalysisMetadata? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
         self.autoZoom = autoZoom
         self.captureMetadata = captureMetadata
+        self.agentAnalysis = agentAnalysis
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -24,6 +27,7 @@ public struct Project: Codable, Identifiable, Equatable {
         case createdAt
         case autoZoom
         case captureMetadata
+        case agentAnalysis
     }
 
     public init(from decoder: Decoder) throws {
@@ -32,5 +36,6 @@ public struct Project: Codable, Identifiable, Equatable {
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         autoZoom = try container.decodeIfPresent(AutoZoomSettings.self, forKey: .autoZoom) ?? AutoZoomSettings()
         captureMetadata = try container.decodeIfPresent(CaptureMetadata.self, forKey: .captureMetadata)
+        agentAnalysis = try container.decodeIfPresent(AgentAnalysisMetadata.self, forKey: .agentAnalysis)
     }
 }
