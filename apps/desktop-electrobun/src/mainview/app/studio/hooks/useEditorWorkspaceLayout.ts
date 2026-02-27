@@ -8,7 +8,11 @@ import {
 } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { useStudio } from "../state/StudioProvider";
-import { studioLayoutBounds } from "../model/studioLayoutModel";
+import {
+  rebalanceStudioHorizontalPanesForViewport,
+  resolveStudioCenterPaneMinWidthForViewport,
+  studioLayoutBounds,
+} from "../model/studioLayoutModel";
 
 type SizeBounds = {
   minPx: number;
@@ -64,6 +68,32 @@ function useObservedElementHeight(ref: RefObject<HTMLElement | null>): number | 
   }, [ref]);
 
   return heightPx;
+}
+
+function useObservedElementWidth(ref: RefObject<HTMLElement | null>): number | null {
+  const [widthPx, setWidthPx] = useState<number | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setWidthPx(Math.round(element.getBoundingClientRect().width));
+    };
+
+    updateWidth();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return widthPx;
 }
 
 function usePointerResizeState() {
@@ -188,6 +218,7 @@ export function useEditorWorkspaceLayout() {
   const timelineResizeStepPxLarge = 32;
 
   const verticalGroupContainerRef = useRef<HTMLDivElement | null>(null);
+  const verticalGroupWidthPx = useObservedElementWidth(verticalGroupContainerRef);
   const verticalGroupHeightPx = useObservedElementHeight(verticalGroupContainerRef);
   const leftPanelRef = useRef<PanelImperativeHandle | null>(null);
   const rightPanelRef = useRef<PanelImperativeHandle | null>(null);
@@ -216,6 +247,9 @@ export function useEditorWorkspaceLayout() {
     layout.timelineHeightPx,
     timelineHeightBounds.minPx,
     timelineHeightBounds.maxPx,
+  );
+  const centerPaneMinWidthPx = resolveStudioCenterPaneMinWidthForViewport(
+    verticalGroupWidthPx ?? Number.NaN,
   );
 
   const leftPanelKey = layout.leftCollapsed ? "left-collapsed" : "left-expanded";
@@ -435,6 +469,49 @@ export function useEditorWorkspaceLayout() {
   );
 
   useEffect(() => {
+    if (verticalGroupWidthPx == null) {
+      return;
+    }
+
+    const leftPanel = leftPanelRef.current;
+    const rightPanel = rightPanelRef.current;
+    if (!leftPanel || !rightPanel) {
+      return;
+    }
+
+    const measuredLeftPaneWidthPx = layout.leftCollapsed
+      ? 0
+      : Math.round(leftPanel.getSize().inPixels);
+    const measuredRightPaneWidthPx = layout.rightCollapsed
+      ? 0
+      : Math.round(rightPanel.getSize().inPixels);
+    const rebalanced = rebalanceStudioHorizontalPanesForViewport(
+      {
+        leftPaneWidthPx: measuredLeftPaneWidthPx,
+        rightPaneWidthPx: measuredRightPaneWidthPx,
+        leftCollapsed: layout.leftCollapsed,
+        rightCollapsed: layout.rightCollapsed,
+      },
+      verticalGroupWidthPx,
+    );
+
+    if (
+      !layout.leftCollapsed &&
+      Math.abs(rebalanced.leftPaneWidthPx - measuredLeftPaneWidthPx) > 1
+    ) {
+      leftPanel.resize(toPxSize(rebalanced.leftPaneWidthPx));
+      studio.setLeftPaneWidth(rebalanced.leftPaneWidthPx);
+    }
+    if (
+      !layout.rightCollapsed &&
+      Math.abs(rebalanced.rightPaneWidthPx - measuredRightPaneWidthPx) > 1
+    ) {
+      rightPanel.resize(toPxSize(rebalanced.rightPaneWidthPx));
+      studio.setRightPaneWidth(rebalanced.rightPaneWidthPx);
+    }
+  }, [layout.leftCollapsed, layout.rightCollapsed, studio, verticalGroupWidthPx]);
+
+  useEffect(() => {
     const leftPanel = leftPanelRef.current;
     if (!leftPanel) {
       return;
@@ -481,6 +558,7 @@ export function useEditorWorkspaceLayout() {
     workspaceContentMinHeightPx,
     timelineHeightBounds,
     timelineHeightPx,
+    centerPaneMinWidthPx,
     leftPanelKey,
     rightPanelKey,
     timelinePanelKey,

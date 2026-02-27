@@ -1,6 +1,5 @@
 import { ChevronRight, ScreenShare, ShieldCheck } from "lucide-react";
 import { type ReactNode } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -12,7 +11,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { engineApi } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../state/StudioProvider";
-import { formatCaptureTargetLabelFromMetadata } from "../model/captureTargetLabelFormatter";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
 import { TimelineDock } from "../panels/TimelineDock";
@@ -29,27 +27,6 @@ export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
   const recordingMediaSource = useRecordingMediaSource(studio.recordingURL);
-  const activeCaptureMetadata = studio.captureStatusQuery.data?.captureMetadata;
-  const selectedWindow = studio.windowChoices.find(
-    (windowItem) => windowItem.id === studio.selectedWindowId,
-  );
-  const selectedWindowLabel = selectedWindow
-    ? `${selectedWindow.appName} - ${selectedWindow.title || studio.ui.values.untitled}`
-    : studio.ui.labels.window;
-  const metadataTargetLabel = formatCaptureTargetLabelFromMetadata({
-    metadata: activeCaptureMetadata ?? null,
-    displayLabel: studio.ui.labels.display,
-    windowLabel: studio.ui.labels.window,
-    untitledLabel: studio.ui.values.untitled,
-    formatInteger: studio.formatInteger,
-  });
-  const activeCaptureTarget =
-    metadataTargetLabel ??
-    (settingsValues.captureSource === "window"
-      ? selectedWindow
-        ? selectedWindowLabel
-        : studio.ui.labels.noWindows
-      : studio.ui.labels.display);
 
   return (
     <EditorWorkspace
@@ -204,30 +181,15 @@ export function CaptureRoute() {
             <StudioPaneTitle className="flex items-center gap-2">
               <ScreenShare className="h-4 w-4" /> {studio.ui.sections.center}
             </StudioPaneTitle>
-            <StudioPaneSubtitle>
-              {studio.captureStatusQuery.data?.isRunning
-                ? studio.ui.helper.activePreviewBody
-                : studio.ui.helper.emptyPreviewBody}
-            </StudioPaneSubtitle>
           </StudioPaneHeader>
           <StudioPaneBody className="gg-preview-pane-body">
-            {studio.inputMonitoringDenied && settingsValues.trackInputEvents ? (
-              <Alert variant="destructive" className="gg-preview-alert">
-                <AlertTitle>{studio.ui.helper.degradedModeTitle}</AlertTitle>
-                <AlertDescription>{studio.ui.helper.degradedModeBody}</AlertDescription>
-              </Alert>
-            ) : null}
-
             <div className="gg-preview-workspace">
               <div className="gg-preview-stage-wrap">
                 <AspectRatio ratio={16 / 9} className="h-auto w-auto">
                   <div className="gg-preview-stage">
                     {studio.captureStatusQuery.data?.isRecording ? (
-                      <div className="space-y-2 text-center">
+                      <div className="text-center">
                         <p className="text-sm font-medium">{studio.ui.helper.activePreviewTitle}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {studio.ui.helper.activePreviewBody}
-                        </p>
                       </div>
                     ) : recordingMediaSource ? (
                       <video
@@ -253,32 +215,11 @@ export function CaptureRoute() {
               </div>
             </div>
 
-            <div className="gg-preview-footer">
-              <div className="gg-preview-controls">
-                <Button
-                  size="sm"
-                  onClick={() => void studio.startPreviewMutation.mutateAsync()}
-                  disabled={studio.isRunningAction || studio.captureStatusQuery.data?.isRunning}
-                >
-                  {studio.ui.actions.startPreview}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => void studio.stopPreviewMutation.mutateAsync()}
-                  disabled={studio.isRunningAction || !studio.captureStatusQuery.data?.isRunning}
-                >
-                  {studio.ui.actions.stopPreview}
-                </Button>
-              </div>
-
-              <div className="gg-preview-status-bar gg-copy-meta">
-                <div className="truncate">{`${studio.ui.labels.status}: ${studio.captureStatusLabel}`}</div>
-                <div className="truncate">{`${studio.ui.labels.captureSource}: ${activeCaptureTarget}`}</div>
-                <div className="truncate">{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
-                <div className="truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
-              </div>
-            </div>
+            {studio.inputMonitoringDenied && settingsValues.trackInputEvents ? (
+              <p className="px-5 pb-3 text-xs text-destructive/90">
+                {studio.ui.helper.degradedModeTitle}
+              </p>
+            ) : null}
           </StudioPaneBody>
         </StudioPane>
       }

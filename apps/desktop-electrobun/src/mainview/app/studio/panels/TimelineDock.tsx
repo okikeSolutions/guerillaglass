@@ -91,7 +91,7 @@ export function TimelineDock() {
     <footer className="h-full overflow-hidden bg-background/45">
       <TooltipProvider delay={120}>
         <div className="flex h-full min-h-0 flex-col px-4 py-3">
-          <div className="gg-toolbar-group mb-2 flex h-10 min-w-0 items-center gap-1 overflow-x-auto whitespace-nowrap rounded-md border px-2 py-1">
+          <div className="gg-timeline-toolbar-row gg-toolbar-group mb-2 flex h-10 min-w-0 items-center gap-1 whitespace-nowrap rounded-md border px-2 py-1">
             <span className="gg-utility-label shrink-0">{studio.ui.sections.timeline}</span>
             <ButtonGroup className="shrink-0 gap-1">
               <TimelineIconAction
@@ -221,7 +221,7 @@ export function TimelineDock() {
               ))}
             </NativeSelect>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-hidden">
             <TimelineSurface
               durationSeconds={studio.timelineDuration}
               playheadSeconds={studio.playheadSeconds}

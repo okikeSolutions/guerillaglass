@@ -30,6 +30,7 @@ export function EditorWorkspace({
     workspaceContentMinHeightPx,
     timelineHeightBounds,
     timelineHeightPx,
+    centerPaneMinWidthPx,
     leftPanelKey,
     rightPanelKey,
     timelinePanelKey,
@@ -85,7 +86,7 @@ export function EditorWorkspace({
             />
             <ResizablePanel
               id="editor-center-pane"
-              minSize={0}
+              minSize={toPxSize(centerPaneMinWidthPx)}
               className="flex min-h-0 min-w-0 overflow-hidden"
             >
               {centerPane}

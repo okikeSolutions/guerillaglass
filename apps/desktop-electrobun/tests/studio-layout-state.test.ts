@@ -7,6 +7,8 @@ import {
   localizedRouteTargetFor,
   normalizeStudioLayoutRoute,
   parseStudioLayoutState,
+  rebalanceStudioHorizontalPanesForViewport,
+  resolveStudioCenterPaneMinWidthForViewport,
   resolveStudioLocation,
   routeForStudioMode,
   studioLayoutBounds,
@@ -180,5 +182,63 @@ describe("studio layout state", () => {
 
   test("builds initial path from persisted layout", () => {
     expect(getInitialStudioPath()).toMatch(/^\/(en-US|de-DE)\/(capture|edit|deliver)$/);
+  });
+
+  test("rebalances oversized open side panes to preserve center pane startup width", () => {
+    const viewportWidthPx = 1200;
+    const rebalanced = rebalanceStudioHorizontalPanesForViewport(
+      {
+        leftPaneWidthPx: studioLayoutBounds.leftPaneMaxWidthPx,
+        rightPaneWidthPx: studioLayoutBounds.rightPaneMaxWidthPx,
+        leftCollapsed: false,
+        rightCollapsed: false,
+      },
+      viewportWidthPx,
+    );
+
+    const sideTotal = rebalanced.leftPaneWidthPx + rebalanced.rightPaneWidthPx;
+    const maxSideTotal =
+      studioLayoutBounds.leftPaneMinWidthPx + studioLayoutBounds.rightPaneMinWidthPx;
+    expect(sideTotal).toBeLessThanOrEqual(maxSideTotal);
+    expect(viewportWidthPx - sideTotal - 2).toBeGreaterThanOrEqual(
+      Math.round(viewportWidthPx * 0.69),
+    );
+    expect(rebalanced.leftPaneWidthPx).toBeGreaterThanOrEqual(
+      studioLayoutBounds.leftPaneMinWidthPx,
+    );
+    expect(rebalanced.rightPaneWidthPx).toBeGreaterThanOrEqual(
+      studioLayoutBounds.rightPaneMinWidthPx,
+    );
+  });
+
+  test("does not change side pane widths when center has enough room", () => {
+    const rebalanced = rebalanceStudioHorizontalPanesForViewport(
+      {
+        leftPaneWidthPx: 180,
+        rightPaneWidthPx: 260,
+        leftCollapsed: false,
+        rightCollapsed: false,
+      },
+      1600,
+    );
+
+    expect(rebalanced).toEqual({
+      leftPaneWidthPx: 180,
+      rightPaneWidthPx: 260,
+    });
+  });
+
+  test("resolves center pane minimum width for wide viewports", () => {
+    expect(resolveStudioCenterPaneMinWidthForViewport(1600)).toBe(Math.round(1600 * 0.7));
+  });
+
+  test("scales center pane minimum width down on narrow viewports", () => {
+    const viewportWidthPx = 900;
+    const expected =
+      viewportWidthPx -
+      studioLayoutBounds.leftPaneMinWidthPx -
+      studioLayoutBounds.rightPaneMinWidthPx -
+      2;
+    expect(resolveStudioCenterPaneMinWidthForViewport(viewportWidthPx)).toBe(expected);
   });
 });
