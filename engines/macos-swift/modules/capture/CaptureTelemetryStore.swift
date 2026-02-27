@@ -33,7 +33,7 @@ final class CaptureTelemetryStore {
                 state.memoryBytes = nil
                 state.recordingBitrateMbps = nil
             }
-            CaptureEngine.CaptureTelemetrySnapshot(
+            return CaptureEngine.CaptureTelemetrySnapshot(
                 totalFrames: state.totalFrames,
                 droppedFrames: state.droppedFrames,
                 droppedFramePercent: state.droppedFramePercent,
