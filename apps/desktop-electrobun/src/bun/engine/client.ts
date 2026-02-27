@@ -693,6 +693,13 @@ export class EngineClient {
    * Intended for integration tests and diagnostics where callers need engine-originated errors.
    */
   async sendRaw(method: string, params: unknown, options?: { timeoutMs?: number }) {
+    const rawRpcAllowed =
+      process.env.NODE_ENV !== "production" || process.env.GG_ENGINE_ALLOW_RAW_RPC === "1";
+    if (!rawRpcAllowed) {
+      throw new Error(
+        "permission_denied: sendRaw is disabled in production. Set GG_ENGINE_ALLOW_RAW_RPC=1 for diagnostics.",
+      );
+    }
     const trimmedMethod = method.trim();
     if (!trimmedMethod) {
       throw new Error("invalid_params: method is required");

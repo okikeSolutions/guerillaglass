@@ -322,4 +322,28 @@ describe("engine client validation", () => {
       await client.stop();
     }
   });
+
+  test("sendRaw is disabled in production unless explicitly allowed", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousRawAllow = process.env.GG_ENGINE_ALLOW_RAW_RPC;
+    process.env.NODE_ENV = "production";
+    delete process.env.GG_ENGINE_ALLOW_RAW_RPC;
+    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    try {
+      const error = await captureError(client.sendRaw("system.ping", {}));
+      expect(error.message).toContain("permission_denied: sendRaw is disabled in production");
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+      if (previousRawAllow === undefined) {
+        delete process.env.GG_ENGINE_ALLOW_RAW_RPC;
+      } else {
+        process.env.GG_ENGINE_ALLOW_RAW_RPC = previousRawAllow;
+      }
+      await client.stop();
+    }
+  });
 });

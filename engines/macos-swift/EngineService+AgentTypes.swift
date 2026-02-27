@@ -10,6 +10,7 @@ struct ValidatedCutPlanExecution {
 }
 
 let agentPreflightTokenTTLSeconds: TimeInterval = 60
+let agentPreflightSessionMaxCount = 128
 
 struct AgentPreflightSession {
     let token: String
