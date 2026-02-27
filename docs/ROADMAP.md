@@ -84,7 +84,10 @@ Creator Studio pro-UI parity backlog (next pass):
     - Timeline clip and marker selections render dedicated control blocks (timing details + direct actions) without default mode scaffolding.
     - Capture-window and export-preset selections keep their selection-specific details while retaining core mode controls for continuity.
     - Timeline empty-track pointer-down and `Escape` clear inspector selection and return to mode-default inspector content.
-  - [ ] Add a persistent technical feedback strip (dropped frames, CPU, memory, bitrate/audio level, recording health) with OBS-style immediate visibility.
+  - [x] Add a persistent technical feedback strip (dropped frames, CPU, memory, bitrate/audio level, recording health) with OBS-style immediate visibility.
+  - Implementation notes:
+    - Runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) are sampled in the native capture engine telemetry store and emitted through `capture.status`.
+    - Desktop shell streams `capture.status` updates from Bun host to renderer (`hostCaptureStatus` / `gg-host-capture-status`) with adaptive cadence; renderer cache is stream-fed instead of 250ms query polling.
 - Phase C — Docking architecture
   - [ ] Implement true docking (tear-off/floating panels, drag/snap docking zones, saved workspace presets: `Edit`, `Color`, `Audio`, `Stream`).
 
