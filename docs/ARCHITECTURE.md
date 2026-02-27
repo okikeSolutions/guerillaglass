@@ -126,7 +126,7 @@ Playback transport hardening (current):
 - Agent preflight blocks weak-input runs (`no_audio_track`, `silent_audio`) before apply/export is possible.
 - `agent.status` remains compact (`status` + optional `blockingReason`) for deterministic automation logic.
 - Narrative QA failures with non-empty transcripts report `blockingReason=weak_narrative_structure` (reserved `empty_transcript` for token-empty transcripts).
-- Desktop engine client exposes `sendRaw(method, params)` for test/diagnostic flows that need engine-originated errors without request schema pre-validation.
+- Desktop engine client exposes `sendRaw(method, params)` for test/diagnostic flows that need engine-originated errors without request schema pre-validation; this is disabled in production unless `GG_ENGINE_ALLOW_RAW_RPC=1`.
 - `project.current`
 - `project.open`
 - `project.save`

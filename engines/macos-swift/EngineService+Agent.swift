@@ -5,6 +5,7 @@ import Project
 
 extension EngineService {
     func agentPreflightResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
+        pruneExpiredPreflightSessions()
         let runtimeBudgetMinutes = params["runtimeBudgetMinutes"]?.intValue ?? maxAgentRuntimeBudgetMinutes
         let transcriptionProvider = transcriptionProvider(from: params)
         let importedTranscriptPath = params["importedTranscriptPath"]?.stringValue
@@ -28,6 +29,7 @@ extension EngineService {
                 projectPath: currentProjectURL?.path,
                 recordingPath: recordingPath
             )
+            enforcePreflightSessionCapacity(maxCount: agentPreflightSessionMaxCount)
             agentPreflightSessions[token] = session
             preflightToken = token
         } else {
@@ -174,6 +176,7 @@ extension EngineService {
         transcriptionProvider: AgentTranscriptionProvider,
         importedTranscriptPath: String?
     ) -> EngineResponse? {
+        pruneExpiredPreflightSessions()
         guard !token.isEmpty else {
             return .failure(
                 id: id,
@@ -217,6 +220,24 @@ extension EngineService {
 
         agentPreflightSessions.removeValue(forKey: token)
         return nil
+    }
+
+    private func pruneExpiredPreflightSessions(now: Date = Date()) {
+        agentPreflightSessions = agentPreflightSessions.filter { _, session in
+            now.timeIntervalSince(session.createdAt) <= agentPreflightTokenTTLSeconds
+        }
+    }
+
+    private func enforcePreflightSessionCapacity(maxCount: Int) {
+        guard agentPreflightSessions.count >= maxCount else { return }
+        let overflowCount = agentPreflightSessions.count - maxCount + 1
+        let oldestTokens = agentPreflightSessions.values
+            .sorted { $0.createdAt < $1.createdAt }
+            .prefix(overflowCount)
+            .map(\.token)
+        for token in oldestTokens {
+            agentPreflightSessions.removeValue(forKey: token)
+        }
     }
 
     private func validatedAgentRunDuration(for recordingURL: URL) async throws -> Double {
@@ -529,10 +550,7 @@ extension EngineService {
                 importedTranscriptPath: importedTranscriptPath
             )
             do {
-                let transcript = try provider.transcribe(durationSeconds: durationSeconds)
-                if transcript.words.isEmpty {
-                    reasons.append(.emptyTranscript)
-                }
+                _ = try provider.transcribe(durationSeconds: durationSeconds)
             } catch {
                 reasons.append(.invalidImportedTranscript)
             }
@@ -580,10 +598,7 @@ extension EngineService {
                 importedTranscriptPath: importedTranscriptPath
             )
             do {
-                let transcript = try provider.transcribe(durationSeconds: durationSeconds)
-                if transcript.words.isEmpty {
-                    reasons.append(.emptyTranscript)
-                }
+                _ = try provider.transcribe(durationSeconds: durationSeconds)
             } catch {
                 reasons.append(.invalidImportedTranscript)
             }
