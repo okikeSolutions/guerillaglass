@@ -169,6 +169,9 @@ export const defaultCaptureTelemetry = {
   writerBackpressureDrops: 0,
   writerDroppedFramePercent: 0,
   achievedFps: 0,
+  cpuPercent: null,
+  memoryBytes: null,
+  recordingBitrateMbps: null,
   audioLevelDbfs: null,
   health: "good",
   healthReason: null,
@@ -182,6 +185,9 @@ export const defaultCaptureTelemetry = {
   writerBackpressureDrops: number;
   writerDroppedFramePercent: number;
   achievedFps: number;
+  cpuPercent: number | null;
+  memoryBytes: number | null;
+  recordingBitrateMbps: number | null;
   audioLevelDbfs: number | null;
   health: "good" | "warning" | "critical";
   healthReason:
@@ -203,6 +209,9 @@ export const captureTelemetrySchema = z.object({
   writerBackpressureDrops: z.number().int().nonnegative().optional().default(0),
   writerDroppedFramePercent: z.number().nonnegative().optional().default(0),
   achievedFps: z.number().nonnegative().optional().default(0),
+  cpuPercent: z.number().nonnegative().nullable().optional().default(null),
+  memoryBytes: z.number().nonnegative().nullable().optional().default(null),
+  recordingBitrateMbps: z.number().nonnegative().nullable().optional().default(null),
   audioLevelDbfs: z.number().nullable(),
   health: captureHealthSchema,
   healthReason: captureHealthReasonSchema.nullable(),

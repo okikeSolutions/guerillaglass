@@ -10,10 +10,29 @@ final class CaptureTelemetryStore {
     }
 
     private let queue = DispatchQueue(label: "gg.capture.telemetry")
+    private let runtimeTelemetryMonitor = CaptureRuntimeTelemetryMonitor()
     private var state = State()
 
-    func snapshot() -> CaptureEngine.CaptureTelemetrySnapshot {
+    func snapshot(
+        recordingOutputURL: URL?,
+        recordingDurationSeconds: Double,
+        isCaptureActive: Bool
+    ) -> CaptureEngine.CaptureTelemetrySnapshot {
         queue.sync {
+            if isCaptureActive {
+                let runtime = runtimeTelemetryMonitor.sample(
+                    recordingOutputURL: recordingOutputURL,
+                    recordingDurationSeconds: recordingDurationSeconds
+                )
+                state.cpuPercent = runtime.cpuPercent
+                state.memoryBytes = runtime.memoryBytes
+                state.recordingBitrateMbps = runtime.recordingBitrateMbps
+            } else {
+                runtimeTelemetryMonitor.reset()
+                state.cpuPercent = nil
+                state.memoryBytes = nil
+                state.recordingBitrateMbps = nil
+            }
             CaptureEngine.CaptureTelemetrySnapshot(
                 totalFrames: state.totalFrames,
                 droppedFrames: state.droppedFrames,
@@ -24,6 +43,9 @@ final class CaptureTelemetryStore {
                 writerBackpressureDrops: state.writerBackpressureDrops,
                 writerDroppedFramePercent: state.writerDroppedFramePercent,
                 achievedFps: state.achievedFps,
+                cpuPercent: state.cpuPercent,
+                memoryBytes: state.memoryBytes,
+                recordingBitrateMbps: state.recordingBitrateMbps,
                 audioLevelDbfs: state.audioLevelDbfs
             )
         }
@@ -31,6 +53,7 @@ final class CaptureTelemetryStore {
 
     func reset() {
         queue.sync {
+            runtimeTelemetryMonitor.reset()
             state = State()
         }
     }
@@ -95,6 +118,9 @@ private extension CaptureTelemetryStore {
         var sourceTimingDroppedFrames: Int = 0
         var writerBackpressureDrops: Int = 0
         var writerFailedDrops: Int = 0
+        var cpuPercent: Double?
+        var memoryBytes: UInt64?
+        var recordingBitrateMbps: Double?
         var audioLevelDbfs: Double?
         var firstCompleteFramePTSSeconds: Double?
         var lastCompleteFramePTSSeconds: Double?

@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CaptureStatusResult,
   ExportPreset,
@@ -9,6 +10,8 @@ import type {
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
+import { captureStatusResultSchema } from "@guerillaglass/engine-protocol";
+import { hostBridgeEventNames } from "../../../../../shared/bridgeRpc";
 import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
@@ -28,7 +31,41 @@ export const studioQueryKeys = {
 
 export const studioRecentsLimit = 10;
 
+export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | null {
+  const customEvent = event as CustomEvent<{ captureStatus?: unknown }>;
+  const payload = customEvent.detail?.captureStatus;
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    return captureStatusResultSchema.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
 export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const onCaptureStatus = (event: Event) => {
+      const captureStatus = parseCaptureStatusEvent(event);
+      if (!captureStatus) {
+        return;
+      }
+      queryClient.setQueryData(studioQueryKeys.captureStatus(), captureStatus);
+    };
+
+    window.addEventListener(hostBridgeEventNames.captureStatus, onCaptureStatus as EventListener);
+    return () => {
+      window.removeEventListener(
+        hostBridgeEventNames.captureStatus,
+        onCaptureStatus as EventListener,
+      );
+    };
+  }, [queryClient]);
+
   const pingQuery = useQuery<PingResult>({
     queryKey: studioQueryKeys.ping(),
     queryFn: () => engineApi.ping(),
@@ -50,7 +87,8 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
   const captureStatusQuery = useQuery<CaptureStatusResult>({
     queryKey: studioQueryKeys.captureStatus(),
     queryFn: () => engineApi.captureStatus(),
-    refetchInterval: 1000,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
   });
 
   const exportInfoQuery = useQuery({

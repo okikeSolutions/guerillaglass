@@ -36,6 +36,11 @@ export const hostMenuCommands = {
   fileExport: "file.export",
 } as const;
 
+export const hostBridgeEventNames = {
+  menuCommand: "gg-host-menu-command",
+  captureStatus: "gg-host-capture-status",
+} as const;
+
 export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCommands];
 export const hostMenuCommandList = Object.values(hostMenuCommands) as HostMenuCommand[];
 
@@ -246,6 +251,9 @@ export type DesktopBridgeRPC = {
   bun: RPCSchema<{ requests: BridgeRequests; messages: { hostMenuState: HostMenuState } }>;
   webview: RPCSchema<{
     requests: Record<string, never>;
-    messages: { hostMenuCommand: { command: HostMenuCommand } };
+    messages: {
+      hostMenuCommand: { command: HostMenuCommand };
+      hostCaptureStatus: { captureStatus: CaptureStatusResult };
+    };
   }>;
 };

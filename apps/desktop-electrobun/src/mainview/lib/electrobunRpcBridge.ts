@@ -1,4 +1,5 @@
 import { Electroview } from "electrobun/view";
+import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import { createWindowBridgeBindings } from "../../shared/bridgeBindings";
 import type {
   BridgeRequestInvoker,
@@ -6,6 +7,7 @@ import type {
   HostMenuCommand,
   WindowBridgeBindings,
 } from "../../shared/bridgeRpc";
+import { hostBridgeEventNames } from "../../shared/bridgeRpc";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;
@@ -31,8 +33,15 @@ export function initializeElectrobunRpcBridge(): void {
       messages: {
         hostMenuCommand: ({ command }: { command: HostMenuCommand }) => {
           window.dispatchEvent(
-            new CustomEvent("gg-host-menu-command", {
+            new CustomEvent(hostBridgeEventNames.menuCommand, {
               detail: { command },
+            }),
+          );
+        },
+        hostCaptureStatus: ({ captureStatus }: { captureStatus: CaptureStatusResult }) => {
+          window.dispatchEvent(
+            new CustomEvent(hostBridgeEventNames.captureStatus, {
+              detail: { captureStatus },
             }),
           );
         },

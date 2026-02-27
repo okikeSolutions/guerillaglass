@@ -9,6 +9,7 @@ import {
 import { getStudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@/lib/engine";
 import type { HostMenuCommand, HostPathPickerMode } from "../../../../../shared/bridgeRpc";
+import { hostBridgeEventNames } from "../../../../../shared/bridgeRpc";
 import { createHostCommandRunnerFromHandlers } from "../../../../../shared/hostCommandRegistry";
 import {
   emptyInspectorSelection,
@@ -22,8 +23,6 @@ import { useStudioLayoutController } from "./useStudioLayoutController";
 import { useStudioMutations, type ExportFormApi, type SettingsFormApi } from "./useStudioMutations";
 import { studioRecentsLimit, useStudioDataQueries } from "./useStudioDataQueries";
 import { useStudioTimeline } from "../timeline/useStudioTimeline";
-
-const hostMenuCommandEventName = "gg-host-menu-command";
 
 export type CaptureSourceMode = "display" | "window";
 export type Notice = { kind: "error" | "success" | "info"; message: string } | null;
@@ -521,9 +520,12 @@ export function useStudioController() {
       runHostCommand(command);
     };
 
-    window.addEventListener(hostMenuCommandEventName, onHostMenuCommand as EventListener);
+    window.addEventListener(hostBridgeEventNames.menuCommand, onHostMenuCommand as EventListener);
     return () =>
-      window.removeEventListener(hostMenuCommandEventName, onHostMenuCommand as EventListener);
+      window.removeEventListener(
+        hostBridgeEventNames.menuCommand,
+        onHostMenuCommand as EventListener,
+      );
   }, [runHostCommand]);
 
   const captureStatusLabel = captureStatusQuery.data?.isRecording
