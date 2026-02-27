@@ -268,6 +268,9 @@ describe("engine protocol", () => {
     expect(captureStatus.telemetry.sourceDroppedFrames).toBe(0);
     expect(captureStatus.telemetry.writerDroppedFrames).toBe(0);
     expect(captureStatus.telemetry.achievedFps).toBe(0);
+    expect(captureStatus.telemetry.cpuPercent).toBeNull();
+    expect(captureStatus.telemetry.memoryBytes).toBeNull();
+    expect(captureStatus.telemetry.recordingBitrateMbps).toBeNull();
     expect(captureStatus.captureMetadata).toBeNull();
   });
 

@@ -8,6 +8,7 @@ import Electrobun, {
 } from "electrobun/bun";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
+import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import { EngineClient } from "../engine/client";
 import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
 import { extractMenuAction } from "../menu/actions";
@@ -34,6 +35,9 @@ let hostMenuState: HostMenuState = {
   densityMode: "comfortable",
 };
 let currentProjectPath: string | null = null;
+let captureStatusStreamTimer: ReturnType<typeof setTimeout> | null = null;
+let captureStatusStreamInFlight = false;
+let captureStatusStreamEnabled = false;
 
 async function getMainViewURL(): Promise<string> {
   const channel = await Updater.localInfo.channel();
@@ -157,6 +161,66 @@ function dispatchHostCommand(command: HostMenuCommand) {
   }
 }
 
+function captureStatusStreamInterval(status: CaptureStatusResult): number {
+  if (status.isRecording) {
+    return 250;
+  }
+  if (status.isRunning) {
+    return 500;
+  }
+  return 1000;
+}
+
+function stopCaptureStatusStream() {
+  captureStatusStreamEnabled = false;
+  if (captureStatusStreamTimer) {
+    clearTimeout(captureStatusStreamTimer);
+    captureStatusStreamTimer = null;
+  }
+}
+
+function scheduleCaptureStatusStreamTick(delayMs: number) {
+  if (!captureStatusStreamEnabled) {
+    return;
+  }
+  stopCaptureStatusStream();
+  captureStatusStreamEnabled = true;
+  captureStatusStreamTimer = setTimeout(() => {
+    void runCaptureStatusStreamTick();
+  }, delayMs);
+}
+
+async function runCaptureStatusStreamTick() {
+  if (!captureStatusStreamEnabled) {
+    return;
+  }
+  if (captureStatusStreamInFlight) {
+    scheduleCaptureStatusStreamTick(250);
+    return;
+  }
+
+  if (!mainWindow) {
+    scheduleCaptureStatusStreamTick(500);
+    return;
+  }
+
+  captureStatusStreamInFlight = true;
+  let nextDelay = 1000;
+  try {
+    const captureStatus = await engineClient.captureStatus();
+    nextDelay = captureStatusStreamInterval(captureStatus);
+    mainWindow.webview.rpc?.send.hostCaptureStatus({ captureStatus });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`capture status stream tick failed: ${message}`);
+  } finally {
+    captureStatusStreamInFlight = false;
+    if (captureStatusStreamEnabled) {
+      scheduleCaptureStatusStreamTick(nextDelay);
+    }
+  }
+}
+
 function handleShellAction(action: string) {
   routeMenuAction(action, {
     dispatchHostCommand,
@@ -212,6 +276,9 @@ mainWindow = new BrowserWindow({
   },
 });
 
+captureStatusStreamEnabled = true;
+scheduleCaptureStatusStreamTick(0);
+
 setTimeout(() => {
   applyShellMenus();
 }, 500);
@@ -225,6 +292,8 @@ Electrobun.events.on("application-menu-clicked", (event: unknown) => {
 });
 
 mainWindow.on("close", async () => {
+  stopCaptureStatusStream();
+  mainWindow = null;
   linuxTray?.remove();
   linuxTray = null;
   mediaServer.stop();

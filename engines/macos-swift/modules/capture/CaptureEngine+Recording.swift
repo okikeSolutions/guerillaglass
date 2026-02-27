@@ -127,6 +127,12 @@ public extension CaptureEngine {
         }
     }
 
+    func activeRecordingOutputURL() -> URL? {
+        recordingQueue.sync {
+            recordingState.isRecording ? recordingState.outputURL : nil
+        }
+    }
+
     internal func handleAudioBuffer(_ buffer: AVAudioPCMBuffer, time: AVAudioTime) {
         recordAudioLevel(Self.audioLevelDbfs(for: buffer))
         recordingQueue.async { [weak self] in

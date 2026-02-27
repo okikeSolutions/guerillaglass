@@ -61,6 +61,9 @@ public final class CaptureEngine: NSObject, ObservableObject {
         public let writerBackpressureDrops: Int
         public let writerDroppedFramePercent: Double
         public let achievedFps: Double
+        public let cpuPercent: Double?
+        public let memoryBytes: UInt64?
+        public let recordingBitrateMbps: Double?
         public let audioLevelDbfs: Double?
     }
 

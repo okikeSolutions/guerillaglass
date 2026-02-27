@@ -4,7 +4,12 @@ import ScreenCaptureKit
 
 extension CaptureEngine {
     public func telemetrySnapshot() -> CaptureTelemetrySnapshot {
-        telemetryStore.snapshot()
+        let recordingOutputURL = activeRecordingOutputURL() ?? recordingURL
+        return telemetryStore.snapshot(
+            recordingOutputURL: recordingOutputURL,
+            recordingDurationSeconds: recordingDuration,
+            isCaptureActive: isRunning || isRecording
+        )
     }
 
     func resetTelemetry() {
