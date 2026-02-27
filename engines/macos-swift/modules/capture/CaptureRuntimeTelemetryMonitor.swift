@@ -75,12 +75,10 @@ final class CaptureRuntimeTelemetryMonitor {
         let rawPercent = (deltaCPU / deltaUptime) * 100
         let maxPercent = Double(max(1, ProcessInfo.processInfo.activeProcessorCount)) * 100
         let clampedRawPercent = min(maxPercent, max(0, rawPercent))
-        let nextCPUPercent: Double
-        if let smoothedCPUPercent {
-            nextCPUPercent =
-                smoothedCPUPercent + (clampedRawPercent - smoothedCPUPercent) * cpuSmoothingFactor
+        let nextCPUPercent: Double = if let smoothedCPUPercent {
+            smoothedCPUPercent + (clampedRawPercent - smoothedCPUPercent) * cpuSmoothingFactor
         } else {
-            nextCPUPercent = clampedRawPercent
+            clampedRawPercent
         }
         smoothedCPUPercent = nextCPUPercent
         return nextCPUPercent
@@ -99,19 +97,20 @@ final class CaptureRuntimeTelemetryMonitor {
             return nil
         }
 
-        let rawBitrateMbps: Double? = if
+        let rawBitrateMbps: Double?
+        if
             let previousSampleUptimeSeconds,
             let previousOutputBytes
         {
             let deltaUptime = uptimeSeconds - previousSampleUptimeSeconds
             let deltaBytes = currentOutputBytes - previousOutputBytes
             if deltaUptime > 0, deltaBytes >= 0 {
-                (deltaBytes * 8 / deltaUptime) / 1_000_000
+                rawBitrateMbps = (deltaBytes * 8 / deltaUptime) / 1_000_000
             } else {
-                nil
+                rawBitrateMbps = nil
             }
         } else {
-            (currentOutputBytes * 8 / recordingDurationSeconds) / 1_000_000
+            rawBitrateMbps = (currentOutputBytes * 8 / recordingDurationSeconds) / 1_000_000
         }
 
         guard let rawBitrateMbps else {
@@ -119,12 +118,10 @@ final class CaptureRuntimeTelemetryMonitor {
         }
 
         let clampedRawBitrate = max(0, rawBitrateMbps)
-        let nextBitrateMbps: Double
-        if let smoothedBitrateMbps {
-            nextBitrateMbps =
-                smoothedBitrateMbps + (clampedRawBitrate - smoothedBitrateMbps) * bitrateSmoothingFactor
+        let nextBitrateMbps: Double = if let smoothedBitrateMbps {
+            smoothedBitrateMbps + (clampedRawBitrate - smoothedBitrateMbps) * bitrateSmoothingFactor
         } else {
-            nextBitrateMbps = clampedRawBitrate
+            clampedRawBitrate
         }
         smoothedBitrateMbps = nextBitrateMbps
         return nextBitrateMbps
