@@ -147,6 +147,9 @@ Playback transport hardening (current):
   - `writerBackpressureDrops`
   - `writerDroppedFramePercent`
   - `achievedFps`
+  - `cpuPercent` (`null` when unavailable)
+  - `memoryBytes` (`null` when unavailable)
+  - `recordingBitrateMbps` (`null` when unavailable)
   - `audioLevelDbfs` (`null` when unavailable)
   - `health` (`good` | `warning` | `critical`)
   - `healthReason` (`engine_error` | `high_dropped_frame_rate` | `elevated_dropped_frame_rate` | `low_microphone_level` | `null`)
@@ -158,6 +161,15 @@ Protocol compatibility policy for `capture.status`:
 - Additive fields must be optional/derivable in the renderer.
 - Renderer parsing defaults missing `telemetry` to a neutral payload so older engines do not break UI.
 - Engines should emit explicit `null` for unavailable telemetry fields instead of omitting keys.
+
+Telemetry delivery model for desktop shell:
+
+- Native engine remains the source of truth for runtime telemetry fields (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `audioLevelDbfs`) returned by `capture.status`.
+- Bun host streams status updates to renderer via `hostCaptureStatus` RPC messages (browser event: `gg-host-capture-status`) on adaptive cadence:
+  - `250ms` while recording
+  - `500ms` while capture is running but not recording
+  - `1000ms` while idle
+- Renderer updates React Query cache from the stream and only uses direct `capture.status` fetches for bootstrap and mutation-sync paths.
 
 Capture start requests support runtime capture cadence selection:
 
