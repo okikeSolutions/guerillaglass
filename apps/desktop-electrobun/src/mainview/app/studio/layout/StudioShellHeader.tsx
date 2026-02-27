@@ -1,9 +1,5 @@
 import {
-  Activity,
   AlertTriangle,
-  AudioLines,
-  CircleDot,
-  Clock3,
   ChevronDown,
   HardDriveDownload,
   LayoutPanelTop,
@@ -21,7 +17,6 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import type { CaptureHealthReason } from "@guerillaglass/engine-protocol";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -38,16 +33,11 @@ import {
   type ShortcutDisplayPlatform,
   studioShortcutDisplayTokens,
 } from "../../../../shared/shortcuts";
-import {
-  buildCaptureTelemetryPresentation,
-  buildDroppedFramesTooltip,
-} from "../model/captureTelemetryViewModel";
 import { useStudio } from "../state/StudioProvider";
 import type { StudioLayoutRoute, StudioLocalizedRouteTarget } from "../model/studioLayoutModel";
 import {
   studioBadgeToneClass,
   studioButtonToneClass,
-  studioHealthTone,
   studioIconToneClass,
 } from "../model/studioSemanticTone";
 
@@ -57,14 +47,6 @@ type ModeItem = {
   label: string;
   active: boolean;
   icon: typeof Video;
-};
-
-type HeaderIconBadgeModel = {
-  id: string;
-  tone: Parameters<typeof studioBadgeToneClass>[0];
-  srLabel: string;
-  tooltip: string;
-  icon: ReactNode;
 };
 
 type HeaderIconButtonModel = {
@@ -83,26 +65,6 @@ function modeIconClass(isActive: boolean): string {
     : "gg-button-tone gg-tone-neutral inline-flex size-7 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/80";
 }
 
-function localizeTelemetryHealthReason(
-  reason: CaptureHealthReason | null,
-  studio: ReturnType<typeof useStudio>,
-): string | null {
-  if (reason == null) {
-    return null;
-  }
-
-  switch (reason) {
-    case "engine_error":
-      return studio.ui.helper.healthReasonEngineError;
-    case "high_dropped_frame_rate":
-      return studio.ui.helper.healthReasonHighDroppedFrameRate;
-    case "elevated_dropped_frame_rate":
-      return studio.ui.helper.healthReasonElevatedDroppedFrameRate;
-    case "low_microphone_level":
-      return studio.ui.helper.healthReasonLowMicrophoneLevel;
-  }
-}
-
 function resolveShortcutPlatform(): ShortcutDisplayPlatform | undefined {
   if (typeof navigator === "undefined") {
     return undefined;
@@ -112,35 +74,6 @@ function resolveShortcutPlatform(): ShortcutDisplayPlatform | undefined {
     (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
       navigator.platform ??
       navigator.userAgent,
-  );
-}
-
-function HeaderIconBadge({
-  tone,
-  srLabel,
-  tooltip,
-  children,
-}: {
-  tone: Parameters<typeof studioBadgeToneClass>[0];
-  srLabel: string;
-  tooltip: string;
-  children: ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Badge
-            className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass(tone)}`}
-            variant="outline"
-          />
-        }
-      >
-        {children}
-        <span className="sr-only">{srLabel}</span>
-      </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
   );
 }
 
@@ -206,70 +139,6 @@ export function buildModeItems(
       label: studio.ui.modes.deliver,
       icon: HardDriveDownload,
       active: activeRoute === "/deliver",
-    },
-  ];
-}
-
-export function buildTelemetryBadges(studio: ReturnType<typeof useStudio>): HeaderIconBadgeModel[] {
-  const telemetry = studio.captureStatusQuery.data?.telemetry;
-  const telemetryPresentation = buildCaptureTelemetryPresentation(telemetry, {
-    formatInteger: studio.formatInteger,
-    formatDecimal: studio.formatDecimal,
-  });
-  const telemetryHealth = telemetry?.health ?? "good";
-  const telemetryHealthTone = studioHealthTone(telemetryHealth);
-  const telemetryHealthLabel =
-    telemetryHealth === "critical"
-      ? studio.ui.values.critical
-      : telemetryHealth === "warning"
-        ? studio.ui.values.warning
-        : studio.ui.values.good;
-  const telemetryHealthReason = localizeTelemetryHealthReason(
-    telemetry?.healthReason ?? null,
-    studio,
-  );
-  const telemetryAudioLevel =
-    telemetry?.audioLevelDbfs == null
-      ? "-"
-      : `${studio.formatDecimal(telemetry.audioLevelDbfs)} dBFS`;
-
-  return [
-    {
-      id: "status",
-      tone: "neutral",
-      srLabel: studio.ui.labels.status,
-      tooltip: `${studio.ui.labels.status}: ${studio.captureStatusLabel}`,
-      icon: <CircleDot className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
-    },
-    {
-      id: "duration",
-      tone: "neutral",
-      srLabel: studio.ui.labels.duration,
-      tooltip: `${studio.ui.labels.duration}: ${studio.formatDuration(
-        studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
-      )}`,
-      icon: <Clock3 className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
-    },
-    {
-      id: "dropped-frames",
-      tone: "neutral",
-      srLabel: studio.ui.labels.droppedFrames,
-      tooltip: buildDroppedFramesTooltip(studio.ui.labels, telemetryPresentation),
-      icon: <Activity className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
-    },
-    {
-      id: "audio-level",
-      tone: "neutral",
-      srLabel: studio.ui.labels.audioLevel,
-      tooltip: `${studio.ui.labels.audioLevel}: ${telemetryAudioLevel}`,
-      icon: <AudioLines className={`h-3.5 w-3.5 ${studioIconToneClass("neutral")}`} />,
-    },
-    {
-      id: "health",
-      tone: telemetryHealthTone,
-      srLabel: studio.ui.labels.health,
-      tooltip: `${studio.ui.labels.health}: ${telemetryHealthReason ?? telemetryHealthLabel}`,
-      icon: <ShieldCheck className={`h-3.5 w-3.5 ${studioIconToneClass(telemetryHealthTone)}`} />,
     },
   ];
 }
@@ -360,7 +229,6 @@ export function StudioShellHeader({
   const studio = useStudio();
   const shortcutPlatform = resolveShortcutPlatform();
   const modeItems = buildModeItems(studio, activeRoute);
-  const telemetryBadges = buildTelemetryBadges(studio);
   const utilityActions = buildUtilityActions(studio, shortcutPlatform);
   const isRecording = Boolean(studio.captureStatusQuery.data?.isRecording);
   const permissionTone = studio.permissionsQuery.data?.screenRecordingGranted ? "live" : "error";
@@ -518,19 +386,6 @@ export function StudioShellHeader({
                 </DropdownMenu>
               )}
             </ButtonGroup>
-
-            <div className="gg-toolbar-group flex items-center gap-1 rounded-lg border p-1">
-              {telemetryBadges.map((badge) => (
-                <HeaderIconBadge
-                  key={badge.id}
-                  tone={badge.tone}
-                  srLabel={badge.srLabel}
-                  tooltip={badge.tooltip}
-                >
-                  {badge.icon}
-                </HeaderIconBadge>
-              ))}
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-end">

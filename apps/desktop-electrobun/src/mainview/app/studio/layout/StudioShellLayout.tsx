@@ -8,6 +8,7 @@ import {
   type StudioLayoutRoute,
 } from "../model/studioLayoutModel";
 import { StudioShellHeader } from "./StudioShellHeader";
+import { StudioTechnicalFeedbackStrip } from "./StudioTechnicalFeedbackStrip";
 
 function useStudioLocaleRouteSync({
   activeLocale,
@@ -56,10 +57,11 @@ export function StudioShellLayout() {
   return (
     <div className="h-full overflow-hidden bg-background">
       <div
-        className="gg-shell-frame mx-auto flex h-full max-w-[1780px] flex-col overflow-hidden"
+        className="gg-shell-frame flex h-full w-full flex-col overflow-hidden"
         data-density={studio.densityMode}
       >
         <StudioShellHeader activeLocale={activeLocale} activeRoute={activeRoute} />
+        <StudioTechnicalFeedbackStrip />
 
         {studio.notice ? (
           <Alert

@@ -16,6 +16,10 @@ export const studioLayoutBounds = {
   timelineMinHeightPx: 140,
   timelineMaxHeightPx: 420,
 } as const;
+export const studioCenterPaneMinWidthPx = 560;
+const studioCenterPaneMinimumWidthRatio = 0.7;
+const studioHorizontalResizeHandleCount = 2;
+const studioHorizontalResizeHandleWidthPx = 1;
 
 export const studioLayoutRoutes = ["/capture", "/edit", "/deliver"] as const;
 export const studioDensityModes = ["comfortable", "compact"] as const;
@@ -339,6 +343,107 @@ export function sanitizeStudioLayoutState(
   };
 }
 
+/**
+ * Rebalances persisted side-pane widths for the current viewport so the center pane
+ * keeps a minimum working width on first render.
+ */
+export function rebalanceStudioHorizontalPanesForViewport(
+  layout: Pick<
+    StudioLayoutState,
+    "leftPaneWidthPx" | "rightPaneWidthPx" | "leftCollapsed" | "rightCollapsed"
+  >,
+  viewportWidthPx: number,
+): Pick<StudioLayoutState, "leftPaneWidthPx" | "rightPaneWidthPx"> {
+  if (!Number.isFinite(viewportWidthPx) || viewportWidthPx <= 0) {
+    return {
+      leftPaneWidthPx: layout.leftPaneWidthPx,
+      rightPaneWidthPx: layout.rightPaneWidthPx,
+    };
+  }
+
+  let leftPaneWidthPx = layout.leftCollapsed
+    ? 0
+    : clamp(
+        Math.round(layout.leftPaneWidthPx),
+        studioLayoutBounds.leftPaneMinWidthPx,
+        studioLayoutBounds.leftPaneMaxWidthPx,
+      );
+  let rightPaneWidthPx = layout.rightCollapsed
+    ? 0
+    : clamp(
+        Math.round(layout.rightPaneWidthPx),
+        studioLayoutBounds.rightPaneMinWidthPx,
+        studioLayoutBounds.rightPaneMaxWidthPx,
+      );
+
+  const minimumFeasibleSidePaneWidthPx =
+    (layout.leftCollapsed ? 0 : studioLayoutBounds.leftPaneMinWidthPx) +
+    (layout.rightCollapsed ? 0 : studioLayoutBounds.rightPaneMinWidthPx);
+  const maxSideByAbsoluteCenterWidthPx = Math.max(
+    0,
+    Math.round(viewportWidthPx) -
+      studioCenterPaneMinWidthPx -
+      studioHorizontalResizeHandleCount * studioHorizontalResizeHandleWidthPx,
+  );
+  const maxSideByCenterRatioPx = Math.max(
+    0,
+    Math.round(viewportWidthPx * (1 - studioCenterPaneMinimumWidthRatio)) -
+      studioHorizontalResizeHandleCount * studioHorizontalResizeHandleWidthPx,
+  );
+  const maxSidePaneWidthPx = Math.max(
+    minimumFeasibleSidePaneWidthPx,
+    Math.min(maxSideByAbsoluteCenterWidthPx, maxSideByCenterRatioPx),
+  );
+
+  let overflowPx = leftPaneWidthPx + rightPaneWidthPx - maxSidePaneWidthPx;
+  if (overflowPx <= 0) {
+    return {
+      leftPaneWidthPx,
+      rightPaneWidthPx,
+    };
+  }
+
+  const rightPaneMinWidthPx = layout.rightCollapsed ? 0 : studioLayoutBounds.rightPaneMinWidthPx;
+  const rightPaneReduciblePx = Math.max(0, rightPaneWidthPx - rightPaneMinWidthPx);
+  const shrinkRightPx = Math.min(overflowPx, rightPaneReduciblePx);
+  rightPaneWidthPx -= shrinkRightPx;
+  overflowPx -= shrinkRightPx;
+
+  if (overflowPx > 0) {
+    const leftPaneMinWidthPx = layout.leftCollapsed ? 0 : studioLayoutBounds.leftPaneMinWidthPx;
+    const leftPaneReduciblePx = Math.max(0, leftPaneWidthPx - leftPaneMinWidthPx);
+    const shrinkLeftPx = Math.min(overflowPx, leftPaneReduciblePx);
+    leftPaneWidthPx -= shrinkLeftPx;
+  }
+
+  return {
+    leftPaneWidthPx,
+    rightPaneWidthPx,
+  };
+}
+
+/**
+ * Resolves the effective center-pane minimum width for a specific viewport.
+ * On narrow windows, this scales down so side pane minimums remain satisfiable.
+ */
+export function resolveStudioCenterPaneMinWidthForViewport(viewportWidthPx: number): number {
+  if (!Number.isFinite(viewportWidthPx) || viewportWidthPx <= 0) {
+    return studioCenterPaneMinWidthPx;
+  }
+  const minWidthByRatioPx = Math.round(viewportWidthPx * studioCenterPaneMinimumWidthRatio);
+  const maxFeasibleCenterWidthPx = Math.max(
+    0,
+    Math.round(viewportWidthPx) -
+      studioLayoutBounds.leftPaneMinWidthPx -
+      studioLayoutBounds.rightPaneMinWidthPx -
+      studioHorizontalResizeHandleCount * studioHorizontalResizeHandleWidthPx,
+  );
+  return Math.max(
+    0,
+    Math.min(maxFeasibleCenterWidthPx, Math.max(studioCenterPaneMinWidthPx, minWidthByRatioPx)),
+  );
+}
+
 export function parseStudioLayoutState(raw: string | null | undefined): StudioLayoutState {
   if (!raw) {
     return defaultStudioLayoutState;
@@ -372,7 +477,16 @@ export function loadStudioLayoutState(): StudioLayoutState {
     return defaultStudioLayoutState;
   }
   const raw = storage.getItem(studioLayoutStorageKey);
-  return parseStudioLayoutState(raw);
+  const parsed = parseStudioLayoutState(raw);
+  const viewportWidthPx =
+    typeof window === "undefined" || !Number.isFinite(window.innerWidth) ? null : window.innerWidth;
+  if (!viewportWidthPx || viewportWidthPx <= 0) {
+    return parsed;
+  }
+  return {
+    ...parsed,
+    ...rebalanceStudioHorizontalPanesForViewport(parsed, viewportWidthPx),
+  };
 }
 
 export function saveStudioLayoutState(layout: StudioLayoutState): void {

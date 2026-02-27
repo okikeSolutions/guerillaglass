@@ -2,11 +2,10 @@ import { describe, expect, it } from "bun:test";
 import type { ShortcutDisplayPlatform } from "../src/shared/shortcuts";
 import {
   buildModeItems,
-  buildTelemetryBadges,
   buildUtilityActions,
 } from "../src/mainview/app/studio/layout/StudioShellHeader";
 
-type HeaderStudio = Parameters<typeof buildTelemetryBadges>[0];
+type HeaderStudio = Parameters<typeof buildModeItems>[0];
 
 function createStudioStub(): HeaderStudio {
   return {
@@ -89,22 +88,6 @@ describe("studio shell header builders", () => {
     expect(items).toHaveLength(3);
     expect(items.find((item) => item.route === "/edit")?.active).toBe(true);
     expect(items.find((item) => item.route === "/capture")?.active).toBe(false);
-  });
-
-  it("builds telemetry badges with stable ids and localized health reason", () => {
-    const studio = createStudioStub();
-    const badges = buildTelemetryBadges(studio);
-
-    expect(badges.map((badge) => badge.id)).toEqual([
-      "status",
-      "duration",
-      "dropped-frames",
-      "audio-level",
-      "health",
-    ]);
-    expect(badges.find((badge) => badge.id === "health")?.tooltip).toContain(
-      "Low Microphone Level",
-    );
   });
 
   it("builds utility actions with disabled states based on recording availability", () => {
