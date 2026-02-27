@@ -14,9 +14,9 @@ final class CaptureTelemetryStore {
     private var state = State()
 
     func snapshot(
-        recordingOutputURL: URL?,
-        recordingDurationSeconds: Double,
-        isCaptureActive: Bool
+        recordingOutputURL: URL? = nil,
+        recordingDurationSeconds: Double = 0,
+        isCaptureActive: Bool = false
     ) -> CaptureEngine.CaptureTelemetrySnapshot {
         queue.sync {
             if isCaptureActive {
