@@ -7,5 +7,8 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  ssr: {
+    noExternal: ["@convex-dev/better-auth"],
+  },
   plugins: [tailwindcss(), tanstackStart(), viteReact()],
 });

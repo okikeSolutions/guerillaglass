@@ -7,9 +7,9 @@ Guerilla Glass now follows a hybrid multiplatform architecture with strict local
 1. Desktop shell (`/apps/desktop-electrobun`)
    - Electrobun main process (`src/bun`)
    - React/Tailwind/shadcn UI (`src/mainview`)
-2. Web landing/auth shell (`/apps/web-landing`)
+2. Web app/auth shell (`/apps/web`)
    - TanStack Start frontend routes + marketing/auth entrypoints
-   - Convex deployment root for web review/billing/auth functions (`/apps/web-landing/convex`)
+   - Convex deployment root for web review/billing/auth functions (`/apps/web/convex`)
 3. Native engine (`/engines/macos-swift`)
    - Uses existing Swift capture/render/export modules
    - Exposed as `guerillaglass-engine` executable target

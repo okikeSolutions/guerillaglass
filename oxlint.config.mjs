@@ -8,8 +8,10 @@ export default defineConfig({
     "apps/desktop-electrobun/dist/**",
     "apps/desktop-electrobun/playwright-report/**",
     "apps/desktop-electrobun/test-results/**",
-    "apps/web-landing/convex/_generated/**",
-    "apps/web-landing/src/routeTree.gen.ts",
+    "apps/web/convex/_generated/**",
+    "apps/web/convex/betterAuth/_generated/**",
+    "apps/web/convex/betterAuth/generatedSchema.ts",
+    "apps/web/src/routeTree.gen.ts",
   ],
   rules: {
     "react/exhaustive-deps": "deny",
