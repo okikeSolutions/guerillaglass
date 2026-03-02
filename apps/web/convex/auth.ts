@@ -15,6 +15,14 @@ type AuthRuntimeConfig = {
   trustedOrigins: string[];
 };
 
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required Convex env var: ${name}`);
+  }
+  return value;
+}
+
 function readEnv(name: string): string | null {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -33,24 +41,25 @@ function toOrigin(value: string, source: string): string {
 
 function parseTrustedOrigins(siteUrl: string): string[] {
   const configuredOrigins = readEnv("BETTER_AUTH_TRUSTED_ORIGINS");
-  const origins = new Set<string>([toOrigin(siteUrl, "SITE_URL"), "http://localhost:3000"]);
-  if (!configuredOrigins) {
-    return [...origins];
+  const origins = new Set<string>([toOrigin(siteUrl, "SITE_URL")]);
+  if (process.env.NODE_ENV !== "production") {
+    origins.add("http://localhost:3000");
   }
-  for (const rawOrigin of configuredOrigins.split(",")) {
-    const candidate = rawOrigin.trim();
-    if (!candidate) {
-      continue;
+  if (configuredOrigins) {
+    for (const rawOrigin of configuredOrigins.split(",")) {
+      const candidate = rawOrigin.trim();
+      if (!candidate) {
+        continue;
+      }
+      origins.add(toOrigin(candidate, "BETTER_AUTH_TRUSTED_ORIGINS"));
     }
-    origins.add(toOrigin(candidate, "BETTER_AUTH_TRUSTED_ORIGINS"));
   }
   return [...origins];
 }
 
 function loadAuthRuntimeConfig(): AuthRuntimeConfig {
-  const siteUrl = readEnv("SITE_URL") ?? "http://localhost:3000";
-  const betterAuthSecret =
-    readEnv("BETTER_AUTH_SECRET") ?? "development-only-better-auth-secret-change-me";
+  const siteUrl = requireEnv("SITE_URL");
+  const betterAuthSecret = requireEnv("BETTER_AUTH_SECRET");
   return {
     betterAuthSecret,
     siteUrl,
