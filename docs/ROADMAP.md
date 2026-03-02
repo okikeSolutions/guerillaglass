@@ -88,12 +88,61 @@ Creator Studio pro-UI parity backlog (next pass):
   - Implementation notes:
     - Runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) are sampled in the native capture engine telemetry store and emitted through `capture.status`.
     - Desktop shell streams `capture.status` updates from Bun host to renderer (`hostCaptureStatus` / `gg-host-capture-status`) with adaptive cadence; renderer cache is stream-fed instead of 250ms query polling.
-- Phase C — Docking architecture
-  - [ ] Implement true docking (tear-off/floating panels, drag/snap docking zones, saved workspace presets: `Edit`, `Color`, `Audio`, `Stream`).
 
 ---
 
-## 3) Phased delivery execution status
+## 3) Deliver review acceleration track (Convex plane)
+
+Reference requirements: `docs/SPEC.md` §7.8 and §16
+
+This track adds async review collaboration in `Deliver` while preserving local-first `Capture` and `Edit`.
+
+Contract and architecture checklist:
+
+- [ ] Add planned review contract package scaffold (`packages/review-protocol`) with Zod schemas + fixtures for share/comment/presence payloads.
+- [ ] Keep `packages/engine-protocol` focused on local native media operations (no review-specific method leakage).
+- [ ] Add bridge request/message schema for review RPC and review realtime events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
+- [ ] Define feature flag gate (`GG_REVIEW_ENABLE_CONVEX`) and fail-open behavior to local-only workflow.
+
+Authentication and access-control checklist:
+
+- [ ] Integrate Better Auth as the canonical authentication layer for desktop product access.
+- [ ] Implement Convex auth configuration and identity validation for protected review/collaboration functions.
+- [ ] Enforce account-gated Creator Studio routes in product mode (`Capture`, `Edit`, `Deliver`).
+- [ ] Enforce role-aware authorization (`owner`, `admin`, `member`, `viewer`) across review domains.
+- [ ] Remove/avoid Clerk dependencies in cloud review/collab surfaces.
+- [ ] Add audit attribution for review mutations (actor identity + timestamp).
+- [ ] Implement against Convex Labs Better Auth React guide (`framework-guides/react`) as canonical wiring baseline.
+- [ ] Add `@convex-dev/better-auth` component wiring (`convex.config.ts`, `auth.config.ts`, `auth.ts`, `http.ts`).
+- [ ] Enforce dependency baseline: `convex >= 1.25.0` and `better-auth@1.4.9` pinned exactly until compatibility matrix update.
+- [ ] Add renderer auth client wiring (`better-auth/react` + Convex client plugins + `ConvexBetterAuthProvider` with account-gated mode).
+- [ ] Validate required environment variables and startup errors for missing auth config.
+- [ ] Configure Better Auth `trustedOrigins` and provider callbacks against Convex site auth routes.
+
+Lawn-adapted performance checklist:
+
+- [ ] Implement intent-based review route prewarm (`hover`/`focus`/`touch`) with debounce/dedupe/subscription-extension defaults.
+- [ ] Add media-origin warmup strategy (`preconnect`, `dns-prefetch`, runtime prefetch, manifest prefetch) for review playback routes.
+- [ ] Ensure warmups remain best-effort and never block route transitions.
+- [ ] Add playback source fallback policy for review (`processed stream -> original source`).
+
+Review workflow checklist:
+
+- [ ] Implement link sharing controls (expiry, optional password, download policy, access grants).
+- [ ] Implement frame/time-accurate threaded comments with resolved state.
+- [ ] Implement watcher presence heartbeats + disconnect handling.
+- [ ] Implement review workflow status model (`review`, `rework`, `done`) in Deliver surfaces.
+
+Upload/transcode and reliability checklist:
+
+- [ ] Implement signed upload flow + upload completion validation.
+- [ ] Implement transcode readiness reconciliation via verified webhooks.
+- [ ] Add idempotent error handling + retry-safe state transitions for upload/transcode lifecycle.
+- [ ] Instrument review perceived-latency SLOs and expose regression checks.
+
+---
+
+## 4) Phased delivery execution status
 
 Reference scope: `docs/SPEC.md` §18
 
@@ -164,6 +213,28 @@ Progress (current repo)
 - [ ] Linux native capture/audio/export parity milestones
 - [ ] Localization updated for Phase 2 UI
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
+
+**Phase 2.5 — Deliver review acceleration (cloud plane)**
+
+- Better Auth + Convex auth integration for account-gated product access
+- Convex-backed review control plane (`share`, `comments`, `presence`, review status metadata)
+- Contract split implementation (`packages/review-protocol`) without expanding native engine media scope
+- Async upload/transcode orchestration with webhook reconciliation for review playback readiness
+- Deliver-route intent prewarm and media warmup patterns for perceived-latency wins
+- Feature-flagged rollout with local-only fallback preserved
+
+Progress (current repo)
+
+- [ ] Review contract package scaffolded with fixtures and validation
+- [ ] Desktop bridge review RPC/events added behind feature flag
+- [ ] Better Auth session flows wired for account-gated workspace access
+- [ ] Convex auth enforcement wired for protected review/collab functions
+- [ ] Share-link access controls + grants implemented
+- [ ] Threaded frame/time comments implemented in Deliver review UI
+- [ ] Presence heartbeat/watcher flow implemented
+- [ ] Upload/transcode webhook reconciliation wired for review readiness
+- [ ] Review-route warmup and playback fallback policy implemented
+- [ ] Review SLO instrumentation + regression checks added
 
 **Phase 3 — Polish**
 

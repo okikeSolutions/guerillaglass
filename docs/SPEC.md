@@ -24,6 +24,7 @@ Guerilla Glass should feel like a professional creator tool:
 - Fast record entry and reliable source/audio control (OBS-style operational capture discipline)
 - Viewer/timeline/inspector-first editing ergonomics (Final Cut/Resolve-style workstation flow)
 - Automatic polish with manual override (Screen Studio-style cinematic defaults)
+- Async review workflow in `Deliver` (frame-accurate comments, link sharing, presence) without moving capture/edit off native-local execution.
 
 ---
 
@@ -59,7 +60,9 @@ Guerilla Glass should feel like a professional creator tool:
 ## 3) Non-goals (v1)
 
 - Live streaming (RTMP)
-- Cloud sync/collaboration
+- Cloud-first capture/edit dependency (capture/edit/export must not require network services)
+- Full cloud timeline collaboration suite
+- Anonymous cloud review/collaboration access
 - Full NLE feature set
 
 ---
@@ -76,6 +79,12 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.startCurrentWindow` resolves the active frontmost shareable window in the engine, so renderer menu actions do not have to infer "current" from cached source ordering.
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Additive protocol evolution rule: new response fields should be optional or renderer-derivable so older engines remain compatible during rollout.
+- **Review control plane (Phase 2.5+):** Convex query/mutation/action layer for review workflows (`shareLinks`, `comments`, `presence`, review statuses) and webhook-driven media state reconciliation.
+- **Contract split:** local media RPC stays in `packages/engine-protocol`; cloud review surfaces should use a separate contract package (`packages/review-protocol`, planned) so capture/edit/export methods remain clean and deterministic.
+- **Authentication stack (Phase 2.5+):**
+  - Better Auth is the canonical identity/session provider for product access.
+  - Convex auth configuration validates Better Auth-issued identity tokens for cloud review/collaboration functions.
+  - Clerk is not part of the Guerilla Glass authentication architecture.
 - **Native engines (per platform):**
   - macOS: Swift sidecar (`engines/macos-swift`) as current production capture/export path
   - Shared Rust native foundation: `engines/native-foundation` (runtime + protocol parity handlers reused by Windows/Linux sidecars)
@@ -141,6 +150,9 @@ Notes:
 - Cross-platform parity via a shared protocol contract
 - Explicit determinism contract
 - Native-feeling UX per platform (HIG/OS conventions) and top-tier performance
+- Dual-plane architecture: local media plane (authoritative) + cloud review plane
+- Cloud review must fail open; local capture/edit/export remain available offline
+- Account-scoped collaboration: review/collab data must be tied to authenticated identities
 
 ---
 
@@ -345,6 +357,78 @@ Artifact contract (project-relative paths):
 - `analysis/cut-plan.v1.json`
 - `analysis/run-summary.v1.json`
 
+### 7.8 Deliver Review (cloud plane)
+
+Goal:
+
+- Add an async review layer in `Deliver` while preserving the existing local `Capture -> Edit -> Deliver (final export)` workflow as the default production path.
+
+Scope (Phase 2.5+):
+
+- Link-based review sharing with access controls (expiry, optional password, download policy).
+- Frame/time-accurate comments with threaded replies and resolved state.
+- Watcher presence and lightweight collaborator awareness for active review sessions.
+- Review workflow states (`review`, `rework`, `done`) separate from edit timeline state.
+- Async upload/transcode orchestration (direct upload + webhook status reconciliation) so UI stays responsive.
+- Playback source fallback policy (processed stream preferred when ready; original source fallback when unavailable).
+
+Performance patterns adapted from the Lawn reference implementation:
+
+- Intent-based route prewarm for likely next queries (`hover`/`focus`/`touch`) with debounce + dedupe + short-lived subscription extension.
+- Media network warmups (`preconnect`/`dns-prefetch`) for streaming origins.
+- Best-effort runtime and manifest prefetch for streamed playback paths.
+- Warmups must never block navigation or local editing actions.
+
+Hard boundaries:
+
+- Convex/network paths are not allowed to gate `Capture`, `Edit`, or deterministic `Export`.
+- Native engine protocol remains focused on local media compute and project determinism.
+- Review data is additive metadata, not the source of truth for timeline edits or render determinism.
+- Review/collaboration mutations and protected reads require authenticated user identity.
+
+### 7.9 Authentication & access control
+
+Identity and session policy:
+
+- Better Auth is the required authentication system for product access.
+- All cloud review and collaboration capabilities require logged-in users.
+- The Creator Studio workspace (`Capture`, `Edit`, `Deliver`) is account-gated in product mode; unauthenticated users are limited to auth/onboarding screens.
+- Existing authenticated sessions may continue local capture/edit/export during temporary network outages; new sign-in is required when session validity expires.
+- Implementation baseline follows the Convex Labs React integration guide for Better Auth (`framework-guides/react`) with these required constraints:
+  - `convex` version `>= 1.25.0`.
+  - `better-auth` pinned to `1.4.9` (`--save-exact`) until compatibility is revalidated and documented.
+
+Authorization policy:
+
+- Convex public functions must validate identity on every protected request before data access.
+- Team/project/video resources enforce role-aware access (`owner`, `admin`, `member`, `viewer`) for reads and mutations.
+- Share links and access grants are secondary authorization layers and do not replace identity requirements for collaboration actions.
+- Audit attribution (actor identity + timestamp) is required for cloud review mutations (comments, review status changes, link administration).
+
+Required integration artifacts (Phase 2.5 baseline):
+
+- Dependency baseline:
+  - `@convex-dev/better-auth` installed in the desktop shell workspace.
+  - `convex@latest` with runtime validation that installed version satisfies `>= 1.25.0`.
+  - `better-auth@1.4.9` pinned exactly.
+- Convex component registration:
+  - `convex/convex.config.ts` uses `@convex-dev/better-auth/convex.config`.
+- Convex auth provider wiring:
+  - `convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
+- Better Auth server instance:
+  - `convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`crossDomain`, `convex`).
+  - `trustedOrigins` must include product web origin(s) and local dev origin(s).
+- Better Auth HTTP handlers:
+  - `convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
+- Renderer auth client:
+  - `auth-client` uses `better-auth/react` with Convex client plugins (`convexClient`, `crossDomainClient`).
+- Renderer provider:
+  - App root wraps with `ConvexBetterAuthProvider`; Convex client should use `expectAuth: true` for account-gated product mode.
+- Environment baseline:
+  - Convex env: `BETTER_AUTH_SECRET`, `SITE_URL`.
+  - Renderer env: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_SITE_URL`.
+  - For social auth providers, redirect/callback URLs must use the Convex site domain (`https://<deployment>.convex.site/api/auth/callback/<provider>`).
+
 ---
 
 ## 8) Permissions & fallbacks
@@ -397,6 +481,7 @@ Fallback behavior:
   - Same OS version
   - Same color space (SDR only in v1)
   - Same Metal feature set
+- Cloud review metadata does not participate in render determinism; determinism scope remains local pre-encode frame output.
 
 ---
 
@@ -407,6 +492,11 @@ Fallback behavior:
   - Avg CPU ≤ 20% (excluding encode spikes)
 - Export (1080p/60):
   - ≤ 1.5× realtime (target, not hard requirement)
+- Deliver review (target values):
+  - Review shell route transition remains interactive without blocking on media readiness.
+  - Intent prewarm defaults start at ~120ms debounce, ~3s dedupe, and ~8s subscription extension (tunable via instrumentation).
+  - Playback startup should fall back to the original source if processed stream readiness is delayed.
+  - Comment and presence updates should propagate in near-realtime (target p50 sub-second delivery).
 
 ---
 
@@ -498,6 +588,9 @@ Versioning policy:
 6. Automation Planner (virtual camera)
 7. Renderer / Compositor
 8. Export Pipeline
+9. Review Control Plane (Convex domain model: teams/projects/videos/comments/share/presence)
+10. Upload & Transcode Orchestrator (signed uploads, processing state machine, webhook reconciliation)
+11. Review Contract Layer (planned `packages/review-protocol` for host/renderer/cloud payload schemas)
 
 Desktop shell and sidecar reliability contract (current):
 
@@ -505,6 +598,7 @@ Desktop shell and sidecar reliability contract (current):
 - Request timeout policy is method-specific; `export.run` is non-timed by default to avoid aborting valid long exports.
 - Automatic retries are limited to read-only methods and transport failures.
 - Repeated crash loops open a restart circuit for a cooldown window before restart attempts resume.
+- Review-control failures must degrade to local-only workflow (no capture/edit/export interruption).
 
 ---
 
@@ -553,6 +647,9 @@ guerillaglass/
 │  ├─ engine-protocol/
 │     ├─ src/
 │     └─ fixtures/
+│  ├─ review-protocol/ (planned)
+│  │  ├─ src/
+│  │  └─ fixtures/
 │  └─ localization/
 │     └─ src/
 ├─ engines/
@@ -611,6 +708,14 @@ guerillaglass/
 - Windows/Linux native engine parity expansion (capture/audio/export protocol coverage)
 - Localization: add/refresh localized strings for all new UI and errors
 - Post‑localization polish audit (UI/UX, performance, accessibility)
+
+**Phase 2.5 — Deliver review acceleration (cloud plane)**
+
+- Convex-backed review control plane (`share`, `comments`, `presence`, review status metadata)
+- Contract split implementation (`packages/review-protocol`) without expanding native engine media scope
+- Async upload/transcode orchestration with webhook reconciliation for review playback readiness
+- Deliver-route intent prewarm and media warmup patterns for perceived-latency wins
+- Feature-flagged rollout with local-only fallback preserved
 
 **Phase 3 — Polish**
 
@@ -715,7 +820,13 @@ License hygiene:
 - Gannon Lawlor: Input Monitoring & AX trust checks — https://gannonlawlor.com/2022/07/02/accessing-mouse-events-on-macos/
 - macOS Sequoia screen recording re‑authorization prompt (reports) — https://www.macrumors.com/2024/08/15/macos-sequoia-screen-recording-app-permissions/
 - macOS Sequoia prompt details (reports) — https://9to5mac.com/2024/08/14/macos-sequoia-screen-recording-prompt-monthly/
+- Better Auth docs — https://www.better-auth.com/docs
+- Convex React docs — https://docs.convex.dev/client/react
+- Convex React quickstart — https://docs.convex.dev/quickstart/react
+- Convex authentication docs — https://docs.convex.dev/auth
+- Convex Labs Better Auth React guide — https://labs.convex.dev/better-auth/framework-guides/react
 - Screen Studio product site — https://screen.studio/
+- lawn pricing/product site — https://lawn.video/#pricing
 - DaVinci Resolve product page — https://www.blackmagicdesign.com/products/davinciresolve
 - Final Cut Pro user guide (interface/workflow) — https://support.apple.com/guide/final-cut-pro/final-cut-pro-interface-ver92bd100a/mac
 - OBS knowledge base (sources/workflow) — https://obsproject.com/kb/sources-guide
