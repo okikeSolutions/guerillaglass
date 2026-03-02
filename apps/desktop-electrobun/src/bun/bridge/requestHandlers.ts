@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import type {
+  ReviewBridgeEvent,
   ReviewComment,
   ReviewSessionSnapshot,
   ReviewSetWorkflowStatusResponse,
@@ -19,6 +20,7 @@ type BridgeHandlerDependencies = {
   readTextFile: (filePath: string) => Promise<string>;
   resolveMediaSourceURL: (filePath: string) => Promise<string>;
   setCurrentProjectPath: (projectPath: string | null) => void;
+  emitReviewEvent: (event: ReviewBridgeEvent) => void;
 };
 
 const reviewSessionSnapshotQuery = makeFunctionReference<
@@ -120,6 +122,7 @@ export function createEngineBridgeHandlers({
   readTextFile,
   resolveMediaSourceURL,
   setCurrentProjectPath,
+  emitReviewEvent,
 }: BridgeHandlerDependencies): BridgeRequestHandlerMap {
   let reviewGateway: ReviewGateway | null = null;
 
@@ -177,8 +180,26 @@ export function createEngineBridgeHandlers({
     ggEngineProjectRecents: async ({ limit }) => engineClient.projectRecents(limit),
     ggReviewSessionSnapshot: async ({ reviewId }) =>
       requireReviewGateway().sessionSnapshot(reviewId),
-    ggReviewCreateComment: async (params) => requireReviewGateway().createComment(params),
-    ggReviewSetWorkflowStatus: async (params) => requireReviewGateway().setWorkflowStatus(params),
+    ggReviewCreateComment: async (params) => {
+      const comment = await requireReviewGateway().createComment(params);
+      emitReviewEvent({
+        type: "comment.created",
+        reviewId: comment.reviewId,
+        comment,
+        emittedAt: new Date().toISOString(),
+      });
+      return comment;
+    },
+    ggReviewSetWorkflowStatus: async (params) => {
+      const response = await requireReviewGateway().setWorkflowStatus(params);
+      emitReviewEvent({
+        type: "workflow.statusChanged",
+        reviewId: response.reviewId,
+        status: response.status,
+        emittedAt: response.updatedAt,
+      });
+      return response;
+    },
     ggPickPath: async ({ mode, startingFolder }) => pickPath({ mode, startingFolder }),
     ggReadTextFile: async ({ filePath }) => readTextFile(filePath),
     ggResolveMediaSourceURL: async ({ filePath }) => {
