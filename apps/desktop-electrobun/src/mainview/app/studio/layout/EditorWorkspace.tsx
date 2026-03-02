@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@guerillaglass/ui/ui/resizable";
 import { studioLayoutBounds } from "../model/studioLayoutModel";
 import { useEditorWorkspaceLayout } from "../hooks/useEditorWorkspaceLayout";
 

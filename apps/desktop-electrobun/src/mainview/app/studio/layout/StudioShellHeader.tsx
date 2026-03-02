@@ -17,17 +17,22 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
+import { Badge } from "@guerillaglass/ui/ui/badge";
+import { Button } from "@guerillaglass/ui/ui/button";
+import { ButtonGroup } from "@guerillaglass/ui/ui/button-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ShortcutHint } from "@/components/ui/shortcut-hint";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+} from "@guerillaglass/ui/ui/dropdown-menu";
+import { ShortcutHint } from "@guerillaglass/ui/desktop/shortcut-hint";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@guerillaglass/ui/ui/tooltip";
 import {
   normalizeShortcutDisplayPlatform,
   type ShortcutDisplayPlatform,

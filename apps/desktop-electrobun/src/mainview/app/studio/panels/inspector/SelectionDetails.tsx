@@ -1,6 +1,6 @@
 import type { StudioController } from "../../hooks/core/useStudioController";
 import type { InspectorSelection } from "../../model/inspectorSelectionModel";
-import { Button } from "@/components/ui/button";
+import { Button } from "@guerillaglass/ui/ui/button";
 import { InspectorDetailRows, InspectorSection } from "./InspectorPrimitives";
 
 type SelectionDetailsStudio = Pick<

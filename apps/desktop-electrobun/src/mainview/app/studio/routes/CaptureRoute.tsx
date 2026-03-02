@@ -1,13 +1,17 @@
 import { ChevronRight, ScreenShare, ShieldCheck } from "lucide-react";
 import { type ReactNode } from "react";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AspectRatio } from "@guerillaglass/ui/ui/aspect-ratio";
+import { Button } from "@guerillaglass/ui/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@guerillaglass/ui/ui/collapsible";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@guerillaglass/ui/ui/empty";
+import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/ui/field";
+import { Label } from "@guerillaglass/ui/ui/label";
+import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@guerillaglass/ui/ui/radio-group";
 import { engineApi } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../state/StudioProvider";

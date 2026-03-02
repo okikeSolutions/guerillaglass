@@ -1,10 +1,14 @@
 import { ChevronRight, HardDriveDownload } from "lucide-react";
 import { type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Button } from "@guerillaglass/ui/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@guerillaglass/ui/ui/collapsible";
+import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/ui/field";
+import { Input } from "@guerillaglass/ui/ui/input";
+import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/ui/native-select";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
