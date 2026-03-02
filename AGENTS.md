@@ -12,8 +12,8 @@
 - **Desktop shell (new):** `apps/desktop-electrobun/` — Electrobun main process, React/Tailwind UI, shadcn base components.
 - **Desktop shell bridge:** `apps/desktop-electrobun/src/bun/` — Electrobun `BrowserWindow` setup and native engine bridge.
 - **Desktop shell UI:** `apps/desktop-electrobun/src/mainview/` — React app (`App.tsx`), UI components, styling.
-- **Landing app (new):** `apps/web-landing/` — TanStack Start marketing/auth shell with Convex client wiring.
-- **Landing Convex backend (new):** `apps/web-landing/convex/` — Convex schema/functions for web auth/review/billing surfaces.
+- **Web app (new):** `apps/web/` — TanStack Start marketing/auth shell with Convex client wiring.
+- **Web Convex backend (new):** `apps/web/convex/` — Convex schema/functions for web auth/review/billing surfaces.
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
 - **Review protocol (new):** `packages/review-protocol/` — Zod schemas + TypeScript types for review bridge requests/events.
 - **Localization (new):** `packages/localization/` — shared locale dictionaries + helpers consumed by renderer UI and desktop shell menus.
@@ -55,9 +55,9 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **Desktop shell dev:** `bun run desktop:dev`
 - **Desktop shell dev fallback (macOS app open):** `bun run desktop:dev:open`
 - **Desktop shell dev with HMR:** `bun run desktop:dev:hmr`
-- **Landing app dev (TanStack Start + Convex):** `bun run landing:dev`
-- **Landing app build:** `bun run landing:build`
-- **Landing app typecheck:** `bun run landing:typecheck`
+- **Web app dev (TanStack Start + Convex):** `bun run web:dev`
+- **Web app build:** `bun run web:build`
+- **Web app typecheck:** `bun run web:typecheck`
 - **Desktop shell (Windows native):** `bun run desktop:dev:windows-native`
 - **Desktop shell (Linux native):** `bun run desktop:dev:linux-native`
 - **Desktop shell (Windows stub):** `bun run desktop:dev:windows-stub`

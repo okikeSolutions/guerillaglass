@@ -70,7 +70,7 @@ Guerilla Glass should feel like a professional creator tool:
 ## 4) Platform & stack
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
-- **Web landing/auth shell:** TanStack Start + Convex (`apps/web-landing`)
+- **Web app/auth shell:** TanStack Start + Convex (`apps/web`)
 - **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
   - `capture.status` telemetry emits machine-stable reason codes (`engine_error`, `high_dropped_frame_rate`, `elevated_dropped_frame_rate`, `low_microphone_level`); renderer localizes these codes for UI.
   - `capture.status` telemetry includes aggregate and channel-specific performance metrics (`sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`) plus runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) for capture diagnostics.
@@ -414,18 +414,18 @@ Authorization policy:
 Required integration artifacts (Phase 2.5 baseline):
 
 - Dependency baseline:
-  - `@convex-dev/better-auth` installed in the web landing/auth workspace (`apps/web-landing`).
+  - `@convex-dev/better-auth` installed in the web auth workspace (`apps/web`).
   - `convex@latest` with runtime validation that installed version satisfies `>= 1.25.0`.
   - `better-auth@1.4.9` pinned exactly.
 - Convex component registration:
-  - `apps/web-landing/convex/convex.config.ts` uses `@convex-dev/better-auth/convex.config`.
+  - `apps/web/convex/convex.config.ts` uses `@convex-dev/better-auth/convex.config`.
 - Convex auth provider wiring:
-  - `apps/web-landing/convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
+  - `apps/web/convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
 - Better Auth server instance:
-  - `apps/web-landing/convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`crossDomain`, `convex`).
+  - `apps/web/convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`crossDomain`, `convex`).
   - `trustedOrigins` must include product web origin(s) and local dev origin(s).
 - Better Auth HTTP handlers:
-  - `apps/web-landing/convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
+  - `apps/web/convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
 - Renderer auth client:
   - `auth-client` uses `better-auth/react` with Convex client plugins (`convexClient`, `crossDomainClient`).
 - Renderer provider:
@@ -446,11 +446,11 @@ Billing policy:
 Billing integration baseline (Phase 2.6):
 
 - Component registration:
-  - `apps/web-landing/convex/convex.config.ts` registers `@convex-dev/stripe/convex.config.js`.
+  - `apps/web/convex/convex.config.ts` registers `@convex-dev/stripe/convex.config.js`.
 - Webhook routing:
-  - `apps/web-landing/convex/http.ts` registers Stripe routes through `registerRoutes(...)` at `/stripe/webhook`.
+  - `apps/web/convex/http.ts` registers Stripe routes through `registerRoutes(...)` at `/stripe/webhook`.
 - Billing actions:
-  - `apps/web-landing/convex/stripe.ts` defines authenticated actions for checkout and customer portal session creation.
+  - `apps/web/convex/stripe.ts` defines authenticated actions for checkout and customer portal session creation.
   - Billing actions must associate Stripe customers/subscriptions to authenticated app user/org identifiers.
 - Entitlement projection:
   - Server-side projection derives capability flags from subscription status and seat quantity.
@@ -696,7 +696,7 @@ guerillaglass/
 │  │  ├─ electrobun.config.ts
 │  │  ├─ tailwind.config.mjs
 │  │  └─ vite.config.ts
-│  └─ web-landing/
+│  └─ web/
 │     ├─ src/
 │     ├─ public/
 │     ├─ convex/

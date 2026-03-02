@@ -3,6 +3,10 @@
     "apps/desktop-electrobun/build/**",
     "apps/desktop-electrobun/dist/**",
     "apps/desktop-electrobun/playwright-report/**",
-    "apps/desktop-electrobun/test-results/**"
+    "apps/desktop-electrobun/test-results/**",
+    "apps/web/convex/_generated/**",
+    "apps/web/convex/betterAuth/_generated/**",
+    "apps/web/convex/betterAuth/generatedSchema.ts",
+    "apps/web/src/routeTree.gen.ts"
   ]
 }

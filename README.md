@@ -20,7 +20,7 @@ Creator Studio reliability + workflow notes (current):
 The project now uses a hybrid architecture:
 
 - Cross-platform desktop shell: Electrobun + React + Tailwind (`/apps/desktop-electrobun`)
-- Web landing/auth shell: TanStack Start + Convex (`/apps/web-landing`)
+- Web app/auth shell: TanStack Start + Convex (`/apps/web`)
 - Native media engine: Swift (`/engines/macos-swift`) using ScreenCaptureKit/AVFoundation
 - Shared typed protocol: Zod schemas (`/packages/engine-protocol`)
 - Shared review contract protocol: Zod schemas (`/packages/review-protocol`)
@@ -48,7 +48,7 @@ bun run swift:build
 bun run desktop:dev
 
 # Run web landing app + convex dev backend
-bun run landing:dev
+bun run web:dev
 
 # macOS fallback when Electrobun dev launcher is unstable
 bun run desktop:dev:open

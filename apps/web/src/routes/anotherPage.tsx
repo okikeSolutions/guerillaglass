@@ -19,8 +19,8 @@ function ConvexDemoRoute() {
         <section className="status-card">
           <h1>Convex URL Missing</h1>
           <p>
-            Set <code>VITE_CONVEX_URL</code> in <code>apps/web-landing/.env.local</code> and run
-            <code> bun run landing:dev</code>.
+            Set <code>VITE_CONVEX_URL</code> in <code>apps/web/.env.local</code> and run
+            <code> bun run web:dev</code>.
           </p>
           <Link className="button button-ghost" to="/">
             Back to Landing

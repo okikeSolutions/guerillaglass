@@ -19,7 +19,7 @@ echo "==> desktop typecheck"
 (cd apps/desktop-electrobun && bun run typecheck)
 
 echo "==> landing app typecheck"
-(cd apps/web-landing && bun run typecheck)
+(cd apps/web && bun run typecheck)
 
 echo "==> engine protocol typecheck"
 (cd packages/engine-protocol && bun run typecheck)
