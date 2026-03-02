@@ -109,8 +109,8 @@ Authentication and access-control checklist:
 
 - [ ] Integrate Better Auth as the canonical authentication layer for desktop product access.
 - [x] Implement Convex auth configuration and identity validation for protected review/collaboration functions.
-- [ ] Enforce account-gated Creator Studio routes in product mode (`Capture`, `Edit`, `Deliver`).
-- [ ] Enforce role-aware authorization (`owner`, `admin`, `member`, `viewer`) across review domains.
+- [x] Enforce account-gated Creator Studio routes in product mode (`Capture`, `Edit`, `Deliver`).
+- [x] Enforce role-aware authorization (`owner`, `admin`, `member`, `viewer`) across review domains.
 - [x] Remove/avoid Clerk dependencies in cloud review/collab surfaces.
 - [x] Add audit attribution for review mutations (actor identity + timestamp).
 - [x] Implement against Convex Labs Better Auth React guide (`framework-guides/react`) as canonical wiring baseline.
@@ -118,7 +118,7 @@ Authentication and access-control checklist:
 - [x] Enforce dependency baseline: `convex >= 1.25.0` and `better-auth@1.4.9` pinned exactly until compatibility matrix update.
 - [x] Add renderer auth client wiring (`better-auth/react` + Convex client plugins + `ConvexBetterAuthProvider` with account-gated mode).
 - [ ] Validate required environment variables and startup errors for missing auth config.
-- [ ] Configure Better Auth `trustedOrigins` and provider callbacks against Convex site auth routes.
+- [x] Configure Better Auth `trustedOrigins` and provider callbacks against Convex site auth routes.
 
 Lawn-adapted performance checklist:
 
@@ -262,7 +262,7 @@ Progress (current repo)
 - [x] Review contract package scaffolded with fixtures and validation
 - [x] Desktop bridge routes review snapshot/comment/status RPC to Convex and emits `hostReviewEvent` for mutation updates
 - [x] Web app/auth scaffolded in `apps/web` with TanStack Start + Convex dev wiring
-- [ ] Better Auth session flows wired for account-gated workspace access
+- [x] Better Auth session flows wired for account-gated workspace access
 - [x] Convex auth enforcement wired for protected review/collab functions
 - [ ] Share-link access controls + grants implemented
 - [ ] Threaded frame/time comments implemented in Deliver review UI

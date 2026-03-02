@@ -8,88 +8,106 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as AnotherPageRouteImport } from "./routes/anotherPage";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as ApiAuthSplatRouteImport } from "./routes/api/auth/$";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as AnotherPageRouteImport } from './routes/anotherPage'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as WorkspaceModeRouteImport } from './routes/workspace/$mode'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const AnotherPageRoute = AnotherPageRouteImport.update({
-  id: "/anotherPage",
-  path: "/anotherPage",
+  id: '/anotherPage',
+  path: '/anotherPage',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
+const WorkspaceModeRoute = WorkspaceModeRouteImport.update({
+  id: '/workspace/$mode',
+  path: '/workspace/$mode',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
-  id: "/api/auth/$",
-  path: "/api/auth/$",
+  id: '/api/auth/$',
+  path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/anotherPage": typeof AnotherPageRoute;
-  "/api/auth/$": typeof ApiAuthSplatRoute;
+  '/': typeof IndexRoute
+  '/anotherPage': typeof AnotherPageRoute
+  '/workspace/$mode': typeof WorkspaceModeRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/anotherPage": typeof AnotherPageRoute;
-  "/api/auth/$": typeof ApiAuthSplatRoute;
+  '/': typeof IndexRoute
+  '/anotherPage': typeof AnotherPageRoute
+  '/workspace/$mode': typeof WorkspaceModeRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/anotherPage": typeof AnotherPageRoute;
-  "/api/auth/$": typeof ApiAuthSplatRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/anotherPage': typeof AnotherPageRoute
+  '/workspace/$mode': typeof WorkspaceModeRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/anotherPage" | "/api/auth/$";
-  fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/anotherPage" | "/api/auth/$";
-  id: "__root__" | "/" | "/anotherPage" | "/api/auth/$";
-  fileRoutesById: FileRoutesById;
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths: '/' | '/anotherPage' | '/workspace/$mode' | '/api/auth/$'
+  fileRoutesByTo: FileRoutesByTo
+  to: '/' | '/anotherPage' | '/workspace/$mode' | '/api/auth/$'
+  id: '__root__' | '/' | '/anotherPage' | '/workspace/$mode' | '/api/auth/$'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  AnotherPageRoute: typeof AnotherPageRoute;
-  ApiAuthSplatRoute: typeof ApiAuthSplatRoute;
+  IndexRoute: typeof IndexRoute
+  AnotherPageRoute: typeof AnotherPageRoute
+  WorkspaceModeRoute: typeof WorkspaceModeRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/anotherPage": {
-      id: "/anotherPage";
-      path: "/anotherPage";
-      fullPath: "/anotherPage";
-      preLoaderRoute: typeof AnotherPageRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/auth/$": {
-      id: "/api/auth/$";
-      path: "/api/auth/$";
-      fullPath: "/api/auth/$";
-      preLoaderRoute: typeof ApiAuthSplatRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/anotherPage': {
+      id: '/anotherPage'
+      path: '/anotherPage'
+      fullPath: '/anotherPage'
+      preLoaderRoute: typeof AnotherPageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspace/$mode': {
+      id: '/workspace/$mode'
+      path: '/workspace/$mode'
+      fullPath: '/workspace/$mode'
+      preLoaderRoute: typeof WorkspaceModeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnotherPageRoute: AnotherPageRoute,
+  WorkspaceModeRoute: WorkspaceModeRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()

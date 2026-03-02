@@ -16,3 +16,5 @@ This runs both:
 
 Set the web env vars in `.env.local` (see `.env.example`) and Convex env vars (`SITE_URL`,
 `BETTER_AUTH_SECRET`) in your deployment.
+
+Authenticated workspace routes live under `/workspace/*` and require a valid Better Auth session.

@@ -21,6 +21,7 @@ const reviewRoleValidator = v.union(
   v.literal("member"),
   v.literal("viewer"),
 );
+type ReviewRole = "owner" | "admin" | "member" | "viewer";
 
 const reviewCommentValidator = v.object({
   id: v.string(),
@@ -64,6 +65,7 @@ const reviewSetWorkflowStatusResponseValidator = v.object({
 
 type ReviewSessionDoc = Doc<"reviewSessions">;
 type ReviewCommentDoc = Doc<"reviewComments">;
+type ReviewMemberDoc = Doc<"reviewMembers">;
 type ReviewPresenceDoc = Doc<"reviewPresence">;
 
 type AuthActor = {
@@ -86,6 +88,10 @@ function normalizeOptionalString(value: unknown): string | null {
   }
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function roleAllowed(role: ReviewRole, allowedRoles: ReadonlySet<ReviewRole>): boolean {
+  return allowedRoles.has(role);
 }
 
 function resolveDisplayName(user: { name?: unknown; email?: unknown }): string {
@@ -268,6 +274,16 @@ async function ensureReviewSession(
     sharePolicyAllowDownloads: false,
     sharePolicyExpiresAt: null,
     sharePolicyPasswordProtected: false,
+    statusUpdatedByUserId: actor.id,
+    statusUpdatedByName: actor.displayName,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await ctx.db.insert("reviewMembers", {
+    reviewId,
+    userId: actor.id,
+    displayName: actor.displayName,
+    role: "owner",
     createdAt: now,
     updatedAt: now,
   });
@@ -278,18 +294,51 @@ async function ensureReviewSession(
   return created;
 }
 
+async function getReviewMembership(
+  ctx: QueryCtx | MutationCtx,
+  reviewId: string,
+  userId: string,
+): Promise<ReviewMemberDoc | null> {
+  return await ctx.db
+    .query("reviewMembers")
+    .withIndex("by_review_id_and_user_id", (q) => q.eq("reviewId", reviewId).eq("userId", userId))
+    .unique();
+}
+
+async function requireReviewRole(
+  ctx: QueryCtx | MutationCtx,
+  session: ReviewSessionDoc,
+  actor: AuthActor,
+  allowedRoles: ReadonlySet<ReviewRole>,
+): Promise<ReviewRole> {
+  if (session.ownerUserId === actor.id && roleAllowed("owner", allowedRoles)) {
+    return "owner";
+  }
+
+  const membership = await getReviewMembership(ctx, session.reviewId, actor.id);
+  if (!membership || !roleAllowed(membership.role, allowedRoles)) {
+    throw new ConvexError("REVIEW_FORBIDDEN");
+  }
+  return membership.role;
+}
+
+const readReviewRoles = new Set<ReviewRole>(["owner", "admin", "member", "viewer"]);
+const commentReviewRoles = new Set<ReviewRole>(["owner", "admin", "member", "viewer"]);
+const workflowStatusReviewRoles = new Set<ReviewRole>(["owner", "admin", "member"]);
+
 export const sessionSnapshot = query({
   args: {
     reviewId: v.string(),
   },
   returns: reviewSessionSnapshotValidator,
   handler: async (ctx, args) => {
-    await requireAuthActor(ctx);
+    const actor = await requireAuthActor(ctx);
 
     const session = await getReviewSession(ctx, args.reviewId);
     if (!session) {
       return buildDefaultSnapshot(args.reviewId);
     }
+    await requireReviewRole(ctx, session, actor, readReviewRoles);
 
     const comments = await ctx.db
       .query("reviewComments")
@@ -321,6 +370,7 @@ export const createComment = mutation({
     }
 
     const session = await ensureReviewSession(ctx, args.reviewId, actor);
+    await requireReviewRole(ctx, session, actor, commentReviewRoles);
     const now = nowTimestampMs();
     const commentId = await ctx.db.insert("reviewComments", {
       reviewId: session.reviewId,
@@ -357,10 +407,13 @@ export const setWorkflowStatus = mutation({
   handler: async (ctx, args) => {
     const actor = await requireAuthActor(ctx);
     const session = await ensureReviewSession(ctx, args.reviewId, actor);
+    await requireReviewRole(ctx, session, actor, workflowStatusReviewRoles);
     const updatedAt = nowTimestampMs();
 
     await ctx.db.patch(session._id, {
       status: args.status,
+      statusUpdatedByUserId: actor.id,
+      statusUpdatedByName: actor.displayName,
       updatedAt,
     });
 
