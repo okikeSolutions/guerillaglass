@@ -1,8 +1,8 @@
 import { Keyboard, Mic, MousePointer, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { captureFrameRates } from "@guerillaglass/engine-protocol";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Slider } from "@/components/ui/slider";
+import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/ui/field";
+import { Slider } from "@guerillaglass/ui/ui/slider";
 import { buildCaptureTelemetryPresentation } from "../../model/captureTelemetryViewModel";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
