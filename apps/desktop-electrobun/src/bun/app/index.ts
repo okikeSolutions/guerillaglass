@@ -9,6 +9,7 @@ import Electrobun, {
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
+import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { EngineClient } from "../engine/client";
 import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
 import { extractMenuAction } from "../menu/actions";
@@ -161,6 +162,18 @@ function dispatchHostCommand(command: HostMenuCommand) {
   }
 }
 
+function dispatchReviewEvent(event: ReviewBridgeEvent) {
+  if (!mainWindow) {
+    return;
+  }
+
+  try {
+    mainWindow.webview.rpc?.send.hostReviewEvent({ event });
+  } catch (error) {
+    console.warn("Failed to dispatch review bridge event:", event.type, error);
+  }
+}
+
 function captureStatusStreamInterval(status: CaptureStatusResult): number {
   if (status.isRecording) {
     return 250;
@@ -253,6 +266,7 @@ const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
       setCurrentProjectPath: (projectPath) => {
         currentProjectPath = projectPath;
       },
+      emitReviewEvent: dispatchReviewEvent,
     }),
     messages: {
       hostMenuState: (nextState: HostMenuState) => {
