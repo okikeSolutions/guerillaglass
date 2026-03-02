@@ -1,0 +1,35 @@
+{
+  "reviewId": "review_5d4d3f1f",
+  "status": "review",
+  "processingState": "ready",
+  "preferredPlaybackSource": "processed",
+  "sharePolicy": {
+    "allowDownloads": false,
+    "expiresAt": "2026-03-31T18:00:00.000Z",
+    "passwordProtected": true
+  },
+  "comments": [
+    {
+      "id": "comment_f1e2d3c4",
+      "reviewId": "review_5d4d3f1f",
+      "authorId": "user_42",
+      "authorName": "Alex",
+      "body": "Tighten this transition by 4 frames.",
+      "frameNumber": 420,
+      "timestampSeconds": 14,
+      "resolved": false,
+      "createdAt": "2026-03-02T09:20:00.000Z",
+      "updatedAt": "2026-03-02T09:20:00.000Z",
+      "parentCommentId": null
+    }
+  ],
+  "presence": [
+    {
+      "userId": "user_42",
+      "displayName": "Alex",
+      "role": "owner",
+      "lastActiveAt": "2026-03-02T09:21:00.000Z"
+    }
+  ],
+  "updatedAt": "2026-03-02T09:21:00.000Z"
+}

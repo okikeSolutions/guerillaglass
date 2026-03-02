@@ -70,6 +70,7 @@ Guerilla Glass should feel like a professional creator tool:
 ## 4) Platform & stack
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
+- **Web landing/auth shell:** TanStack Start + Convex (`apps/web-landing`)
 - **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
   - `capture.status` telemetry emits machine-stable reason codes (`engine_error`, `high_dropped_frame_rate`, `elevated_dropped_frame_rate`, `low_microphone_level`); renderer localizes these codes for UI.
   - `capture.status` telemetry includes aggregate and channel-specific performance metrics (`sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`) plus runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) for capture diagnostics.
@@ -80,7 +81,7 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Additive protocol evolution rule: new response fields should be optional or renderer-derivable so older engines remain compatible during rollout.
 - **Review control plane (Phase 2.5+):** Convex query/mutation/action layer for review workflows (`shareLinks`, `comments`, `presence`, review statuses) and webhook-driven media state reconciliation.
-- **Contract split:** local media RPC stays in `packages/engine-protocol`; cloud review surfaces should use a separate contract package (`packages/review-protocol`, planned) so capture/edit/export methods remain clean and deterministic.
+- **Contract split:** local media RPC stays in `packages/engine-protocol`; cloud review surfaces use a separate contract package (`packages/review-protocol`) so capture/edit/export methods remain clean and deterministic.
 - **Authentication stack (Phase 2.5+):**
   - Better Auth is the canonical identity/session provider for product access.
   - Convex auth configuration validates Better Auth-issued identity tokens for cloud review/collaboration functions.
@@ -413,18 +414,18 @@ Authorization policy:
 Required integration artifacts (Phase 2.5 baseline):
 
 - Dependency baseline:
-  - `@convex-dev/better-auth` installed in the desktop shell workspace.
+  - `@convex-dev/better-auth` installed in the web landing/auth workspace (`apps/web-landing`).
   - `convex@latest` with runtime validation that installed version satisfies `>= 1.25.0`.
   - `better-auth@1.4.9` pinned exactly.
 - Convex component registration:
-  - `convex/convex.config.ts` uses `@convex-dev/better-auth/convex.config`.
+  - `apps/web-landing/convex/convex.config.ts` uses `@convex-dev/better-auth/convex.config`.
 - Convex auth provider wiring:
-  - `convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
+  - `apps/web-landing/convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
 - Better Auth server instance:
-  - `convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`crossDomain`, `convex`).
+  - `apps/web-landing/convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`crossDomain`, `convex`).
   - `trustedOrigins` must include product web origin(s) and local dev origin(s).
 - Better Auth HTTP handlers:
-  - `convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
+  - `apps/web-landing/convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
 - Renderer auth client:
   - `auth-client` uses `better-auth/react` with Convex client plugins (`convexClient`, `crossDomainClient`).
 - Renderer provider:
@@ -445,11 +446,11 @@ Billing policy:
 Billing integration baseline (Phase 2.6):
 
 - Component registration:
-  - `convex/convex.config.ts` registers `@convex-dev/stripe/convex.config.js`.
+  - `apps/web-landing/convex/convex.config.ts` registers `@convex-dev/stripe/convex.config.js`.
 - Webhook routing:
-  - `convex/http.ts` registers Stripe routes through `registerRoutes(...)` at `/stripe/webhook`.
+  - `apps/web-landing/convex/http.ts` registers Stripe routes through `registerRoutes(...)` at `/stripe/webhook`.
 - Billing actions:
-  - `convex/stripe.ts` defines authenticated actions for checkout and customer portal session creation.
+  - `apps/web-landing/convex/stripe.ts` defines authenticated actions for checkout and customer portal session creation.
   - Billing actions must associate Stripe customers/subscriptions to authenticated app user/org identifiers.
 - Entitlement projection:
   - Server-side projection derives capability flags from subscription status and seat quantity.
@@ -642,7 +643,7 @@ Versioning policy:
 8. Export Pipeline
 9. Review Control Plane (Convex domain model: teams/projects/videos/comments/share/presence)
 10. Upload & Transcode Orchestrator (signed uploads, processing state machine, webhook reconciliation)
-11. Review Contract Layer (planned `packages/review-protocol` for host/renderer/cloud payload schemas)
+11. Review Contract Layer (`packages/review-protocol` for host/renderer/cloud payload schemas)
 
 Desktop shell and sidecar reliability contract (current):
 
@@ -686,20 +687,25 @@ guerillaglass/
 │  ├─ DESKTOP_ACCESSIBILITY.md
 │  └─ doc_coverage_policy.json
 ├─ apps/
-│  └─ desktop-electrobun/
+│  ├─ desktop-electrobun/
+│  │  ├─ src/
+│  │  │  ├─ bun/
+│  │  │  └─ mainview/
+│  │  ├─ tests/
+│  │  │  └─ ui/
+│  │  ├─ electrobun.config.ts
+│  │  ├─ tailwind.config.mjs
+│  │  └─ vite.config.ts
+│  └─ web-landing/
 │     ├─ src/
-│     │  ├─ bun/
-│     │  └─ mainview/
-│     ├─ tests/
-│     │  └─ ui/
-│     ├─ electrobun.config.ts
-│     ├─ tailwind.config.mjs
+│     ├─ public/
+│     ├─ convex/
 │     └─ vite.config.ts
 ├─ packages/
 │  ├─ engine-protocol/
-│     ├─ src/
-│     └─ fixtures/
-│  ├─ review-protocol/ (planned)
+│  │  ├─ src/
+│  │  └─ fixtures/
+│  ├─ review-protocol/
 │  │  ├─ src/
 │  │  └─ fixtures/
 │  └─ localization/
@@ -883,6 +889,7 @@ License hygiene:
 - Better Auth docs — https://www.better-auth.com/docs
 - Convex React docs — https://docs.convex.dev/client/react
 - Convex React quickstart — https://docs.convex.dev/quickstart/react
+- Convex TanStack Start quickstart — https://docs.convex.dev/quickstart/tanstack-start
 - Convex authentication docs — https://docs.convex.dev/auth
 - Convex Labs Better Auth React guide — https://labs.convex.dev/better-auth/framework-guides/react
 - Convex Stripe component — https://www.convex.dev/components/stripe

@@ -7,24 +7,27 @@ Guerilla Glass now follows a hybrid multiplatform architecture with strict local
 1. Desktop shell (`/apps/desktop-electrobun`)
    - Electrobun main process (`src/bun`)
    - React/Tailwind/shadcn UI (`src/mainview`)
-2. Native engine (`/engines/macos-swift`)
+2. Web landing/auth shell (`/apps/web-landing`)
+   - TanStack Start frontend routes + marketing/auth entrypoints
+   - Convex deployment root for web review/billing/auth functions (`/apps/web-landing/convex`)
+3. Native engine (`/engines/macos-swift`)
    - Uses existing Swift capture/render/export modules
    - Exposed as `guerillaglass-engine` executable target
-3. Protocol layer (`/packages/engine-protocol`)
+4. Protocol layer (`/packages/engine-protocol`)
    - Zod runtime schemas + TypeScript types
    - Wire contracts for request/response envelopes
-4. Rust protocol layer (`/engines/protocol-rust`)
+5. Rust protocol layer (`/engines/protocol-rust`)
    - Shared Rust request/response envelope models
    - Shared monotonic clock primitive for timing-critical engines
-5. Review control plane (Convex, planned)
+6. Review control plane (Convex, in progress)
    - Review metadata domains (`videos`, `comments`, `share links`, `presence`, workflow status)
    - Async actions + webhooks for upload/transcode/playback readiness
-6. Auth and session plane (Better Auth + Convex auth integration, planned)
+7. Auth and session plane (Better Auth + Convex auth integration, in progress)
    - Better Auth manages user sessions and account identity
    - Convex functions enforce authenticated identity and role-based access for review/collab data
    - Wiring baseline follows Convex Labs Better Auth React framework guide
    - Dependency constraints: `convex >= 1.25.0`, `better-auth@1.4.9` pinned
-7. Billing and entitlement plane (Convex Stripe component, planned)
+8. Billing and entitlement plane (Convex Stripe component, planned)
    - Stripe checkout + customer portal + subscription lifecycle sync
    - Signed webhook ingestion at `/stripe/webhook` for billing truth reconciliation
    - Server-side entitlement projection for paid cloud features (review/collab access tiers)
@@ -50,8 +53,8 @@ North star:
 Deliver-review flow (Phase 2.5+):
 
 1. Renderer validates an active Better Auth session before entering account-gated workspace routes.
-2. Renderer invokes review-specific bridge RPC (planned) for link/comment/presence/upload actions.
-3. Host routes review RPC to Convex-backed review services (planned) with user identity context.
+2. Renderer invokes review-specific bridge RPC (`ggReview*`) for link/comment/presence/status actions.
+3. Host routes review RPC to Convex-backed review services with user identity context (local stub in place until full cloud bridge is wired).
 4. Convex functions authorize by team/project/video role before protected reads/mutations.
 5. Convex actions issue signed upload URLs, validate upload completion, and move video state to processing.
 6. Webhooks reconcile transcode readiness and playback metadata updates.
@@ -76,7 +79,7 @@ Billing flow (Phase 2.6+):
 - Monetization rule: subscription/billing failures cannot block local `Capture`/`Edit`/deterministic `Export`; only paid cloud features are gated.
 - Contract rule:
   - Local media RPC remains in `packages/engine-protocol`.
-  - Review payload contracts should live in `packages/review-protocol` (planned) and must not expand native engine media responsibilities.
+  - Review payload contracts live in `packages/review-protocol` and must not expand native engine media responsibilities.
 
 Renderer hardening (current):
 
@@ -197,7 +200,7 @@ Playback transport hardening (current):
 - `project.open`
 - `project.save`
 - `project.recents`
-- Review-plane methods remain outside this local engine method set and should use the planned review contract surface.
+- Review-plane methods remain outside this local engine method set and should use the review contract surface (`packages/review-protocol`).
 
 ## `capture.status` Telemetry Contract
 

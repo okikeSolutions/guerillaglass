@@ -99,9 +99,10 @@ This track adds async review collaboration in `Deliver` while preserving local-f
 
 Contract and architecture checklist:
 
-- [ ] Add planned review contract package scaffold (`packages/review-protocol`) with Zod schemas + fixtures for share/comment/presence payloads.
+- [x] Add review contract package scaffold (`packages/review-protocol`) with Zod schemas + fixtures for share/comment/presence payloads.
 - [ ] Keep `packages/engine-protocol` focused on local native media operations (no review-specific method leakage).
-- [ ] Add bridge request/message schema for review RPC and review realtime events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
+- [x] Add bridge request/message schema for review RPC and review realtime events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
+- [x] Add web landing/auth app scaffold (`apps/web-landing`) using TanStack Start + Convex baseline wiring.
 - [ ] Define feature flag gate (`GG_REVIEW_ENABLE_CONVEX`) and fail-open behavior to local-only workflow.
 
 Authentication and access-control checklist:
@@ -150,9 +151,9 @@ This track adds paid cloud collaboration billing without regressing local creato
 
 Billing architecture checklist:
 
-- [ ] Register `@convex-dev/stripe` component in `convex/convex.config.ts`.
-- [ ] Register Stripe webhook HTTP routes in `convex/http.ts` at `/stripe/webhook`.
-- [ ] Add billing integration module (`convex/stripe.ts`) for checkout/portal actions.
+- [ ] Register `@convex-dev/stripe` component in `apps/web-landing/convex/convex.config.ts`.
+- [ ] Register Stripe webhook HTTP routes in `apps/web-landing/convex/http.ts` at `/stripe/webhook`.
+- [ ] Add billing integration module (`apps/web-landing/convex/stripe.ts`) for checkout/portal actions.
 - [ ] Ensure billing actions require authenticated identity and map to user/org records.
 - [ ] Implement server-side entitlement projection from subscription status and seat quantity.
 - [ ] Add bridge request/message schema for billing RPC/events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
@@ -258,8 +259,9 @@ Progress (current repo)
 
 Progress (current repo)
 
-- [ ] Review contract package scaffolded with fixtures and validation
-- [ ] Desktop bridge review RPC/events added behind feature flag
+- [x] Review contract package scaffolded with fixtures and validation
+- [x] Desktop bridge review RPC/events baseline added (cloud routing still pending)
+- [x] Web landing/auth app scaffolded in `apps/web-landing` with TanStack Start + Convex dev wiring
 - [ ] Better Auth session flows wired for account-gated workspace access
 - [ ] Convex auth enforcement wired for protected review/collab functions
 - [ ] Share-link access controls + grants implemented
