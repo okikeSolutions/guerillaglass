@@ -1,8 +1,8 @@
-# Hybrid Architecture (Electrobun + Native Engine)
+# Hybrid Architecture (Electrobun + Native Engine + Review Plane)
 
 ## Overview
 
-Guerilla Glass now follows a hybrid multiplatform architecture:
+Guerilla Glass now follows a hybrid multiplatform architecture with strict local/cloud boundaries:
 
 1. Desktop shell (`/apps/desktop-electrobun`)
    - Electrobun main process (`src/bun`)
@@ -16,12 +16,22 @@ Guerilla Glass now follows a hybrid multiplatform architecture:
 4. Rust protocol layer (`/engines/protocol-rust`)
    - Shared Rust request/response envelope models
    - Shared monotonic clock primitive for timing-critical engines
+5. Review control plane (Convex, planned)
+   - Review metadata domains (`videos`, `comments`, `share links`, `presence`, workflow status)
+   - Async actions + webhooks for upload/transcode/playback readiness
+6. Auth and session plane (Better Auth + Convex auth integration, planned)
+   - Better Auth manages user sessions and account identity
+   - Convex functions enforce authenticated identity and role-based access for review/collab data
+   - Wiring baseline follows Convex Labs Better Auth React framework guide
+   - Dependency constraints: `convex >= 1.25.0`, `better-auth@1.4.9` pinned
 
 North star:
 
-- Cross-platform creator workflow parity (`Record -> Edit -> Deliver`)
+- Cross-platform creator workflow parity (`Capture -> Edit -> Deliver`) with async review in `Deliver`
 - Native capture/audio/export quality per platform
 - Shared protocol contract so shell UX stays consistent across engines
+- Cloud review features must not gate local capture/edit/export
+- Account-gated collaboration: cloud review/collab actions are available only to authenticated users
 
 ## Runtime Data Flow
 
@@ -31,6 +41,26 @@ North star:
 4. Swift sidecar dispatches methods to native APIs (`ScreenCaptureKit`, `AVFoundation`, Input Monitoring checks).
 5. Response envelopes are validated in TypeScript with Zod before UI rendering.
 6. Agent Mode jobs write structured artifacts into the active project package (`analysis/*.v1.json`) and expose status/artifact access via protocol methods.
+
+Deliver-review flow (Phase 2.5+):
+
+1. Renderer validates an active Better Auth session before entering account-gated workspace routes.
+2. Renderer invokes review-specific bridge RPC (planned) for link/comment/presence/upload actions.
+3. Host routes review RPC to Convex-backed review services (planned) with user identity context.
+4. Convex functions authorize by team/project/video role before protected reads/mutations.
+5. Convex actions issue signed upload URLs, validate upload completion, and move video state to processing.
+6. Webhooks reconcile transcode readiness and playback metadata updates.
+7. Renderer receives reactive query updates for comment threads, watcher presence, and review status.
+
+## Dual-Plane Boundaries
+
+- Local media plane (authoritative): capture, record, timeline edit semantics, deterministic render/export, project package IO.
+- Cloud review plane: share links, review comments, presence, review workflow metadata, async delivery readiness.
+- Bridge rule: failures in cloud review paths must degrade to local-only behavior without interrupting capture/edit/export.
+- Auth rule: unauthenticated clients cannot access protected cloud review/collaboration data.
+- Contract rule:
+  - Local media RPC remains in `packages/engine-protocol`.
+  - Review payload contracts should live in `packages/review-protocol` (planned) and must not expand native engine media responsibilities.
 
 Renderer hardening (current):
 
@@ -90,6 +120,26 @@ Playback transport hardening (current):
 - Capture inspector includes source monitor and audio mixer surfaces (master + mic) for operational monitoring.
 - Project utility rail includes a lightweight media-bin summary (recording/events asset readiness) alongside active metadata and recents.
 
+## Deliver Review Performance Patterns (adapted from Lawn)
+
+- Route intent preloading:
+  - Use route-level intent preloads (`hover`/`focus`/`touch`) for likely next views.
+  - Apply prewarm debounce + dedupe windows and short subscription extension to avoid redundant network churn.
+- Media warmup:
+  - Add `preconnect` and `dns-prefetch` for streaming image/video origins.
+  - Prefetch runtime dependencies and manifests on intent to reduce startup latency.
+  - Keep all prefetch paths best-effort and non-blocking.
+- Async upload/transcode orchestration:
+  - Direct upload to object storage via signed URL.
+  - Server-side completion validation and processing-state transitions.
+  - Webhook signature verification and idempotent reconciliation for ready/failed updates.
+- Playback fallback policy:
+  - Prefer processed review stream when available.
+  - Fall back to original source playback while processing paths are unavailable.
+- Realtime review collaboration:
+  - Presence heartbeat + disconnect semantics for active viewers.
+  - Timestamped comment threading and status fields for review workflow.
+
 ## Supported Engine Methods (Phase 1 parity)
 
 - `system.ping`
@@ -131,6 +181,7 @@ Playback transport hardening (current):
 - `project.open`
 - `project.save`
 - `project.recents`
+- Review-plane methods remain outside this local engine method set and should use the planned review contract surface.
 
 ## `capture.status` Telemetry Contract
 
