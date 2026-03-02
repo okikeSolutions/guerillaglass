@@ -142,7 +142,40 @@ Upload/transcode and reliability checklist:
 
 ---
 
-## 4) Phased delivery execution status
+## 4) Billing commercialization track (Convex Stripe plane)
+
+Reference requirements: `docs/SPEC.md` §7.10 and §18
+
+This track adds paid cloud collaboration billing without regressing local creator workflows.
+
+Billing architecture checklist:
+
+- [ ] Register `@convex-dev/stripe` component in `convex/convex.config.ts`.
+- [ ] Register Stripe webhook HTTP routes in `convex/http.ts` at `/stripe/webhook`.
+- [ ] Add billing integration module (`convex/stripe.ts`) for checkout/portal actions.
+- [ ] Ensure billing actions require authenticated identity and map to user/org records.
+- [ ] Implement server-side entitlement projection from subscription status and seat quantity.
+- [ ] Add bridge request/message schema for billing RPC/events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
+
+Plan/pricing and product-gating checklist:
+
+- [ ] Define canonical Stripe products/prices for launch plans and map to app entitlement tiers.
+- [ ] Add server allowlist for accepted price IDs (reject arbitrary client-submitted prices).
+- [ ] Gate paid cloud review/collaboration features on entitlement flags.
+- [ ] Keep local `Capture`/`Edit`/deterministic `Export` available regardless of billing state.
+- [ ] Add org/seat update flows and role checks for team plan administration.
+
+Reliability and compliance checklist:
+
+- [ ] Configure required Convex env vars (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`).
+- [ ] Configure and validate required webhook events (`checkout`, `subscription`, `invoice`, `payment_intent` lifecycle).
+- [ ] Add webhook signature validation and idempotent event processing semantics.
+- [ ] Add billing outage/degraded-mode behavior with non-blocking local fallback.
+- [ ] Add billing observability: checkout conversion funnel, webhook failure alerts, entitlement mismatch alerts.
+
+---
+
+## 5) Phased delivery execution status
 
 Reference scope: `docs/SPEC.md` §18
 
@@ -235,6 +268,23 @@ Progress (current repo)
 - [ ] Upload/transcode webhook reconciliation wired for review readiness
 - [ ] Review-route warmup and playback fallback policy implemented
 - [ ] Review SLO instrumentation + regression checks added
+
+**Phase 2.6 — Commercial access and billing (cloud plane)**
+
+- Convex Stripe component integration for checkout, subscriptions, invoices, and webhook sync
+- Entitlement projection service for paid cloud collaboration features
+- Team/seat billing support for organization collaboration flows
+- Hosted billing portal and subscription lifecycle controls
+- Feature-flagged rollout with local creator core unaffected by billing outages
+
+Progress (current repo)
+
+- [ ] Stripe component registration and webhook route wiring complete
+- [ ] Checkout and customer-portal actions implemented with auth enforcement
+- [ ] Canonical price-tier mapping and server allowlist implemented
+- [ ] Entitlement projection and paid-cloud feature gating implemented
+- [ ] Team/seat billing lifecycle controls implemented
+- [ ] Billing observability and alerting implemented
 
 **Phase 3 — Polish**
 

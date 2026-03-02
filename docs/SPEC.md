@@ -85,6 +85,10 @@ Guerilla Glass should feel like a professional creator tool:
   - Better Auth is the canonical identity/session provider for product access.
   - Convex auth configuration validates Better Auth-issued identity tokens for cloud review/collaboration functions.
   - Clerk is not part of the Guerilla Glass authentication architecture.
+- **Billing and entitlement stack (Phase 2.6+):**
+  - Convex Stripe component (`@convex-dev/stripe`) is the billing backbone for checkout, subscriptions, customer portal, and billing webhooks.
+  - Billing entitlements are server-enforced and map directly to paid cloud collaboration capabilities.
+  - Local capture/edit/export remains available regardless of billing state.
 - **Native engines (per platform):**
   - macOS: Swift sidecar (`engines/macos-swift`) as current production capture/export path
   - Shared Rust native foundation: `engines/native-foundation` (runtime + protocol parity handlers reused by Windows/Linux sidecars)
@@ -153,6 +157,7 @@ Notes:
 - Dual-plane architecture: local media plane (authoritative) + cloud review plane
 - Cloud review must fail open; local capture/edit/export remain available offline
 - Account-scoped collaboration: review/collab data must be tied to authenticated identities
+- Commercial model: open-source local creator core plus paid cloud collaboration tiers
 
 ---
 
@@ -428,6 +433,53 @@ Required integration artifacts (Phase 2.5 baseline):
   - Convex env: `BETTER_AUTH_SECRET`, `SITE_URL`.
   - Renderer env: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_SITE_URL`.
   - For social auth providers, redirect/callback URLs must use the Convex site domain (`https://<deployment>.convex.site/api/auth/callback/<provider>`).
+
+### 7.10 Billing & entitlement model (Convex Stripe)
+
+Billing policy:
+
+- Paid cloud features are subscription-gated using Convex Stripe component data as the backend billing source of truth.
+- Local-first creator core (`Capture`, `Edit`, deterministic `Export`) remains available even if billing is inactive.
+- Collaboration/hosted review capabilities may be gated by active subscription entitlements.
+
+Billing integration baseline (Phase 2.6):
+
+- Component registration:
+  - `convex/convex.config.ts` registers `@convex-dev/stripe/convex.config.js`.
+- Webhook routing:
+  - `convex/http.ts` registers Stripe routes through `registerRoutes(...)` at `/stripe/webhook`.
+- Billing actions:
+  - `convex/stripe.ts` defines authenticated actions for checkout and customer portal session creation.
+  - Billing actions must associate Stripe customers/subscriptions to authenticated app user/org identifiers.
+- Entitlement projection:
+  - Server-side projection derives capability flags from subscription status and seat quantity.
+  - Renderer consumes entitlement flags reactively and must not decide access from client-calculated billing logic.
+
+Required billing environment:
+
+- Convex env:
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+- App env/config:
+  - Canonical Stripe price IDs for plan tiers (for example: `GG_STRIPE_PRICE_ID_PRO`, `GG_STRIPE_PRICE_ID_TEAM`).
+  - Success/cancel return URLs that map back to authenticated app routes.
+
+Webhook/event baseline:
+
+- Stripe webhook endpoint must target `https://<deployment>.convex.site/stripe/webhook`.
+- Required event coverage includes:
+  - `checkout.session.completed`
+  - `customer.created`, `customer.updated`
+  - `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+  - `invoice.created`, `invoice.finalized`, `invoice.paid`, `invoice.payment_failed`
+  - `payment_intent.succeeded`, `payment_intent.payment_failed`
+
+Security and correctness constraints:
+
+- Checkout price selection must be server allowlisted (never trust client-submitted arbitrary price IDs).
+- Webhook signatures must be verified before mutating billing state.
+- Access control checks for paid cloud features must run server-side per request using entitlement projection.
+- Billing feature rollout must use `GG_BILLING_ENABLE_STRIPE`; if disabled or degraded, app falls back to non-billing local workflow.
 
 ---
 
@@ -717,6 +769,14 @@ guerillaglass/
 - Deliver-route intent prewarm and media warmup patterns for perceived-latency wins
 - Feature-flagged rollout with local-only fallback preserved
 
+**Phase 2.6 — Commercial access and billing (cloud plane)**
+
+- Convex Stripe component integration for checkout, subscriptions, invoices, and webhook sync
+- Entitlement projection service for paid cloud collaboration features
+- Team/seat billing support for organization collaboration flows
+- Hosted billing portal and subscription lifecycle controls
+- Feature-flagged rollout with local creator core unaffected by billing outages
+
 **Phase 3 — Polish**
 
 - Motion blur controls
@@ -825,6 +885,8 @@ License hygiene:
 - Convex React quickstart — https://docs.convex.dev/quickstart/react
 - Convex authentication docs — https://docs.convex.dev/auth
 - Convex Labs Better Auth React guide — https://labs.convex.dev/better-auth/framework-guides/react
+- Convex Stripe component — https://www.convex.dev/components/stripe
+- Convex Stripe README/API reference — https://github.com/get-convex/stripe
 - Screen Studio product site — https://screen.studio/
 - lawn pricing/product site — https://lawn.video/#pricing
 - DaVinci Resolve product page — https://www.blackmagicdesign.com/products/davinciresolve
