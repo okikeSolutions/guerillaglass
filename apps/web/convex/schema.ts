@@ -41,7 +41,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_review_id", ["reviewId"])
-    .index("by_owner_user_id", ["ownerUserId"]),
+    .index("by_owner_user_id", ["ownerUserId"])
+    .index("by_owner_user_id_and_created_at", ["ownerUserId", "createdAt"]),
   reviewComments: defineTable({
     reviewId: v.string(),
     authorId: v.string(),
@@ -53,7 +54,9 @@ export default defineSchema({
     parentCommentId: v.union(v.string(), v.null()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_review_id_and_created_at", ["reviewId", "createdAt"]),
+  })
+    .index("by_review_id_and_created_at", ["reviewId", "createdAt"])
+    .index("by_review_id_and_author_id_and_created_at", ["reviewId", "authorId", "createdAt"]),
   reviewMembers: defineTable({
     reviewId: v.string(),
     userId: v.string(),

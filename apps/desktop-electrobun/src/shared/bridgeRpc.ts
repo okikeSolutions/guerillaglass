@@ -71,6 +71,10 @@ type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> 
   responseType: Response;
 };
 
+type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
+  authToken: string;
+};
+
 function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
   toParams: (...args: Args) => Params,
 ): BridgeRequestDefinition<Params, Response, Args> {
@@ -202,19 +206,19 @@ export const bridgeRequestDefinitions = {
     [limit?: number]
   >((limit) => ({ limit })),
   ggReviewSessionSnapshot: defineBridgeRequest<
-    ReviewSessionSnapshotRequest,
+    ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>,
     ReviewSessionSnapshot,
-    [params: ReviewSessionSnapshotRequest]
+    [params: ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>]
   >((params) => params),
   ggReviewCreateComment: defineBridgeRequest<
-    ReviewCreateCommentRequest,
+    ReviewBridgeRequestWithAuth<ReviewCreateCommentRequest>,
     ReviewComment,
-    [params: ReviewCreateCommentRequest]
+    [params: ReviewBridgeRequestWithAuth<ReviewCreateCommentRequest>]
   >((params) => params),
   ggReviewSetWorkflowStatus: defineBridgeRequest<
-    ReviewSetWorkflowStatusRequest,
+    ReviewBridgeRequestWithAuth<ReviewSetWorkflowStatusRequest>,
     ReviewSetWorkflowStatusResponse,
-    [params: ReviewSetWorkflowStatusRequest]
+    [params: ReviewBridgeRequestWithAuth<ReviewSetWorkflowStatusRequest>]
   >((params) => params),
   ggPickPath: defineBridgeRequest<
     { mode: HostPathPickerMode; startingFolder?: string },

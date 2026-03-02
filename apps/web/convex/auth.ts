@@ -58,7 +58,10 @@ function parseTrustedOrigins(siteUrl: string): string[] {
 }
 
 function loadAuthRuntimeConfig(): AuthRuntimeConfig {
-  const siteUrl = requireEnv("SITE_URL");
+  const siteUrl = readEnv("SITE_URL") ?? readEnv("CONVEX_SITE_URL");
+  if (!siteUrl) {
+    throw new Error("Missing required Convex env var: SITE_URL (or CONVEX_SITE_URL).");
+  }
   const betterAuthSecret = requireEnv("BETTER_AUTH_SECRET");
   return {
     betterAuthSecret,
