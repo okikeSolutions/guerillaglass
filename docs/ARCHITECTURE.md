@@ -24,6 +24,10 @@ Guerilla Glass now follows a hybrid multiplatform architecture with strict local
    - Convex functions enforce authenticated identity and role-based access for review/collab data
    - Wiring baseline follows Convex Labs Better Auth React framework guide
    - Dependency constraints: `convex >= 1.25.0`, `better-auth@1.4.9` pinned
+7. Billing and entitlement plane (Convex Stripe component, planned)
+   - Stripe checkout + customer portal + subscription lifecycle sync
+   - Signed webhook ingestion at `/stripe/webhook` for billing truth reconciliation
+   - Server-side entitlement projection for paid cloud features (review/collab access tiers)
 
 North star:
 
@@ -32,6 +36,7 @@ North star:
 - Shared protocol contract so shell UX stays consistent across engines
 - Cloud review features must not gate local capture/edit/export
 - Account-gated collaboration: cloud review/collab actions are available only to authenticated users
+- Open-source local core with paid cloud collaboration tiers via server-enforced entitlements
 
 ## Runtime Data Flow
 
@@ -52,12 +57,23 @@ Deliver-review flow (Phase 2.5+):
 6. Webhooks reconcile transcode readiness and playback metadata updates.
 7. Renderer receives reactive query updates for comment threads, watcher presence, and review status.
 
+Billing flow (Phase 2.6+):
+
+1. Authenticated renderer invokes billing RPC for checkout or customer portal actions.
+2. Host routes billing RPC to Convex actions using `@convex-dev/stripe`.
+3. Convex actions create Stripe checkout/customer-portal sessions linked to authenticated user/org identity.
+4. Stripe emits billing lifecycle webhooks to `https://<deployment>.convex.site/stripe/webhook`.
+5. Stripe component syncs customers/subscriptions/invoices/payments in Convex component tables.
+6. Entitlement projection functions compute paid capability flags for review/collab and seat limits.
+7. Renderer consumes reactive entitlement state and gates paid cloud features without blocking local media workflows.
+
 ## Dual-Plane Boundaries
 
 - Local media plane (authoritative): capture, record, timeline edit semantics, deterministic render/export, project package IO.
 - Cloud review plane: share links, review comments, presence, review workflow metadata, async delivery readiness.
 - Bridge rule: failures in cloud review paths must degrade to local-only behavior without interrupting capture/edit/export.
 - Auth rule: unauthenticated clients cannot access protected cloud review/collaboration data.
+- Monetization rule: subscription/billing failures cannot block local `Capture`/`Edit`/deterministic `Export`; only paid cloud features are gated.
 - Contract rule:
   - Local media RPC remains in `packages/engine-protocol`.
   - Review payload contracts should live in `packages/review-protocol` (planned) and must not expand native engine media responsibilities.
