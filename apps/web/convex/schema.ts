@@ -35,6 +35,8 @@ export default defineSchema({
     sharePolicyAllowDownloads: v.boolean(),
     sharePolicyExpiresAt: v.union(v.string(), v.null()),
     sharePolicyPasswordProtected: v.boolean(),
+    statusUpdatedByUserId: v.union(v.string(), v.null()),
+    statusUpdatedByName: v.union(v.string(), v.null()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -52,6 +54,16 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_review_id_and_created_at", ["reviewId", "createdAt"]),
+  reviewMembers: defineTable({
+    reviewId: v.string(),
+    userId: v.string(),
+    displayName: v.string(),
+    role: reviewRoleValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_review_id", ["reviewId"])
+    .index("by_review_id_and_user_id", ["reviewId", "userId"]),
   reviewPresence: defineTable({
     reviewId: v.string(),
     userId: v.string(),

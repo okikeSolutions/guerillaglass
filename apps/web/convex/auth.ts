@@ -9,7 +9,54 @@ import { query } from "./_generated/server";
 import authConfig from "./auth.config";
 import authSchema from "./betterAuth/schema";
 
-const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+type AuthRuntimeConfig = {
+  betterAuthSecret: string;
+  siteUrl: string;
+  trustedOrigins: string[];
+};
+
+function readEnv(name: string): string | null {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    return null;
+  }
+  return value;
+}
+
+function toOrigin(value: string, source: string): string {
+  try {
+    return new URL(value).origin;
+  } catch {
+    throw new Error(`Invalid URL provided for ${source}: "${value}"`);
+  }
+}
+
+function parseTrustedOrigins(siteUrl: string): string[] {
+  const configuredOrigins = readEnv("BETTER_AUTH_TRUSTED_ORIGINS");
+  const origins = new Set<string>([toOrigin(siteUrl, "SITE_URL"), "http://localhost:3000"]);
+  if (!configuredOrigins) {
+    return [...origins];
+  }
+  for (const rawOrigin of configuredOrigins.split(",")) {
+    const candidate = rawOrigin.trim();
+    if (!candidate) {
+      continue;
+    }
+    origins.add(toOrigin(candidate, "BETTER_AUTH_TRUSTED_ORIGINS"));
+  }
+  return [...origins];
+}
+
+function loadAuthRuntimeConfig(): AuthRuntimeConfig {
+  const siteUrl = readEnv("SITE_URL") ?? "http://localhost:3000";
+  const betterAuthSecret =
+    readEnv("BETTER_AUTH_SECRET") ?? "development-only-better-auth-secret-change-me";
+  return {
+    betterAuthSecret,
+    siteUrl,
+    trustedOrigins: parseTrustedOrigins(siteUrl),
+  };
+}
 
 export const authComponent = createClient<DataModel, typeof authSchema>(components.betterAuth, {
   local: {
@@ -18,8 +65,11 @@ export const authComponent = createClient<DataModel, typeof authSchema>(componen
 });
 
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
+  const config = loadAuthRuntimeConfig();
   return {
-    baseURL: siteUrl,
+    baseURL: config.siteUrl,
+    secret: config.betterAuthSecret,
+    trustedOrigins: config.trustedOrigins,
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,

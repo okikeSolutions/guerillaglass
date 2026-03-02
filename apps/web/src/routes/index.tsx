@@ -53,6 +53,9 @@ function LandingPage() {
           >
             View Repository
           </a>
+          <Link className="button button-primary" to="/workspace/capture">
+            Open Workspace
+          </Link>
           <Link className="button button-ghost" to="/anotherPage">
             Open Convex Demo Route
           </Link>

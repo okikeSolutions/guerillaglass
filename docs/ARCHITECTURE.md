@@ -61,6 +61,11 @@ Deliver-review flow (Phase 2.5+):
 7. Host emits typed review bridge events (`hostReviewEvent`) after successful review mutations for immediate renderer updates.
 8. Renderer receives reactive query updates for comment threads, watcher presence, and review status.
 
+Current hardening:
+
+- Desktop review bridge uses user-scoped JWT auth (`GG_REVIEW_CONVEX_JWT`) for Convex review calls.
+- Review mutations enforce role-aware access (`owner`, `admin`, `member`, `viewer`) in Convex handlers.
+
 Billing flow (Phase 2.6+):
 
 1. Authenticated renderer invokes billing RPC for checkout or customer portal actions.

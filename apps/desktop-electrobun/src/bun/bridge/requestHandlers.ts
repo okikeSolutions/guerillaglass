@@ -72,27 +72,14 @@ function resolveReviewConvexUrl(): string {
 
 function createReviewGateway(): ReviewGateway {
   const client = new ConvexHttpClient(resolveReviewConvexUrl());
-  const adminKey = process.env.GG_REVIEW_CONVEX_ADMIN_KEY;
   const authJwt = process.env.GG_REVIEW_CONVEX_JWT;
-  const clientWithAdminAuth = client as ConvexHttpClient & {
-    setAdminAuth?: (key: string) => void;
-  };
 
-  if (adminKey) {
-    if (typeof clientWithAdminAuth.setAdminAuth === "function") {
-      clientWithAdminAuth.setAdminAuth(adminKey);
-    } else {
-      throw new Error(
-        "GG_REVIEW_CONVEX_ADMIN_KEY is set, but this Convex client build does not expose setAdminAuth(). Use GG_REVIEW_CONVEX_JWT or update convex.",
-      );
-    }
-  } else if (authJwt) {
-    client.setAuth(authJwt);
-  } else {
+  if (!authJwt || authJwt.trim().length === 0) {
     throw new Error(
-      "Missing GG_REVIEW_CONVEX_JWT or GG_REVIEW_CONVEX_ADMIN_KEY. Review bridge requires Convex auth.",
+      "Missing GG_REVIEW_CONVEX_JWT. Review bridge requires a user-scoped Convex JWT.",
     );
   }
+  client.setAuth(authJwt);
 
   return {
     sessionSnapshot: async (reviewId) =>
