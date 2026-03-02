@@ -1,5 +1,6 @@
 import { Electroview } from "electrobun/view";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
+import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createWindowBridgeBindings } from "../../shared/bridgeBindings";
 import type {
   BridgeRequestInvoker,
@@ -42,6 +43,13 @@ export function initializeElectrobunRpcBridge(): void {
           window.dispatchEvent(
             new CustomEvent(hostBridgeEventNames.captureStatus, {
               detail: { captureStatus },
+            }),
+          );
+        },
+        hostReviewEvent: ({ event }: { event: ReviewBridgeEvent }) => {
+          window.dispatchEvent(
+            new CustomEvent(hostBridgeEventNames.reviewEvent, {
+              detail: { event },
             }),
           );
         },

@@ -22,6 +22,7 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@guerillaglass/engine-protocol": "workspace:*",
     "@guerillaglass/localization": "workspace:*",
+    "@guerillaglass/review-protocol": "workspace:*",
     "@tailwindcss/vite": "^4.2.0",
     "@tanstack/react-form": "^1.28.3",
     "@tanstack/react-hotkeys": "^0.3.0",

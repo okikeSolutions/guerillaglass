@@ -18,8 +18,14 @@ bun run docs:check:ts
 echo "==> desktop typecheck"
 (cd apps/desktop-electrobun && bun run typecheck)
 
+echo "==> landing app typecheck"
+(cd apps/web-landing && bun run typecheck)
+
 echo "==> engine protocol typecheck"
 (cd packages/engine-protocol && bun run typecheck)
+
+echo "==> review protocol typecheck"
+(cd packages/review-protocol && bun run typecheck)
 
 echo "==> desktop tests"
 bun run desktop:test

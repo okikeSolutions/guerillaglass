@@ -1,0 +1,196 @@
+@import "tailwindcss";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/space-mono";
+
+:root {
+  --gg-bg-0: #08111a;
+  --gg-bg-1: #111d2b;
+  --gg-surface: rgba(8, 19, 32, 0.8);
+  --gg-surface-strong: rgba(9, 26, 43, 0.94);
+  --gg-border: rgba(165, 192, 224, 0.28);
+  --gg-text: #e8eef9;
+  --gg-text-muted: #b6c8df;
+  --gg-accent: #3dd6c6;
+  --gg-accent-strong: #11b7a8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% 10%, rgba(61, 214, 198, 0.18), transparent 36%),
+    radial-gradient(circle at 92% 26%, rgba(78, 138, 255, 0.22), transparent 42%),
+    linear-gradient(160deg, var(--gg-bg-0), var(--gg-bg-1));
+  color: var(--gg-text);
+  font-family: "Space Grotesk Variable", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+code {
+  border: 1px solid rgba(196, 214, 237, 0.36);
+  border-radius: 0.3rem;
+  font-family: "Space Mono", "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.9em;
+  padding: 0.1rem 0.28rem;
+}
+
+.landing-shell {
+  display: grid;
+  gap: 1.2rem;
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 2.2rem 1.1rem 3rem;
+}
+
+.hero-card,
+.status-card,
+.pillar-card {
+  backdrop-filter: blur(8px);
+  background: var(--gg-surface);
+  border: 1px solid var(--gg-border);
+  border-radius: 1rem;
+}
+
+.hero-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.4rem;
+}
+
+.eyebrow {
+  color: var(--gg-accent);
+  font-family: "Space Mono", "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.hero-card h1 {
+  font-size: clamp(2rem, 4.6vw, 3.6rem);
+  line-height: 1.04;
+  margin: 0;
+  max-width: 18ch;
+}
+
+.hero-copy {
+  color: var(--gg-text-muted);
+  font-size: 1.04rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 62ch;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.72rem;
+}
+
+.button {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-family: "Space Mono", "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  gap: 0.42rem;
+  letter-spacing: 0.02em;
+  padding: 0.65rem 1.1rem;
+  text-decoration: none;
+  transition: transform 140ms ease;
+}
+
+.button:focus-visible,
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.button-primary {
+  background: linear-gradient(135deg, var(--gg-accent), var(--gg-accent-strong));
+  border: 1px solid rgba(11, 183, 168, 0.84);
+  color: #042420;
+}
+
+.button-ghost {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(190, 210, 236, 0.45);
+  color: var(--gg-text);
+}
+
+.pillar-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pillar-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.pillar-card h2 {
+  font-size: 1.02rem;
+  margin: 0;
+}
+
+.pillar-card p {
+  color: var(--gg-text-muted);
+  font-size: 0.94rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.status-card {
+  background: var(--gg-surface-strong);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.2rem;
+}
+
+.status-card h1,
+.status-card h2 {
+  font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+  margin: 0;
+}
+
+.status-card p {
+  color: var(--gg-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.status-card ul {
+  color: var(--gg-text-muted);
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.demo-stack {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.status-copy {
+  font-size: 0.88rem;
+}
+
+@media (max-width: 860px) {
+  .pillar-grid {
+    grid-template-columns: 1fr;
+  }
+}

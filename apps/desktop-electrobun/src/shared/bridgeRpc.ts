@@ -15,6 +15,15 @@ import type {
   ProjectState,
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
+import type {
+  ReviewBridgeEvent,
+  ReviewComment,
+  ReviewCreateCommentRequest,
+  ReviewSessionSnapshot,
+  ReviewSessionSnapshotRequest,
+  ReviewSetWorkflowStatusRequest,
+  ReviewSetWorkflowStatusResponse,
+} from "@guerillaglass/review-protocol";
 import type { RPCSchema } from "electrobun/bun";
 
 export const hostMenuCommands = {
@@ -39,6 +48,7 @@ export const hostMenuCommands = {
 export const hostBridgeEventNames = {
   menuCommand: "gg-host-menu-command",
   captureStatus: "gg-host-capture-status",
+  reviewEvent: "gg-host-review-event",
 } as const;
 
 export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCommands];
@@ -191,6 +201,21 @@ export const bridgeRequestDefinitions = {
     ProjectRecentsResult,
     [limit?: number]
   >((limit) => ({ limit })),
+  ggReviewSessionSnapshot: defineBridgeRequest<
+    ReviewSessionSnapshotRequest,
+    ReviewSessionSnapshot,
+    [params: ReviewSessionSnapshotRequest]
+  >((params) => params),
+  ggReviewCreateComment: defineBridgeRequest<
+    ReviewCreateCommentRequest,
+    ReviewComment,
+    [params: ReviewCreateCommentRequest]
+  >((params) => params),
+  ggReviewSetWorkflowStatus: defineBridgeRequest<
+    ReviewSetWorkflowStatusRequest,
+    ReviewSetWorkflowStatusResponse,
+    [params: ReviewSetWorkflowStatusRequest]
+  >((params) => params),
   ggPickPath: defineBridgeRequest<
     { mode: HostPathPickerMode; startingFolder?: string },
     string | null,
@@ -254,6 +279,7 @@ export type DesktopBridgeRPC = {
     messages: {
       hostMenuCommand: { command: HostMenuCommand };
       hostCaptureStatus: { captureStatus: CaptureStatusResult };
+      hostReviewEvent: { event: ReviewBridgeEvent };
     };
   }>;
 };

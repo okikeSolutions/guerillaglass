@@ -1,0 +1,18 @@
+{
+  "type": "comment.created",
+  "reviewId": "review_5d4d3f1f",
+  "comment": {
+    "id": "comment_f1e2d3c4",
+    "reviewId": "review_5d4d3f1f",
+    "authorId": "user_42",
+    "authorName": "Alex",
+    "body": "Tighten this transition by 4 frames.",
+    "frameNumber": 420,
+    "timestampSeconds": 14,
+    "resolved": false,
+    "createdAt": "2026-03-02T09:20:00.000Z",
+    "updatedAt": "2026-03-02T09:20:00.000Z",
+    "parentCommentId": null
+  },
+  "emittedAt": "2026-03-02T09:20:00.000Z"
+}

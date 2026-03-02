@@ -12,7 +12,10 @@
 - **Desktop shell (new):** `apps/desktop-electrobun/` — Electrobun main process, React/Tailwind UI, shadcn base components.
 - **Desktop shell bridge:** `apps/desktop-electrobun/src/bun/` — Electrobun `BrowserWindow` setup and native engine bridge.
 - **Desktop shell UI:** `apps/desktop-electrobun/src/mainview/` — React app (`App.tsx`), UI components, styling.
+- **Landing app (new):** `apps/web-landing/` — TanStack Start marketing/auth shell with Convex client wiring.
+- **Landing Convex backend (new):** `apps/web-landing/convex/` — Convex schema/functions for web auth/review/billing surfaces.
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
+- **Review protocol (new):** `packages/review-protocol/` — Zod schemas + TypeScript types for review bridge requests/events.
 - **Localization (new):** `packages/localization/` — shared locale dictionaries + helpers consumed by renderer UI and desktop shell menus.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
 - **Native engine modules:** `engines/macos-swift/modules/` — capture, input tracking, project, automation, rendering, export.
@@ -41,7 +44,7 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **React effect guard lint:** `bun run js:lint:react-effects`  
   Runs the custom guard that rejects direct React state updates in effects (`Scripts/lint_no_state_updates_in_effect.mjs`).
 - **TypeScript gate (format + lint + typecheck + tests):** `bun run gate:typescript`  
-  Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → docs coverage gate (TypeScript surfaces) → desktop shell typecheck → protocol package typecheck → desktop tests.
+  Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → docs coverage gate (TypeScript surfaces) → desktop shell typecheck → landing app typecheck → protocol package typecheck → desktop tests.
 - **Docs coverage gate (all surfaces):** `bun run docs:check`  
   Runs coverage checks for TypeScript, Swift, and Rust public/exported API surfaces using `docs/doc_coverage_policy.json`.
 - **Docs coverage gate (TypeScript surfaces):** `bun run docs:check:ts`
@@ -52,6 +55,9 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **Desktop shell dev:** `bun run desktop:dev`
 - **Desktop shell dev fallback (macOS app open):** `bun run desktop:dev:open`
 - **Desktop shell dev with HMR:** `bun run desktop:dev:hmr`
+- **Landing app dev (TanStack Start + Convex):** `bun run landing:dev`
+- **Landing app build:** `bun run landing:build`
+- **Landing app typecheck:** `bun run landing:typecheck`
 - **Desktop shell (Windows native):** `bun run desktop:dev:windows-native`
 - **Desktop shell (Linux native):** `bun run desktop:dev:linux-native`
 - **Desktop shell (Windows stub):** `bun run desktop:dev:windows-stub`
@@ -87,6 +93,7 @@ Do not consider a task done until the full gate passes. If it fails, fix the iss
 
 - **Product north star:** cross-platform creator studio with professional record/edit/deliver workflow and cinematic defaults.
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components.
+- **Web landing/auth shell:** TanStack Start + Convex + Tailwind.
 - **Native engines:** macOS Swift engine (production baseline), Windows/Linux Rust native engines (parity expansion path), plus protocol-compatible stubs for parallel shell work.
 - **Current production capture baseline:** macOS 13.0+ (stretch: validate 12.3+ video-only).
 - **Protocol:** Zod (TypeScript) + Swift wire codec.
@@ -123,7 +130,7 @@ When adding features, align with the current phase in `docs/ROADMAP.md` and the 
 - Baseline targets (Apple Silicon M1/M2): capture dropped frames ≤ 0.5%, avg CPU ≤ 20%; export ≤ 1.5× realtime for 1080p/60.
 - Tag issues/PRs appropriately: `bug`, `feature`, `good first issue`, `help wanted`, `design`, `performance`.
 - Run `bun run gate` before pushing when you touch Swift logic; CI runs the same gate (see `.github/workflows/full_gate.yml`).
-- Run `bun run desktop:test:coverage` when touching `apps/desktop-electrobun` or `packages/engine-protocol`.
+- Run `bun run desktop:test:coverage` when touching `apps/desktop-electrobun` or protocol packages (`packages/engine-protocol`, `packages/review-protocol`).
 - Pure test additions/fixes generally do **not** need a changelog entry unless they alter user-facing behavior.
 
 ---
