@@ -102,8 +102,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>{children}</body>
-      <Scripts />
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }
