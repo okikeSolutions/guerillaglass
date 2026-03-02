@@ -1,6 +1,7 @@
 export type LandingCta = {
   label: string;
   style: "default" | "outline" | "ghost";
+  analyticsId?: string;
 } & (
   | {
       type: "external";
@@ -19,151 +20,299 @@ export type LandingCta = {
     }
 );
 
+export type LandingMedia = {
+  type: "image" | "video";
+  src: string;
+  poster?: string;
+  alt: string;
+  aspectRatio: "16 / 9" | "4 / 3" | "1 / 1";
+  preload: "eager" | "lazy";
+};
+
+export type StickyNavLink = {
+  label: string;
+  sectionId: string;
+};
+
 export const landingContent = {
   seo: {
-    title: "Guerilla Glass | Record. Edit. Deliver.",
+    title: "Guerilla Glass | Cinematic Product Walkthrough Studio",
     description:
-      "Open-source creator studio with local-first capture/edit, deterministic export, and cinematic defaults.",
+      "Dark, premium product landing for Guerilla Glass: local-first capture, timeline editing, deterministic exports, and workflow depth.",
     keywords: [
-      "screen recorder",
-      "video editor",
+      "guerilla glass",
+      "screen recording",
+      "product walkthrough",
       "deterministic export",
-      "auto zoom",
-      "cursor smoothing",
-      "local-first",
-      "cross-platform",
+      "creator studio",
+      "local-first video editor",
     ],
   },
-  hero: {
-    eyebrow: "Guerilla Glass",
-    title: "Record. Edit. Deliver. Cinematic by default.",
-    copy: "Built for creators who want native capture discipline, editor-first control, and polished outputs without cloud lock-in.",
-    badges: ["Local-first", "Editor-first", "Deterministic exports"],
-    ctas: [
-      {
-        label: "Download for macOS",
-        style: "default",
-        type: "external",
-        href: "https://github.com/okikeSolutions/guerillaglass",
-      },
-      {
-        label: "Open Workspace",
-        style: "outline",
-        type: "route",
-        to: "/workspace/$mode",
-        params: { mode: "capture" },
-      },
-    ] satisfies LandingCta[],
-  },
-  workflow: {
-    title: "Workflow",
-    intro: "One studio from first take to final delivery.",
-    items: [
-      {
-        title: "Capture",
-        detail:
-          "Native display/window capture with engine telemetry and permissions-aware degraded modes.",
-      },
-      {
-        title: "Edit",
-        detail:
-          "Timeline, preview, and inspector stay visible as first-class surfaces with keyboard-first control.",
-      },
-      {
-        title: "Deliver",
-        detail:
-          "Local deterministic export by default, then optional async review workflows when teams need them.",
-      },
-    ],
-  },
-  cinematicDemos: {
-    title: "Cinematic Defaults",
-    intro: "Visual polish is automatic, then still editable when you need precision.",
-    items: [
-      {
-        title: "Auto-zoom and reframing",
-        detail: "Keep focus on intent without hand-keyframing every move.",
-      },
-      {
-        title: "Cursor smoothing and click emphasis",
-        detail: "Clearer guidance for viewers on fast UI walkthroughs.",
-      },
-      {
-        title: "Motion blur and camera motion",
-        detail: "Natural movement that feels edited, not raw.",
-      },
-      {
-        title: "Vertical export with re-planned framing",
-        detail: "Render social-ready formats without manual recuts.",
-      },
-    ],
-  },
-  trust: {
-    title: "Trust by design",
-    intro: "Operational reliability and privacy are defaults, not add-ons.",
-    items: [
-      "Local capture/edit/export works offline.",
-      "Cloud review is additive and cannot block local production.",
-      "If Input Monitoring is denied, recording continues with degraded cinematic features.",
-      "Determinism contract targets reproducible pre-encode frame output.",
-    ],
-  },
-  platformParity: {
-    title: "Platform parity",
-    intro: "macOS is production baseline; Windows/Linux parity follows the same protocol contract.",
-    rows: [
-      { platform: "macOS", status: "Production baseline", note: "Capture + edit + export" },
-      { platform: "Windows", status: "Native parity track", note: "Rust sidecar expansion" },
-      { platform: "Linux", status: "Native parity track", note: "Rust sidecar expansion" },
-    ],
-  },
-  pricingOrWaitlist: {
-    title: "Commercial model",
-    intro:
-      "Core creator workflow remains local-first. Collaboration and cloud review are the commercialization plane.",
+  globalHeader: {
+    brand: "Guerilla Glass",
     primaryCta: {
-      label: "View roadmap",
-      style: "outline",
-      type: "external",
-      href: "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/ROADMAP.md",
-    } satisfies LandingCta,
-  },
-  faq: {
-    title: "FAQ",
-    items: [
-      {
-        question: "Does capture/edit/export work without cloud services?",
-        answer:
-          "Yes. Local capture, edit, and deterministic export are core paths and are not gated by cloud availability.",
-      },
-      {
-        question: "What happens when Input Monitoring is denied?",
-        answer:
-          "Recording continues. Input-driven cinematic features degrade gracefully and the UI surfaces the degraded state.",
-      },
-      {
-        question: "What does deterministic export mean here?",
-        answer:
-          "Pre-encode frame buffers remain reproducible for the same project/version/settings/hardware class; encoded bytes can still differ.",
-      },
-    ],
-  },
-  finalCta: {
-    title: "Ship better walkthroughs with less manual polish.",
-    copy: "Start in Capture, refine in Edit, and deliver with deterministic confidence.",
-    primary: {
       label: "Open Workspace",
       style: "default",
+      analyticsId: "global_header_open_workspace",
       type: "route",
       to: "/workspace/$mode",
       params: { mode: "capture" },
     } satisfies LandingCta,
-    secondary: {
-      label: "Convex demo route",
-      style: "ghost",
+  },
+  stickySectionNav: {
+    links: [
+      { label: "Overview", sectionId: "overview" },
+      { label: "Features", sectionId: "features" },
+      { label: "Workflows", sectionId: "workflows" },
+      { label: "Pricing", sectionId: "pricing" },
+      { label: "FAQ", sectionId: "faq" },
+    ] satisfies StickyNavLink[],
+    cta: {
+      label: "Start Capture",
+      style: "outline",
+      analyticsId: "sticky_nav_start_capture",
       type: "route",
-      to: "/anotherPage",
+      to: "/workspace/$mode",
+      params: { mode: "capture" },
     } satisfies LandingCta,
+  },
+  hero: {
+    sectionId: "overview",
+    headline: "Create polished product walkthroughs at cinematic quality.",
+    subhead:
+      "Capture, edit, and deliver from one local-first workflow built for teams shipping fast and communicating clearly.",
+    primaryCta: {
+      label: "Download for macOS",
+      style: "default",
+      analyticsId: "hero_download_macos",
+      type: "external",
+      href: "https://github.com/okikeSolutions/guerillaglass",
+    } satisfies LandingCta,
+    secondaryCta: {
+      label: "Open Workspace",
+      style: "ghost",
+      analyticsId: "hero_open_workspace",
+      type: "route",
+      to: "/workspace/$mode",
+      params: { mode: "capture" },
+    } satisfies LandingCta,
+    backgroundMedia: {
+      type: "image",
+      src: "/landing/hero-studio.svg",
+      alt: "Guerilla Glass studio surface with source capture, timeline, and delivery panels",
+      aspectRatio: "16 / 9",
+      preload: "eager",
+    } satisfies LandingMedia,
+  },
+  featureSplitSections: [
+    {
+      sectionId: "features",
+      heading: "Auto-focus attention without sacrificing control",
+      body: "Camera planning tracks intent from interaction signals, then keeps transitions smooth for viewers. You can still tune every segment before export.",
+      media: {
+        type: "image",
+        src: "/landing/split-focus.svg",
+        alt: "Feature view showing automatic reframing and cursor emphasis in a product demo",
+        aspectRatio: "16 / 9",
+        preload: "lazy",
+      } satisfies LandingMedia,
+      mediaSide: "right",
+      theme: "dark",
+    },
+    {
+      sectionId: "features-timeline",
+      heading: "Edit in a timeline-first layout that stays out of the way",
+      body: "Trim, pacing, and framing controls stay close to the preview so editorial decisions happen quickly. The interface remains keyboard-friendly and predictable.",
+      media: {
+        type: "image",
+        src: "/landing/split-timeline.svg",
+        alt: "Timeline editing surface with transport controls and inspector adjustments",
+        aspectRatio: "16 / 9",
+        preload: "lazy",
+      } satisfies LandingMedia,
+      mediaSide: "left",
+      theme: "light",
+    },
+  ],
+  featureFullBleedSection: {
+    sectionId: "feature-bleed",
+    heading: "From rough capture to launch-ready deliverable",
+    body: "One studio handles quick internal updates and polished external walkthroughs without tool switching.",
+    media: {
+      type: "image",
+      src: "/landing/fullbleed-workflow.svg",
+      alt: "Full-width workflow scene covering capture, editing, and export stages",
+      aspectRatio: "16 / 9",
+      preload: "lazy",
+    } satisfies LandingMedia,
+  },
+  featureCardGrid: {
+    sectionId: "feature-grid",
+    heading: "Depth where it matters",
+    body: "The core system is built to keep quality and reliability high under real production constraints.",
+    cards: [
+      {
+        title: "Deterministic pre-encode frames",
+        description:
+          "Rendering output remains reproducible for the same project, version, settings, and hardware class.",
+        media: {
+          type: "image",
+          src: "/landing/card-deterministic.svg",
+          alt: "Card image representing deterministic rendering contract",
+          aspectRatio: "1 / 1",
+          preload: "lazy",
+        } satisfies LandingMedia,
+      },
+      {
+        title: "Graceful degraded capture modes",
+        description:
+          "If Input Monitoring is denied, recording continues while input-driven cinematic effects reduce safely.",
+        media: {
+          type: "image",
+          src: "/landing/card-capture.svg",
+          alt: "Card image representing resilient recording when some permissions are unavailable",
+          aspectRatio: "1 / 1",
+          preload: "lazy",
+        } satisfies LandingMedia,
+      },
+      {
+        title: "Review plane when teams need it",
+        description:
+          "Local production remains independent while cloud collaboration can layer in asynchronously.",
+        media: {
+          type: "image",
+          src: "/landing/card-review.svg",
+          alt: "Card image representing asynchronous team review and comments",
+          aspectRatio: "1 / 1",
+          preload: "lazy",
+        } satisfies LandingMedia,
+      },
+    ],
+  },
+  workflowSection: {
+    sectionId: "workflows",
+    heading: "How Guerilla Glass fits your production stack",
+    body: "Capture instantly, refine with editorial precision, then deliver in platform-ready formats while keeping one project source of truth.",
+    items: [
+      {
+        title: "Capture",
+        description: "Window/display capture with stable telemetry and low-friction startup.",
+      },
+      {
+        title: "Edit",
+        description: "Timeline + preview + inspector architecture optimized for creator velocity.",
+      },
+      {
+        title: "Deliver",
+        description: "Deterministic masters and social variants from the same workflow graph.",
+      },
+    ],
+  },
+  pricingSection: {
+    sectionId: "pricing",
+    heading: "Pricing designed around real usage",
+    body: "Use local production freely, then adopt collaboration capabilities when your team needs shared review and governance.",
+    plans: [
+      {
+        name: "Creator",
+        price: "Free",
+        description: "Local capture, edit, and export.",
+        featured: false,
+        cta: {
+          label: "Open Workspace",
+          style: "ghost",
+          analyticsId: "pricing_creator_open_workspace",
+          type: "route",
+          to: "/workspace/$mode",
+          params: { mode: "capture" },
+        } satisfies LandingCta,
+        bullets: [
+          "Unlimited local projects",
+          "Timeline and inspector workflow",
+          "Cinematic defaults included",
+        ],
+      },
+      {
+        name: "Team",
+        price: "Roadmap",
+        description: "Review, collaboration, and operational controls.",
+        featured: true,
+        cta: {
+          label: "View Roadmap",
+          style: "default",
+          analyticsId: "pricing_team_view_roadmap",
+          type: "external",
+          href: "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/ROADMAP.md",
+        } satisfies LandingCta,
+        bullets: [
+          "Shared async review",
+          "Team activity visibility",
+          "Workflow governance controls",
+        ],
+      },
+    ],
+  },
+  faqSection: {
+    sectionId: "faq",
+    heading: "Frequently asked questions",
+    items: [
+      {
+        question: "Does the core workflow depend on cloud services?",
+        answer:
+          "No. Capture, editing, and export run locally. Cloud layers are additive for review workflows.",
+      },
+      {
+        question: "What if Input Monitoring is not granted?",
+        answer:
+          "Recording continues and UI indicates reduced cinematic behavior for input-based effects.",
+      },
+      {
+        question: "How is deterministic output defined?",
+        answer:
+          "The pre-encode rendering stage targets reproducible frames under equal project, version, settings, and hardware class.",
+      },
+      {
+        question: "Can this align with multi-platform rollout plans?",
+        answer:
+          "Yes. macOS is production baseline with Windows and Linux parity tracks using a shared protocol contract.",
+      },
+    ],
+  },
+  footnotesSection: {
+    heading: "Footnotes",
+    items: [
+      "Compatibility and roadmap details evolve by release phase.",
+      "Screen recording permissions are managed by host operating system policy.",
+      "Determinism applies to pre-encode rendering stage, not final encoded bytes.",
+    ],
+    legalLinks: [
+      {
+        label: "Specification",
+        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/SPEC.md",
+      },
+      {
+        label: "Roadmap",
+        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/ROADMAP.md",
+      },
+      {
+        label: "License",
+        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/LICENSE",
+      },
+    ],
+  },
+  globalFooter: {
+    brand: "Guerilla Glass",
+    links: [
+      {
+        label: "GitHub",
+        href: "https://github.com/okikeSolutions/guerillaglass",
+      },
+      {
+        label: "Convex Demo",
+        href: "/anotherPage",
+      },
+    ],
+    copyright: "© Guerilla Glass",
   },
 } as const;
 
