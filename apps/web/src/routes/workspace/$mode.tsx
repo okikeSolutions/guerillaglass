@@ -10,7 +10,7 @@ function isWorkspaceMode(value: string): value is WorkspaceMode {
 export const Route = createFileRoute("/workspace/$mode")({
   beforeLoad: ({ context, params }) => {
     if (!isWorkspaceMode(params.mode)) {
-      throw redirect({ to: "/workspace/capture" });
+      throw redirect({ to: "/workspace/$mode", params: { mode: "capture" } });
     }
     const authContext = context as { isAuthenticated?: boolean };
     if (!authContext.isAuthenticated) {
@@ -34,13 +34,21 @@ function WorkspaceRoute() {
           Better Auth session token is present.
         </p>
         <div className="hero-actions">
-          <Link className="button button-primary" to="/workspace/capture">
+          <Link
+            className="button button-primary"
+            to="/workspace/$mode"
+            params={{ mode: "capture" }}
+          >
             Capture
           </Link>
-          <Link className="button button-primary" to="/workspace/edit">
+          <Link className="button button-primary" to="/workspace/$mode" params={{ mode: "edit" }}>
             Edit
           </Link>
-          <Link className="button button-primary" to="/workspace/deliver">
+          <Link
+            className="button button-primary"
+            to="/workspace/$mode"
+            params={{ mode: "deliver" }}
+          >
             Deliver
           </Link>
           <Link className="button button-ghost" to="/">
