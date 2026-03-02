@@ -54,11 +54,12 @@ Deliver-review flow (Phase 2.5+):
 
 1. Renderer validates an active Better Auth session before entering account-gated workspace routes.
 2. Renderer invokes review-specific bridge RPC (`ggReview*`) for link/comment/presence/status actions.
-3. Host routes review RPC to Convex-backed review services with user identity context (local stub in place until full cloud bridge is wired).
+3. Host routes review RPC to Convex-backed review services with user identity context for snapshot/comment/status flows.
 4. Convex functions authorize by team/project/video role before protected reads/mutations.
 5. Convex actions issue signed upload URLs, validate upload completion, and move video state to processing.
 6. Webhooks reconcile transcode readiness and playback metadata updates.
-7. Renderer receives reactive query updates for comment threads, watcher presence, and review status.
+7. Host emits typed review bridge events (`hostReviewEvent`) after successful review mutations for immediate renderer updates.
+8. Renderer receives reactive query updates for comment threads, watcher presence, and review status.
 
 Billing flow (Phase 2.6+):
 
