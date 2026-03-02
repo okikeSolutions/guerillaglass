@@ -22,6 +22,9 @@ const reviewRoleValidator = v.union(
   v.literal("viewer"),
 );
 type ReviewRole = "owner" | "admin" | "member" | "viewer";
+const REVIEW_COMMENT_MAX_BODY_LENGTH = 4000;
+const REVIEW_COMMENT_MIN_INTERVAL_MS = 500;
+const REVIEW_SESSION_CREATE_MIN_INTERVAL_MS = 2000;
 
 const reviewCommentValidator = v.object({
   id: v.string(),
@@ -71,7 +74,6 @@ type ReviewPresenceDoc = Doc<"reviewPresence">;
 type AuthActor = {
   id: string;
   displayName: string;
-  email: string | null;
 };
 
 function nowTimestampMs(): number {
@@ -115,7 +117,6 @@ async function requireAuthActor(ctx: QueryCtx | MutationCtx): Promise<AuthActor>
   return {
     id: String(user._id),
     displayName: resolveDisplayName(user),
-    email: normalizeOptionalString(user.email),
   };
 }
 
@@ -252,22 +253,44 @@ async function getReviewSession(
     .unique();
 }
 
-async function ensureReviewSession(
+function generateReviewId(): string {
+  return `review_${crypto.randomUUID().replaceAll("-", "")}`;
+}
+
+async function createUniqueReviewId(ctx: MutationCtx): Promise<string> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const candidateReviewId = generateReviewId();
+    const existing = await getReviewSession(ctx, candidateReviewId);
+    if (!existing) {
+      return candidateReviewId;
+    }
+  }
+  throw new ConvexError("REVIEW_SESSION_CREATE_FAILED");
+}
+
+async function createOwnedReviewSession(
   ctx: MutationCtx,
-  reviewId: string,
   actor: AuthActor,
 ): Promise<ReviewSessionDoc> {
-  const existing = await getReviewSession(ctx, reviewId);
-  if (existing) {
-    return existing;
+  const now = nowTimestampMs();
+  const lastOwnedSession = await ctx.db
+    .query("reviewSessions")
+    .withIndex("by_owner_user_id_and_created_at", (q) => q.eq("ownerUserId", actor.id))
+    .order("desc")
+    .first();
+  if (
+    lastOwnedSession &&
+    now - lastOwnedSession.createdAt < REVIEW_SESSION_CREATE_MIN_INTERVAL_MS
+  ) {
+    throw new ConvexError("REVIEW_SESSION_RATE_LIMITED");
   }
 
-  const now = nowTimestampMs();
+  const reviewId = await createUniqueReviewId(ctx);
   const sessionId = await ctx.db.insert("reviewSessions", {
     reviewId,
     ownerUserId: actor.id,
     ownerName: actor.displayName,
-    ownerEmail: actor.email,
+    ownerEmail: null,
     status: "review",
     processingState: "pending",
     preferredPlaybackSource: "original",
@@ -305,26 +328,74 @@ async function getReviewMembership(
     .unique();
 }
 
-async function requireReviewRole(
+async function resolveReviewRole(
+  ctx: QueryCtx | MutationCtx,
+  session: ReviewSessionDoc,
+  actor: AuthActor,
+): Promise<ReviewRole | null> {
+  if (session.ownerUserId === actor.id) {
+    return "owner";
+  }
+
+  const membership = await getReviewMembership(ctx, session.reviewId, actor.id);
+  if (!membership) {
+    return null;
+  }
+  return membership.role;
+}
+
+async function requireReviewRoleOrNotFound(
   ctx: QueryCtx | MutationCtx,
   session: ReviewSessionDoc,
   actor: AuthActor,
   allowedRoles: ReadonlySet<ReviewRole>,
 ): Promise<ReviewRole> {
-  if (session.ownerUserId === actor.id && roleAllowed("owner", allowedRoles)) {
-    return "owner";
+  const role = await resolveReviewRole(ctx, session, actor);
+  if (!role || !roleAllowed(role, allowedRoles)) {
+    throw new ConvexError("REVIEW_NOT_FOUND");
   }
+  return role;
+}
 
-  const membership = await getReviewMembership(ctx, session.reviewId, actor.id);
-  if (!membership || !roleAllowed(membership.role, allowedRoles)) {
-    throw new ConvexError("REVIEW_FORBIDDEN");
+async function requireReviewSession(ctx: MutationCtx, reviewId: string): Promise<ReviewSessionDoc> {
+  const session = await getReviewSession(ctx, reviewId);
+  if (!session) {
+    throw new ConvexError("REVIEW_NOT_FOUND");
   }
-  return membership.role;
+  return session;
+}
+
+async function enforceCommentWriteLimit(
+  ctx: MutationCtx,
+  reviewId: string,
+  actorId: string,
+  now: number,
+): Promise<void> {
+  const lastComment = await ctx.db
+    .query("reviewComments")
+    .withIndex("by_review_id_and_author_id_and_created_at", (q) =>
+      q.eq("reviewId", reviewId).eq("authorId", actorId),
+    )
+    .order("desc")
+    .first();
+  if (lastComment && now - lastComment.createdAt < REVIEW_COMMENT_MIN_INTERVAL_MS) {
+    throw new ConvexError("REVIEW_COMMENT_RATE_LIMITED");
+  }
 }
 
 const readReviewRoles = new Set<ReviewRole>(["owner", "admin", "member", "viewer"]);
 const commentReviewRoles = new Set<ReviewRole>(["owner", "admin", "member", "viewer"]);
 const workflowStatusReviewRoles = new Set<ReviewRole>(["owner", "admin", "member"]);
+
+export const createSession = mutation({
+  args: {},
+  returns: reviewSessionSnapshotValidator,
+  handler: async (ctx) => {
+    const actor = await requireAuthActor(ctx);
+    const session = await createOwnedReviewSession(ctx, actor);
+    return mapSnapshot(session, [], []);
+  },
+});
 
 export const sessionSnapshot = query({
   args: {
@@ -338,7 +409,10 @@ export const sessionSnapshot = query({
     if (!session) {
       return buildDefaultSnapshot(args.reviewId);
     }
-    await requireReviewRole(ctx, session, actor, readReviewRoles);
+    const role = await resolveReviewRole(ctx, session, actor);
+    if (!role || !roleAllowed(role, readReviewRoles)) {
+      return buildDefaultSnapshot(args.reviewId);
+    }
 
     const comments = await ctx.db
       .query("reviewComments")
@@ -368,10 +442,14 @@ export const createComment = mutation({
     if (body.length === 0) {
       throw new ConvexError("REVIEW_COMMENT_BODY_REQUIRED");
     }
+    if (body.length > REVIEW_COMMENT_MAX_BODY_LENGTH) {
+      throw new ConvexError("REVIEW_COMMENT_BODY_TOO_LONG");
+    }
 
-    const session = await ensureReviewSession(ctx, args.reviewId, actor);
-    await requireReviewRole(ctx, session, actor, commentReviewRoles);
+    const session = await requireReviewSession(ctx, args.reviewId);
+    await requireReviewRoleOrNotFound(ctx, session, actor, commentReviewRoles);
     const now = nowTimestampMs();
+    await enforceCommentWriteLimit(ctx, session.reviewId, actor.id, now);
     const commentId = await ctx.db.insert("reviewComments", {
       reviewId: session.reviewId,
       authorId: actor.id,
@@ -406,8 +484,8 @@ export const setWorkflowStatus = mutation({
   returns: reviewSetWorkflowStatusResponseValidator,
   handler: async (ctx, args) => {
     const actor = await requireAuthActor(ctx);
-    const session = await ensureReviewSession(ctx, args.reviewId, actor);
-    await requireReviewRole(ctx, session, actor, workflowStatusReviewRoles);
+    const session = await requireReviewSession(ctx, args.reviewId);
+    await requireReviewRoleOrNotFound(ctx, session, actor, workflowStatusReviewRoles);
     const updatedAt = nowTimestampMs();
 
     await ctx.db.patch(session._id, {

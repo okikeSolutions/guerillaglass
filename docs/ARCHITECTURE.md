@@ -63,7 +63,7 @@ Deliver-review flow (Phase 2.5+):
 
 Current hardening:
 
-- Desktop review bridge uses user-scoped JWT auth (`GG_REVIEW_CONVEX_JWT`) for Convex review calls.
+- Desktop review bridge requires per-request user-scoped Convex JWT auth tokens for review RPC calls.
 - Review mutations enforce role-aware access (`owner`, `admin`, `member`, `viewer`) in Convex handlers.
 
 Billing flow (Phase 2.6+):

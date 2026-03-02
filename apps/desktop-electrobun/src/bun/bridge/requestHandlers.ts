@@ -46,8 +46,12 @@ const reviewSetWorkflowStatusMutation = makeFunctionReference<
 >("review:setWorkflowStatus");
 
 type ReviewGateway = {
-  sessionSnapshot: (reviewId: string) => Promise<ReviewSessionSnapshot>;
+  sessionSnapshot: (params: {
+    authToken: string;
+    reviewId: string;
+  }) => Promise<ReviewSessionSnapshot>;
   createComment: (params: {
+    authToken: string;
     reviewId: string;
     body: string;
     frameNumber?: number;
@@ -55,6 +59,7 @@ type ReviewGateway = {
     parentCommentId?: string;
   }) => Promise<ReviewComment>;
   setWorkflowStatus: (params: {
+    authToken: string;
     reviewId: string;
     status: ReviewWorkflowStatus;
   }) => Promise<ReviewSetWorkflowStatusResponse>;
@@ -70,35 +75,42 @@ function resolveReviewConvexUrl(): string {
   return reviewConvexUrl;
 }
 
-function createReviewGateway(): ReviewGateway {
-  const client = new ConvexHttpClient(resolveReviewConvexUrl());
-  const authJwt = process.env.GG_REVIEW_CONVEX_JWT;
-
-  if (!authJwt || authJwt.trim().length === 0) {
-    throw new Error(
-      "Missing GG_REVIEW_CONVEX_JWT. Review bridge requires a user-scoped Convex JWT.",
-    );
+function requireReviewAuthToken(authToken: string): string {
+  const normalizedToken = authToken.trim();
+  if (!normalizedToken) {
+    throw new Error("Missing authToken. Review bridge requires a user-scoped Convex JWT.");
   }
-  client.setAuth(authJwt);
+  return normalizedToken;
+}
 
+function createReviewGateway(): ReviewGateway {
   return {
-    sessionSnapshot: async (reviewId) =>
-      await client.query(reviewSessionSnapshotQuery, {
+    sessionSnapshot: async ({ authToken, reviewId }) => {
+      const client = new ConvexHttpClient(resolveReviewConvexUrl());
+      client.setAuth(requireReviewAuthToken(authToken));
+      return await client.query(reviewSessionSnapshotQuery, {
         reviewId,
-      }),
-    createComment: async (params) =>
-      await client.mutation(reviewCreateCommentMutation, {
+      });
+    },
+    createComment: async (params) => {
+      const client = new ConvexHttpClient(resolveReviewConvexUrl());
+      client.setAuth(requireReviewAuthToken(params.authToken));
+      return await client.mutation(reviewCreateCommentMutation, {
         reviewId: params.reviewId,
         body: params.body,
         frameNumber: params.frameNumber,
         timestampSeconds: params.timestampSeconds,
         parentCommentId: params.parentCommentId,
-      }),
-    setWorkflowStatus: async ({ reviewId, status }) =>
-      await client.mutation(reviewSetWorkflowStatusMutation, {
+      });
+    },
+    setWorkflowStatus: async ({ authToken, reviewId, status }) => {
+      const client = new ConvexHttpClient(resolveReviewConvexUrl());
+      client.setAuth(requireReviewAuthToken(authToken));
+      return await client.mutation(reviewSetWorkflowStatusMutation, {
         reviewId,
         status,
-      }),
+      });
+    },
   };
 }
 
@@ -111,15 +123,7 @@ export function createEngineBridgeHandlers({
   setCurrentProjectPath,
   emitReviewEvent,
 }: BridgeHandlerDependencies): BridgeRequestHandlerMap {
-  let reviewGateway: ReviewGateway | null = null;
-
-  const requireReviewGateway = (): ReviewGateway => {
-    if (reviewGateway) {
-      return reviewGateway;
-    }
-    reviewGateway = createReviewGateway();
-    return reviewGateway;
-  };
+  const reviewGateway = createReviewGateway();
 
   return createBunBridgeHandlers({
     ggEnginePing: async () => engineClient.ping(),
@@ -165,10 +169,10 @@ export function createEngineBridgeHandlers({
       return projectState;
     },
     ggEngineProjectRecents: async ({ limit }) => engineClient.projectRecents(limit),
-    ggReviewSessionSnapshot: async ({ reviewId }) =>
-      requireReviewGateway().sessionSnapshot(reviewId),
+    ggReviewSessionSnapshot: async ({ authToken, reviewId }) =>
+      reviewGateway.sessionSnapshot({ authToken, reviewId }),
     ggReviewCreateComment: async (params) => {
-      const comment = await requireReviewGateway().createComment(params);
+      const comment = await reviewGateway.createComment(params);
       emitReviewEvent({
         type: "comment.created",
         reviewId: comment.reviewId,
@@ -178,7 +182,7 @@ export function createEngineBridgeHandlers({
       return comment;
     },
     ggReviewSetWorkflowStatus: async (params) => {
-      const response = await requireReviewGateway().setWorkflowStatus(params);
+      const response = await reviewGateway.setWorkflowStatus(params);
       emitReviewEvent({
         type: "workflow.statusChanged",
         reviewId: response.reviewId,
