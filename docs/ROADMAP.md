@@ -100,7 +100,7 @@ This track adds async review collaboration in `Deliver` while preserving local-f
 Contract and architecture checklist:
 
 - [x] Add review contract package scaffold (`packages/review-protocol`) with Zod schemas + fixtures for share/comment/presence payloads.
-- [ ] Keep `packages/engine-protocol` focused on local native media operations (no review-specific method leakage).
+- [x] Keep `packages/engine-protocol` focused on local native media operations (no review-specific method leakage).
 - [x] Add bridge request/message schema for review RPC and review realtime events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
 - [x] Add web app/auth scaffold (`apps/web`) using TanStack Start + Convex baseline wiring.
 - [ ] Define feature flag gate (`GG_REVIEW_ENABLE_CONVEX`) and fail-open behavior to local-only workflow.
@@ -108,15 +108,15 @@ Contract and architecture checklist:
 Authentication and access-control checklist:
 
 - [ ] Integrate Better Auth as the canonical authentication layer for desktop product access.
-- [ ] Implement Convex auth configuration and identity validation for protected review/collaboration functions.
+- [x] Implement Convex auth configuration and identity validation for protected review/collaboration functions.
 - [ ] Enforce account-gated Creator Studio routes in product mode (`Capture`, `Edit`, `Deliver`).
 - [ ] Enforce role-aware authorization (`owner`, `admin`, `member`, `viewer`) across review domains.
-- [ ] Remove/avoid Clerk dependencies in cloud review/collab surfaces.
-- [ ] Add audit attribution for review mutations (actor identity + timestamp).
-- [ ] Implement against Convex Labs Better Auth React guide (`framework-guides/react`) as canonical wiring baseline.
-- [ ] Add `@convex-dev/better-auth` component wiring (`convex.config.ts`, `auth.config.ts`, `auth.ts`, `http.ts`).
-- [ ] Enforce dependency baseline: `convex >= 1.25.0` and `better-auth@1.4.9` pinned exactly until compatibility matrix update.
-- [ ] Add renderer auth client wiring (`better-auth/react` + Convex client plugins + `ConvexBetterAuthProvider` with account-gated mode).
+- [x] Remove/avoid Clerk dependencies in cloud review/collab surfaces.
+- [x] Add audit attribution for review mutations (actor identity + timestamp).
+- [x] Implement against Convex Labs Better Auth React guide (`framework-guides/react`) as canonical wiring baseline.
+- [x] Add `@convex-dev/better-auth` component wiring (`convex.config.ts`, `auth.config.ts`, `auth.ts`, `http.ts`).
+- [x] Enforce dependency baseline: `convex >= 1.25.0` and `better-auth@1.4.9` pinned exactly until compatibility matrix update.
+- [x] Add renderer auth client wiring (`better-auth/react` + Convex client plugins + `ConvexBetterAuthProvider` with account-gated mode).
 - [ ] Validate required environment variables and startup errors for missing auth config.
 - [ ] Configure Better Auth `trustedOrigins` and provider callbacks against Convex site auth routes.
 
@@ -260,10 +260,10 @@ Progress (current repo)
 Progress (current repo)
 
 - [x] Review contract package scaffolded with fixtures and validation
-- [x] Desktop bridge review RPC/events baseline added (cloud routing still pending)
+- [x] Desktop bridge routes review snapshot/comment/status RPC to Convex and emits `hostReviewEvent` for mutation updates
 - [x] Web app/auth scaffolded in `apps/web` with TanStack Start + Convex dev wiring
 - [ ] Better Auth session flows wired for account-gated workspace access
-- [ ] Convex auth enforcement wired for protected review/collab functions
+- [x] Convex auth enforcement wired for protected review/collab functions
 - [ ] Share-link access controls + grants implemented
 - [ ] Threaded frame/time comments implemented in Deliver review UI
 - [ ] Presence heartbeat/watcher flow implemented

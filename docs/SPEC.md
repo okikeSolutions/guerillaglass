@@ -422,12 +422,13 @@ Required integration artifacts (Phase 2.5 baseline):
 - Convex auth provider wiring:
   - `apps/web/convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
 - Better Auth server instance:
-  - `apps/web/convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`crossDomain`, `convex`).
+  - `apps/web/convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`organization` with teams enabled, `convex`).
+  - Local Better Auth component install lives in `apps/web/convex/betterAuth/*` (component config, adapter, schema, generated schema/types).
   - `trustedOrigins` must include product web origin(s) and local dev origin(s).
 - Better Auth HTTP handlers:
   - `apps/web/convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
 - Renderer auth client:
-  - `auth-client` uses `better-auth/react` with Convex client plugins (`convexClient`, `crossDomainClient`).
+  - `auth-client` uses `better-auth/react` with Convex client plugins (`convexClient`, `organizationClient`).
 - Renderer provider:
   - App root wraps with `ConvexBetterAuthProvider`; Convex client should use `expectAuth: true` for account-gated product mode.
 - Environment baseline:
