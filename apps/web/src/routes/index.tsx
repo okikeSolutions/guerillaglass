@@ -1,37 +1,68 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@guerillaglass/ui/ui/accordion";
+import { Badge } from "@guerillaglass/ui/ui/badge";
+import { buttonVariants } from "@guerillaglass/ui/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@guerillaglass/ui/ui/card";
+import { cn } from "@guerillaglass/ui/lib/utils";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
+const heroBadges = ["Local-first", "Editor-first", "Deterministic exports"] as const;
+
 const workflowPillars = [
   {
-    title: "Capture Stays Native",
+    title: "Capture",
     detail:
-      "Mac, Windows, and Linux engines stay local-first for deterministic rendering and low-latency recording.",
+      "Native display/window capture with engine telemetry and permissions-aware degraded modes.",
   },
   {
-    title: "Edit Feels Fast",
+    title: "Edit",
     detail:
-      "Timeline and preview are first-class surfaces with cinematic defaults and keyboard-first control.",
+      "Timeline, preview, and inspector stay visible as first-class surfaces with keyboard-first control.",
   },
   {
-    title: "Review Scales in Cloud",
+    title: "Deliver",
     detail:
-      "Convex powers link sharing, comments, presence, and webhook-based playback readiness in Deliver.",
-  },
-  {
-    title: "Deliver with Entitlements",
-    detail:
-      "Paid collaboration is enforced server-side while local capture/edit/export remains available.",
+      "Local deterministic export by default, then optional async review workflows when teams need them.",
   },
 ] as const;
 
-const performanceReferences = [
-  "Intent prewarm for likely review routes (hover/focus/touch).",
-  "Media preconnect and manifest warmup for smoother playback startup.",
-  "Reactive comment/presence updates with server-side authorization checks.",
-  "Fallback playback policy: processed stream first, original source when needed.",
+const cinematicDefaults = [
+  "Auto-zoom and reframing",
+  "Cursor smoothing and click emphasis",
+  "Motion blur and polished camera movement",
+  "Vertical exports with re-planned framing",
+] as const;
+
+const faqItems = [
+  {
+    question: "Does capture/edit/export work without cloud services?",
+    answer:
+      "Yes. Local capture, edit, and deterministic export are core paths and are not gated by cloud availability.",
+  },
+  {
+    question: "What happens when Input Monitoring is denied?",
+    answer:
+      "Recording continues. Input-driven cinematic features degrade gracefully and the UI surfaces the degraded state.",
+  },
+  {
+    question: "What does deterministic export mean here?",
+    answer:
+      "Pre-encode frame buffers remain reproducible for the same project/version/settings/hardware class; encoded bytes can still differ.",
+  },
 ] as const;
 
 function LandingPage() {
@@ -39,24 +70,41 @@ function LandingPage() {
     <main className="landing-shell">
       <section className="hero-card">
         <p className="eyebrow">Guerilla Glass</p>
-        <h1>Native Capture, High-Performance Review.</h1>
+        <h1>Record. Edit. Deliver. Cinematic by default.</h1>
         <p className="hero-copy">
-          We keep recording and editing local for quality and determinism, then layer in Convex for
-          async review, collaboration, and commercialization.
+          Built for creators who want native capture discipline, editor-first control, and polished
+          outputs without cloud lock-in.
         </p>
+        <div className="hero-badges" aria-label="Product positioning">
+          {heroBadges.map((badge) => (
+            <Badge key={badge} variant="secondary">
+              {badge}
+            </Badge>
+          ))}
+        </div>
         <div className="hero-actions">
           <a
-            className="button button-primary"
+            className={cn(
+              buttonVariants({ variant: "default", size: "lg" }),
+              "button button-primary",
+            )}
             href="https://github.com/okikeSolutions/guerillaglass"
             rel="noreferrer"
             target="_blank"
           >
             View Repository
           </a>
-          <Link className="button button-primary" to="/workspace/capture">
+          <Link
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "button")}
+            to="/workspace/$mode"
+            params={{ mode: "capture" }}
+          >
             Open Workspace
           </Link>
-          <Link className="button button-ghost" to="/anotherPage">
+          <Link
+            className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "button")}
+            to="/anotherPage"
+          >
             Open Convex Demo Route
           </Link>
         </div>
@@ -64,21 +112,42 @@ function LandingPage() {
 
       <section className="pillar-grid" aria-label="Workflow pillars">
         {workflowPillars.map((pillar) => (
-          <article className="pillar-card" key={pillar.title}>
-            <h2>{pillar.title}</h2>
-            <p>{pillar.detail}</p>
-          </article>
+          <Card className="pillar-card" key={pillar.title} size="sm">
+            <CardHeader>
+              <CardTitle>{pillar.title}</CardTitle>
+              <CardDescription>{pillar.detail}</CardDescription>
+            </CardHeader>
+          </Card>
         ))}
       </section>
 
       <section className="status-card" aria-label="Performance roadmap">
-        <h2>Fast-by-default roadmap alignment</h2>
+        <h2>Cinematic defaults</h2>
         <ul>
-          {performanceReferences.map((item) => (
+          {cinematicDefaults.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
       </section>
+
+      <Card className="status-card" aria-label="FAQ">
+        <CardHeader>
+          <CardTitle>FAQ</CardTitle>
+          <CardDescription>
+            Core questions for creator teams evaluating Guerilla Glass.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Accordion>
+            {faqItems.map((item) => (
+              <AccordionItem key={item.question} value={item.question}>
+                <AccordionTrigger>{item.question}</AccordionTrigger>
+                <AccordionContent>{item.answer}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </CardContent>
+      </Card>
     </main>
   );
 }
