@@ -1,6 +1,11 @@
 import { useRef } from "react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@guerillaglass/ui/components/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@guerillaglass/ui/components/empty";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
