@@ -3,7 +3,7 @@ import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@guerillaglass/ui/ui/resizable";
+} from "@guerillaglass/ui/components/resizable";
 import { studioLayoutBounds } from "../model/studioLayoutModel";
 import { useEditorWorkspaceLayout } from "../hooks/useEditorWorkspaceLayout";
 

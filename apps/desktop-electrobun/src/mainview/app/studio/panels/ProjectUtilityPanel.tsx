@@ -1,13 +1,13 @@
 import { ChevronRight, FolderClock, FolderOpen, Save } from "lucide-react";
 import { type ReactNode } from "react";
-import { Button } from "@guerillaglass/ui/ui/button";
-import { ButtonGroup } from "@guerillaglass/ui/ui/button-group";
+import { Button } from "@guerillaglass/ui/components/button";
+import { ButtonGroup } from "@guerillaglass/ui/components/button-group";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@guerillaglass/ui/ui/collapsible";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@guerillaglass/ui/ui/empty";
+} from "@guerillaglass/ui/components/collapsible";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@guerillaglass/ui/components/empty";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../state/StudioProvider";
 

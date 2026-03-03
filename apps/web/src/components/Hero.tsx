@@ -2,7 +2,7 @@
 import { ShaderGradient, ShaderGradientCanvas } from "@shadergradient/react";
 import { Suspense, useRef } from "react";
 import { TimelineAnimation } from "./timeline-animation";
-import { useMediaQuery } from "../../hooks/use-media-query";
+import { useMediaQuery } from "../hooks/use-media-query";
 import MotionDrawer from "./motion-drawer";
 
 export const Hero = () => {

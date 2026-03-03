@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Alert, AlertDescription } from "@guerillaglass/ui/ui/alert";
+import { Alert, AlertDescription } from "@guerillaglass/ui/components/alert";
 import { useStudio } from "../state/StudioProvider";
 import {
   localizedRouteTargetFor,

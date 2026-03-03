@@ -1,24 +1,24 @@
 import { ChevronRight, Volume2, VolumeX } from "lucide-react";
 import type { ReactNode } from "react";
 import { captureFrameRates, type CaptureFrameRate } from "@guerillaglass/engine-protocol";
-import { Button } from "@guerillaglass/ui/ui/button";
-import { Checkbox } from "@guerillaglass/ui/ui/checkbox";
+import { Button } from "@guerillaglass/ui/components/button";
+import { Checkbox } from "@guerillaglass/ui/components/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@guerillaglass/ui/ui/collapsible";
-import { Field, FieldContent, FieldDescription, FieldLabel } from "@guerillaglass/ui/ui/field";
-import { Input } from "@guerillaglass/ui/ui/input";
-import { Progress } from "@guerillaglass/ui/ui/progress";
+} from "@guerillaglass/ui/components/collapsible";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@guerillaglass/ui/components/field";
+import { Input } from "@guerillaglass/ui/components/input";
+import { Progress } from "@guerillaglass/ui/components/progress";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@guerillaglass/ui/ui/select";
-import { Slider } from "@guerillaglass/ui/ui/slider";
+} from "@guerillaglass/ui/components/select";
+import { Slider } from "@guerillaglass/ui/components/slider";
 import { cn } from "@/lib/utils";
 
 export function InspectorSection({

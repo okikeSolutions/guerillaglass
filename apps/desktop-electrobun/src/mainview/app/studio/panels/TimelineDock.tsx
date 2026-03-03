@@ -13,17 +13,17 @@ import {
   Waves,
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { Button } from "@guerillaglass/ui/ui/button";
-import { ButtonGroup } from "@guerillaglass/ui/ui/button-group";
-import { Label } from "@guerillaglass/ui/ui/label";
-import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/ui/native-select";
+import { Button } from "@guerillaglass/ui/components/button";
+import { ButtonGroup } from "@guerillaglass/ui/components/button-group";
+import { Label } from "@guerillaglass/ui/components/label";
+import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
 import { ShortcutHint } from "@guerillaglass/ui/desktop/shortcut-hint";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@guerillaglass/ui/ui/tooltip";
+} from "@guerillaglass/ui/components/tooltip";
 import { cn } from "@/lib/utils";
 import {
   normalizeShortcutDisplayPlatform,
