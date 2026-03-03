@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
+    "@guerillaglass/typescript-config": "workspace:*",
     "typescript": "^5.9.3"
   }
 }
