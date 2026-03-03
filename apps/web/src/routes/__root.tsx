@@ -9,7 +9,7 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import * as React from "react";
+import type { ReactNode } from "react";
 import { authClient } from "../lib/auth-client";
 import { getToken } from "../lib/auth-server";
 import appCss from "../styles/app.css?url";
@@ -96,13 +96,13 @@ function RootComponent() {
   );
 }
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html className="dark" lang="en">
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="dark">
         {children}
         <Scripts />
       </body>
