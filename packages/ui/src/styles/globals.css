@@ -1,7 +1,8 @@
+@import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+@plugin "@tailwindcss/typography";
 
 :root {
   --radius: 0.625rem;
