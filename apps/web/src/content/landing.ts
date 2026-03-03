@@ -34,85 +34,117 @@ export type StickyNavLink = {
   sectionId: string;
 };
 
+export type DownloadPlatformId = "macos" | "windows" | "linux";
+
+export type DownloadPlatform = {
+  id: DownloadPlatformId;
+  label: string;
+  shortLabel: string;
+  href: string;
+};
+
+const releaseLatestHref = "https://github.com/okikeSolutions/guerillaglass/releases/latest";
+const roadmapHref = "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/ROADMAP.md";
+const githubHref = "https://github.com/okikeSolutions/guerillaglass";
+
 export const landingContent = {
   seo: {
-    title: "Guerilla Glass | Cinematic Product Walkthrough Studio",
+    title: "Guerilla Glass | Record. Edit. Ship. All Open Source.",
     description:
-      "Dark, premium product landing for Guerilla Glass: local-first capture, timeline editing, deterministic exports, and workflow depth.",
+      "Open-source creator studio for polished walkthroughs: capture, timeline editing, auto polish, and async review in one desktop workflow.",
     keywords: [
       "guerilla glass",
-      "screen recording",
-      "product walkthrough",
-      "deterministic export",
-      "creator studio",
-      "local-first video editor",
+      "open source screen recorder",
+      "developer tutorial video",
+      "record edit deliver",
+      "creator studio desktop",
+      "async review workflow",
     ],
+  },
+  github: {
+    href: githubHref,
+    repoPath: "okikeSolutions/guerillaglass",
+    license: "MIT",
+  },
+  downloads: {
+    platforms: [
+      {
+        id: "macos",
+        label: "macOS",
+        shortLabel: "macOS",
+        href: releaseLatestHref,
+      },
+      {
+        id: "windows",
+        label: "Windows",
+        shortLabel: "Windows",
+        href: roadmapHref,
+      },
+      {
+        id: "linux",
+        label: "Linux",
+        shortLabel: "Linux",
+        href: roadmapHref,
+      },
+    ] as DownloadPlatform[],
   },
   globalHeader: {
     brand: "Guerilla Glass",
-    primaryCta: {
-      label: "Open Workspace",
-      style: "default",
-      analyticsId: "global_header_open_workspace",
-      type: "route",
-      to: "/workspace/$mode",
-      params: { mode: "capture" },
-    } satisfies LandingCta,
+    links: [
+      { label: "Record", href: "#record" },
+      { label: "Edit", href: "#edit" },
+      { label: "Deliver", href: "#deliver" },
+      { label: "Community", href: "#community" },
+    ],
   },
   stickySectionNav: {
     links: [
       { label: "Overview", sectionId: "overview" },
-      { label: "Features", sectionId: "features" },
-      { label: "Workflows", sectionId: "workflows" },
-      { label: "Pricing", sectionId: "pricing" },
+      { label: "Record", sectionId: "record" },
+      { label: "Edit", sectionId: "edit" },
+      { label: "Deliver", sectionId: "deliver" },
+      { label: "Why Switch", sectionId: "compare" },
+      { label: "Platforms", sectionId: "platforms" },
+      { label: "Community", sectionId: "community" },
       { label: "FAQ", sectionId: "faq" },
     ] satisfies StickyNavLink[],
     cta: {
-      label: "Start Capture",
+      label: "Download",
       style: "outline",
-      analyticsId: "sticky_nav_start_capture",
-      type: "route",
-      to: "/workspace/$mode",
-      params: { mode: "capture" },
+      analyticsId: "sticky_nav_download",
+      type: "external",
+      href: releaseLatestHref,
     } satisfies LandingCta,
   },
   hero: {
     sectionId: "overview",
-    headline: "Create polished product walkthroughs at cinematic quality.",
+    headline: "Record. Edit. Ship. All open source.",
     subhead:
-      "Capture, edit, and deliver from one local-first workflow built for teams shipping fast and communicating clearly.",
-    primaryCta: {
-      label: "Download for macOS",
-      style: "default",
-      analyticsId: "hero_download_macos",
-      type: "external",
-      href: "https://github.com/okikeSolutions/guerillaglass",
-    } satisfies LandingCta,
+      "Guerilla Glass gives developer creators one cinematic workflow from capture to shared review without SaaS lock-in.",
     secondaryCta: {
-      label: "Open Workspace",
+      label: "View on GitHub",
       style: "ghost",
-      analyticsId: "hero_open_workspace",
-      type: "route",
-      to: "/workspace/$mode",
-      params: { mode: "capture" },
+      analyticsId: "hero_view_github",
+      type: "external",
+      href: githubHref,
     } satisfies LandingCta,
     backgroundMedia: {
       type: "image",
       src: "/landing/hero-studio.svg",
-      alt: "Guerilla Glass studio surface with source capture, timeline, and delivery panels",
+      alt: "Guerilla Glass editor showing source picker, timeline, and delivery panels",
       aspectRatio: "16 / 9",
       preload: "eager",
     } satisfies LandingMedia,
   },
   featureSplitSections: [
     {
-      sectionId: "features",
-      heading: "Auto-focus attention without sacrificing control",
-      body: "Camera planning tracks intent from interaction signals, then keeps transitions smooth for viewers. You can still tune every segment before export.",
+      sectionId: "record",
+      heading: "Record with OBS-level control and zero setup drag",
+      body: "Choose display, window, or simulator targets. Capture system audio, mic, cursor movement, and click signals from one focused desktop flow.",
       media: {
         type: "image",
         src: "/landing/split-focus.svg",
-        alt: "Feature view showing automatic reframing and cursor emphasis in a product demo",
+        alt: "Recording surface with source picker and active capture telemetry",
         aspectRatio: "16 / 9",
         preload: "lazy",
       } satisfies LandingMedia,
@@ -120,135 +152,200 @@ export const landingContent = {
       theme: "dark",
     },
     {
-      sectionId: "features-timeline",
-      heading: "Edit in a timeline-first layout that stays out of the way",
-      body: "Trim, pacing, and framing controls stay close to the preview so editorial decisions happen quickly. The interface remains keyboard-friendly and predictable.",
+      sectionId: "edit",
+      heading: "Beautiful by default. Override anything.",
+      body: "Auto-zoom, cursor smoothing, motion polish, reframing, and timeline controls stay close to the preview so raw captures become publishable without retooling.",
       media: {
         type: "image",
         src: "/landing/split-timeline.svg",
-        alt: "Timeline editing surface with transport controls and inspector adjustments",
+        alt: "Timeline and inspector workflow for refining capture pacing and framing",
         aspectRatio: "16 / 9",
         preload: "lazy",
       } satisfies LandingMedia,
       mediaSide: "left",
       theme: "light",
     },
+    {
+      sectionId: "deliver",
+      heading: "Deliver and review without leaving the app",
+      body: "Produce polished exports and hand off with frame-accurate feedback loops so async review and final delivery stay connected to the same project timeline.",
+      media: {
+        type: "image",
+        src: "/landing/card-review.svg",
+        alt: "Review interface showing comments tied to timeline positions",
+        aspectRatio: "4 / 3",
+        preload: "lazy",
+      } satisfies LandingMedia,
+      mediaSide: "right",
+      theme: "dark",
+    },
   ],
   featureFullBleedSection: {
-    sectionId: "feature-bleed",
-    heading: "From rough capture to launch-ready deliverable",
-    body: "One studio handles quick internal updates and polished external walkthroughs without tool switching.",
+    sectionId: "before-after",
+    heading: "From raw capture to polished output in one pass",
+    body: "The same project carries your source recording, edit decisions, and final exports so quality climbs without workflow drift.",
     media: {
       type: "image",
       src: "/landing/fullbleed-workflow.svg",
-      alt: "Full-width workflow scene covering capture, editing, and export stages",
+      alt: "Before and after workflow showing raw clip transformed into polished walkthrough",
       aspectRatio: "16 / 9",
       preload: "lazy",
     } satisfies LandingMedia,
   },
   featureCardGrid: {
-    sectionId: "feature-grid",
-    heading: "Depth where it matters",
-    body: "The core system is built to keep quality and reliability high under real production constraints.",
+    sectionId: "why-guerilla-glass",
+    heading: "Why teams switch",
+    body: "You get creator-grade polish, deterministic reliability, and open-source ownership in one stack.",
     cards: [
       {
-        title: "Deterministic pre-encode frames",
+        title: "Open source by default",
         description:
-          "Rendering output remains reproducible for the same project, version, settings, and hardware class.",
-        media: {
-          type: "image",
-          src: "/landing/card-deterministic.svg",
-          alt: "Card image representing deterministic rendering contract",
-          aspectRatio: "1 / 1",
-          preload: "lazy",
-        } satisfies LandingMedia,
-      },
-      {
-        title: "Graceful degraded capture modes",
-        description:
-          "If Input Monitoring is denied, recording continues while input-driven cinematic effects reduce safely.",
-        media: {
-          type: "image",
-          src: "/landing/card-capture.svg",
-          alt: "Card image representing resilient recording when some permissions are unavailable",
-          aspectRatio: "1 / 1",
-          preload: "lazy",
-        } satisfies LandingMedia,
-      },
-      {
-        title: "Review plane when teams need it",
-        description:
-          "Local production remains independent while cloud collaboration can layer in asynchronously.",
+          "Build in the open, audit everything, and contribute fixes without waiting on a vendor roadmap.",
         media: {
           type: "image",
           src: "/landing/card-review.svg",
-          alt: "Card image representing asynchronous team review and comments",
+          alt: "Open source collaboration represented by shared review artifacts",
+          aspectRatio: "1 / 1",
+          preload: "lazy",
+        } satisfies LandingMedia,
+      },
+      {
+        title: "Deterministic frame pipeline",
+        description:
+          "Pre-encode frames remain reproducible across matching project, version, and hardware class constraints.",
+        media: {
+          type: "image",
+          src: "/landing/card-deterministic.svg",
+          alt: "Deterministic rendering contract represented as stable frame output",
+          aspectRatio: "1 / 1",
+          preload: "lazy",
+        } satisfies LandingMedia,
+      },
+      {
+        title: "Capture that degrades gracefully",
+        description:
+          "When system permissions are partial, recording keeps moving while dependent cinematic effects scale down safely.",
+        media: {
+          type: "image",
+          src: "/landing/card-capture.svg",
+          alt: "Resilient recording flow when some permissions are unavailable",
           aspectRatio: "1 / 1",
           preload: "lazy",
         } satisfies LandingMedia,
       },
     ],
   },
+  comparisonSection: {
+    sectionId: "compare",
+    heading: "Focused comparison: why Guerilla Glass",
+    body: "Not a giant matrix. Just the capabilities creators ask about when switching from existing tools.",
+    columns: ["OBS", "Screen Studio", "Loom", "Guerilla Glass"],
+    rows: [
+      {
+        capability: "Open source",
+        values: ["Yes", "No", "No", "Yes"],
+      },
+      {
+        capability: "Cross-platform roadmap",
+        values: ["Yes", "No", "Yes", "Yes"],
+      },
+      {
+        capability: "Auto polish",
+        values: ["No", "Yes", "No", "Yes"],
+      },
+      {
+        capability: "Timeline-first editing",
+        values: ["Limited", "Limited", "No", "Yes"],
+      },
+      {
+        capability: "Async review workflow",
+        values: ["No", "No", "Yes", "Yes"],
+      },
+    ],
+  },
+  crossPlatformSection: {
+    sectionId: "platforms",
+    heading: "Cross-platform trajectory without hiding reality",
+    body: "macOS is production baseline today. Windows and Linux parity tracks are active and visible on the public roadmap.",
+    platforms: [
+      {
+        name: "macOS",
+        status: "Available",
+        description: "Production capture, timeline editing, and export path available now.",
+        ctaLabel: "Download latest build",
+        href: releaseLatestHref,
+      },
+      {
+        name: "Windows",
+        status: "In Progress",
+        description:
+          "Native sidecar foundation and protocol parity handlers are in active development.",
+        ctaLabel: "Track roadmap",
+        href: roadmapHref,
+      },
+      {
+        name: "Linux",
+        status: "In Progress",
+        description:
+          "Native sidecar foundation and parity expansion share the same protocol contract.",
+        ctaLabel: "Track roadmap",
+        href: roadmapHref,
+      },
+    ],
+  },
+  openSourceSection: {
+    sectionId: "community",
+    heading: "Open source is a product feature",
+    body: "The workflow is built in public, so your team can audit behavior, contribute improvements, and keep long-term control.",
+    highlights: [
+      "Public roadmap and architecture docs",
+      "Transparent license and third-party notices",
+      "Issue-driven development with contributor-friendly labels",
+      "Deterministic rendering contract backed by tests",
+    ],
+    links: [
+      { label: "View source", href: githubHref },
+      { label: "Contribute", href: `${githubHref}/blob/main/CONTRIBUTING.md` },
+      { label: "Report issue", href: `${githubHref}/issues` },
+    ],
+  },
   workflowSection: {
     sectionId: "workflows",
-    heading: "How Guerilla Glass fits your production stack",
-    body: "Capture instantly, refine with editorial precision, then deliver in platform-ready formats while keeping one project source of truth.",
+    heading: "Record · Edit · Deliver",
+    body: "The core product story follows three connected acts for creators shipping fast.",
     items: [
       {
-        title: "Capture",
-        description: "Window/display capture with stable telemetry and low-friction startup.",
+        title: "Record",
+        description: "Capture display, window, and simulator sources with low setup friction.",
       },
       {
         title: "Edit",
-        description: "Timeline + preview + inspector architecture optimized for creator velocity.",
+        description: "Apply polish defaults and tune final timing in a timeline-first editor.",
       },
       {
         title: "Deliver",
-        description: "Deterministic masters and social variants from the same workflow graph.",
+        description: "Export or review from the same project context without context switching.",
       },
     ],
   },
   pricingSection: {
     sectionId: "pricing",
-    heading: "Pricing designed around real usage",
-    body: "Use local production freely, then adopt collaboration capabilities when your team needs shared review and governance.",
+    heading: "Distribution",
+    body: "Guerilla Glass is open source desktop software. Download builds and follow roadmap updates in public.",
     plans: [
       {
-        name: "Creator",
-        price: "Free",
-        description: "Local capture, edit, and export.",
-        featured: false,
-        cta: {
-          label: "Open Workspace",
-          style: "ghost",
-          analyticsId: "pricing_creator_open_workspace",
-          type: "route",
-          to: "/workspace/$mode",
-          params: { mode: "capture" },
-        } satisfies LandingCta,
-        bullets: [
-          "Unlimited local projects",
-          "Timeline and inspector workflow",
-          "Cinematic defaults included",
-        ],
-      },
-      {
-        name: "Team",
-        price: "Roadmap",
-        description: "Review, collaboration, and operational controls.",
+        name: "Download",
+        price: "Open Source",
+        description: "Desktop workflow with public roadmap and source visibility.",
         featured: true,
         cta: {
-          label: "View Roadmap",
+          label: "Download latest",
           style: "default",
-          analyticsId: "pricing_team_view_roadmap",
+          analyticsId: "distribution_download_latest",
           type: "external",
-          href: "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/ROADMAP.md",
+          href: releaseLatestHref,
         } satisfies LandingCta,
-        bullets: [
-          "Shared async review",
-          "Team activity visibility",
-          "Workflow governance controls",
-        ],
+        bullets: ["Open-source codebase", "Creator workflow focus", "Public roadmap"],
       },
     ],
   },
@@ -257,33 +354,34 @@ export const landingContent = {
     heading: "Frequently asked questions",
     items: [
       {
-        question: "Does the core workflow depend on cloud services?",
+        question: "Is Guerilla Glass open source?",
         answer:
-          "No. Capture, editing, and export run locally. Cloud layers are additive for review workflows.",
+          "Yes. The repository, roadmap, and contributor workflows are public so teams can inspect and contribute.",
       },
       {
-        question: "What if Input Monitoring is not granted?",
+        question: "How do downloads work across platforms?",
         answer:
-          "Recording continues and UI indicates reduced cinematic behavior for input-based effects.",
+          "macOS builds are the current production baseline. Windows and Linux parity progress is tracked in the public roadmap.",
       },
       {
-        question: "How is deterministic output defined?",
+        question: "Do I need cloud services to use the editor?",
         answer:
-          "The pre-encode rendering stage targets reproducible frames under equal project, version, settings, and hardware class.",
+          "No. Capture, edit, and export run locally. Collaboration and review surfaces are additive.",
       },
       {
-        question: "Can this align with multi-platform rollout plans?",
+        question: "What happens if Input Monitoring is denied?",
         answer:
-          "Yes. macOS is production baseline with Windows and Linux parity tracks using a shared protocol contract.",
+          "Recording continues and input-driven cinematic effects degrade safely with clear UI status.",
       },
     ],
   },
   footnotesSection: {
     heading: "Footnotes",
     items: [
-      "Compatibility and roadmap details evolve by release phase.",
-      "Screen recording permissions are managed by host operating system policy.",
-      "Determinism applies to pre-encode rendering stage, not final encoded bytes.",
+      "License: MIT.",
+      "Determinism applies to the pre-encode rendering stage, not final codec bitstream bytes.",
+      "Platform availability and roadmap details evolve by release phase.",
+      "Screen Recording, Microphone, and Input Monitoring permissions are enforced by host OS policy.",
     ],
     legalLinks: [
       {
@@ -292,11 +390,15 @@ export const landingContent = {
       },
       {
         label: "Roadmap",
-        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/docs/ROADMAP.md",
+        href: roadmapHref,
       },
       {
         label: "License",
         href: "https://github.com/okikeSolutions/guerillaglass/blob/main/LICENSE",
+      },
+      {
+        label: "Third-party notices",
+        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/THIRD_PARTY_NOTICES.md",
       },
     ],
   },
@@ -305,11 +407,19 @@ export const landingContent = {
     links: [
       {
         label: "GitHub",
-        href: "https://github.com/okikeSolutions/guerillaglass",
+        href: githubHref,
       },
       {
-        label: "Convex Demo",
-        href: "/anotherPage",
+        label: "Contributing",
+        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/CONTRIBUTING.md",
+      },
+      {
+        label: "Roadmap",
+        href: roadmapHref,
+      },
+      {
+        label: "License",
+        href: "https://github.com/okikeSolutions/guerillaglass/blob/main/LICENSE",
       },
     ],
     copyright: "© Guerilla Glass",

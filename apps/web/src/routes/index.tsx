@@ -1,18 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import * as React from "react";
-import {
-  FAQAccordion,
-  FeatureCardGrid,
-  FeatureFullBleedSection,
-  FeatureSplitSection,
-  FootnotesSection,
-  GlobalFooter,
-  GlobalHeader,
-  Hero,
-  PricingSection,
-  StickySectionNav,
-  WorkflowEcosystemSection,
-} from "../components/landing";
+import { useEffect } from "react";
+import { Hero } from "../components/landing/Hero";
 import { landingContent } from "../content/landing";
 import { trackLandingEvent } from "../lib/landing-analytics";
 
@@ -38,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 function LandingPage() {
-  React.useEffect(() => {
+  useEffect(() => {
     trackLandingEvent("page_view", {
       page: "landing",
       path: window.location.pathname,
@@ -48,7 +36,8 @@ function LandingPage() {
     let frame = 0;
 
     const emitDepth = () => {
-      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollable =
+        document.documentElement.scrollHeight - window.innerHeight;
       if (scrollable <= 0) {
         return;
       }
@@ -94,24 +83,8 @@ function LandingPage() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <main className="landing-shell" id="main-content">
-        <GlobalHeader globalHeader={landingContent.globalHeader} />
-        <Hero hero={landingContent.hero} />
-        <StickySectionNav
-          cta={landingContent.stickySectionNav.cta}
-          heroSectionId={landingContent.hero.sectionId}
-          links={landingContent.stickySectionNav.links}
-        />
-        {landingContent.featureSplitSections.map((section) => (
-          <FeatureSplitSection key={section.sectionId} section={section} />
-        ))}
-        <FeatureFullBleedSection section={landingContent.featureFullBleedSection} />
-        <FeatureCardGrid section={landingContent.featureCardGrid} />
-        <WorkflowEcosystemSection section={landingContent.workflowSection} />
-        <PricingSection section={landingContent.pricingSection} />
-        <FAQAccordion section={landingContent.faqSection} />
-        <FootnotesSection section={landingContent.footnotesSection} />
-        <GlobalFooter footer={landingContent.globalFooter} />
+      <main className="landing-shell dark" id="main-content">
+        <Hero />
       </main>
     </>
   );
