@@ -7,7 +7,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@guerillaglass/ui/components/collapsible";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@guerillaglass/ui/components/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@guerillaglass/ui/components/empty";
 import { cn } from "@/lib/utils";
 import { useStudio } from "../state/StudioProvider";
 
