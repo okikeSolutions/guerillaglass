@@ -9,7 +9,8 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:auth": "SITE_URL=http://localhost:3000 npx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.10.13",
