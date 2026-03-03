@@ -1,17 +1,11 @@
 {
+  "extends": "@guerillaglass/typescript-config/react-library.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "strict": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "isolatedModules": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "baseUrl": ".",
+    "paths": {
+      "@guerillaglass/ui/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["."],
+  "exclude": ["node_modules", "dist"]
 }
