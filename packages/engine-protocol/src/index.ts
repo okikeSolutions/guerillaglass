@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { engineMethods } from "./methods";
+import { engineMethods } from "./methods.js";
 
 /** Input Monitoring permission states returned by the native engine. */
 export const inputMonitoringStatusSchema = z.enum(["notDetermined", "denied", "authorized"]);

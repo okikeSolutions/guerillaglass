@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
     "generate:auth": "SITE_URL=http://localhost:3000 npx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts"
