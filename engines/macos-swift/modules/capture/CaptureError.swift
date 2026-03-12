@@ -8,21 +8,34 @@ public enum CaptureError: LocalizedError {
     case pickerCancelled
     case pickerAlreadyActive
     case captureNotRunning
+    case captureStartTimedOut
+    case captureStartUnstable(frameRate: Int)
+    case unsupportedCaptureFrameRate(requested: Int, supported: [Int], refreshHz: Double?)
 
     public var errorDescription: String? {
         switch self {
         case .noDisplayAvailable:
-            String(localized: "No displays are available for capture.")
+            return String(localized: "No displays are available for capture.")
         case .screenRecordingDenied:
-            String(localized: "Screen Recording permission is required to capture your display.")
+            return String(localized: "Screen Recording permission is required to capture your display.")
         case .windowNotFound:
-            String(localized: "The selected window is no longer available for capture.")
+            return String(localized: "The selected window is no longer available for capture.")
         case .pickerCancelled:
-            String(localized: "Content selection was cancelled.")
+            return String(localized: "Content selection was cancelled.")
         case .pickerAlreadyActive:
-            String(localized: "Content picker is already active.")
+            return String(localized: "Content picker is already active.")
         case .captureNotRunning:
-            String(localized: "Start a capture before recording.")
+            return String(localized: "Start a capture before recording.")
+        case .captureStartTimedOut:
+            return String(localized: "Capture startup timed out before the first frame arrived.")
+        case let .captureStartUnstable(frameRate):
+            return "Capture did not stabilize quickly enough for \(frameRate) fps recording."
+        case let .unsupportedCaptureFrameRate(requested, supported, refreshHz):
+            let supportedValues = supported.map(String.init).joined(separator: ", ")
+            if let refreshHz {
+                return "captureFps \(requested) is unsupported for the current source (\(Int(refreshHz.rounded())) Hz). Supported values: \(supportedValues)"
+            }
+            return "captureFps \(requested) is unsupported for the current source. Supported values: \(supportedValues)"
         }
     }
 }

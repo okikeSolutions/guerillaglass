@@ -3,17 +3,13 @@ import CoreMedia
 import XCTest
 
 final class CaptureTelemetryStoreTests: XCTestCase {
-    func testRecordSourceStatusDropIncrementsDroppedCounters() {
+    func testRecordSourceStatusDropIncrementsSourceDropCounter() {
         let store = CaptureTelemetryStore()
 
         store.recordSourceStatusDrop()
         let snapshot = store.snapshot()
 
-        XCTAssertEqual(snapshot.totalFrames, 1)
-        XCTAssertEqual(snapshot.droppedFrames, 1)
         XCTAssertEqual(snapshot.sourceDroppedFrames, 1)
-        XCTAssertEqual(snapshot.droppedFramePercent, 100, accuracy: 0.000_001)
-        XCTAssertEqual(snapshot.sourceDroppedFramePercent, 100, accuracy: 0.000_001)
     }
 
     func testRecordCompleteFrameTracksTimingDropsAndAchievedFPS() {
@@ -29,53 +25,50 @@ final class CaptureTelemetryStoreTests: XCTestCase {
         )
         let snapshot = store.snapshot()
 
-        XCTAssertEqual(snapshot.totalFrames, 7)
-        XCTAssertEqual(snapshot.droppedFrames, 5)
         XCTAssertEqual(snapshot.sourceDroppedFrames, 5)
-        XCTAssertEqual(snapshot.sourceDroppedFramePercent, 71.428_571, accuracy: 0.000_01)
         XCTAssertEqual(snapshot.achievedFps, 5, accuracy: 0.000_001)
     }
 
-    func testRecordWriterOutcomeTracksBackpressureAndFailedDropsOnly() {
+    func testRecordWriterSampleTracksBackpressureAndFailedDropsOnly() {
         let store = CaptureTelemetryStore()
 
-        store.recordWriterAppendOutcome(.droppedBackpressure)
-        store.recordWriterAppendOutcome(.failed)
-        store.recordWriterAppendOutcome(.droppedWriterState)
-        store.recordWriterAppendOutcome(.appended)
+        store.recordWriterAppendSample(outcome: .droppedBackpressure, appendDurationMs: 1.2)
+        store.recordWriterAppendSample(outcome: .failed, appendDurationMs: 2.4)
+        store.recordWriterAppendSample(outcome: .droppedWriterState, appendDurationMs: 0.4)
+        store.recordWriterAppendSample(outcome: .appended, appendDurationMs: 1.6)
         let snapshot = store.snapshot()
 
         XCTAssertEqual(snapshot.writerDroppedFrames, 2)
         XCTAssertEqual(snapshot.writerBackpressureDrops, 1)
-        XCTAssertEqual(snapshot.droppedFrames, 2)
-        XCTAssertEqual(snapshot.writerDroppedFramePercent, 0, accuracy: 0.000_001)
+        XCTAssertGreaterThan(snapshot.writerAppendMs, 0)
     }
 
-    func testRecordAudioLevelUsesSmoothingForSubsequentSamples() {
+    func testTimingMetricsUseSmoothing() {
         let store = CaptureTelemetryStore()
 
-        store.recordAudioLevel(-20)
-        XCTAssertEqual(store.snapshot().audioLevelDbfs ?? 0, -20, accuracy: 0.000_001)
+        store.recordCaptureCallbackDuration(4)
+        XCTAssertEqual(store.snapshot().captureCallbackMs, 4, accuracy: 0.000_001)
 
-        store.recordAudioLevel(-10)
-        XCTAssertEqual(store.snapshot().audioLevelDbfs ?? 0, -18.2, accuracy: 0.000_001)
+        store.recordCaptureCallbackDuration(8)
+        XCTAssertEqual(store.snapshot().captureCallbackMs, 4.8, accuracy: 0.000_001)
     }
 
     func testResetClearsAllTelemetryState() {
         let store = CaptureTelemetryStore()
 
         store.recordSourceStatusDrop()
-        store.recordWriterAppendOutcome(.failed)
-        store.recordAudioLevel(-14)
+        store.recordCaptureCallbackDuration(2.5)
+        store.recordRecordQueueLag(1.5)
+        store.recordWriterAppendSample(outcome: .failed, appendDurationMs: 3.5)
         store.reset()
         let snapshot = store.snapshot()
 
-        XCTAssertEqual(snapshot.totalFrames, 0)
-        XCTAssertEqual(snapshot.droppedFrames, 0)
         XCTAssertEqual(snapshot.sourceDroppedFrames, 0)
         XCTAssertEqual(snapshot.writerDroppedFrames, 0)
         XCTAssertEqual(snapshot.writerBackpressureDrops, 0)
         XCTAssertEqual(snapshot.achievedFps, 0, accuracy: 0.000_001)
-        XCTAssertNil(snapshot.audioLevelDbfs)
+        XCTAssertEqual(snapshot.captureCallbackMs, 0, accuracy: 0.000_001)
+        XCTAssertEqual(snapshot.recordQueueLagMs, 0, accuracy: 0.000_001)
+        XCTAssertEqual(snapshot.writerAppendMs, 0, accuracy: 0.000_001)
     }
 }

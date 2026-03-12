@@ -79,7 +79,15 @@ function installMockBridge() {
   });
 
   browserWindow.ggEngineListSources = async () => ({
-    displays: [{ id: 1, width: 1920, height: 1080 }],
+    displays: [
+      {
+        id: 1,
+        width: 1920,
+        height: 1080,
+        refreshHz: 60,
+        supportedCaptureFrameRates: [24, 30, 60],
+      },
+    ],
     windows: [
       {
         id: 1001,
@@ -88,6 +96,8 @@ function installMockBridge() {
         width: 1440,
         height: 900,
         isOnScreen: true,
+        refreshHz: 60,
+        supportedCaptureFrameRates: [24, 30, 60],
       },
     ],
   });

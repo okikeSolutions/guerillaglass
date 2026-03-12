@@ -6,7 +6,6 @@ import {
   buildRequest,
   capabilitiesResultSchema,
   captureStatusResultSchema,
-  defaultCaptureTelemetry,
   engineRequestSchema,
   exportInfoResultSchema,
   importedTranscriptSchema,
@@ -16,6 +15,19 @@ import {
   projectStateSchema,
   sourcesResultSchema,
 } from "@guerillaglass/engine-protocol";
+
+const captureTelemetryFixture = {
+  sourceDroppedFrames: 0,
+  writerDroppedFrames: 0,
+  writerBackpressureDrops: 0,
+  achievedFps: 0,
+  cpuPercent: null,
+  memoryBytes: null,
+  recordingBitrateMbps: null,
+  captureCallbackMs: 0,
+  recordQueueLagMs: 0,
+  writerAppendMs: 0,
+};
 
 describe("engine protocol", () => {
   test("parses shared contract fixtures", () => {
@@ -57,7 +69,7 @@ describe("engine protocol", () => {
     const capabilitiesRequest = buildRequest("engine.capabilities", {});
     const startCurrentWindowRequest = buildRequest("capture.startCurrentWindow", {
       enableMic: false,
-      captureFps: 30,
+      captureFps: 120,
     });
     const startRecordingRequest = buildRequest("recording.start", { trackInputEvents: true });
     const agentPreflightRequest = buildRequest("agent.preflight", {
@@ -142,7 +154,15 @@ describe("engine protocol", () => {
     });
 
     const sources = sourcesResultSchema.parse({
-      displays: [{ id: 1, width: 3024, height: 1964 }],
+      displays: [
+        {
+          id: 1,
+          width: 3024,
+          height: 1964,
+          refreshHz: 120,
+          supportedCaptureFrameRates: [24, 30, 60, 120],
+        },
+      ],
       windows: [
         {
           id: 42,
@@ -151,6 +171,8 @@ describe("engine protocol", () => {
           width: 1280,
           height: 720,
           isOnScreen: true,
+          refreshHz: 60,
+          supportedCaptureFrameRates: [24, 30, 60],
         },
       ],
     });
@@ -177,7 +199,7 @@ describe("engine protocol", () => {
       },
       lastError: null,
       eventsURL: null,
-      telemetry: { ...defaultCaptureTelemetry },
+      telemetry: captureTelemetryFixture,
     });
 
     const exportInfo = exportInfoResultSchema.parse({
@@ -241,6 +263,7 @@ describe("engine protocol", () => {
 
     expect(capabilities.capture.display).toBe(true);
     expect(permissions.inputMonitoring).toBe("notDetermined");
+    expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60, 120]);
     expect(sources.windows[0]?.appName).toBe("Xcode");
     expect(captureStatus.eventsURL).toBeNull();
     expect(captureStatus.captureMetadata?.source).toBe("window");
@@ -252,26 +275,17 @@ describe("engine protocol", () => {
     expect(recents.items[0]?.displayName).toBe("project");
   });
 
-  test("applies default telemetry when older engines omit it", () => {
-    const captureStatus = captureStatusResultSchema.parse({
-      isRunning: false,
-      isRecording: false,
-      recordingDurationSeconds: 0,
-      recordingURL: null,
-      lastError: null,
-      eventsURL: null,
-    });
-
-    expect(captureStatus.telemetry.health).toBe("good");
-    expect(captureStatus.telemetry.healthReason).toBeNull();
-    expect(captureStatus.telemetry.droppedFrames).toBe(0);
-    expect(captureStatus.telemetry.sourceDroppedFrames).toBe(0);
-    expect(captureStatus.telemetry.writerDroppedFrames).toBe(0);
-    expect(captureStatus.telemetry.achievedFps).toBe(0);
-    expect(captureStatus.telemetry.cpuPercent).toBeNull();
-    expect(captureStatus.telemetry.memoryBytes).toBeNull();
-    expect(captureStatus.telemetry.recordingBitrateMbps).toBeNull();
-    expect(captureStatus.captureMetadata).toBeNull();
+  test("requires telemetry payloads from the engine", () => {
+    expect(() =>
+      captureStatusResultSchema.parse({
+        isRunning: false,
+        isRecording: false,
+        recordingDurationSeconds: 0,
+        recordingURL: null,
+        lastError: null,
+        eventsURL: null,
+      }),
+    ).toThrow();
   });
 
   test("parses success and error response envelopes", () => {

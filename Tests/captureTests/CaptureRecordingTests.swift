@@ -25,16 +25,24 @@ final class CaptureRecordingTests: XCTestCase {
             engine.setRunning(true)
         }
 
-        try await engine.startRecording()
+        let startTask = Task {
+            try await engine.startRecording()
+        }
+        let primingStarted = await waitForCondition {
+            engine.activeRecordingOutputURL() != nil
+        }
+        XCTAssertTrue(primingStarted)
+        try engine.appendVideoSample(makeVideoSampleBuffer(presentationTime: .zero))
+        try engine.appendVideoSample(makeVideoSampleBuffer(presentationTime: CMTime(value: 1, timescale: 30)))
+        try engine.appendVideoSample(makeVideoSampleBuffer(presentationTime: CMTime(value: 2, timescale: 30)))
+        try await startTask.value
         let isRecording = await waitForCondition {
             await MainActor.run { engine.isRecording }
         }
         XCTAssertTrue(isRecording)
 
-        let first = try makeVideoSampleBuffer(presentationTime: .zero)
-        let second = try makeVideoSampleBuffer(presentationTime: CMTime(value: 1, timescale: 30))
-        engine.appendVideoSample(first)
-        engine.appendVideoSample(second)
+        let fourth = try makeVideoSampleBuffer(presentationTime: CMTime(value: 3, timescale: 30))
+        engine.appendVideoSample(fourth)
         try await Task.sleep(nanoseconds: 200_000_000)
 
         await engine.stopRecording()
@@ -51,17 +59,51 @@ final class CaptureRecordingTests: XCTestCase {
         }
     }
 
-    func testHandleAudioBufferUpdatesTelemetryAudioLevel() async {
+    func testAppendVideoSampleUpdatesTimingTelemetry() async throws {
         let engine = CaptureEngine()
-        let buffer = makeAudioPCMBuffer()
-        let time = AVAudioTime(sampleTime: 0, atRate: buffer.format.sampleRate)
-
-        engine.handleAudioBuffer(buffer, time: time)
-
-        let hasLevel = await waitForCondition {
-            engine.telemetrySnapshot().audioLevelDbfs != nil
+        await MainActor.run {
+            engine.setRunning(true)
         }
-        XCTAssertTrue(hasLevel)
+
+        let startTask = Task {
+            try await engine.startRecording()
+        }
+        let primingStarted = await waitForCondition {
+            engine.activeRecordingOutputURL() != nil
+        }
+        XCTAssertTrue(primingStarted)
+        try engine.appendVideoSample(makeVideoSampleBuffer(presentationTime: .zero))
+        try engine.appendVideoSample(makeVideoSampleBuffer(presentationTime: CMTime(value: 1, timescale: 30)))
+        try engine.appendVideoSample(makeVideoSampleBuffer(presentationTime: CMTime(value: 2, timescale: 30)))
+        try await startTask.value
+        let sampleBuffer = try makeVideoSampleBuffer(presentationTime: CMTime(value: 3, timescale: 30))
+        engine.appendVideoSample(sampleBuffer)
+
+        let hasWriterTiming = await waitForCondition {
+            let telemetry = engine.telemetrySnapshot()
+            return telemetry.recordQueueLagMs >= 0 && telemetry.writerAppendMs > 0
+        }
+        XCTAssertTrue(hasWriterTiming)
+    }
+
+    func testStartRecordingFailsWhenPrimingDoesNotStabilizeInTime() async {
+        let engine = CaptureEngine()
+        await MainActor.run {
+            engine.setRunning(true)
+        }
+
+        do {
+            try await engine.startRecording()
+            XCTFail("Expected priming to fail when no stable samples arrive.")
+        } catch let error as CaptureError {
+            guard case let .captureStartUnstable(frameRate) = error else {
+                XCTFail("Unexpected capture error: \(error)")
+                return
+            }
+            XCTAssertEqual(frameRate, CaptureFrameRatePolicy.defaultValue)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 
     func testLoadAndClearRecordingUpdatesState() async {
@@ -148,18 +190,6 @@ private extension CaptureRecordingTests {
             throw CaptureRecordingTestError.cannotCreateSampleBuffer
         }
         return sampleBuffer
-    }
-
-    func makeAudioPCMBuffer() -> AVAudioPCMBuffer {
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1024)!
-        buffer.frameLength = buffer.frameCapacity
-        if let samples = buffer.floatChannelData?.pointee {
-            for index in 0 ..< Int(buffer.frameLength) {
-                samples[index] = 0.25
-            }
-        }
-        return buffer
     }
 }
 

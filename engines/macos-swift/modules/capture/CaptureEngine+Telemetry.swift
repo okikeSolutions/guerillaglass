@@ -28,8 +28,16 @@ extension CaptureEngine {
         )
     }
 
-    func recordWriterAppendOutcome(_ outcome: AssetWriter.VideoAppendOutcome) {
-        let mappedOutcome: CaptureTelemetryStore.WriterAppendOutcome = switch outcome {
+    func recordCaptureCallbackDuration(_ durationMs: Double) {
+        telemetryStore.recordCaptureCallbackDuration(durationMs)
+    }
+
+    func recordRecordQueueLag(_ lagMs: Double) {
+        telemetryStore.recordRecordQueueLag(lagMs)
+    }
+
+    func recordWriterAppendSample(_ sample: AssetWriter.VideoAppendSample) {
+        let mappedOutcome: CaptureTelemetryStore.WriterAppendOutcome = switch sample.outcome {
         case .appended:
             .appended
         case .droppedBackpressure:
@@ -40,10 +48,9 @@ extension CaptureEngine {
             .failed
         }
 
-        telemetryStore.recordWriterAppendOutcome(mappedOutcome)
-    }
-
-    func recordAudioLevel(_ level: Double?) {
-        telemetryStore.recordAudioLevel(level)
+        telemetryStore.recordWriterAppendSample(
+            outcome: mappedOutcome,
+            appendDurationMs: sample.appendDurationMs
+        )
     }
 }

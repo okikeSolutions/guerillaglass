@@ -68,7 +68,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CaptureTests",
-            dependencies: ["Capture"],
+            dependencies: ["Capture", "InputTracking"],
             path: "Tests/captureTests"
         ),
         .testTarget(

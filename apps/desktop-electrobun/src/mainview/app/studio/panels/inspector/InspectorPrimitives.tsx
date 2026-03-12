@@ -167,13 +167,6 @@ export function InspectorNumericField({
   );
 }
 
-export function clampDbfsToMeter(audioLevelDbfs: number): number {
-  if (!Number.isFinite(audioLevelDbfs)) {
-    return 0;
-  }
-  return Math.min(1, Math.max(0, (audioLevelDbfs + 60) / 60));
-}
-
 export function readSliderValue(value: number | readonly number[]): number {
   if (typeof value === "number") {
     return value;

@@ -34,14 +34,3 @@ export function studioButtonToneClass(state: StudioSemanticState): string {
 export function studioToggleToneClass(state: StudioSemanticState): string {
   return `gg-toggle-tone ${studioToneClass(state)}`;
 }
-
-export function studioHealthTone(health: "good" | "warning" | "critical"): StudioSemanticState {
-  switch (health) {
-    case "good":
-      return "live";
-    case "warning":
-      return "selectedAlt";
-    case "critical":
-      return "error";
-  }
-}

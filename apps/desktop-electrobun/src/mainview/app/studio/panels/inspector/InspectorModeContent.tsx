@@ -1,13 +1,11 @@
 import { Keyboard, Mic, MousePointer, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
-import { captureFrameRates } from "@guerillaglass/engine-protocol";
 import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/components/field";
 import { Slider } from "@guerillaglass/ui/components/slider";
 import { buildCaptureTelemetryPresentation } from "../../model/captureTelemetryViewModel";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
   AudioMixerChannel,
-  clampDbfsToMeter,
   InspectorDetailRows,
   InspectorNumericField,
   InspectorSection,
@@ -31,6 +29,7 @@ type InspectorModeStudio = Pick<
   | "setTrimEndSeconds"
   | "setTrimStartSeconds"
   | "settingsForm"
+  | "supportedCaptureFrameRates"
   | "toggleAudioMixerMuted"
   | "ui"
 >;
@@ -50,12 +49,6 @@ function AutoZoomSection({
   showAudioMixer = false,
   sliderClassName,
 }: AutoZoomSectionProps) {
-  const telemetry = studio.captureStatusQuery.data?.telemetry;
-  const rawMeter =
-    telemetry?.audioLevelDbfs == null ? 0 : clampDbfsToMeter(telemetry.audioLevelDbfs);
-  const masterMeter = studio.audioMixer.masterMuted ? 0 : rawMeter * studio.audioMixer.masterGain;
-  const micMeter = studio.audioMixer.micMuted ? 0 : rawMeter * studio.audioMixer.micGain;
-
   return (
     <studio.settingsForm.Field name="autoZoom">
       {(field) => (
@@ -118,7 +111,7 @@ function AutoZoomSection({
               <AudioMixerChannel
                 label={studio.ui.labels.masterChannel}
                 value={studio.audioMixer.masterGain}
-                level={masterMeter}
+                level={0}
                 muted={studio.audioMixer.masterMuted}
                 muteLabel={studio.ui.labels.mute}
                 unmuteLabel={studio.ui.labels.unmute}
@@ -128,7 +121,7 @@ function AutoZoomSection({
               <AudioMixerChannel
                 label={studio.ui.labels.microphone}
                 value={studio.audioMixer.micGain}
-                level={micMeter}
+                level={0}
                 muted={studio.audioMixer.micMuted}
                 muteLabel={studio.ui.labels.mute}
                 unmuteLabel={studio.ui.labels.unmute}
@@ -181,7 +174,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
             <InspectorSelectField
               label={studio.ui.labels.captureFrameRate}
               value={String(field.state.value)}
-              options={captureFrameRates.map((fps) => ({
+              options={studio.supportedCaptureFrameRates.map((fps) => ({
                 value: String(fps),
                 label: `${fps} fps`,
               }))}
@@ -214,9 +207,6 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
                 },
                 { value: `${studio.ui.labels.achievedFps}: ${telemetryPresentation.achievedFps}` },
                 {
-                  value: `${studio.ui.labels.droppedFrames}: ${telemetryPresentation.droppedFrames}`,
-                },
-                {
                   value: `${studio.ui.labels.sourceDroppedFrames}: ${telemetryPresentation.sourceDroppedFrames}`,
                 },
                 {
@@ -224,6 +214,15 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
                 },
                 {
                   value: `${studio.ui.labels.writerBackpressureDrops}: ${telemetryPresentation.writerBackpressureDrops}`,
+                },
+                {
+                  value: `${studio.ui.labels.captureCallback}: ${telemetryPresentation.captureCallback}`,
+                },
+                {
+                  value: `${studio.ui.labels.recordQueueLag}: ${telemetryPresentation.recordQueueLag}`,
+                },
+                {
+                  value: `${studio.ui.labels.writerAppend}: ${telemetryPresentation.writerAppend}`,
                 },
               ]}
             />

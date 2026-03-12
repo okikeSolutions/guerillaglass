@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   studioBadgeToneClass,
   studioButtonToneClass,
-  studioHealthTone,
   studioIconToneClass,
   studioToggleToneClass,
   studioToneClass,
@@ -30,11 +29,5 @@ describe("studio semantic tones", () => {
 
     expect(studioToggleToneClass("selectedAlt")).toContain("gg-toggle-tone");
     expect(studioToggleToneClass("selectedAlt")).toContain("gg-tone-selected-alt");
-  });
-
-  test("maps health levels to strict semantic colors", () => {
-    expect(studioHealthTone("good")).toBe("live");
-    expect(studioHealthTone("warning")).toBe("selectedAlt");
-    expect(studioHealthTone("critical")).toBe("error");
   });
 });

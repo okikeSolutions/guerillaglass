@@ -2,7 +2,7 @@ import Foundation
 
 /// Policy helpers for supported capture frame rates.
 public enum CaptureFrameRatePolicy {
-    public static let supportedValues: [Int] = [24, 30, 60]
+    public static let supportedValues: [Int] = [24, 30, 60, 120]
     public static let defaultValue: Int = 30
 
     public static func isSupported(_ frameRate: Int) -> Bool {
