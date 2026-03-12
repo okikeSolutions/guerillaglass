@@ -11,19 +11,16 @@ const formatter = {
 };
 
 const labels = {
-  droppedFrames: "Dropped",
+  sourceDroppedFrames: "Source",
+  writerDroppedFrames: "Writer",
+  writerBackpressureDrops: "Backpressure",
+  achievedFps: "FPS",
   cpuUsage: "CPU",
   memoryUsage: "Memory",
   recordingBitrate: "Bitrate",
-  audioLevel: "Audio",
-  health: "Health",
-  good: "Good",
-  warning: "Warning",
-  critical: "Critical",
-  healthReasonEngineError: "Engine Error",
-  healthReasonHighDroppedFrameRate: "High Drops",
-  healthReasonElevatedDroppedFrameRate: "Elevated Drops",
-  healthReasonLowMicrophoneLevel: "Low Mic",
+  captureCallback: "Callback",
+  recordQueueLag: "Queue Lag",
+  writerAppend: "Append",
 };
 
 describe("technical feedback strip model", () => {
@@ -31,43 +28,46 @@ describe("technical feedback strip model", () => {
     const metrics = buildTechnicalFeedbackMetrics(undefined, labels, formatter);
 
     expect(metrics).toEqual([
-      { id: "dropped-frames", label: "Dropped", value: "0 (0.00%)", tone: "neutral" },
+      { id: "source-drops", label: "Source", value: "0", tone: "neutral" },
+      { id: "writer-drops", label: "Writer", value: "0", tone: "neutral" },
+      { id: "writer-backpressure", label: "Backpressure", value: "0", tone: "neutral" },
+      { id: "achieved-fps", label: "FPS", value: "0.00 fps", tone: "neutral" },
       { id: "cpu-usage", label: "CPU", value: "-", tone: "neutral" },
       { id: "memory-usage", label: "Memory", value: "-", tone: "neutral" },
       { id: "recording-bitrate", label: "Bitrate", value: "-", tone: "neutral" },
-      { id: "audio-level", label: "Audio", value: "-", tone: "neutral" },
-      { id: "health", label: "Health", value: "Good", tone: "live" },
+      { id: "capture-callback", label: "Callback", value: "-", tone: "neutral" },
+      { id: "record-queue-lag", label: "Queue Lag", value: "-", tone: "neutral" },
+      { id: "writer-append", label: "Append", value: "-", tone: "neutral" },
     ]);
   });
 
-  test("formats runtime metrics and localized health reason", () => {
+  test("formats runtime metrics", () => {
     const telemetry = {
-      totalFrames: 420,
-      droppedFrames: 8,
-      droppedFramePercent: 1.9,
       sourceDroppedFrames: 3,
-      sourceDroppedFramePercent: 0.7,
       writerDroppedFrames: 5,
       writerBackpressureDrops: 1,
-      writerDroppedFramePercent: 1.2,
       achievedFps: 58.6,
       cpuPercent: 23.451,
       memoryBytes: 1_610_612_736,
       recordingBitrateMbps: 37.291,
-      audioLevelDbfs: -9.42,
-      health: "warning",
-      healthReason: "low_microphone_level",
+      captureCallbackMs: 0.48,
+      recordQueueLagMs: 0.23,
+      writerAppendMs: 1.72,
     } satisfies CaptureTelemetry;
 
     const metrics = buildTechnicalFeedbackMetrics(telemetry, labels, formatter);
 
     expect(metrics).toEqual([
-      { id: "dropped-frames", label: "Dropped", value: "8 (1.90%)", tone: "neutral" },
+      { id: "source-drops", label: "Source", value: "3", tone: "neutral" },
+      { id: "writer-drops", label: "Writer", value: "5", tone: "neutral" },
+      { id: "writer-backpressure", label: "Backpressure", value: "1", tone: "neutral" },
+      { id: "achieved-fps", label: "FPS", value: "58.60 fps", tone: "neutral" },
       { id: "cpu-usage", label: "CPU", value: "23.45%", tone: "neutral" },
       { id: "memory-usage", label: "Memory", value: "1.50 GiB", tone: "neutral" },
       { id: "recording-bitrate", label: "Bitrate", value: "37.29 Mbps", tone: "neutral" },
-      { id: "audio-level", label: "Audio", value: "-9.42 dBFS", tone: "neutral" },
-      { id: "health", label: "Health", value: "Low Mic", tone: "selectedAlt" },
+      { id: "capture-callback", label: "Callback", value: "0.48 ms", tone: "neutral" },
+      { id: "record-queue-lag", label: "Queue Lag", value: "0.23 ms", tone: "neutral" },
+      { id: "writer-append", label: "Append", value: "1.72 ms", tone: "neutral" },
     ]);
   });
 

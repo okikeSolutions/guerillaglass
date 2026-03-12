@@ -114,11 +114,27 @@ export const actionResultSchema = z.object({
   message: z.string().optional(),
 });
 
+/** Supported capture frame rates for all engines. */
+export const captureFrameRates = [24, 30, 60, 120] as const;
+/** Default capture frame rate used when request params omit `captureFps`. */
+export const defaultCaptureFrameRate: (typeof captureFrameRates)[number] = 30;
+const [captureFrameRate24, captureFrameRate30, captureFrameRate60, captureFrameRate120] =
+  captureFrameRates;
+/** Zod schema for engine-supported capture FPS values. */
+export const captureFrameRateSchema = z.union([
+  z.literal(captureFrameRate24),
+  z.literal(captureFrameRate30),
+  z.literal(captureFrameRate60),
+  z.literal(captureFrameRate120),
+]);
+
 /** Display capture source descriptor. */
 export const displaySourceSchema = z.object({
   id: z.number().int().nonnegative(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  refreshHz: z.number().positive().nullable(),
+  supportedCaptureFrameRates: z.array(captureFrameRateSchema),
 });
 
 /** Window capture source descriptor. */
@@ -129,6 +145,8 @@ export const windowSourceSchema = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
   isOnScreen: z.boolean(),
+  refreshHz: z.number().positive().nullable(),
+  supportedCaptureFrameRates: z.array(captureFrameRateSchema),
 });
 
 /** Result payload for `sources.list`. */
@@ -137,84 +155,18 @@ export const sourcesResultSchema = z.object({
   windows: z.array(windowSourceSchema),
 });
 
-/** Health severity for capture telemetry. */
-export const captureHealthSchema = z.enum(["good", "warning", "critical"]);
-/** Optional reason code associated with non-good telemetry health. */
-export const captureHealthReasonSchema = z.enum([
-  "engine_error",
-  "high_dropped_frame_rate",
-  "elevated_dropped_frame_rate",
-  "low_microphone_level",
-]);
-/** Supported capture frame rates for all engines. */
-export const captureFrameRates = [24, 30, 60] as const;
-/** Default capture frame rate used when request params omit `captureFps`. */
-export const defaultCaptureFrameRate: (typeof captureFrameRates)[number] = 30;
-const [captureFrameRate24, captureFrameRate30, captureFrameRate60] = captureFrameRates;
-/** Zod schema for engine-supported capture FPS values. */
-export const captureFrameRateSchema = z.union([
-  z.literal(captureFrameRate24),
-  z.literal(captureFrameRate30),
-  z.literal(captureFrameRate60),
-]);
-
-/** Default telemetry object used by older engine responses. */
-export const defaultCaptureTelemetry = {
-  totalFrames: 0,
-  droppedFrames: 0,
-  droppedFramePercent: 0,
-  sourceDroppedFrames: 0,
-  sourceDroppedFramePercent: 0,
-  writerDroppedFrames: 0,
-  writerBackpressureDrops: 0,
-  writerDroppedFramePercent: 0,
-  achievedFps: 0,
-  cpuPercent: null,
-  memoryBytes: null,
-  recordingBitrateMbps: null,
-  audioLevelDbfs: null,
-  health: "good",
-  healthReason: null,
-} satisfies {
-  totalFrames: number;
-  droppedFrames: number;
-  droppedFramePercent: number;
-  sourceDroppedFrames: number;
-  sourceDroppedFramePercent: number;
-  writerDroppedFrames: number;
-  writerBackpressureDrops: number;
-  writerDroppedFramePercent: number;
-  achievedFps: number;
-  cpuPercent: number | null;
-  memoryBytes: number | null;
-  recordingBitrateMbps: number | null;
-  audioLevelDbfs: number | null;
-  health: "good" | "warning" | "critical";
-  healthReason:
-    | "engine_error"
-    | "high_dropped_frame_rate"
-    | "elevated_dropped_frame_rate"
-    | "low_microphone_level"
-    | null;
-};
-
 /** Capture telemetry payload returned by `capture.status`. */
 export const captureTelemetrySchema = z.object({
-  totalFrames: z.number().int().nonnegative(),
-  droppedFrames: z.number().int().nonnegative(),
-  droppedFramePercent: z.number().nonnegative(),
-  sourceDroppedFrames: z.number().int().nonnegative().optional().default(0),
-  sourceDroppedFramePercent: z.number().nonnegative().optional().default(0),
-  writerDroppedFrames: z.number().int().nonnegative().optional().default(0),
-  writerBackpressureDrops: z.number().int().nonnegative().optional().default(0),
-  writerDroppedFramePercent: z.number().nonnegative().optional().default(0),
-  achievedFps: z.number().nonnegative().optional().default(0),
-  cpuPercent: z.number().nonnegative().nullable().optional().default(null),
-  memoryBytes: z.number().nonnegative().nullable().optional().default(null),
-  recordingBitrateMbps: z.number().nonnegative().nullable().optional().default(null),
-  audioLevelDbfs: z.number().nullable(),
-  health: captureHealthSchema,
-  healthReason: captureHealthReasonSchema.nullable(),
+  sourceDroppedFrames: z.number().int().nonnegative(),
+  writerDroppedFrames: z.number().int().nonnegative(),
+  writerBackpressureDrops: z.number().int().nonnegative(),
+  achievedFps: z.number().nonnegative(),
+  cpuPercent: z.number().nonnegative().nullable(),
+  memoryBytes: z.number().nonnegative().nullable(),
+  recordingBitrateMbps: z.number().nonnegative().nullable(),
+  captureCallbackMs: z.number().nonnegative(),
+  recordQueueLagMs: z.number().nonnegative(),
+  writerAppendMs: z.number().nonnegative(),
 });
 
 /** Result payload for capture and recording lifecycle methods. */
@@ -226,7 +178,7 @@ export const captureStatusResultSchema = z.object({
   captureMetadata: captureMetadataSchema.optional().default(null),
   lastError: z.string().nullable(),
   eventsURL: z.string().nullable(),
-  telemetry: captureTelemetrySchema.optional().default(defaultCaptureTelemetry),
+  telemetry: captureTelemetrySchema,
 });
 
 /** Export preset descriptor returned by `export.info`. */
@@ -718,10 +670,6 @@ export type PermissionsResult = z.infer<typeof permissionsResultSchema>;
 export type ActionResult = z.infer<typeof actionResultSchema>;
 /** Type alias for SourcesResult. */
 export type SourcesResult = z.infer<typeof sourcesResultSchema>;
-/** Type alias for CaptureHealth. */
-export type CaptureHealth = z.infer<typeof captureHealthSchema>;
-/** Type alias for CaptureHealthReason. */
-export type CaptureHealthReason = z.infer<typeof captureHealthReasonSchema>;
 /** Type alias for CaptureFrameRate. */
 export type CaptureFrameRate = z.infer<typeof captureFrameRateSchema>;
 /** Type alias for CaptureTelemetry. */

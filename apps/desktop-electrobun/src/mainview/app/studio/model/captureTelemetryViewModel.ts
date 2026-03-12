@@ -6,19 +6,23 @@ type TelemetryFormatter = {
 };
 
 type TelemetryLabels = {
-  droppedFrames: string;
   sourceDroppedFrames: string;
   writerDroppedFrames: string;
   writerBackpressureDrops: string;
   achievedFps: string;
+  captureCallback: string;
+  recordQueueLag: string;
+  writerAppend: string;
 };
 
 export type CaptureTelemetryPresentation = {
-  droppedFrames: string;
   sourceDroppedFrames: string;
   writerDroppedFrames: string;
   writerBackpressureDrops: string;
   achievedFps: string;
+  captureCallback: string;
+  recordQueueLag: string;
+  writerAppend: string;
 };
 
 export function buildCaptureTelemetryPresentation(
@@ -26,17 +30,13 @@ export function buildCaptureTelemetryPresentation(
   formatter: TelemetryFormatter,
 ): CaptureTelemetryPresentation {
   return {
-    droppedFrames: `${formatter.formatInteger(telemetry?.droppedFrames ?? 0)} (${formatter.formatDecimal(
-      telemetry?.droppedFramePercent ?? 0,
-    )}%)`,
-    sourceDroppedFrames: `${formatter.formatInteger(
-      telemetry?.sourceDroppedFrames ?? 0,
-    )} (${formatter.formatDecimal(telemetry?.sourceDroppedFramePercent ?? 0)}%)`,
-    writerDroppedFrames: `${formatter.formatInteger(
-      telemetry?.writerDroppedFrames ?? 0,
-    )} (${formatter.formatDecimal(telemetry?.writerDroppedFramePercent ?? 0)}%)`,
+    sourceDroppedFrames: formatter.formatInteger(telemetry?.sourceDroppedFrames ?? 0),
+    writerDroppedFrames: formatter.formatInteger(telemetry?.writerDroppedFrames ?? 0),
     writerBackpressureDrops: formatter.formatInteger(telemetry?.writerBackpressureDrops ?? 0),
     achievedFps: `${formatter.formatDecimal(telemetry?.achievedFps ?? 0)} fps`,
+    captureCallback: `${formatter.formatDecimal(telemetry?.captureCallbackMs ?? 0)} ms`,
+    recordQueueLag: `${formatter.formatDecimal(telemetry?.recordQueueLagMs ?? 0)} ms`,
+    writerAppend: `${formatter.formatDecimal(telemetry?.writerAppendMs ?? 0)} ms`,
   };
 }
 
@@ -45,10 +45,12 @@ export function buildDroppedFramesTooltip(
   presentation: CaptureTelemetryPresentation,
 ): string {
   return (
-    `${labels.droppedFrames}: ${presentation.droppedFrames} | ` +
     `${labels.sourceDroppedFrames}: ${presentation.sourceDroppedFrames} | ` +
     `${labels.writerDroppedFrames}: ${presentation.writerDroppedFrames} | ` +
     `${labels.writerBackpressureDrops}: ${presentation.writerBackpressureDrops} | ` +
-    `${labels.achievedFps}: ${presentation.achievedFps}`
+    `${labels.achievedFps}: ${presentation.achievedFps} | ` +
+    `${labels.captureCallback}: ${presentation.captureCallback} | ` +
+    `${labels.recordQueueLag}: ${presentation.recordQueueLag} | ` +
+    `${labels.writerAppend}: ${presentation.writerAppend}`
   );
 }

@@ -1,11 +1,23 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { defaultCaptureTelemetry } from "@guerillaglass/engine-protocol";
 import {
   desktopApi,
   engineApi,
   parseInputEventLog,
   sendHostMenuState,
 } from "../src/mainview/lib/engine";
+
+const captureTelemetryFixture = {
+  sourceDroppedFrames: 0,
+  writerDroppedFrames: 0,
+  writerBackpressureDrops: 0,
+  achievedFps: 0,
+  cpuPercent: null,
+  memoryBytes: null,
+  recordingBitrateMbps: null,
+  captureCallbackMs: 0,
+  recordQueueLagMs: 0,
+  writerAppendMs: 0,
+};
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -15,7 +27,7 @@ function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
     recordingURL: null,
     lastError: null,
     eventsURL: null,
-    telemetry: { ...defaultCaptureTelemetry },
+    telemetry: { ...captureTelemetryFixture },
     ...overrides,
   };
 }
@@ -63,7 +75,15 @@ describe("renderer engine bridge", () => {
         success: true,
       }),
       ggEngineListSources: async () => ({
-        displays: [{ id: 1, width: 3024, height: 1964 }],
+        displays: [
+          {
+            id: 1,
+            width: 3024,
+            height: 1964,
+            refreshHz: 120,
+            supportedCaptureFrameRates: [24, 30, 60, 120],
+          },
+        ],
         windows: [
           {
             id: 12,
@@ -72,6 +92,8 @@ describe("renderer engine bridge", () => {
             width: 800,
             height: 600,
             isOnScreen: true,
+            refreshHz: 60,
+            supportedCaptureFrameRates: [24, 30, 60],
           },
         ],
       }),
@@ -214,6 +236,8 @@ describe("renderer engine bridge", () => {
     expect(requestedInputPermission.success).toBe(true);
     expect(openedInputMonitoringSettings.success).toBe(true);
     expect(sources.displays.length).toBe(1);
+    expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60, 120]);
+    expect(sources.windows[0]?.refreshHz).toBe(60);
     expect(capture.eventsURL).toBeNull();
     expect(exportInfo.presets[0]?.id).toBe("h264-1080p-30");
     expect(project.autoZoom.isEnabled).toBe(true);

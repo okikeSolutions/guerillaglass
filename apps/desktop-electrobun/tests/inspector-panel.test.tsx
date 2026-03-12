@@ -81,6 +81,7 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
           handleChange: () => {},
         }),
     },
+    supportedCaptureFrameRates: [24, 30, 60],
     toggleAudioMixerMuted: () => {},
     ui: enUS,
   } as unknown as StudioController;
@@ -146,5 +147,6 @@ describe("inspector panel", () => {
     expect(html).toContain("Window ID: 42");
     expect(html).toContain("CAPTURE");
     expect(html).toContain("EFFECTS");
+    expect(html).not.toContain("120 fps");
   });
 });

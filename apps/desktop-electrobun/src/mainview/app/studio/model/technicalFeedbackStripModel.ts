@@ -1,6 +1,4 @@
-import type { CaptureHealthReason, CaptureTelemetry } from "@guerillaglass/engine-protocol";
-import { buildCaptureTelemetryPresentation } from "./captureTelemetryViewModel";
-import { studioHealthTone, type StudioSemanticState } from "./studioSemanticTone";
+import type { CaptureTelemetry } from "@guerillaglass/engine-protocol";
 
 export type TechnicalFeedbackFormatter = {
   formatInteger: (value: number) => string;
@@ -8,66 +6,24 @@ export type TechnicalFeedbackFormatter = {
 };
 
 export type TechnicalFeedbackLabels = {
-  droppedFrames: string;
+  sourceDroppedFrames: string;
+  writerDroppedFrames: string;
+  writerBackpressureDrops: string;
+  achievedFps: string;
   cpuUsage: string;
   memoryUsage: string;
   recordingBitrate: string;
-  audioLevel: string;
-  health: string;
-  good: string;
-  warning: string;
-  critical: string;
-  healthReasonEngineError: string;
-  healthReasonHighDroppedFrameRate: string;
-  healthReasonElevatedDroppedFrameRate: string;
-  healthReasonLowMicrophoneLevel: string;
+  captureCallback: string;
+  recordQueueLag: string;
+  writerAppend: string;
 };
 
 export type TechnicalFeedbackMetric = {
   id: string;
   label: string;
   value: string;
-  tone: StudioSemanticState;
+  tone: "neutral";
 };
-
-export type TechnicalFeedbackValues = {
-  droppedFrames: string;
-  cpuUsage: string;
-  memoryUsage: string;
-  recordingBitrate: string;
-  audioLevel: string;
-  health: string;
-  healthTone: StudioSemanticState;
-  telemetryPresentation: ReturnType<typeof buildCaptureTelemetryPresentation>;
-};
-
-export type TelemetryHealthReasonLabels = Pick<
-  TechnicalFeedbackLabels,
-  | "healthReasonEngineError"
-  | "healthReasonHighDroppedFrameRate"
-  | "healthReasonElevatedDroppedFrameRate"
-  | "healthReasonLowMicrophoneLevel"
->;
-
-export function localizeTelemetryHealthReason(
-  reason: CaptureHealthReason | null | undefined,
-  labels: TelemetryHealthReasonLabels,
-): string | null {
-  if (reason == null) {
-    return null;
-  }
-
-  switch (reason) {
-    case "engine_error":
-      return labels.healthReasonEngineError;
-    case "high_dropped_frame_rate":
-      return labels.healthReasonHighDroppedFrameRate;
-    case "elevated_dropped_frame_rate":
-      return labels.healthReasonElevatedDroppedFrameRate;
-    case "low_microphone_level":
-      return labels.healthReasonLowMicrophoneLevel;
-  }
-}
 
 export function formatTelemetryMemoryBytes(
   memoryBytes: number | null | undefined,
@@ -106,14 +62,14 @@ export function formatTelemetryBitrateMbps(
   return `${formatter.formatDecimal(bitrateMbps)} Mbps`;
 }
 
-export function formatTelemetryAudioLevel(
-  audioLevelDbfs: number | null | undefined,
+function formatTelemetryDurationMs(
+  durationMs: number | null | undefined,
   formatter: TechnicalFeedbackFormatter,
 ): string {
-  if (audioLevelDbfs == null || !Number.isFinite(audioLevelDbfs)) {
+  if (durationMs == null || !Number.isFinite(durationMs) || durationMs < 0) {
     return "-";
   }
-  return `${formatter.formatDecimal(audioLevelDbfs)} dBFS`;
+  return `${formatter.formatDecimal(durationMs)} ms`;
 }
 
 export function buildTechnicalFeedbackMetrics(
@@ -121,67 +77,66 @@ export function buildTechnicalFeedbackMetrics(
   labels: TechnicalFeedbackLabels,
   formatter: TechnicalFeedbackFormatter,
 ): TechnicalFeedbackMetric[] {
-  const values = buildTechnicalFeedbackValues(telemetry, labels, formatter);
-
   return [
     {
-      id: "dropped-frames",
-      label: labels.droppedFrames,
-      value: values.droppedFrames,
+      id: "source-drops",
+      label: labels.sourceDroppedFrames,
+      value: formatter.formatInteger(telemetry?.sourceDroppedFrames ?? 0),
+      tone: "neutral",
+    },
+    {
+      id: "writer-drops",
+      label: labels.writerDroppedFrames,
+      value: formatter.formatInteger(telemetry?.writerDroppedFrames ?? 0),
+      tone: "neutral",
+    },
+    {
+      id: "writer-backpressure",
+      label: labels.writerBackpressureDrops,
+      value: formatter.formatInteger(telemetry?.writerBackpressureDrops ?? 0),
+      tone: "neutral",
+    },
+    {
+      id: "achieved-fps",
+      label: labels.achievedFps,
+      value: `${formatter.formatDecimal(telemetry?.achievedFps ?? 0)} fps`,
       tone: "neutral",
     },
     {
       id: "cpu-usage",
       label: labels.cpuUsage,
-      value: values.cpuUsage,
+      value: formatTelemetryCpuPercent(telemetry?.cpuPercent, formatter),
       tone: "neutral",
     },
     {
       id: "memory-usage",
       label: labels.memoryUsage,
-      value: values.memoryUsage,
+      value: formatTelemetryMemoryBytes(telemetry?.memoryBytes, formatter),
       tone: "neutral",
     },
     {
       id: "recording-bitrate",
       label: labels.recordingBitrate,
-      value: values.recordingBitrate,
+      value: formatTelemetryBitrateMbps(telemetry?.recordingBitrateMbps, formatter),
       tone: "neutral",
     },
     {
-      id: "audio-level",
-      label: labels.audioLevel,
-      value: values.audioLevel,
+      id: "capture-callback",
+      label: labels.captureCallback,
+      value: formatTelemetryDurationMs(telemetry?.captureCallbackMs, formatter),
       tone: "neutral",
     },
     {
-      id: "health",
-      label: labels.health,
-      value: values.health,
-      tone: values.healthTone,
+      id: "record-queue-lag",
+      label: labels.recordQueueLag,
+      value: formatTelemetryDurationMs(telemetry?.recordQueueLagMs, formatter),
+      tone: "neutral",
+    },
+    {
+      id: "writer-append",
+      label: labels.writerAppend,
+      value: formatTelemetryDurationMs(telemetry?.writerAppendMs, formatter),
+      tone: "neutral",
     },
   ];
-}
-
-export function buildTechnicalFeedbackValues(
-  telemetry: CaptureTelemetry | undefined,
-  labels: TechnicalFeedbackLabels,
-  formatter: TechnicalFeedbackFormatter,
-): TechnicalFeedbackValues {
-  const telemetryPresentation = buildCaptureTelemetryPresentation(telemetry, formatter);
-  const health = telemetry?.health ?? "good";
-  const healthLabel =
-    health === "critical" ? labels.critical : health === "warning" ? labels.warning : labels.good;
-  const healthReason = localizeTelemetryHealthReason(telemetry?.healthReason, labels);
-
-  return {
-    droppedFrames: telemetryPresentation.droppedFrames,
-    cpuUsage: formatTelemetryCpuPercent(telemetry?.cpuPercent, formatter),
-    memoryUsage: formatTelemetryMemoryBytes(telemetry?.memoryBytes, formatter),
-    recordingBitrate: formatTelemetryBitrateMbps(telemetry?.recordingBitrateMbps, formatter),
-    audioLevel: formatTelemetryAudioLevel(telemetry?.audioLevelDbfs, formatter),
-    health: healthReason ?? healthLabel,
-    healthTone: studioHealthTone(health),
-    telemetryPresentation,
-  };
 }

@@ -158,6 +158,19 @@ const state: State = {
 };
 
 const preflightTokenTTLms = 60_000;
+const defaultCaptureFrameRates = [24, 30, 60] as const;
+
+function isSupportedCaptureFrameRate(value: unknown): value is (typeof defaultCaptureFrameRates)[number] {
+  return typeof value === "number" && Number.isFinite(value) && defaultCaptureFrameRates.includes(value as (typeof defaultCaptureFrameRates)[number]);
+}
+
+function unsupportedCaptureFrameRateMessage(requestedCaptureFrameRate: unknown): string {
+  const requested =
+    typeof requestedCaptureFrameRate === "number" && Number.isFinite(requestedCaptureFrameRate)
+      ? String(Math.floor(requestedCaptureFrameRate))
+      : String(requestedCaptureFrameRate);
+  return `captureFps ${requested} is unsupported for the current source (refresh rate: 60.00 Hz). Supported values: ${defaultCaptureFrameRates.join(", ")}`;
+}
 
 function statusResult(): Json {
   const now = Date.now();
@@ -175,21 +188,16 @@ function statusResult(): Json {
     lastError: state.lastError,
     eventsURL: state.eventsURL,
     telemetry: {
-      totalFrames: 0,
-      droppedFrames: 0,
-      droppedFramePercent: 0,
       sourceDroppedFrames: 0,
-      sourceDroppedFramePercent: 0,
       writerDroppedFrames: 0,
       writerBackpressureDrops: 0,
-      writerDroppedFramePercent: 0,
       achievedFps: 0,
       cpuPercent: null,
       memoryBytes: null,
       recordingBitrateMbps: null,
-      audioLevelDbfs: null,
-      health: "good",
-      healthReason: null,
+      captureCallbackMs: 0,
+      recordQueueLagMs: 0,
+      writerAppendMs: 0,
     },
   };
 }
@@ -651,7 +659,15 @@ function handleRequest(platform: string, request: Request): Response {
 
     case "sources.list":
       return success(request.id, {
-        displays: [{ id: 1, width: 1920, height: 1080 }],
+        displays: [
+          {
+            id: 1,
+            width: 1920,
+            height: 1080,
+            refreshHz: 60,
+            supportedCaptureFrameRates: [...defaultCaptureFrameRates],
+          },
+        ],
         windows: [
           {
             id: 101,
@@ -660,11 +676,23 @@ function handleRequest(platform: string, request: Request): Response {
             width: 1280,
             height: 720,
             isOnScreen: true,
+            refreshHz: 60,
+            supportedCaptureFrameRates: [...defaultCaptureFrameRates],
           },
         ],
       });
 
     case "capture.startDisplay":
+      if (
+        Object.hasOwn(params, "captureFps") &&
+        !isSupportedCaptureFrameRate(params.captureFps)
+      ) {
+        return failure(
+          request.id,
+          "invalid_params",
+          unsupportedCaptureFrameRateMessage(params.captureFps),
+        );
+      }
       state.isRunning = true;
       state.lastError = null;
       state.captureMetadata = {
@@ -676,6 +704,16 @@ function handleRequest(platform: string, request: Request): Response {
       return success(request.id, statusResult());
 
     case "capture.startCurrentWindow":
+      if (
+        Object.hasOwn(params, "captureFps") &&
+        !isSupportedCaptureFrameRate(params.captureFps)
+      ) {
+        return failure(
+          request.id,
+          "invalid_params",
+          unsupportedCaptureFrameRateMessage(params.captureFps),
+        );
+      }
       state.isRunning = true;
       state.lastError = null;
       state.captureMetadata = {
@@ -691,6 +729,16 @@ function handleRequest(platform: string, request: Request): Response {
       return success(request.id, statusResult());
 
     case "capture.startWindow": {
+      if (
+        Object.hasOwn(params, "captureFps") &&
+        !isSupportedCaptureFrameRate(params.captureFps)
+      ) {
+        return failure(
+          request.id,
+          "invalid_params",
+          unsupportedCaptureFrameRateMessage(params.captureFps),
+        );
+      }
       const requestedWindowId =
         typeof params.windowId === "number" && Number.isFinite(params.windowId)
           ? Math.max(0, Math.floor(params.windowId))

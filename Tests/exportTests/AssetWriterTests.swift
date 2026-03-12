@@ -21,6 +21,23 @@ final class AssetWriterTests: XCTestCase {
         XCTAssertNotNil(writer.videoBaseTime)
     }
 
+    func testAppendVideoSampleReportsAppendTiming() throws {
+        let outputURL = makeOutputURL(fileName: "video-append-sample.mov")
+        defer { try? FileManager.default.removeItem(at: outputURL.deletingLastPathComponent()) }
+
+        let writer = try AssetWriter(outputURL: outputURL)
+        let sampleBuffer = try makeVideoSampleBuffer(
+            width: 16,
+            height: 16,
+            presentationTime: .zero
+        )
+
+        let sample = writer.appendVideoSample(sampleBuffer)
+
+        assertVideoOutcome(sample.outcome, expected: .appended)
+        XCTAssertGreaterThanOrEqual(sample.appendDurationMs, 0)
+    }
+
     func testAppendVideoSynchronouslyDropsWhenFinishing() throws {
         let outputURL = makeOutputURL(fileName: "video-dropped.mov")
         defer { try? FileManager.default.removeItem(at: outputURL.deletingLastPathComponent()) }

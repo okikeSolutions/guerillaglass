@@ -19,11 +19,10 @@ public extension CaptureEngine {
         guard isRunning else {
             throw CaptureError.captureNotRunning
         }
-        resetTelemetry()
         let expectedFrameRate = max(1, captureFrameRate)
-
         let outputURL = makeRecordingURL()
         Self.logger.info("Start recording to \(outputURL.path, privacy: .private(mask: .hash))")
+
         let queue = recordingQueue
         let box = WeakSelfBox(self)
         try await withCheckedThrowingContinuation { continuation in
@@ -32,40 +31,60 @@ public extension CaptureEngine {
                     continuation.resume(returning: ())
                     return
                 }
-                if engine.recordingState.isRecording {
+                if engine.recordingState.isActive {
                     continuation.resume(returning: ())
                     return
                 }
-                do {
-                    let writer = try AssetWriter(
-                        outputURL: outputURL,
-                        configuration: AssetWriter.Configuration(
-                            fileType: .mov,
-                            codec: .h264,
-                            expectedFrameRate: expectedFrameRate
+
+                engine.recordingState = RecordingState(
+                    phase: .priming(
+                        RecordingState.PrimingState(
+                            startedAtUptimeNanoseconds: DispatchTime.now().uptimeNanoseconds,
+                            timeoutNanoseconds: engine.primingTimeoutNanoseconds(for: expectedFrameRate)
                         )
-                    )
-                    engine.recordingState = RecordingState(
-                        isRecording: true,
-                        writer: writer,
-                        outputURL: outputURL
-                    )
-                    Task { @MainActor [weak engine] in
-                        guard let engine else { return }
-                        engine.isRecording = true
-                        engine.recordingURL = nil
-                        engine.recordingDuration = 0
-                    }
+                    ),
+                    writer: nil,
+                    outputURL: outputURL,
+                    videoBaseTime: nil,
+                    lastDurationUpdate: 0,
+                    expectedFrameRate: expectedFrameRate
+                )
+                engine.resetRecordingActivation()
+                engine.recordActivationTimeoutIfNeeded(frameRate: expectedFrameRate)
+                continuation.resume()
+            }
+        }
+
+        do {
+            try await waitForRecordingActivation(
+                timeoutNanoseconds: primingTimeoutNanoseconds(for: expectedFrameRate) + 100_000_000
+            )
+            recordingActivationTask?.cancel()
+            recordingActivationTask = nil
+            resetTelemetry()
+            await MainActor.run {
+                self.isRecording = true
+                self.recordingURL = nil
+                self.recordingDuration = 0
+            }
+        } catch {
+            recordingActivationTask?.cancel()
+            recordingActivationTask = nil
+            let queue = recordingQueue
+            let box = WeakSelfBox(self)
+            await withCheckedContinuation { continuation in
+                queue.async { [box] in
+                    box.value?.recordingState = RecordingState()
                     continuation.resume()
-                } catch {
-                    Self.logger.error("Failed to start recording: \(error.localizedDescription, privacy: .private)")
-                    continuation.resume(throwing: error)
                 }
             }
+            throw error
         }
     }
 
     func stopRecording() async {
+        recordingActivationTask?.cancel()
+        recordingActivationTask = nil
         let queue = recordingQueue
         let box = WeakSelfBox(self)
         await withCheckedContinuation { continuation in
@@ -74,10 +93,22 @@ public extension CaptureEngine {
                     continuation.resume()
                     return
                 }
-                guard engine.recordingState.isRecording else {
+                guard engine.recordingState.isActive else {
                     continuation.resume()
                     return
                 }
+                if case .priming = engine.recordingState.phase {
+                    engine.recordingState = RecordingState()
+                    engine.resolveRecordingActivation(
+                        .failure(CaptureError.captureStartUnstable(frameRate: engine.captureFrameRate))
+                    )
+                    Task { @MainActor in
+                        engine.isRecording = false
+                    }
+                    continuation.resume()
+                    return
+                }
+
                 let writer = engine.recordingState.writer
                 engine.recordingState = RecordingState()
                 guard let writer else {
@@ -129,41 +160,34 @@ public extension CaptureEngine {
 
     func activeRecordingOutputURL() -> URL? {
         recordingQueue.sync {
-            recordingState.isRecording ? recordingState.outputURL : nil
+            recordingState.isActive ? recordingState.outputURL : nil
         }
     }
 
     internal func handleAudioBuffer(_ buffer: AVAudioPCMBuffer, time: AVAudioTime) {
-        recordAudioLevel(Self.audioLevelDbfs(for: buffer))
         recordingQueue.async { [weak self] in
             guard let self else { return }
-            guard recordingState.isRecording, let writer = recordingState.writer else { return }
+            guard recordingState.isRecordingActive, let writer = recordingState.writer else { return }
             writer.appendAudio(buffer: buffer, time: time)
         }
     }
 
     internal func appendVideoSample(_ sampleBuffer: CMSampleBuffer) {
+        let enqueueUptimeNanoseconds = DispatchTime.now().uptimeNanoseconds
         recordingQueue.async { [weak self] in
             guard let self else { return }
-            guard recordingState.isRecording, let writer = recordingState.writer else { return }
-            let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-            if recordingState.videoBaseTime == nil {
-                recordingState.videoBaseTime = pts
-            }
-            if let baseTime = recordingState.videoBaseTime {
-                let elapsed = CMTimeSubtract(pts, baseTime)
-                if elapsed.isNumeric {
-                    let seconds = elapsed.seconds
-                    if seconds - recordingState.lastDurationUpdate >= 0.1 {
-                        recordingState.lastDurationUpdate = seconds
-                        Task { @MainActor in
-                            self.recordingDuration = seconds
-                        }
-                    }
-                }
-            }
-            writer.appendVideo(sampleBuffer: sampleBuffer) { [weak self] outcome in
-                self?.recordWriterAppendOutcome(outcome)
+
+            let recordQueueLagMs =
+                Double(DispatchTime.now().uptimeNanoseconds - enqueueUptimeNanoseconds) / 1_000_000
+            recordRecordQueueLag(recordQueueLagMs)
+
+            switch recordingState.phase {
+            case .idle:
+                return
+            case let .priming(primingState):
+                handlePrimingSample(sampleBuffer, primingState: primingState)
+            case .recording:
+                appendActiveRecordingSample(sampleBuffer)
             }
         }
     }
@@ -184,31 +208,96 @@ public extension CaptureEngine {
         }
         return 0
     }
+}
 
-    private static func audioLevelDbfs(for buffer: AVAudioPCMBuffer) -> Double? {
-        guard let channelData = buffer.floatChannelData else { return nil }
-        let channelCount = Int(buffer.format.channelCount)
-        let frameCount = Int(buffer.frameLength)
-        guard channelCount > 0, frameCount > 0 else { return nil }
+private extension CaptureEngine {
+    func handlePrimingSample(
+        _ sampleBuffer: CMSampleBuffer,
+        primingState: RecordingState.PrimingState
+    ) {
+        var nextPrimingState = primingState
+        let presentationTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        guard presentationTime.isNumeric else {
+            recordingState.phase = .priming(nextPrimingState)
+            return
+        }
 
-        var meanSquare: Float = 0
-        for channel in 0 ..< channelCount {
-            let samples = channelData[channel]
-            var channelSquare: Float = 0
-            for frame in 0 ..< frameCount {
-                let sample = samples[frame]
-                channelSquare += sample * sample
+        if let previousPresentationTimestamp = nextPrimingState.lastPresentationTimestamp {
+            let deltaSeconds = max(0, presentationTime.seconds - previousPresentationTimestamp.seconds)
+            let expectedDeltaSeconds = 1.0 / Double(recordingState.expectedFrameRate)
+            let toleranceSeconds = expectedDeltaSeconds * 0.2
+            let isStableInterval = abs(deltaSeconds - expectedDeltaSeconds) <= toleranceSeconds
+
+            if isStableInterval {
+                nextPrimingState.consecutiveStableIntervals += 1
+                nextPrimingState.bufferedFrames.append(sampleBuffer)
+            } else {
+                nextPrimingState.consecutiveStableIntervals = 0
+                nextPrimingState.bufferedFrames = [sampleBuffer]
             }
-            meanSquare += channelSquare / Float(frameCount)
-        }
-        meanSquare /= Float(channelCount)
-
-        if meanSquare <= 0 {
-            return -80
+        } else {
+            nextPrimingState.bufferedFrames = [sampleBuffer]
         }
 
-        let rms = sqrt(meanSquare)
-        let dbfs = 20 * log10(Double(rms))
-        return min(0, max(-80, dbfs))
+        nextPrimingState.lastPresentationTimestamp = presentationTime
+        recordingState.phase = .priming(nextPrimingState)
+
+        guard nextPrimingState.bufferedFrames.count >= 3, nextPrimingState.consecutiveStableIntervals >= 2 else {
+            return
+        }
+
+        do {
+            let outputURL = recordingState.outputURL ?? makeRecordingURL()
+            let writer = try AssetWriter(
+                outputURL: outputURL,
+                configuration: AssetWriter.Configuration(
+                    fileType: .mov,
+                    codec: .h264,
+                    expectedFrameRate: recordingState.expectedFrameRate
+                )
+            )
+            guard let firstStableSample = nextPrimingState.bufferedFrames.first else {
+                throw CaptureError.captureStartUnstable(frameRate: recordingState.expectedFrameRate)
+            }
+
+            recordingState.outputURL = outputURL
+            recordingState.writer = writer
+            recordingState.videoBaseTime = CMSampleBufferGetPresentationTimeStamp(firstStableSample)
+            recordingState.lastDurationUpdate = 0
+            recordingState.phase = .recording
+
+            for primedSample in nextPrimingState.bufferedFrames {
+                appendActiveRecordingSample(primedSample)
+            }
+            resolveRecordingActivation(.success(()))
+        } catch {
+            recordingState = RecordingState()
+            resolveRecordingActivation(.failure(error))
+        }
+    }
+
+    func appendActiveRecordingSample(_ sampleBuffer: CMSampleBuffer) {
+        guard recordingState.isRecordingActive, let writer = recordingState.writer else { return }
+
+        let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        if recordingState.videoBaseTime == nil {
+            recordingState.videoBaseTime = pts
+        }
+        if let baseTime = recordingState.videoBaseTime {
+            let elapsed = CMTimeSubtract(pts, baseTime)
+            if elapsed.isNumeric {
+                let seconds = elapsed.seconds
+                if seconds - recordingState.lastDurationUpdate >= 0.1 {
+                    recordingState.lastDurationUpdate = seconds
+                    Task { @MainActor in
+                        self.recordingDuration = seconds
+                    }
+                }
+            }
+        }
+
+        writer.appendVideo(sampleBuffer: sampleBuffer) { [weak self] sample in
+            self?.recordWriterAppendSample(sample)
+        }
     }
 }

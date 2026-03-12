@@ -10,7 +10,17 @@ public final class AssetWriter {
         case failed
     }
 
-    public typealias VideoAppendOutcomeHandler = @Sendable (VideoAppendOutcome) -> Void
+    public struct VideoAppendSample {
+        public let outcome: VideoAppendOutcome
+        public let appendDurationMs: Double
+
+        public init(outcome: VideoAppendOutcome, appendDurationMs: Double) {
+            self.outcome = outcome
+            self.appendDurationMs = appendDurationMs
+        }
+    }
+
+    public typealias VideoAppendOutcomeHandler = @Sendable (VideoAppendSample) -> Void
 
     public struct Configuration {
         public let fileType: AVFileType
@@ -81,8 +91,16 @@ public final class AssetWriter {
         onOutcome: VideoAppendOutcomeHandler? = nil
     ) {
         queue.async {
-            onOutcome?(self.appendVideoSynchronously(sampleBuffer))
+            onOutcome?(self.appendVideoSample(sampleBuffer))
         }
+    }
+
+    @discardableResult
+    func appendVideoSample(_ sampleBuffer: CMSampleBuffer) -> VideoAppendSample {
+        let startedAt = DispatchTime.now().uptimeNanoseconds
+        let outcome = appendVideoSynchronously(sampleBuffer)
+        let appendDurationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000
+        return VideoAppendSample(outcome: outcome, appendDurationMs: appendDurationMs)
     }
 
     public func appendAudio(buffer: AVAudioPCMBuffer, time: AVAudioTime) {

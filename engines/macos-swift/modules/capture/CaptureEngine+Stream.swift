@@ -1,4 +1,3 @@
-import CoreImage
 import ScreenCaptureKit
 
 extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
@@ -7,24 +6,31 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
         of outputType: SCStreamOutputType
     ) {
+        let callbackStart = DispatchTime.now().uptimeNanoseconds
+        defer {
+            let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - callbackStart) / 1_000_000
+            recordCaptureCallbackDuration(elapsedMs)
+        }
+
         guard outputType == .screen else { return }
         let status = frameStatus(for: sampleBuffer)
+        if status == nil || status == .complete {
+            resolveStartupHandshake(Result<Void, Error>.success(()))
+        }
+        if !hasLoggedFirstVideoSample {
+            hasLoggedFirstVideoSample = true
+            debugLog("received first video sample status=\(String(describing: status))")
+        }
         recordVideoSample(status: status, sampleBuffer: sampleBuffer)
 
-        guard status == nil || status == .complete,
-              let imageBuffer = sampleBuffer.imageBuffer else { return }
+        guard status == nil || status == .complete else { return }
 
         appendVideoSample(sampleBuffer)
-
-        let ciImage = CIImage(cvImageBuffer: imageBuffer)
-        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
-
-        Task { @MainActor in
-            self.setLatestFrame(cgImage)
-        }
     }
 
     public func stream(_: SCStream, didStopWithError error: Error) {
+        debugLog("stream didStopWithError error=\(String(describing: error))")
+        resolveStartupHandshake(Result<Void, Error>.failure(error))
         audioCapture.stop()
         Task { @MainActor in
             self.setRunning(false)

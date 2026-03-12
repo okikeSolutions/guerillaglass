@@ -56,17 +56,23 @@ extension AssetWriter {
     }
 
     private func configureVideoInput(width: Int, height: Int) throws {
-        let bitrate = max(4_000_000, width * height * 4)
+        let profile = VideoCompressionProfile.resolve(
+            width: width,
+            height: height,
+            expectedFrameRate: configuration.expectedFrameRate
+        )
         let keyframeInterval = max(1, configuration.expectedFrameRate)
         let settings: [String: Any] = [
             AVVideoCodecKey: configuration.codec,
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: bitrate,
+                AVVideoAverageBitRateKey: profile.averageBitRate,
                 AVVideoExpectedSourceFrameRateKey: configuration.expectedFrameRate,
                 AVVideoMaxKeyFrameIntervalKey: keyframeInterval,
                 AVVideoMaxKeyFrameIntervalDurationKey: 1,
+                AVVideoAllowFrameReorderingKey: false,
+                AVVideoH264EntropyModeKey: AVVideoH264EntropyModeCABAC,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
             ]
         ]
@@ -99,5 +105,33 @@ extension AssetWriter {
         )
         guard status == noErr else { return nil }
         return adjusted
+    }
+}
+
+private extension AssetWriter {
+    struct VideoCompressionProfile {
+        let averageBitRate: Int
+
+        static func resolve(
+            width: Int,
+            height: Int,
+            expectedFrameRate: Int
+        ) -> VideoCompressionProfile {
+            let pixelsPerFrame = max(1, width * height)
+            let isHighFrameRate = expectedFrameRate >= 60
+
+            let averageBitRate: Int = switch pixelsPerFrame {
+            case ...2_073_600:
+                isHighFrameRate ? 24_000_000 : 16_000_000
+            case ...3_686_400:
+                isHighFrameRate ? 36_000_000 : 24_000_000
+            case ...8_294_400:
+                isHighFrameRate ? 62_000_000 : 40_000_000
+            default:
+                isHighFrameRate ? 72_000_000 : 48_000_000
+            }
+
+            return VideoCompressionProfile(averageBitRate: averageBitRate)
+        }
     }
 }

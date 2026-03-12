@@ -6,7 +6,6 @@ import ScreenCaptureKit
 
 /// Primary ScreenCaptureKit capture coordinator for display and window capture sessions.
 public final class CaptureEngine: NSObject, ObservableObject {
-    @Published public private(set) var latestFrame: CGImage?
     @Published public private(set) var isRunning: Bool = false
     @Published public internal(set) var lastError: String?
     @Published public private(set) var availableWindows: [ShareableWindow] = []
@@ -15,11 +14,20 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @Published public internal(set) var recordingDuration: TimeInterval = 0
     @Published public private(set) var captureDescriptor: CaptureDescriptor?
 
-    let ciContext = CIContext(options: nil)
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
     let recordingQueue = DispatchQueue(label: "gg.capture.recording")
     let telemetryStore = CaptureTelemetryStore()
     private var stream: SCStream?
+    private var startCaptureTask: Task<Void, Never>?
+    var recordingActivationTask: Task<Void, Never>?
+    private let startupStateLock = NSLock()
+    private var startupContinuation: CheckedContinuation<Void, Error>?
+    private var startupResult: Result<Void, Error>?
+    private let recordingActivationStateLock = NSLock()
+    private var recordingActivationContinuation: CheckedContinuation<Void, Error>?
+    private var recordingActivationResult: Result<Void, Error>?
+    var hasLoggedFirstVideoSample = false
+    private let streamQueueDepth = 3
     lazy var audioCapture = AudioCapture { [weak self] buffer, time in
         self?.handleAudioBuffer(buffer, time: time)
     }
@@ -44,33 +52,64 @@ public final class CaptureEngine: NSObject, ObservableObject {
     }
 
     struct RecordingState {
-        var isRecording: Bool = false
+        struct PrimingState {
+            let startedAtUptimeNanoseconds: UInt64
+            let timeoutNanoseconds: UInt64
+            var bufferedFrames: [CMSampleBuffer] = []
+            var lastPresentationTimestamp: CMTime?
+            var consecutiveStableIntervals: Int = 0
+        }
+
+        enum Phase {
+            case idle
+            case priming(PrimingState)
+            case recording
+        }
+
+        var phase: Phase = .idle
         var writer: AssetWriter?
         var outputURL: URL?
         var videoBaseTime: CMTime?
         var lastDurationUpdate: TimeInterval = 0
+        var expectedFrameRate: Int = CaptureFrameRatePolicy.defaultValue
+
+        var isActive: Bool {
+            switch phase {
+            case .idle:
+                false
+            case .priming, .recording:
+                true
+            }
+        }
+
+        var isRecordingActive: Bool {
+            if case .recording = phase {
+                return true
+            }
+            return false
+        }
     }
 
     public struct CaptureTelemetrySnapshot {
-        public let totalFrames: Int
-        public let droppedFrames: Int
-        public let droppedFramePercent: Double
         public let sourceDroppedFrames: Int
-        public let sourceDroppedFramePercent: Double
         public let writerDroppedFrames: Int
         public let writerBackpressureDrops: Int
-        public let writerDroppedFramePercent: Double
         public let achievedFps: Double
         public let cpuPercent: Double?
         public let memoryBytes: UInt64?
         public let recordingBitrateMbps: Double?
-        public let audioLevelDbfs: Double?
+        public let captureCallbackMs: Double
+        public let recordQueueLagMs: Double
+        public let writerAppendMs: Double
     }
 
+    @MainActor
     public func startDisplayCapture(enableMic: Bool = false, targetFrameRate: Int = 30) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
+        debugLog("startDisplayCapture begin frameRate=\(frameRate) mic=\(enableMic)")
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -78,36 +117,68 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
 
         do {
+            debugLog("startDisplayCapture fetching shareable content")
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            debugLog("startDisplayCapture shareable content displays=\(content.displays.count)")
             guard let display = content.displays.first else {
                 throw CaptureError.noDisplayAvailable
             }
 
             let filter = SCContentFilter(display: display, excludingWindows: [])
             let configuration = SCStreamConfiguration()
+            let refreshHz = await MainActor.run {
+                CaptureSourceCapability.refreshRate(for: display.displayID)
+            }
+            debugLog("startDisplayCapture displayID=\(display.displayID) refreshHz=\(String(describing: refreshHz))")
+            try CaptureSourceCapability.validate(
+                frameRate: frameRate,
+                refreshHz: refreshHz,
+                width: Double(display.width),
+                height: Double(display.height),
+                pixelScale: 1
+            )
             configuration.width = display.width
             configuration.height = display.height
             configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
+            configuration.minimumFrameInterval = CaptureFrameIntervalStrategy.minimumFrameInterval(
+                for: frameRate
+            )
             configuration.showsCursor = true
+            configuration.queueDepth = streamQueueDepth
 
+            debugLog("startDisplayCapture creating stream size=\(configuration.width)x\(configuration.height) queueDepth=\(configuration.queueDepth)")
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+            debugLog("startDisplayCapture adding output")
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
 
             self.stream = stream
             captureFrameRate = frameRate
-            try await stream.startCapture()
+            resetStartupHandshake()
+            launchStreamStart(stream, context: "startDisplayCapture")
+            try await waitForStartupHandshake()
             await MainActor.run {
                 self.isRunning = true
                 self.lastError = nil
                 self.captureDescriptor = makeDisplayDescriptor(display: display)
             }
         } catch {
+            debugLog("startDisplayCapture failed error=\(String(describing: error))")
+            startCaptureTask?.cancel()
+            startCaptureTask = nil
+            if let stream {
+                Task {
+                    try? await stream.stopCapture()
+                }
+            }
+            stream = nil
+            isRunning = false
+            clearStartupHandshake()
             audioCapture.stop()
             throw error
         }
     }
 
+    @MainActor
     public func startWindowCapture(
         windowID: CGWindowID,
         enableMic: Bool = false,
@@ -115,7 +186,9 @@ public final class CaptureEngine: NSObject, ObservableObject {
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
+        debugLog("startWindowCapture begin windowID=\(windowID) frameRate=\(frameRate) mic=\(enableMic)")
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -123,7 +196,9 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
 
         do {
+            debugLog("startWindowCapture resolving window")
             let window = try await resolveWindow(windowID: windowID)
+            debugLog("startWindowCapture resolved window title=\(window.title ?? "")")
             let filter = SCContentFilter(desktopIndependentWindow: window)
             let configuration = SCStreamConfiguration()
 
@@ -132,19 +207,37 @@ public final class CaptureEngine: NSObject, ObservableObject {
             } else {
                 1
             }
+            let refreshHz = await MainActor.run {
+                CaptureSourceCapability.refreshRate(forWindowFrame: window.frame)
+            }
+            debugLog("startWindowCapture refreshHz=\(String(describing: refreshHz))")
+            try CaptureSourceCapability.validate(
+                frameRate: frameRate,
+                refreshHz: refreshHz,
+                width: Double(window.frame.width),
+                height: Double(window.frame.height),
+                pixelScale: Double(scale)
+            )
             configuration.width = max(1, Int(round(window.frame.width * scale)))
             configuration.height = max(1, Int(round(window.frame.height * scale)))
             configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
+            configuration.minimumFrameInterval = CaptureFrameIntervalStrategy.minimumFrameInterval(
+                for: frameRate
+            )
             configuration.showsCursor = true
+            configuration.queueDepth = streamQueueDepth
             configuration.scalesToFit = true
 
+            debugLog("startWindowCapture creating stream size=\(configuration.width)x\(configuration.height) queueDepth=\(configuration.queueDepth)")
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+            debugLog("startWindowCapture adding output")
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
 
             self.stream = stream
             captureFrameRate = frameRate
-            try await stream.startCapture()
+            resetStartupHandshake()
+            launchStreamStart(stream, context: "startWindowCapture")
+            try await waitForStartupHandshake()
             await MainActor.run {
                 self.isRunning = true
                 self.lastError = nil
@@ -160,11 +253,23 @@ public final class CaptureEngine: NSObject, ObservableObject {
                 )
             }
         } catch {
+            debugLog("startWindowCapture failed error=\(String(describing: error))")
+            startCaptureTask?.cancel()
+            startCaptureTask = nil
+            if let stream {
+                Task {
+                    try? await stream.stopCapture()
+                }
+            }
+            stream = nil
+            isRunning = false
+            clearStartupHandshake()
             audioCapture.stop()
             throw error
         }
     }
 
+    @MainActor
     public func startCurrentWindowCapture(
         enableMic: Bool = false,
         targetFrameRate: Int = 30
@@ -178,6 +283,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
     }
 
     @available(macOS 14.0, *)
+    @MainActor
     public func startCaptureUsingPicker(
         style: SCShareableContentStyle? = nil,
         enableMic: Bool = false,
@@ -196,7 +302,16 @@ public final class CaptureEngine: NSObject, ObservableObject {
         try? await stream.stopCapture()
         audioCapture.stop()
         isRunning = false
-        latestFrame = nil
+        startCaptureTask?.cancel()
+        startCaptureTask = nil
+        recordingActivationTask?.cancel()
+        recordingActivationTask = nil
+        recordingQueue.sync {
+            recordingState = RecordingState()
+        }
+        hasLoggedFirstVideoSample = false
+        clearStartupHandshake()
+        clearRecordingActivation()
         self.stream = nil
         captureDescriptor = nil
         captureFrameRate = CaptureFrameRatePolicy.defaultValue
@@ -214,11 +329,6 @@ public final class CaptureEngine: NSObject, ObservableObject {
     }
 
     @MainActor
-    func setLatestFrame(_ frame: CGImage?) {
-        latestFrame = frame
-    }
-
-    @MainActor
     func setRunning(_ running: Bool) {
         isRunning = running
     }
@@ -231,6 +341,165 @@ public final class CaptureEngine: NSObject, ObservableObject {
 }
 
 extension CaptureEngine {
+    func debugLog(_ message: String) {
+        fputs("[CaptureEngine] \(message)\n", stderr)
+    }
+
+    private func resetStartupHandshake() {
+        startupStateLock.lock()
+        startupContinuation = nil
+        startupResult = nil
+        startupStateLock.unlock()
+    }
+
+    func resolveStartupHandshake(_ result: Result<Void, Error>) {
+        startupStateLock.lock()
+        if let continuation = startupContinuation {
+            startupContinuation = nil
+            startupResult = nil
+            startupStateLock.unlock()
+            continuation.resume(with: result)
+            return
+        }
+        startupResult = result
+        startupStateLock.unlock()
+    }
+
+    private func clearStartupHandshake() {
+        startupStateLock.lock()
+        startupContinuation = nil
+        startupResult = nil
+        startupStateLock.unlock()
+    }
+
+    func resetRecordingActivation() {
+        recordingActivationStateLock.lock()
+        recordingActivationContinuation = nil
+        recordingActivationResult = nil
+        recordingActivationStateLock.unlock()
+    }
+
+    func resolveRecordingActivation(_ result: Result<Void, Error>) {
+        recordingActivationStateLock.lock()
+        if let continuation = recordingActivationContinuation {
+            recordingActivationContinuation = nil
+            recordingActivationResult = nil
+            recordingActivationStateLock.unlock()
+            continuation.resume(with: result)
+            return
+        }
+        recordingActivationResult = result
+        recordingActivationStateLock.unlock()
+    }
+
+    private func clearRecordingActivation() {
+        recordingActivationStateLock.lock()
+        recordingActivationContinuation = nil
+        recordingActivationResult = nil
+        recordingActivationStateLock.unlock()
+    }
+
+    private func waitForStartupHandshake(timeoutNanoseconds: UInt64 = 5_000_000_000) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { [weak self] in
+                guard let self else { return }
+                try await withCheckedThrowingContinuation { continuation in
+                    self.startupStateLock.lock()
+                    if let result = self.startupResult {
+                        self.startupResult = nil
+                        self.startupStateLock.unlock()
+                        continuation.resume(with: result)
+                        return
+                    }
+                    self.startupContinuation = continuation
+                    self.startupStateLock.unlock()
+                }
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: timeoutNanoseconds)
+                throw CaptureError.captureStartTimedOut
+            }
+
+            defer {
+                group.cancelAll()
+                clearStartupHandshake()
+            }
+            try await group.next()!
+        }
+    }
+
+    func waitForRecordingActivation(timeoutNanoseconds: UInt64) async throws {
+        let frameRate = captureFrameRate
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { [weak self] in
+                guard let self else { return }
+                try await withCheckedThrowingContinuation { continuation in
+                    self.recordingActivationStateLock.lock()
+                    if let result = self.recordingActivationResult {
+                        self.recordingActivationResult = nil
+                        self.recordingActivationStateLock.unlock()
+                        continuation.resume(with: result)
+                        return
+                    }
+                    self.recordingActivationContinuation = continuation
+                    self.recordingActivationStateLock.unlock()
+                }
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: timeoutNanoseconds)
+                throw CaptureError.captureStartUnstable(frameRate: frameRate)
+            }
+
+            defer {
+                group.cancelAll()
+                clearRecordingActivation()
+            }
+            try await group.next()!
+        }
+    }
+
+    func primingTimeoutNanoseconds(for frameRate: Int) -> UInt64 {
+        frameRate >= 120 ? 550_000_000 : 400_000_000
+    }
+
+    func recordActivationTimeoutIfNeeded(frameRate: Int) {
+        let timeoutNanoseconds = primingTimeoutNanoseconds(for: frameRate)
+        recordingActivationTask?.cancel()
+        recordingActivationTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: timeoutNanoseconds)
+            } catch {
+                return
+            }
+            guard let self else { return }
+            recordingQueue.async { [weak self] in
+                guard let self else { return }
+                guard case .priming = recordingState.phase else { return }
+                recordingState = RecordingState()
+                resolveRecordingActivation(.failure(CaptureError.captureStartUnstable(frameRate: frameRate)))
+            }
+        }
+    }
+
+    private func launchStreamStart(_ stream: SCStream, context: String) {
+        startCaptureTask?.cancel()
+        startCaptureTask = Task { [weak self] in
+            do {
+                self?.debugLog("\(context) awaiting startCapture")
+                try await stream.startCapture()
+                self?.debugLog("\(context) startCapture resolved")
+            } catch {
+                guard let self else { return }
+                debugLog("\(context) startCapture failed error=\(String(describing: error))")
+                resolveStartupHandshake(.failure(error))
+                await MainActor.run {
+                    self.isRunning = false
+                    self.lastError = error.localizedDescription
+                }
+            }
+        }
+    }
+
     private func ensureScreenCaptureAccess() async throws {
         if CGPreflightScreenCaptureAccess() {
             return
@@ -256,6 +525,8 @@ extension CaptureEngine {
         return SCFrameStatus(rawValue: rawStatus)
     }
 
+    @available(macOS 14.0, *)
+    @MainActor
     private func startCapture(
         using filter: SCContentFilter,
         enableMic: Bool,
@@ -263,7 +534,9 @@ extension CaptureEngine {
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
+        debugLog("startCapture(using:) begin frameRate=\(frameRate) mic=\(enableMic)")
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -272,32 +545,60 @@ extension CaptureEngine {
 
         do {
             let configuration = SCStreamConfiguration()
-            configuration.pixelFormat = kCVPixelFormatType_32BGRA
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(frameRate))
-            configuration.showsCursor = true
-
-            if #available(macOS 14.0, *) {
-                let rect = filter.contentRect
-                let scale = CGFloat(filter.pointPixelScale)
-                if rect.width > 1, rect.height > 1 {
-                    configuration.width = max(1, Int(round(rect.width * scale)))
-                    configuration.height = max(1, Int(round(rect.height * scale)))
-                }
-                configuration.scalesToFit = filter.style == .window
+            let refreshHz = await MainActor.run {
+                CaptureSourceCapability.refreshRate(forContentRect: filter.contentRect)
             }
+            debugLog("startCapture(using:) refreshHz=\(String(describing: refreshHz))")
+            let pixelScale = Double(filter.pointPixelScale)
+            try CaptureSourceCapability.validate(
+                frameRate: frameRate,
+                refreshHz: refreshHz,
+                width: Double(filter.contentRect.width),
+                height: Double(filter.contentRect.height),
+                pixelScale: pixelScale
+            )
+            configuration.pixelFormat = kCVPixelFormatType_32BGRA
+            configuration.minimumFrameInterval = CaptureFrameIntervalStrategy.minimumFrameInterval(
+                for: frameRate
+            )
+            configuration.showsCursor = true
+            configuration.queueDepth = streamQueueDepth
 
+            let rect = filter.contentRect
+            let scale = CGFloat(filter.pointPixelScale)
+            if rect.width > 1, rect.height > 1 {
+                configuration.width = max(1, Int(round(rect.width * scale)))
+                configuration.height = max(1, Int(round(rect.height * scale)))
+            }
+            configuration.scalesToFit = filter.style == .window
+
+            debugLog("startCapture(using:) creating stream size=\(configuration.width)x\(configuration.height) queueDepth=\(configuration.queueDepth)")
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
+            debugLog("startCapture(using:) adding output")
             try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: sampleQueue)
 
             self.stream = stream
             captureFrameRate = frameRate
-            try await stream.startCapture()
+            resetStartupHandshake()
+            launchStreamStart(stream, context: "startCapture(using:)")
+            try await waitForStartupHandshake()
             await MainActor.run {
                 self.isRunning = true
                 self.lastError = nil
                 self.captureDescriptor = makeDescriptor(filter: filter)
             }
         } catch {
+            debugLog("startCapture(using:) failed error=\(String(describing: error))")
+            startCaptureTask?.cancel()
+            startCaptureTask = nil
+            if let stream {
+                Task {
+                    try? await stream.stopCapture()
+                }
+            }
+            stream = nil
+            isRunning = false
+            clearStartupHandshake()
             audioCapture.stop()
             throw error
         }

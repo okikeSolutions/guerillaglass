@@ -4,6 +4,9 @@ import Foundation
 @main
 struct GuerillaglassEngineMain {
     static func main() async {
+        await MainActor.run {
+            EngineApplicationContext.prepareIfNeeded()
+        }
         let service = EngineService()
 
         while let line = readLine() {

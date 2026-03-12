@@ -2,6 +2,7 @@ import Capture
 import CoreGraphics
 import EngineProtocol
 import Foundation
+import InputTracking
 import Project
 
 extension EngineService {
@@ -20,40 +21,27 @@ extension EngineService {
         return "captureFps must be one of \(supportedValues)"
     }
 
-    private func telemetryHealthInput(
-        from telemetry: CaptureEngine.CaptureTelemetrySnapshot
-    ) -> CaptureTelemetryHealthInput {
-        CaptureTelemetryHealthInput(
-            totalFrames: telemetry.totalFrames,
-            droppedFramePercent: telemetry.droppedFramePercent,
-            sourceDroppedFramePercent: telemetry.sourceDroppedFramePercent,
-            writerDroppedFramePercent: telemetry.writerDroppedFramePercent,
-            audioLevelDbfs: telemetry.audioLevelDbfs,
-            lastError: captureEngine.lastError,
-            isRecording: captureEngine.isRecording
-        )
+    private func captureStartFailureResponse(id: String, error: Error) -> EngineResponse {
+        if case .unsupportedCaptureFrameRate = error as? CaptureError {
+            return .failure(id: id, code: "invalid_params", message: error.localizedDescription)
+        }
+        return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
     }
 
     private func telemetryPayload(
-        from telemetry: CaptureEngine.CaptureTelemetrySnapshot,
-        health: CaptureTelemetryHealth
+        from telemetry: CaptureEngine.CaptureTelemetrySnapshot
     ) -> JSONValue {
         .object([
-            "totalFrames": .number(Double(telemetry.totalFrames)),
-            "droppedFrames": .number(Double(telemetry.droppedFrames)),
-            "droppedFramePercent": .number(telemetry.droppedFramePercent),
             "sourceDroppedFrames": .number(Double(telemetry.sourceDroppedFrames)),
-            "sourceDroppedFramePercent": .number(telemetry.sourceDroppedFramePercent),
             "writerDroppedFrames": .number(Double(telemetry.writerDroppedFrames)),
             "writerBackpressureDrops": .number(Double(telemetry.writerBackpressureDrops)),
-            "writerDroppedFramePercent": .number(telemetry.writerDroppedFramePercent),
             "achievedFps": .number(telemetry.achievedFps),
             "cpuPercent": telemetry.cpuPercent.map { .number($0) } ?? .null,
             "memoryBytes": telemetry.memoryBytes.map { .number(Double($0)) } ?? .null,
             "recordingBitrateMbps": telemetry.recordingBitrateMbps.map { .number($0) } ?? .null,
-            "audioLevelDbfs": telemetry.audioLevelDbfs.map { .number($0) } ?? .null,
-            "health": .string(health.state.rawValue),
-            "healthReason": health.reason.map { .string($0.rawValue) } ?? .null
+            "captureCallbackMs": .number(telemetry.captureCallbackMs),
+            "recordQueueLagMs": .number(telemetry.recordQueueLagMs),
+            "writerAppendMs": .number(telemetry.writerAppendMs)
         ])
     }
 
@@ -70,7 +58,7 @@ extension EngineService {
             try await captureEngine.startDisplayCapture(enableMic: enableMic, targetFrameRate: captureFps)
             return captureStatusResponse(id: id)
         } catch {
-            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
+            return captureStartFailureResponse(id: id, error: error)
         }
     }
 
@@ -110,7 +98,7 @@ extension EngineService {
             }
             return captureStatusResponse(id: id)
         } catch {
-            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
+            return captureStartFailureResponse(id: id, error: error)
         }
     }
 
@@ -131,7 +119,7 @@ extension EngineService {
             )
             return captureStatusResponse(id: id)
         } catch {
-            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
+            return captureStartFailureResponse(id: id, error: error)
         }
     }
 
@@ -145,9 +133,6 @@ extension EngineService {
         let shouldTrackInputEvents = params["trackInputEvents"]?.boolValue ?? false
 
         do {
-            if !captureEngine.isRunning {
-                try await captureEngine.startDisplayCapture(enableMic: false)
-            }
             try await captureEngine.startRecording()
             currentEventsURL = nil
             currentProjectDocument.eventsFileName = nil
@@ -186,13 +171,13 @@ extension EngineService {
         guard trackInputEventsWhileRecording else { return }
         trackInputEventsWhileRecording = false
 
-        let log = await MainActor.run {
+        let result = await MainActor.run {
             inputSession.stop()
         }
-        guard !log.events.isEmpty else { return }
 
         let eventsURL = makeEventsURL()
-        try? log.write(to: eventsURL)
+        try? result.log.write(to: eventsURL)
+        try? InputTrackingMetricsStore(metrics: result.metrics).write(to: makeEventsMetricsURL(for: eventsURL))
         currentEventsURL = eventsURL
         currentProjectDocument.eventsFileName = ProjectFile.eventsJSON
     }
@@ -205,12 +190,15 @@ extension EngineService {
             .appendingPathComponent("guerillaglass-events-\(timestamp).json")
     }
 
+    func makeEventsMetricsURL(for eventsURL: URL) -> URL {
+        let baseName = eventsURL.deletingPathExtension().lastPathComponent
+        return eventsURL.deletingLastPathComponent()
+            .appendingPathComponent("\(baseName).stats.json")
+    }
+
     func captureStatusResponse(id: String) -> EngineResponse {
         let recordingDurationSeconds = captureEngine.recordingDuration
         let telemetry = captureEngine.telemetrySnapshot()
-        let health = CaptureTelemetryHealthEvaluator.evaluate(
-            telemetryHealthInput(from: telemetry)
-        )
         let captureMetadataPayload: JSONValue
         if let descriptor = captureEngine.captureDescriptor {
             let metadata = makeCaptureMetadata(from: descriptor)
@@ -229,7 +217,7 @@ extension EngineService {
                 "captureMetadata": captureMetadataPayload,
                 "lastError": captureEngine.lastError.map { .string($0) } ?? .null,
                 "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
-                "telemetry": telemetryPayload(from: telemetry, health: health)
+                "telemetry": telemetryPayload(from: telemetry)
             ])
         )
     }

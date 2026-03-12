@@ -120,9 +120,18 @@ describe("engine client integration", () => {
 
       const sources = await client.listSources();
       expect(sources.displays.length).toBeGreaterThan(0);
+      expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60]);
 
       const preview = await client.startCurrentWindowCapture(false);
       expect(preview.isRunning).toBe(true);
+
+      await expect(client.stopCapture()).resolves.toMatchObject({ isRunning: false });
+      await expect(client.startDisplayCapture(false, 120)).rejects.toThrow(
+        "Supported values: 24, 30, 60",
+      );
+      await expect(client.startCurrentWindowCapture(false)).resolves.toMatchObject({
+        isRunning: true,
+      });
 
       const recording = await client.startRecording(true);
       expect(recording.isRecording).toBe(true);

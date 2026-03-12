@@ -12,20 +12,16 @@ export function StudioTechnicalFeedbackStrip() {
       buildTechnicalFeedbackMetrics(
         telemetry,
         {
-          droppedFrames: studio.ui.labels.droppedFrames,
+          sourceDroppedFrames: studio.ui.labels.sourceDroppedFrames,
+          writerDroppedFrames: studio.ui.labels.writerDroppedFrames,
+          writerBackpressureDrops: studio.ui.labels.writerBackpressureDrops,
+          achievedFps: studio.ui.labels.achievedFps,
           cpuUsage: studio.ui.labels.cpuUsage,
           memoryUsage: studio.ui.labels.memoryUsage,
           recordingBitrate: studio.ui.labels.recordingBitrate,
-          audioLevel: studio.ui.labels.audioLevel,
-          health: studio.ui.labels.health,
-          good: studio.ui.values.good,
-          warning: studio.ui.values.warning,
-          critical: studio.ui.values.critical,
-          healthReasonEngineError: studio.ui.helper.healthReasonEngineError,
-          healthReasonHighDroppedFrameRate: studio.ui.helper.healthReasonHighDroppedFrameRate,
-          healthReasonElevatedDroppedFrameRate:
-            studio.ui.helper.healthReasonElevatedDroppedFrameRate,
-          healthReasonLowMicrophoneLevel: studio.ui.helper.healthReasonLowMicrophoneLevel,
+          captureCallback: studio.ui.labels.captureCallback,
+          recordQueueLag: studio.ui.labels.recordQueueLag,
+          writerAppend: studio.ui.labels.writerAppend,
         },
         {
           formatInteger: studio.formatInteger,

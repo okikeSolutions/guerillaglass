@@ -6,6 +6,11 @@ extension AssetWriter {
         guard !isFinishing else { return }
         isFinishing = true
 
+        if writer.status == .unknown {
+            completion(.failure(AssetWriterError.writerFailed(nil)))
+            return
+        }
+
         videoInput?.markAsFinished()
         audioInput?.markAsFinished()
 

@@ -3,8 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultCaptureFrameRate,
-  AutoZoomSettings,
-  ExportPreset,
+  type AutoZoomSettings,
+  type CaptureFrameRate,
+  type ExportPreset,
 } from "@guerillaglass/engine-protocol";
 import { getStudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@/lib/engine";
@@ -204,6 +205,46 @@ export function useStudioController() {
   const selectedWindowId = useMemo(() => {
     return resolveSelectedWindowId(windowChoices, settingsForm.state.values.selectedWindowId);
   }, [settingsForm.state.values.selectedWindowId, windowChoices]);
+  const selectedDisplaySource = useMemo(
+    () => sourcesQuery.data?.displays[0] ?? null,
+    [sourcesQuery.data?.displays],
+  );
+  const selectedWindowSource = useMemo(() => {
+    return windowChoices.find((windowItem) => windowItem.id === selectedWindowId) ?? null;
+  }, [selectedWindowId, windowChoices]);
+  const supportedCaptureFrameRates = useMemo<CaptureFrameRate[]>(() => {
+    const source =
+      settingsForm.state.values.captureSource === "display"
+        ? selectedDisplaySource
+        : selectedWindowSource;
+    return source?.supportedCaptureFrameRates ?? [];
+  }, [selectedDisplaySource, selectedWindowSource, settingsForm.state.values.captureSource]);
+  const preferredSupportedCaptureFrameRate = useMemo(() => {
+    if (supportedCaptureFrameRates.length === 0) {
+      return null;
+    }
+    if (supportedCaptureFrameRates.includes(defaultCaptureFrameRate)) {
+      return defaultCaptureFrameRate;
+    }
+    return supportedCaptureFrameRates.at(-1) ?? null;
+  }, [supportedCaptureFrameRates]);
+
+  useEffect(() => {
+    if (supportedCaptureFrameRates.length === 0 || preferredSupportedCaptureFrameRate == null) {
+      return;
+    }
+    const currentCaptureFrameRate = settingsForm.state.values.captureFps;
+    if (supportedCaptureFrameRates.includes(currentCaptureFrameRate)) {
+      return;
+    }
+    settingsForm.setFieldValue("captureFps", preferredSupportedCaptureFrameRate);
+  }, [
+    preferredSupportedCaptureFrameRate,
+    settingsForm,
+    settingsForm.state.values.captureFps,
+    supportedCaptureFrameRates,
+  ]);
+
   const timelineFrameRate = useMemo(() => {
     const metadataFrameRate =
       captureStatusQuery.data?.captureMetadata?.fps ??
@@ -621,6 +662,7 @@ export function useStudioController() {
     sourcesQuery,
     startPreviewMutation,
     stopPreviewMutation,
+    supportedCaptureFrameRates,
     timelineDuration,
     timelineLanes,
     toggleRecordingMutation,

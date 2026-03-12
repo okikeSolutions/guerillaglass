@@ -34,19 +34,16 @@ final class CaptureTelemetryStore {
                 state.recordingBitrateMbps = nil
             }
             return CaptureEngine.CaptureTelemetrySnapshot(
-                totalFrames: state.totalFrames,
-                droppedFrames: state.droppedFrames,
-                droppedFramePercent: state.droppedFramePercent,
                 sourceDroppedFrames: state.sourceDroppedFrames,
-                sourceDroppedFramePercent: state.sourceDroppedFramePercent,
                 writerDroppedFrames: state.writerDroppedFrames,
                 writerBackpressureDrops: state.writerBackpressureDrops,
-                writerDroppedFramePercent: state.writerDroppedFramePercent,
                 achievedFps: state.achievedFps,
                 cpuPercent: state.cpuPercent,
                 memoryBytes: state.memoryBytes,
                 recordingBitrateMbps: state.recordingBitrateMbps,
-                audioLevelDbfs: state.audioLevelDbfs
+                captureCallbackMs: state.captureCallbackMetric.value,
+                recordQueueLagMs: state.recordQueueLagMetric.value,
+                writerAppendMs: state.writerAppendMetric.value
             )
         }
     }
@@ -85,8 +82,24 @@ final class CaptureTelemetryStore {
         }
     }
 
-    func recordWriterAppendOutcome(_ outcome: WriterAppendOutcome) {
+    func recordCaptureCallbackDuration(_ durationMs: Double) {
         queue.async {
+            self.state.captureCallbackMetric.record(durationMs)
+        }
+    }
+
+    func recordRecordQueueLag(_ lagMs: Double) {
+        queue.async {
+            self.state.recordQueueLagMetric.record(lagMs)
+        }
+    }
+
+    func recordWriterAppendSample(
+        outcome: WriterAppendOutcome,
+        appendDurationMs: Double
+    ) {
+        queue.async {
+            self.state.writerAppendMetric.record(appendDurationMs)
             switch outcome {
             case .droppedBackpressure:
                 self.state.writerBackpressureDrops += 1
@@ -97,21 +110,32 @@ final class CaptureTelemetryStore {
             }
         }
     }
-
-    func recordAudioLevel(_ level: Double?) {
-        guard let level else { return }
-        queue.async {
-            let smoothingFactor = 0.18
-            if let previous = self.state.audioLevelDbfs {
-                self.state.audioLevelDbfs = previous + (level - previous) * smoothingFactor
-            } else {
-                self.state.audioLevelDbfs = level
-            }
-        }
-    }
 }
 
 private extension CaptureTelemetryStore {
+    struct TimingMetric {
+        private(set) var smoothedValueMs: Double?
+        private let smoothingFactor: Double
+
+        init(smoothingFactor: Double) {
+            self.smoothingFactor = smoothingFactor
+        }
+
+        var value: Double {
+            smoothedValueMs ?? 0
+        }
+
+        mutating func record(_ rawValueMs: Double) {
+            let clampedValue = max(0, rawValueMs)
+            if let smoothedValueMs {
+                self.smoothedValueMs =
+                    smoothedValueMs + (clampedValue - smoothedValueMs) * smoothingFactor
+            } else {
+                smoothedValueMs = clampedValue
+            }
+        }
+    }
+
     struct State {
         var completeFrames: Int = 0
         var sourceStatusDroppedFrames: Int = 0
@@ -121,9 +145,11 @@ private extension CaptureTelemetryStore {
         var cpuPercent: Double?
         var memoryBytes: UInt64?
         var recordingBitrateMbps: Double?
-        var audioLevelDbfs: Double?
         var firstCompleteFramePTSSeconds: Double?
         var lastCompleteFramePTSSeconds: Double?
+        var captureCallbackMetric = TimingMetric(smoothingFactor: 0.2)
+        var recordQueueLagMetric = TimingMetric(smoothingFactor: 0.2)
+        var writerAppendMetric = TimingMetric(smoothingFactor: 0.18)
 
         var sourceDroppedFrames: Int {
             sourceStatusDroppedFrames + sourceTimingDroppedFrames
@@ -131,35 +157,6 @@ private extension CaptureTelemetryStore {
 
         var writerDroppedFrames: Int {
             writerBackpressureDrops + writerFailedDrops
-        }
-
-        var totalFrames: Int {
-            completeFrames + sourceDroppedFrames
-        }
-
-        var droppedFrames: Int {
-            sourceDroppedFrames + writerDroppedFrames
-        }
-
-        var droppedFramePercent: Double {
-            CaptureTelemetryMath.percentage(
-                numerator: droppedFrames,
-                denominator: totalFrames
-            )
-        }
-
-        var sourceDroppedFramePercent: Double {
-            CaptureTelemetryMath.percentage(
-                numerator: sourceDroppedFrames,
-                denominator: totalFrames
-            )
-        }
-
-        var writerDroppedFramePercent: Double {
-            CaptureTelemetryMath.percentage(
-                numerator: writerDroppedFrames,
-                denominator: totalFrames
-            )
         }
 
         var achievedFps: Double {

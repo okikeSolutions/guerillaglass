@@ -15,53 +15,54 @@ describe("capture telemetry presentation", () => {
     const presentation = buildCaptureTelemetryPresentation(undefined, formatter);
 
     expect(presentation).toEqual({
-      droppedFrames: "0 (0.00%)",
-      sourceDroppedFrames: "0 (0.00%)",
-      writerDroppedFrames: "0 (0.00%)",
+      sourceDroppedFrames: "0",
+      writerDroppedFrames: "0",
       writerBackpressureDrops: "0",
       achievedFps: "0.00 fps",
+      captureCallback: "0.00 ms",
+      recordQueueLag: "0.00 ms",
+      writerAppend: "0.00 ms",
     });
   });
 
   test("formats telemetry values and builds tooltip content", () => {
     const telemetry = {
-      totalFrames: 600,
-      droppedFrames: 9,
-      droppedFramePercent: 1.5,
       sourceDroppedFrames: 4,
-      sourceDroppedFramePercent: 0.67,
       writerDroppedFrames: 5,
       writerBackpressureDrops: 2,
-      writerDroppedFramePercent: 0.83,
       achievedFps: 59.8,
       cpuPercent: null,
       memoryBytes: null,
       recordingBitrateMbps: null,
-      audioLevelDbfs: null,
-      health: "warning",
-      healthReason: "elevated_dropped_frame_rate",
+      captureCallbackMs: 0.44,
+      recordQueueLagMs: 0.21,
+      writerAppendMs: 1.37,
     } satisfies CaptureTelemetry;
     const presentation = buildCaptureTelemetryPresentation(telemetry, formatter);
     const tooltip = buildDroppedFramesTooltip(
       {
-        droppedFrames: "Dropped",
         sourceDroppedFrames: "Source",
         writerDroppedFrames: "Writer",
         writerBackpressureDrops: "Backpressure",
         achievedFps: "FPS",
+        captureCallback: "Callback",
+        recordQueueLag: "Queue Lag",
+        writerAppend: "Append",
       },
       presentation,
     );
 
     expect(presentation).toEqual({
-      droppedFrames: "9 (1.50%)",
-      sourceDroppedFrames: "4 (0.67%)",
-      writerDroppedFrames: "5 (0.83%)",
+      sourceDroppedFrames: "4",
+      writerDroppedFrames: "5",
       writerBackpressureDrops: "2",
       achievedFps: "59.80 fps",
+      captureCallback: "0.44 ms",
+      recordQueueLag: "0.21 ms",
+      writerAppend: "1.37 ms",
     });
     expect(tooltip).toBe(
-      "Dropped: 9 (1.50%) | Source: 4 (0.67%) | Writer: 5 (0.83%) | Backpressure: 2 | FPS: 59.80 fps",
+      "Source: 4 | Writer: 5 | Backpressure: 2 | FPS: 59.80 fps | Callback: 0.44 ms | Queue Lag: 0.21 ms | Append: 1.37 ms",
     );
   });
 });

@@ -17,6 +17,7 @@ pub const ENGINE_PHASE: &str = "foundation";
 const MAX_RECENT_PROJECTS: usize = 20;
 const DEFAULT_RECENTS_LIMIT: usize = 10;
 const PREFLIGHT_TOKEN_TTL_SECONDS: i64 = 60;
+const DEFAULT_CAPTURE_FRAME_RATES: [u64; 3] = [24, 30, 60];
 
 /// Runtime configuration for the native foundation engine loop.
 pub struct EngineRuntimeConfig {
@@ -106,21 +107,16 @@ impl State {
             "lastError": self.last_error,
             "eventsURL": self.events_url,
             "telemetry": {
-                "totalFrames": 0,
-                "droppedFrames": 0,
-                "droppedFramePercent": 0.0,
                 "sourceDroppedFrames": 0,
-                "sourceDroppedFramePercent": 0.0,
                 "writerDroppedFrames": 0,
                 "writerBackpressureDrops": 0,
-                "writerDroppedFramePercent": 0.0,
                 "achievedFps": 0.0,
                 "cpuPercent": Value::Null,
                 "memoryBytes": Value::Null,
                 "recordingBitrateMbps": Value::Null,
-                "audioLevelDbfs": Value::Null,
-                "health": "good",
-                "healthReason": Value::Null,
+                "captureCallbackMs": 0.0,
+                "recordQueueLagMs": 0.0,
+                "writerAppendMs": 0.0,
             },
         })
     }
@@ -797,7 +793,13 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
             &request.id,
             json!({
                 "displays": [
-                    { "id": 1, "width": 1920, "height": 1080 }
+                    {
+                        "id": 1,
+                        "width": 1920,
+                        "height": 1080,
+                        "refreshHz": 60.0,
+                        "supportedCaptureFrameRates": DEFAULT_CAPTURE_FRAME_RATES
+                    }
                 ],
                 "windows": [
                     {
@@ -806,12 +808,27 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                         "appName": "System",
                         "width": 1280,
                         "height": 720,
-                        "isOnScreen": true
+                        "isOnScreen": true,
+                        "refreshHz": 60.0,
+                        "supportedCaptureFrameRates": DEFAULT_CAPTURE_FRAME_RATES
                     }
                 ]
             }),
         ),
         EngineMethod::CaptureStartDisplay => {
+            let capture_fps = params
+                .get("captureFps")
+                .and_then(Value::as_u64)
+                .unwrap_or(30);
+            if !DEFAULT_CAPTURE_FRAME_RATES.contains(&capture_fps) {
+                return failure(
+                    &request.id,
+                    ProtocolErrorCode::InvalidParams,
+                    format!(
+                        "captureFps {capture_fps} is unsupported for the current source (refresh rate: 60.00 Hz). Supported values: 24, 30, 60"
+                    ),
+                );
+            }
             state.is_running = true;
             state.capture_metadata = Some(json!({
                 "window": Value::Null,
@@ -822,6 +839,19 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
             success(&request.id, state.capture_status())
         }
         EngineMethod::CaptureStartCurrentWindow => {
+            let capture_fps = params
+                .get("captureFps")
+                .and_then(Value::as_u64)
+                .unwrap_or(30);
+            if !DEFAULT_CAPTURE_FRAME_RATES.contains(&capture_fps) {
+                return failure(
+                    &request.id,
+                    ProtocolErrorCode::InvalidParams,
+                    format!(
+                        "captureFps {capture_fps} is unsupported for the current source (refresh rate: 60.00 Hz). Supported values: 24, 30, 60"
+                    ),
+                );
+            }
             state.is_running = true;
             state.capture_metadata = Some(json!({
                 "window": {
@@ -836,6 +866,19 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
             success(&request.id, state.capture_status())
         }
         EngineMethod::CaptureStartWindow => {
+            let capture_fps = params
+                .get("captureFps")
+                .and_then(Value::as_u64)
+                .unwrap_or(30);
+            if !DEFAULT_CAPTURE_FRAME_RATES.contains(&capture_fps) {
+                return failure(
+                    &request.id,
+                    ProtocolErrorCode::InvalidParams,
+                    format!(
+                        "captureFps {capture_fps} is unsupported for the current source (refresh rate: 60.00 Hz). Supported values: 24, 30, 60"
+                    ),
+                );
+            }
             let window_id = params
                 .get("windowId")
                 .and_then(Value::as_u64)
@@ -1337,9 +1380,22 @@ mod tests {
     }
 
     #[test]
+    fn capture_rejects_unsupported_high_frame_rate() {
+        with_state("capture-unsupported-high-fps", |state, _| {
+            let response = handle_request(
+                "linux",
+                state,
+                &request("r8", "capture.startDisplay", json!({ "captureFps": 120 })),
+            );
+            let message = expect_error(response, ProtocolErrorCode::InvalidParams);
+            assert!(message.contains("Supported values: 24, 30, 60"));
+        });
+    }
+
+    #[test]
     fn export_run_requires_output_url() {
         with_state("export-run-missing-output", |state, _| {
-            let response = handle_request("linux", state, &request("r8", "export.run", json!({})));
+            let response = handle_request("linux", state, &request("r9", "export.run", json!({})));
             let message = expect_error(response, ProtocolErrorCode::InvalidParams);
             assert_eq!(message, "outputURL is required");
         });
@@ -1353,7 +1409,7 @@ mod tests {
                 "linux",
                 state,
                 &request(
-                    "r9",
+                    "r10",
                     "export.run",
                     json!({ "outputURL": output_url.to_string_lossy() }),
                 ),
