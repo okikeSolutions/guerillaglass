@@ -38,6 +38,7 @@
     "desktop:test:ui": "cd apps/desktop-electrobun && bun run test:ui",
     "desktop:test:ui:headed": "cd apps/desktop-electrobun && bun run test:ui:headed",
     "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
+    "capture:benchmark": "bun ./Scripts/capture_benchmark.ts",
     "protocol:typecheck": "bun --cwd packages/engine-protocol run typecheck && bun --cwd packages/review-protocol run typecheck",
     "docs:check": "bun ./Scripts/docs_gate.mjs",
     "docs:check:ts": "bun ./Scripts/docs_gate.mjs --scope=ts",
