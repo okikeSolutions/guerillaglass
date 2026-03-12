@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const SCRIPT_PATH = "scripts/configure-macos-project-package.ts";
+const SCRIPT_PATH = path.resolve(import.meta.dir, "../scripts/configure-macos-project-package.ts");
 const PROJECT_UTI = "com.okikeSolutions.guerillaglass.project";
 
 const BASE_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
