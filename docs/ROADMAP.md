@@ -25,7 +25,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Add source monitor + audio mixer surfaces in capture inspector
 - [x] Add media-bin summary to project utility rail
 - [x] Add layout persistence (pane sizes/collapse/workspace restore)
-- [x] Add capture telemetry row (record state, duration, dropped frames, audio level, health)
+- [x] Add capture telemetry row (record state, duration, source/writer drop counters, performance timings)
 - [x] Keep core shell actions wired to engine protocol (`record`, `open/save`, `export`)
 - [x] Route `Current Window` recording through engine-side frontmost window resolution (`capture.startCurrentWindow`) instead of renderer-side source-order inference
 - [x] Handle host-dialog RPC timeouts as recoverable workflow interruptions with guidance copy
@@ -84,10 +84,11 @@ Creator Studio pro-UI parity backlog (next pass):
     - Timeline clip and marker selections render dedicated control blocks (timing details + direct actions) without default mode scaffolding.
     - Capture-window and export-preset selections keep their selection-specific details while retaining core mode controls for continuity.
     - Timeline empty-track pointer-down and `Escape` clear inspector selection and return to mode-default inspector content.
-  - [x] Add a persistent technical feedback strip (dropped frames, CPU, memory, bitrate/audio level, recording health) with OBS-style immediate visibility.
+  - [x] Add a persistent technical feedback strip (source drops, writer drops/backpressure, achieved FPS, CPU, memory, bitrate, callback/queue/writer latency) with OBS-style immediate visibility.
   - Implementation notes:
     - Runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) are sampled in the native capture engine telemetry store and emitted through `capture.status`.
     - Desktop shell streams `capture.status` updates from Bun host to renderer (`hostCaptureStatus` / `gg-host-capture-status`) with adaptive cadence; renderer cache is stream-fed instead of 250ms query polling.
+    - Native capture benchmarking now runs through `bun run capture:benchmark`, which writes repeatable JSON/Markdown reports for the 60 and 120 fps display/window scenarios under `.tmp/capture-benchmarks/`.
 
 ---
 

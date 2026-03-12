@@ -72,14 +72,13 @@ Guerilla Glass should feel like a professional creator tool:
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
 - **Web app/auth shell:** TanStack Start + Convex (`apps/web`)
 - **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
-  - `capture.status` telemetry emits machine-stable reason codes (`engine_error`, `high_dropped_frame_rate`, `elevated_dropped_frame_rate`, `low_microphone_level`); renderer localizes these codes for UI.
-  - `capture.status` telemetry includes aggregate and channel-specific performance metrics (`sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`) plus runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) for capture diagnostics.
+  - `capture.status` telemetry is performance-first and includes `sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`, `cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `captureCallbackMs`, `recordQueueLagMs`, and `writerAppendMs`.
   - Runtime telemetry diagnostics are engine-owned and sampled from monotonic process/runtime counters (no renderer-side metric synthesis).
   - Desktop shell delivers high-frequency capture telemetry via host push stream (`hostCaptureStatus` / `gg-host-capture-status`) rather than renderer timer polling.
-  - `capture.startDisplay`, `capture.startCurrentWindow`, and `capture.startWindow` accept `captureFps` (`24 | 30 | 60`, default `30`) and this is decoupled from export preset FPS.
+  - `capture.startDisplay`, `capture.startCurrentWindow`, and `capture.startWindow` accept `captureFps` (`24 | 30 | 60 | 120`, default `30`) and this is decoupled from export preset FPS.
   - `capture.startCurrentWindow` resolves the active frontmost shareable window in the engine, so renderer menu actions do not have to infer "current" from cached source ordering.
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
-  - Additive protocol evolution rule: new response fields should be optional or renderer-derivable so older engines remain compatible during rollout.
+  - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 60 and 120 fps and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
 - **Review control plane (Phase 2.5+):** Convex query/mutation/action layer for review workflows (`shareLinks`, `comments`, `presence`, review statuses) and webhook-driven media state reconciliation.
 - **Contract split:** local media RPC stays in `packages/engine-protocol`; cloud review surfaces use a separate contract package (`packages/review-protocol`) so capture/edit/export methods remain clean and deterministic.
 - **Authentication stack (Phase 2.5+):**
