@@ -4,6 +4,7 @@ import type { ConvexQueryClient } from "@convex-dev/react-query";
 import { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   createRootRouteWithContext,
@@ -61,6 +62,7 @@ export const Route = createRootRouteWithContext<{
       token,
     };
   },
+  notFoundComponent: NotFoundPage,
   shellComponent: RootComponent,
 });
 
@@ -102,5 +104,27 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <main className="page-wrap px-4 py-12">
+      <section className="island-shell rounded-2xl p-6 sm:p-8">
+        <p className="island-kicker mb-2">404</p>
+        <h1 className="display-title mb-3 text-4xl font-bold text-[var(--sea-ink)] sm:text-5xl">
+          Page not found
+        </h1>
+        <p className="m-0 mb-6 max-w-3xl text-base leading-8 text-[var(--sea-ink-soft)]">
+          The page you requested does not exist or has moved.
+        </p>
+        <Link
+          to="/"
+          className="inline-flex items-center rounded-full border border-[color:var(--sea-border)] bg-[color:var(--sea-surface)] px-5 py-2.5 text-sm font-semibold text-[var(--sea-ink)] transition-colors hover:bg-[color:var(--sea-surface-strong)]"
+        >
+          Back to home
+        </Link>
+      </section>
+    </main>
   );
 }
