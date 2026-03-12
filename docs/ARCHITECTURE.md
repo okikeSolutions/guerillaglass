@@ -214,44 +214,41 @@ Playback transport hardening (current):
 
 - `isRunning`, `isRecording`, `recordingDurationSeconds`, `recordingURL`, `lastError`, `eventsURL`
 - `telemetry`:
-  - `totalFrames`
-  - `droppedFrames`
-  - `droppedFramePercent`
   - `sourceDroppedFrames`
-  - `sourceDroppedFramePercent`
   - `writerDroppedFrames`
   - `writerBackpressureDrops`
-  - `writerDroppedFramePercent`
   - `achievedFps`
   - `cpuPercent` (`null` when unavailable)
   - `memoryBytes` (`null` when unavailable)
   - `recordingBitrateMbps` (`null` when unavailable)
-  - `audioLevelDbfs` (`null` when unavailable)
-  - `health` (`good` | `warning` | `critical`)
-  - `healthReason` (`engine_error` | `high_dropped_frame_rate` | `elevated_dropped_frame_rate` | `low_microphone_level` | `null`)
+  - `captureCallbackMs`
+  - `recordQueueLagMs`
+  - `writerAppendMs`
 
-Health reasons are protocol codes, not user-facing copy. Renderer surfaces localize these codes per active locale.
+Protocol policy for `capture.status`:
 
-Protocol compatibility policy for `capture.status`:
-
-- Additive fields must be optional/derivable in the renderer.
-- Renderer parsing defaults missing `telemetry` to a neutral payload so older engines do not break UI.
-- Engines should emit explicit `null` for unavailable telemetry fields instead of omitting keys.
+- Engines must emit the full telemetry payload.
+- Renderer and host parsing require the exact telemetry schema instead of synthesizing compatibility defaults.
 
 Telemetry delivery model for desktop shell:
 
-- Native engine remains the source of truth for runtime telemetry fields (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `audioLevelDbfs`) returned by `capture.status`.
+- Native engine remains the source of truth for runtime telemetry fields (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) and latency metrics returned by `capture.status`.
 - Bun host streams status updates to renderer via `hostCaptureStatus` RPC messages (browser event: `gg-host-capture-status`) on adaptive cadence:
   - `250ms` while recording
   - `500ms` while capture is running but not recording
   - `1000ms` while idle
 - Renderer updates React Query cache from the stream and only uses direct `capture.status` fetches for bootstrap and mutation-sync paths.
 
+Hardware verification:
+
+- `bun run capture:benchmark` drives the native engine directly through `EngineClient` and runs the 60 and 120 fps benchmark scenarios used for capture acceptance checks.
+- Reports are written to `.tmp/capture-benchmarks/<timestamp>/report.json` and `.tmp/capture-benchmarks/<timestamp>/report.md`.
+
 Capture start requests support runtime capture cadence selection:
 
-- `capture.startDisplay.params.captureFps` (`24 | 30 | 60`, default `30`)
-- `capture.startCurrentWindow.params.captureFps` (`24 | 30 | 60`, default `30`)
-- `capture.startWindow.params.captureFps` (`24 | 30 | 60`, default `30`)
+- `capture.startDisplay.params.captureFps` (`24 | 30 | 60 | 120`, default `30`)
+- `capture.startCurrentWindow.params.captureFps` (`24 | 30 | 60 | 120`, default `30`)
+- `capture.startWindow.params.captureFps` (`24 | 30 | 60 | 120`, default `30`)
 
 Capture FPS is independent from export preset FPS. Export cadence remains defined by the selected export preset.
 
