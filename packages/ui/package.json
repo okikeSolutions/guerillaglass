@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./styles.css": {
+      "style": "./src/styles/globals.css",
+      "default": "./src/styles/globals.css"
+    },
     "./globals.css": "./src/styles/globals.css",
     "./postcss.config": "./postcss.config.mjs",
     "./lib/*": "./src/lib/*.ts",
