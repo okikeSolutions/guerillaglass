@@ -757,7 +757,11 @@ async function runScenarioRun(
             title: selectedWindow.title,
             appName: selectedWindow.appName,
           }),
-          effectivePixelCount: effectivePixelCountForSource(selectedWindow),
+          effectivePixelCount: effectivePixelCountForSource({
+            width: selectedWindow.width,
+            height: selectedWindow.height,
+            pixelScale: null,
+          }),
           inputTracking: {
             cursorEventsObserved: null,
             cursorEventsEmitted: null,
