@@ -226,7 +226,8 @@ export function useStudioController() {
     if (supportedCaptureFrameRates.includes(defaultCaptureFrameRate)) {
       return defaultCaptureFrameRate;
     }
-    return supportedCaptureFrameRates.at(-1) ?? null;
+    const [lastSupportedCaptureFrameRate] = supportedCaptureFrameRates.slice(-1);
+    return lastSupportedCaptureFrameRate ?? null;
   }, [supportedCaptureFrameRates]);
 
   useEffect(() => {
