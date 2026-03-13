@@ -808,13 +808,18 @@ export class EngineClient {
       if (!(error instanceof EngineClientError) || error.code !== "ENGINE_REQUEST_TIMEOUT") {
         throw error;
       }
-      const preResetStatus = (await this.tryCaptureStatusProbe(750)) ?? this.lastKnownCaptureStatus;
+      const liveStatus = await this.tryCaptureStatusProbe(750);
+      const preResetStatus = liveStatus ?? this.lastKnownCaptureStatus;
       if (preResetStatus?.isRecording) {
         throw new Error(
           "recording_abandoned: capture.stop timed out while recording was active. " +
             "The engine was not force-restarted to avoid discarding the in-progress recording. " +
             "Retry recording.stop or capture.stop.",
         );
+      }
+      if (liveStatus && !liveStatus.isRunning) {
+        this.rememberCaptureStatus(liveStatus);
+        return liveStatus;
       }
       // Recover from stop-request transport loss by restarting and probing status quickly.
       this.resetForRetry();
