@@ -175,6 +175,8 @@ extension EngineService {
             inputSession.stop()
         }
 
+        guard !result.log.events.isEmpty else { return }
+
         let eventsURL = makeEventsURL()
         try? result.log.write(to: eventsURL)
         try? InputTrackingMetricsStore(metrics: result.metrics).write(to: makeEventsMetricsURL(for: eventsURL))
