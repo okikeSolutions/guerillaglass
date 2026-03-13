@@ -9,6 +9,10 @@ const LINUX_STUB_PATH = path.resolve(
 );
 const HANGING_ENGINE_PATH = path.resolve(import.meta.dir, "fixtures/hanging-engine.ts");
 const CRASHING_ENGINE_PATH = path.resolve(import.meta.dir, "fixtures/crashing-engine.ts");
+const DROPPED_STOP_RESPONSE_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/dropped-stop-response-engine.ts",
+);
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -176,6 +180,28 @@ describe("engine client resilience", () => {
       return error as Error;
     }
   }
+
+  test("recovers stopCapture when a stop response is dropped", async () => {
+    const client = new EngineClient(DROPPED_STOP_RESPONSE_ENGINE_PATH, 5000, {
+      requestTimeoutByMethod: {
+        "capture.stop": 100,
+      },
+    });
+    const startedAt = Date.now();
+
+    try {
+      const started = await client.startCurrentWindowCapture(false);
+      expect(started.isRunning).toBe(true);
+
+      const stopped = await client.stopCapture();
+      expect(stopped.isRunning).toBe(false);
+
+      const elapsed = Date.now() - startedAt;
+      expect(elapsed).toBeLessThan(2000);
+    } finally {
+      await client.stop();
+    }
+  });
 
   test("applies method-specific timeout overrides", async () => {
     const client = new EngineClient(HANGING_ENGINE_PATH, 5000, {
