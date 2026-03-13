@@ -79,6 +79,8 @@ type EngineMethodDefinition<TResult, TArgs extends unknown[]> = {
   retryableRead: boolean;
 };
 
+type CaptureStatusResult = ReturnType<typeof captureStatusResultSchema.parse>;
+
 const emptyParams = () => ({});
 
 const engineMethodDefinitions = {
@@ -571,6 +573,7 @@ export class EngineClient {
   private restartCircuitOpenUntilMs = 0;
   private restartTimestampsMs: number[] = [];
   private isStopping = false;
+  private lastKnownCaptureStatus: CaptureStatusResult | null = null;
 
   constructor(
     enginePath = resolveEnginePath(),
@@ -753,11 +756,13 @@ export class EngineClient {
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ) {
     const definition = engineMethodDefinitions.startDisplayCapture;
-    return this.callAndParse(
+    const status = await this.callAndParse(
       definition.method,
       definition.toParams(enableMic, captureFps),
       definition.schema,
     );
+    this.rememberCaptureStatus(status);
+    return status;
   }
 
   async startCurrentWindowCapture(
@@ -765,11 +770,13 @@ export class EngineClient {
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ) {
     const definition = engineMethodDefinitions.startCurrentWindowCapture;
-    return this.callAndParse(
+    const status = await this.callAndParse(
       definition.method,
       definition.toParams(enableMic, captureFps),
       definition.schema,
     );
+    this.rememberCaptureStatus(status);
+    return status;
   }
 
   async startWindowCapture(
@@ -778,20 +785,36 @@ export class EngineClient {
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ) {
     const definition = engineMethodDefinitions.startWindowCapture;
-    return this.callAndParse(
+    const status = await this.callAndParse(
       definition.method,
       definition.toParams(windowId, enableMic, captureFps),
       definition.schema,
     );
+    this.rememberCaptureStatus(status);
+    return status;
   }
 
   async stopCapture() {
     const definition = engineMethodDefinitions.stopCapture;
     try {
-      return await this.callAndParse(definition.method, definition.toParams(), definition.schema);
+      const status = await this.callAndParse(
+        definition.method,
+        definition.toParams(),
+        definition.schema,
+      );
+      this.rememberCaptureStatus(status);
+      return status;
     } catch (error) {
       if (!(error instanceof EngineClientError) || error.code !== "ENGINE_REQUEST_TIMEOUT") {
         throw error;
+      }
+      const preResetStatus = (await this.tryCaptureStatusProbe(750)) ?? this.lastKnownCaptureStatus;
+      if (preResetStatus?.isRecording) {
+        throw new Error(
+          "recording_abandoned: capture.stop timed out while recording was active. " +
+            "The engine was not force-restarted to avoid discarding the in-progress recording. " +
+            "Retry recording.stop or capture.stop.",
+        );
       }
       // Recover from stop-request transport loss by restarting and probing status quickly.
       this.resetForRetry();
@@ -804,27 +827,42 @@ export class EngineClient {
           1000,
         ),
       );
+      this.rememberCaptureStatus(recoveredStatus);
       return recoveredStatus;
     }
   }
 
   async startRecording(trackInputEvents: boolean) {
     const definition = engineMethodDefinitions.startRecording;
-    return this.callAndParse(
+    const status = await this.callAndParse(
       definition.method,
       definition.toParams(trackInputEvents),
       definition.schema,
     );
+    this.rememberCaptureStatus(status);
+    return status;
   }
 
   async stopRecording() {
     const definition = engineMethodDefinitions.stopRecording;
-    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
+    const status = await this.callAndParse(
+      definition.method,
+      definition.toParams(),
+      definition.schema,
+    );
+    this.rememberCaptureStatus(status);
+    return status;
   }
 
   async captureStatus() {
     const definition = engineMethodDefinitions.captureStatus;
-    return this.callAndParse(definition.method, definition.toParams(), definition.schema);
+    const status = await this.callAndParse(
+      definition.method,
+      definition.toParams(),
+      definition.schema,
+    );
+    this.rememberCaptureStatus(status);
+    return status;
   }
 
   async exportInfo() {
@@ -898,6 +936,21 @@ export class EngineClient {
   private async requestRaw(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
     await this.start();
     return this.dispatchRawRequest(method, params, timeoutMs);
+  }
+
+  private rememberCaptureStatus(status: CaptureStatusResult): void {
+    this.lastKnownCaptureStatus = status;
+  }
+
+  private async tryCaptureStatusProbe(timeoutMs: number): Promise<CaptureStatusResult | null> {
+    const definition = engineMethodDefinitions.captureStatus;
+    try {
+      return definition.schema.parse(
+        await this.dispatchRequest(definition.method, definition.toParams(), timeoutMs),
+      );
+    } catch {
+      return null;
+    }
   }
 
   private async dispatchRequest(

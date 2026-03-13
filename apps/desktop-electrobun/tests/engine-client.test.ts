@@ -13,6 +13,10 @@ const DROPPED_STOP_RESPONSE_ENGINE_PATH = path.resolve(
   import.meta.dir,
   "fixtures/dropped-stop-response-engine.ts",
 );
+const ACTIVE_RECORDING_STOP_TIMEOUT_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/active-recording-stop-timeout-engine.ts",
+);
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -198,6 +202,30 @@ describe("engine client resilience", () => {
 
       const elapsed = Date.now() - startedAt;
       expect(elapsed).toBeLessThan(2000);
+    } finally {
+      await client.stop();
+    }
+  });
+
+  test("surfaces recording_abandoned when stopCapture times out during active recording", async () => {
+    const client = new EngineClient(ACTIVE_RECORDING_STOP_TIMEOUT_ENGINE_PATH, 5000, {
+      requestTimeoutByMethod: {
+        "capture.stop": 100,
+      },
+    });
+
+    try {
+      const started = await client.startCurrentWindowCapture(false);
+      expect(started.isRunning).toBe(true);
+
+      const recording = await client.startRecording(true);
+      expect(recording.isRecording).toBe(true);
+
+      await expect(client.stopCapture()).rejects.toThrow("recording_abandoned");
+
+      const status = await client.captureStatus();
+      expect(status.isRunning).toBe(true);
+      expect(status.isRecording).toBe(true);
     } finally {
       await client.stop();
     }
