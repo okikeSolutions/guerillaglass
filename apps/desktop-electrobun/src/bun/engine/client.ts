@@ -793,18 +793,18 @@ export class EngineClient {
       if (!(error instanceof EngineClientError) || error.code !== "ENGINE_REQUEST_TIMEOUT") {
         throw error;
       }
-
-      // Some transports can drop a stop response even after applying the stop command.
-      try {
-        const status = await this.captureStatus();
-        if (!status.isRunning) {
-          return status;
-        }
-      } catch {
-        // Ignore fallback status read failures and retry an explicit stop.
-      }
-
-      return this.callAndParse(definition.method, definition.toParams(), definition.schema);
+      // Recover from stop-request transport loss by restarting and probing status quickly.
+      this.resetForRetry();
+      await this.start();
+      const captureStatusDefinition = engineMethodDefinitions.captureStatus;
+      const recoveredStatus = captureStatusDefinition.schema.parse(
+        await this.dispatchRequest(
+          captureStatusDefinition.method,
+          captureStatusDefinition.toParams(),
+          1000,
+        ),
+      );
+      return recoveredStatus;
     }
   }
 
