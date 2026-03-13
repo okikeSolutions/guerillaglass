@@ -405,6 +405,20 @@ function maximum(values: number[]): number | null {
 }
 
 function toSteadyStateSamples(samples: BenchmarkSample[]) {
+  if (samples.length <= 1) {
+    return samples;
+  }
+
+  const steadyByTime = samples.filter((sample) => sample.relativeSeconds >= 1);
+  if (steadyByTime.length >= 3) {
+    return steadyByTime;
+  }
+
+  const skipCount = Math.min(2, Math.floor(samples.length / 4));
+  if (skipCount > 0 && samples.length - skipCount >= 3) {
+    return samples.slice(skipCount);
+  }
+
   return samples;
 }
 
@@ -594,11 +608,6 @@ function selectWindowSource(sources: SourceListing): WindowSource | null {
   return rankWindowSources(candidates)[0] ?? null;
 }
 
-function fallbackWindowSource(sources: SourceListing): WindowSource | null {
-  const candidates = sources.windows.filter(isBenchmarkableWindow);
-  return rankWindowSources(candidates)[0] ?? null;
-}
-
 function buildSourceDetails(
   source:
     | (DisplaySource & { title?: never; appName?: never; isOnScreen?: never })
@@ -663,7 +672,6 @@ async function runScenarioRun(
           `No display source advertised support for ${scenario.captureFps} fps; running direct display capture without preselected source metadata.`,
         );
       }
-      selectedDisplay = selection.source ?? selection.fallbackSource;
       if (selectedDisplay && !selection.exact1080pMatched) {
         notes.push(
           `No 1920x1080 display source was available; display benchmark ran at ${selectedDisplay.width}x${selectedDisplay.height}.`,
@@ -671,7 +679,6 @@ async function runScenarioRun(
       }
     } else {
       selectedWindow = selectWindowSource(sources);
-      const fallbackWindow = selectedWindow ?? fallbackWindowSource(sources);
       if (!selectedWindow) {
         return {
           runIndex,
@@ -686,20 +693,8 @@ async function runScenarioRun(
           thresholds: scenarioThresholds,
           startup,
           durationSeconds: 0,
-          source: buildSourceDetails(fallbackWindow, {
-            windowId: fallbackWindow?.id,
-            title: fallbackWindow?.title,
-            appName: fallbackWindow?.appName,
-          }),
-          effectivePixelCount: effectivePixelCountForSource(
-            fallbackWindow
-              ? {
-                  width: fallbackWindow.width,
-                  height: fallbackWindow.height,
-                  pixelScale: null,
-                }
-              : null,
-          ),
+          source: null,
+          effectivePixelCount: null,
           inputTracking: {
             cursorEventsObserved: null,
             cursorEventsEmitted: null,

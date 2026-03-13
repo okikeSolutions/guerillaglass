@@ -26,6 +26,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
     private let recordingActivationStateLock = NSLock()
     private var recordingActivationContinuation: CheckedContinuation<Void, Error>?
     private var recordingActivationResult: Result<Void, Error>?
+    var hasResolvedStartupHandshake = false
     var hasLoggedFirstVideoSample = false
     private let streamQueueDepth = 3
     lazy var audioCapture = AudioCapture { [weak self] buffer, time in
@@ -349,11 +350,13 @@ extension CaptureEngine {
         startupStateLock.lock()
         startupContinuation = nil
         startupResult = nil
+        hasResolvedStartupHandshake = false
         startupStateLock.unlock()
     }
 
     func resolveStartupHandshake(_ result: Result<Void, Error>) {
         startupStateLock.lock()
+        hasResolvedStartupHandshake = true
         if let continuation = startupContinuation {
             startupContinuation = nil
             startupResult = nil
@@ -365,10 +368,16 @@ extension CaptureEngine {
         startupStateLock.unlock()
     }
 
+    func resolveStartupHandshakeIfNeeded(_ result: Result<Void, Error>) {
+        guard !hasResolvedStartupHandshake else { return }
+        resolveStartupHandshake(result)
+    }
+
     private func clearStartupHandshake() {
         startupStateLock.lock()
         startupContinuation = nil
         startupResult = nil
+        hasResolvedStartupHandshake = false
         startupStateLock.unlock()
     }
 
@@ -491,7 +500,7 @@ extension CaptureEngine {
             } catch {
                 guard let self else { return }
                 debugLog("\(context) startCapture failed error=\(String(describing: error))")
-                resolveStartupHandshake(.failure(error))
+                resolveStartupHandshakeIfNeeded(.failure(error))
                 await MainActor.run {
                     self.isRunning = false
                     self.lastError = error.localizedDescription

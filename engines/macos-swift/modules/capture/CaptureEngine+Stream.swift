@@ -15,7 +15,7 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
         guard outputType == .screen else { return }
         let status = frameStatus(for: sampleBuffer)
         if status == nil || status == .complete {
-            resolveStartupHandshake(Result<Void, Error>.success(()))
+            resolveStartupHandshakeIfNeeded(.success(()))
         }
         if !hasLoggedFirstVideoSample {
             hasLoggedFirstVideoSample = true
@@ -30,7 +30,7 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
 
     public func stream(_: SCStream, didStopWithError error: Error) {
         debugLog("stream didStopWithError error=\(String(describing: error))")
-        resolveStartupHandshake(Result<Void, Error>.failure(error))
+        resolveStartupHandshakeIfNeeded(.failure(error))
         audioCapture.stop()
         Task { @MainActor in
             self.setRunning(false)
