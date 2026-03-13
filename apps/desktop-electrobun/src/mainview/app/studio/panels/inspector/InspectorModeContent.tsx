@@ -49,6 +49,10 @@ function AutoZoomSection({
   showAudioMixer = false,
   sliderClassName,
 }: AutoZoomSectionProps) {
+  // The capture telemetry protocol no longer exposes audio level, so keep the VU meter at zero
+  // until a replacement signal is added.
+  const unavailableVuLevel = 0;
+
   return (
     <studio.settingsForm.Field name="autoZoom">
       {(field) => (
@@ -111,7 +115,7 @@ function AutoZoomSection({
               <AudioMixerChannel
                 label={studio.ui.labels.masterChannel}
                 value={studio.audioMixer.masterGain}
-                level={0}
+                level={unavailableVuLevel}
                 muted={studio.audioMixer.masterMuted}
                 muteLabel={studio.ui.labels.mute}
                 unmuteLabel={studio.ui.labels.unmute}
@@ -121,7 +125,7 @@ function AutoZoomSection({
               <AudioMixerChannel
                 label={studio.ui.labels.microphone}
                 value={studio.audioMixer.micGain}
-                level={0}
+                level={unavailableVuLevel}
                 muted={studio.audioMixer.micMuted}
                 muteLabel={studio.ui.labels.mute}
                 unmuteLabel={studio.ui.labels.unmute}
