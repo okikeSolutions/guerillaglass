@@ -356,6 +356,10 @@ extension CaptureEngine {
 
     func resolveStartupHandshake(_ result: Result<Void, Error>) {
         startupStateLock.lock()
+        guard !hasResolvedStartupHandshake else {
+            startupStateLock.unlock()
+            return
+        }
         hasResolvedStartupHandshake = true
         if let continuation = startupContinuation {
             startupContinuation = nil
@@ -369,7 +373,6 @@ extension CaptureEngine {
     }
 
     func resolveStartupHandshakeIfNeeded(_ result: Result<Void, Error>) {
-        guard !hasResolvedStartupHandshake else { return }
         resolveStartupHandshake(result)
     }
 
