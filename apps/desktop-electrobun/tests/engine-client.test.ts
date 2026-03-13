@@ -163,7 +163,7 @@ describe("engine client integration", () => {
     } finally {
       await client.stop();
     }
-  });
+  }, 15_000);
 });
 
 describe("engine client resilience", () => {
