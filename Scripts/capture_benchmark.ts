@@ -405,17 +405,17 @@ function maximum(values: number[]): number | null {
 }
 
 function toSteadyStateSamples(samples: BenchmarkSample[]) {
-  if (samples.length <= 1) {
+  if (samples.length <= 3) {
     return samples;
   }
 
-  const steadyByTime = samples.filter((sample) => sample.relativeSeconds >= 1);
+  const steadyByTime = samples.filter((sample) => sample.relativeSeconds >= 1.5);
   if (steadyByTime.length >= 3) {
     return steadyByTime;
   }
 
-  const skipCount = Math.min(2, Math.floor(samples.length / 4));
-  if (skipCount > 0 && samples.length - skipCount >= 3) {
+  const skipCount = Math.max(1, Math.min(4, Math.floor(samples.length * 0.2)));
+  if (samples.length - skipCount >= 3) {
     return samples.slice(skipCount);
   }
 
@@ -608,6 +608,13 @@ function selectWindowSource(sources: SourceListing): WindowSource | null {
   return rankWindowSources(candidates)[0] ?? null;
 }
 
+function selectFallbackWindowSource(sources: SourceListing): WindowSource | null {
+  const fallbackCandidates = sources.windows.filter(
+    (window) => window.isOnScreen && window.width >= 400 && window.height >= 300,
+  );
+  return rankWindowSources(fallbackCandidates)[0] ?? null;
+}
+
 function buildSourceDetails(
   source:
     | (DisplaySource & { title?: never; appName?: never; isOnScreen?: never })
@@ -678,7 +685,10 @@ async function runScenarioRun(
         );
       }
     } else {
-      selectedWindow = selectWindowSource(sources);
+      const preferredWindowSource = selectWindowSource(sources);
+      const fallbackWindowSource =
+        preferredWindowSource === null ? selectFallbackWindowSource(sources) : null;
+      selectedWindow = preferredWindowSource ?? fallbackWindowSource;
       if (!selectedWindow) {
         return {
           runIndex,
@@ -732,6 +742,11 @@ async function runScenarioRun(
           eventsURL: null,
           samples,
         };
+      }
+      if (fallbackWindowSource) {
+        notes.push(
+          `Fell back to on-screen window source ${fallbackWindowSource.id}: ${fallbackWindowSource.appName} — ${fallbackWindowSource.title}.`,
+        );
       }
       if (!selectedWindow.supportedCaptureFrameRates.includes(scenario.captureFps)) {
         return {

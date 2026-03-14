@@ -106,6 +106,38 @@ final class CaptureRecordingTests: XCTestCase {
         }
     }
 
+    func testStopRecordingDuringPrimingCancelsStartRecording() async {
+        let engine = CaptureEngine()
+        await MainActor.run {
+            engine.setRunning(true)
+        }
+
+        let startTask = Task {
+            try await engine.startRecording()
+        }
+        let primingStarted = await waitForCondition {
+            engine.activeRecordingOutputURL() != nil
+        }
+        XCTAssertTrue(primingStarted)
+
+        await engine.stopRecording()
+
+        do {
+            try await startTask.value
+            XCTFail("Expected startRecording to fail when stopRecording interrupts priming.")
+        } catch let error as CaptureError {
+            guard case .recordingStartCancelled = error else {
+                XCTFail("Unexpected capture error: \(error)")
+                return
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        let isRecording = await MainActor.run { engine.isRecording }
+        XCTAssertFalse(isRecording)
+    }
+
     func testLoadAndClearRecordingUpdatesState() async {
         let engine = CaptureEngine()
         let recordingURL = FileManager.default.temporaryDirectory

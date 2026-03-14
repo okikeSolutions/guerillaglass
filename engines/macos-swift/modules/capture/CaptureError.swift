@@ -10,6 +10,7 @@ public enum CaptureError: LocalizedError {
     case captureNotRunning
     case captureStartTimedOut
     case captureStartUnstable(frameRate: Int)
+    case recordingStartCancelled
     case unsupportedCaptureFrameRate(requested: Int, supported: [Int], refreshHz: Double?)
 
     public var errorDescription: String? {
@@ -30,6 +31,8 @@ public enum CaptureError: LocalizedError {
             return String(localized: "Capture startup timed out before the first frame arrived.")
         case let .captureStartUnstable(frameRate):
             return "Capture did not stabilize quickly enough for \(frameRate) fps recording."
+        case .recordingStartCancelled:
+            return String(localized: "Recording start was cancelled before capture priming completed.")
         case let .unsupportedCaptureFrameRate(requested, supported, refreshHz):
             let supportedValues = supported.map(String.init).joined(separator: ", ")
             if let refreshHz {

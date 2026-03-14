@@ -155,18 +155,31 @@ export const sourcesResultSchema = z.object({
   windows: z.array(windowSourceSchema),
 });
 
+const defaultCaptureTelemetry = {
+  sourceDroppedFrames: 0,
+  writerDroppedFrames: 0,
+  writerBackpressureDrops: 0,
+  achievedFps: 0,
+  cpuPercent: null,
+  memoryBytes: null,
+  recordingBitrateMbps: null,
+  captureCallbackMs: 0,
+  recordQueueLagMs: 0,
+  writerAppendMs: 0,
+} as const;
+
 /** Capture telemetry payload returned by `capture.status`. */
 export const captureTelemetrySchema = z.object({
-  sourceDroppedFrames: z.number().int().nonnegative(),
-  writerDroppedFrames: z.number().int().nonnegative(),
-  writerBackpressureDrops: z.number().int().nonnegative(),
-  achievedFps: z.number().nonnegative(),
-  cpuPercent: z.number().nonnegative().nullable(),
-  memoryBytes: z.number().nonnegative().nullable(),
-  recordingBitrateMbps: z.number().nonnegative().nullable(),
-  captureCallbackMs: z.number().nonnegative(),
-  recordQueueLagMs: z.number().nonnegative(),
-  writerAppendMs: z.number().nonnegative(),
+  sourceDroppedFrames: z.number().int().nonnegative().optional().default(0),
+  writerDroppedFrames: z.number().int().nonnegative().optional().default(0),
+  writerBackpressureDrops: z.number().int().nonnegative().optional().default(0),
+  achievedFps: z.number().nonnegative().optional().default(0),
+  cpuPercent: z.number().nonnegative().nullable().optional().default(null),
+  memoryBytes: z.number().nonnegative().nullable().optional().default(null),
+  recordingBitrateMbps: z.number().nonnegative().nullable().optional().default(null),
+  captureCallbackMs: z.number().nonnegative().optional().default(0),
+  recordQueueLagMs: z.number().nonnegative().optional().default(0),
+  writerAppendMs: z.number().nonnegative().optional().default(0),
 });
 
 /** Result payload for capture and recording lifecycle methods. */
@@ -178,7 +191,7 @@ export const captureStatusResultSchema = z.object({
   captureMetadata: captureMetadataSchema.optional().default(null),
   lastError: z.string().nullable(),
   eventsURL: z.string().nullable(),
-  telemetry: captureTelemetrySchema,
+  telemetry: captureTelemetrySchema.optional().default(defaultCaptureTelemetry),
 });
 
 /** Export preset descriptor returned by `export.info`. */
