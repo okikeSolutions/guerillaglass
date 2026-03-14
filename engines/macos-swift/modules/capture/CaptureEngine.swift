@@ -312,7 +312,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
         hasLoggedFirstVideoSample = false
         clearStartupHandshake()
-        clearRecordingActivation()
+        clearRecordingActivationWaitState()
         self.stream = nil
         captureDescriptor = nil
         captureFrameRate = CaptureFrameRatePolicy.defaultValue
@@ -384,11 +384,15 @@ extension CaptureEngine {
         startupStateLock.unlock()
     }
 
-    private func clearStartupHandshakeWaitState() {
+    private func clearStartupHandshakeWaitState(resumingWith error: Error? = nil) {
         startupStateLock.lock()
+        let continuation = startupContinuation
         startupContinuation = nil
         startupResult = nil
         startupStateLock.unlock()
+        if let continuation, let error {
+            continuation.resume(throwing: error)
+        }
     }
 
     func resetRecordingActivation() {
@@ -411,11 +415,15 @@ extension CaptureEngine {
         recordingActivationStateLock.unlock()
     }
 
-    private func clearRecordingActivation() {
+    private func clearRecordingActivationWaitState(resumingWith error: Error? = nil) {
         recordingActivationStateLock.lock()
+        let continuation = recordingActivationContinuation
         recordingActivationContinuation = nil
         recordingActivationResult = nil
         recordingActivationStateLock.unlock()
+        if let continuation, let error {
+            continuation.resume(throwing: error)
+        }
     }
 
     private func waitForStartupHandshake(timeoutNanoseconds: UInt64 = 5_000_000_000) async throws {
@@ -441,8 +449,8 @@ extension CaptureEngine {
 
             defer {
                 group.cancelAll()
-                // Preserve one-shot resolution after success; only clear waiter state here.
-                clearStartupHandshakeWaitState()
+                // Preserve one-shot resolution after success; on timeout/cancel, explicitly unblock waiter.
+                clearStartupHandshakeWaitState(resumingWith: CancellationError())
             }
             try await group.next()!
         }
@@ -472,7 +480,7 @@ extension CaptureEngine {
 
             defer {
                 group.cancelAll()
-                clearRecordingActivation()
+                clearRecordingActivationWaitState(resumingWith: CancellationError())
             }
             try await group.next()!
         }
