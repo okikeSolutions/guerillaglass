@@ -275,17 +275,46 @@ describe("engine protocol", () => {
     expect(recents.items[0]?.displayName).toBe("project");
   });
 
-  test("requires telemetry payloads from the engine", () => {
-    expect(() =>
-      captureStatusResultSchema.parse({
-        isRunning: false,
-        isRecording: false,
-        recordingDurationSeconds: 0,
-        recordingURL: null,
-        lastError: null,
-        eventsURL: null,
-      }),
-    ).toThrow();
+  test("fills telemetry defaults when payload is missing", () => {
+    const captureStatus = captureStatusResultSchema.parse({
+      isRunning: false,
+      isRecording: false,
+      recordingDurationSeconds: 0,
+      recordingURL: null,
+      lastError: null,
+      eventsURL: null,
+    });
+
+    expect(captureStatus.telemetry).toEqual({
+      sourceDroppedFrames: 0,
+      writerDroppedFrames: 0,
+      writerBackpressureDrops: 0,
+      achievedFps: 0,
+      cpuPercent: null,
+      memoryBytes: null,
+      recordingBitrateMbps: null,
+      captureCallbackMs: 0,
+      recordQueueLagMs: 0,
+      writerAppendMs: 0,
+    });
+  });
+
+  test("fills telemetry defaults when payload is partial", () => {
+    const captureStatus = captureStatusResultSchema.parse({
+      isRunning: true,
+      isRecording: false,
+      recordingDurationSeconds: 0.5,
+      recordingURL: null,
+      lastError: null,
+      eventsURL: null,
+      telemetry: {
+        achievedFps: 59.2,
+      },
+    });
+
+    expect(captureStatus.telemetry.achievedFps).toBe(59.2);
+    expect(captureStatus.telemetry.writerDroppedFrames).toBe(0);
+    expect(captureStatus.telemetry.cpuPercent).toBeNull();
   });
 
   test("parses success and error response envelopes", () => {

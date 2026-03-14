@@ -100,7 +100,7 @@ public extension CaptureEngine {
                 if case .priming = engine.recordingState.phase {
                     engine.recordingState = RecordingState()
                     engine.resolveRecordingActivation(
-                        .failure(CaptureError.captureStartUnstable(frameRate: engine.captureFrameRate))
+                        .failure(CaptureError.recordingStartCancelled)
                     )
                     Task { @MainActor in
                         engine.isRecording = false

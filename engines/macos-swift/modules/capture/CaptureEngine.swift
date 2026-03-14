@@ -384,6 +384,13 @@ extension CaptureEngine {
         startupStateLock.unlock()
     }
 
+    private func clearStartupHandshakeWaitState() {
+        startupStateLock.lock()
+        startupContinuation = nil
+        startupResult = nil
+        startupStateLock.unlock()
+    }
+
     func resetRecordingActivation() {
         recordingActivationStateLock.lock()
         recordingActivationContinuation = nil
@@ -434,7 +441,8 @@ extension CaptureEngine {
 
             defer {
                 group.cancelAll()
-                clearStartupHandshake()
+                // Preserve one-shot resolution after success; only clear waiter state here.
+                clearStartupHandshakeWaitState()
             }
             try await group.next()!
         }

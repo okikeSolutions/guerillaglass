@@ -824,14 +824,13 @@ export class EngineClient {
       // Recover from stop-request transport loss by restarting and probing status quickly.
       this.resetForRetry();
       await this.start();
-      const captureStatusDefinition = engineMethodDefinitions.captureStatus;
-      const recoveredStatus = captureStatusDefinition.schema.parse(
-        await this.dispatchRequest(
-          captureStatusDefinition.method,
-          captureStatusDefinition.toParams(),
-          1000,
-        ),
-      );
+      const recoveredStatus = await this.tryCaptureStatusProbe(5000);
+      if (!recoveredStatus) {
+        throw new Error(
+          "capture.stop recovery failed after engine restart: capture.status probe timed out. " +
+            "Retry capture.status once the engine is responsive.",
+        );
+      }
       this.rememberCaptureStatus(recoveredStatus);
       return recoveredStatus;
     }
