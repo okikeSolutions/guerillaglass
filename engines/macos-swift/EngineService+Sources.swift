@@ -23,6 +23,8 @@ extension EngineService {
             ])
         }
 
+        // Keep ScreenCaptureKit's desktop exclusion disabled here so Guerilla Glass applies a
+        // single filtering policy via `filteredWindows(from:)` before capability enrichment.
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
 
         var displays: [JSONValue] = []

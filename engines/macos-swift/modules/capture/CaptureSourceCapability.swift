@@ -169,7 +169,7 @@ public enum CaptureSourceCapability {
             return false
         }
         guard let width, let height else {
-            return true
+            return false
         }
         return effectiveNativePixelCount(width: width, height: height, pixelScale: pixelScale) <=
             maximumHighFrameRateEffectivePixels
