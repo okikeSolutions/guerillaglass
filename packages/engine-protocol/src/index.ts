@@ -133,6 +133,7 @@ export const displaySourceSchema = z.object({
   id: z.number().int().nonnegative(),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
+  pixelScale: z.number().positive().optional(),
   refreshHz: z.number().positive().nullable(),
   supportedCaptureFrameRates: z.array(captureFrameRateSchema),
 });
@@ -145,6 +146,7 @@ export const windowSourceSchema = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
   isOnScreen: z.boolean(),
+  pixelScale: z.number().positive().optional(),
   refreshHz: z.number().positive().nullable(),
   supportedCaptureFrameRates: z.array(captureFrameRateSchema),
 });

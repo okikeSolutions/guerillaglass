@@ -36,7 +36,15 @@ public enum CaptureError: LocalizedError {
         case let .unsupportedCaptureFrameRate(requested, supported, refreshHz):
             let supportedValues = supported.map(String.init).joined(separator: ", ")
             if let refreshHz {
-                return "captureFps \(requested) is unsupported for the current source (\(Int(refreshHz.rounded())) Hz). Supported values: \(supportedValues)"
+                let formattedRefreshHz = String(
+                    format: "%.2f",
+                    locale: Locale(identifier: "en_US_POSIX"),
+                    refreshHz
+                )
+                return """
+                captureFps \(requested) is unsupported for the current source \
+                (refresh rate: \(formattedRefreshHz) Hz). Supported values: \(supportedValues)
+                """
             }
             return "captureFps \(requested) is unsupported for the current source. Supported values: \(supportedValues)"
         }

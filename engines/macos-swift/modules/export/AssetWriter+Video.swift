@@ -108,7 +108,7 @@ extension AssetWriter {
     }
 }
 
-private extension AssetWriter {
+extension AssetWriter {
     struct VideoCompressionProfile {
         let averageBitRate: Int
 
@@ -118,20 +118,36 @@ private extension AssetWriter {
             expectedFrameRate: Int
         ) -> VideoCompressionProfile {
             let pixelsPerFrame = max(1, width * height)
-            let isHighFrameRate = expectedFrameRate >= 60
+            return VideoCompressionProfile(
+                averageBitRate: averageBitRate(
+                    pixelsPerFrame: pixelsPerFrame,
+                    expectedFrameRate: expectedFrameRate
+                )
+            )
+        }
 
-            let averageBitRate: Int = switch pixelsPerFrame {
+        static func averageBitRate(
+            pixelsPerFrame: Int,
+            expectedFrameRate: Int
+        ) -> Int {
+            let standardFrameRateBitRate = switch pixelsPerFrame {
             case ...2_073_600:
-                isHighFrameRate ? 24_000_000 : 16_000_000
+                16_000_000
             case ...3_686_400:
-                isHighFrameRate ? 36_000_000 : 24_000_000
+                24_000_000
             case ...8_294_400:
-                isHighFrameRate ? 62_000_000 : 40_000_000
+                40_000_000
             default:
-                isHighFrameRate ? 72_000_000 : 48_000_000
+                48_000_000
             }
 
-            return VideoCompressionProfile(averageBitRate: averageBitRate)
+            if expectedFrameRate >= 120 {
+                return standardFrameRateBitRate * 3
+            }
+            if expectedFrameRate >= 60 {
+                return standardFrameRateBitRate * 3 / 2
+            }
+            return standardFrameRateBitRate
         }
     }
 }

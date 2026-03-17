@@ -797,6 +797,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                         "id": 1,
                         "width": 1920,
                         "height": 1080,
+                        "pixelScale": 1.0,
                         "refreshHz": 60.0,
                         "supportedCaptureFrameRates": DEFAULT_CAPTURE_FRAME_RATES
                     }
@@ -809,6 +810,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                         "width": 1280,
                         "height": 720,
                         "isOnScreen": true,
+                        "pixelScale": 1.0,
                         "refreshHz": 60.0,
                         "supportedCaptureFrameRates": DEFAULT_CAPTURE_FRAME_RATES
                     }
@@ -1362,6 +1364,20 @@ mod tests {
                 handle_request("linux", state, &request("r6", "capture.stop", json!({})));
             let stopped_capture_result = expect_success(stopped_capture);
             assert_eq!(stopped_capture_result["isRunning"], json!(false));
+        });
+    }
+
+    #[test]
+    fn sources_list_includes_pixel_scale_for_displays_and_windows() {
+        with_state("sources-list-pixel-scale", |state, _| {
+            let response =
+                handle_request("linux", state, &request("r3a", "sources.list", json!({})));
+            let result = expect_success(response);
+            let displays = result["displays"].as_array().expect("displays");
+            let windows = result["windows"].as_array().expect("windows");
+
+            assert_eq!(displays[0]["pixelScale"], json!(1.0));
+            assert_eq!(windows[0]["pixelScale"], json!(1.0));
         });
     }
 
