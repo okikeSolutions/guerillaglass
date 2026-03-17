@@ -15,6 +15,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @Published public private(set) var captureDescriptor: CaptureDescriptor?
 
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
+    private let sampleQueueKey = DispatchSpecificKey<Void>()
     let recordingQueue = DispatchQueue(label: "gg.capture.recording")
     let telemetryStore = CaptureTelemetryStore()
     private var stream: SCStream?
@@ -23,10 +24,11 @@ public final class CaptureEngine: NSObject, ObservableObject {
     private let startupStateLock = NSLock()
     private var startupContinuation: CheckedContinuation<Void, Error>?
     private var startupResult: Result<Void, Error>?
+    private var startupHandshakeNeedsSampleResolution = false
     private let recordingActivationStateLock = NSLock()
     private var recordingActivationContinuation: CheckedContinuation<Void, Error>?
     private var recordingActivationResult: Result<Void, Error>?
-    var hasResolvedStartupHandshake = false
+    private var hasResolvedStartupHandshake = false
     var hasLoggedFirstVideoSample = false
     private let streamQueueDepth = 3
     lazy var audioCapture = AudioCapture { [weak self] buffer, time in
@@ -50,6 +52,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
 
     override public init() {
         super.init()
+        sampleQueue.setSpecific(key: sampleQueueKey, value: ())
     }
 
     struct RecordingState {
@@ -342,6 +345,13 @@ public final class CaptureEngine: NSObject, ObservableObject {
 }
 
 extension CaptureEngine {
+    private func withSampleQueue<T>(_ operation: () -> T) -> T {
+        if DispatchQueue.getSpecific(key: sampleQueueKey) != nil {
+            return operation()
+        }
+        return sampleQueue.sync(execute: operation)
+    }
+
     func debugLog(_ message: String) {
         fputs("[CaptureEngine] \(message)\n", stderr)
     }
@@ -352,6 +362,9 @@ extension CaptureEngine {
         startupResult = nil
         hasResolvedStartupHandshake = false
         startupStateLock.unlock()
+        withSampleQueue {
+            startupHandshakeNeedsSampleResolution = true
+        }
     }
 
     func resolveStartupHandshake(_ result: Result<Void, Error>) {
@@ -382,6 +395,9 @@ extension CaptureEngine {
         startupResult = nil
         hasResolvedStartupHandshake = false
         startupStateLock.unlock()
+        withSampleQueue {
+            startupHandshakeNeedsSampleResolution = false
+        }
     }
 
     private func clearStartupHandshakeWaitState(resumingWith error: Error? = nil) {
@@ -393,6 +409,17 @@ extension CaptureEngine {
         if let continuation, let error {
             continuation.resume(throwing: error)
         }
+    }
+
+    func shouldResolveStartupHandshake(for status: SCFrameStatus?) -> Bool {
+        guard status == nil || status == .complete else {
+            return false
+        }
+        guard startupHandshakeNeedsSampleResolution else {
+            return false
+        }
+        startupHandshakeNeedsSampleResolution = false
+        return true
     }
 
     func resetRecordingActivation() {
@@ -427,62 +454,63 @@ extension CaptureEngine {
     }
 
     private func waitForStartupHandshake(timeoutNanoseconds: UInt64 = 5_000_000_000) async throws {
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask { [weak self] in
-                guard let self else { return }
-                try await withCheckedThrowingContinuation { continuation in
-                    self.startupStateLock.lock()
-                    if let result = self.startupResult {
-                        self.startupResult = nil
-                        self.startupStateLock.unlock()
-                        continuation.resume(with: result)
-                        return
-                    }
-                    self.startupContinuation = continuation
-                    self.startupStateLock.unlock()
-                }
-            }
-            group.addTask {
+        let timeoutTask = Task { [weak self] in
+            do {
                 try await Task.sleep(nanoseconds: timeoutNanoseconds)
-                throw CaptureError.captureStartTimedOut
+            } catch {
+                return
             }
+            self?.resolveStartupHandshakeIfNeeded(.failure(CaptureError.captureStartTimedOut))
+        }
+        defer {
+            timeoutTask.cancel()
+        }
 
-            defer {
-                group.cancelAll()
-                // Preserve one-shot resolution after success; on timeout/cancel, explicitly unblock waiter.
-                clearStartupHandshakeWaitState(resumingWith: CancellationError())
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                startupStateLock.lock()
+                if let result = startupResult {
+                    startupResult = nil
+                    startupStateLock.unlock()
+                    continuation.resume(with: result)
+                    return
+                }
+                startupContinuation = continuation
+                startupStateLock.unlock()
             }
-            try await group.next()!
+        } onCancel: { [weak self] in
+            self?.clearStartupHandshakeWaitState(resumingWith: CancellationError())
         }
     }
 
     func waitForRecordingActivation(timeoutNanoseconds: UInt64) async throws {
         let frameRate = captureFrameRate
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask { [weak self] in
-                guard let self else { return }
-                try await withCheckedThrowingContinuation { continuation in
-                    self.recordingActivationStateLock.lock()
-                    if let result = self.recordingActivationResult {
-                        self.recordingActivationResult = nil
-                        self.recordingActivationStateLock.unlock()
-                        continuation.resume(with: result)
-                        return
-                    }
-                    self.recordingActivationContinuation = continuation
-                    self.recordingActivationStateLock.unlock()
-                }
-            }
-            group.addTask {
+        let timeoutTask = Task { [weak self] in
+            do {
                 try await Task.sleep(nanoseconds: timeoutNanoseconds)
-                throw CaptureError.captureStartUnstable(frameRate: frameRate)
+            } catch {
+                return
             }
+            self?.resolveRecordingActivation(.failure(CaptureError.captureStartUnstable(frameRate: frameRate)))
+        }
+        defer {
+            timeoutTask.cancel()
+        }
 
-            defer {
-                group.cancelAll()
-                clearRecordingActivationWaitState(resumingWith: CancellationError())
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                recordingActivationStateLock.lock()
+                if let result = recordingActivationResult {
+                    recordingActivationResult = nil
+                    recordingActivationStateLock.unlock()
+                    continuation.resume(with: result)
+                    return
+                }
+                recordingActivationContinuation = continuation
+                recordingActivationStateLock.unlock()
             }
-            try await group.next()!
+        } onCancel: { [weak self] in
+            self?.clearRecordingActivationWaitState(resumingWith: CancellationError())
         }
     }
 

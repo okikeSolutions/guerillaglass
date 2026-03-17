@@ -17,6 +17,10 @@ const ACTIVE_RECORDING_STOP_TIMEOUT_ENGINE_PATH = path.resolve(
   import.meta.dir,
   "fixtures/active-recording-stop-timeout-engine.ts",
 );
+const UNKNOWN_STOP_STATE_TIMEOUT_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/unknown-stop-state-timeout-engine.ts",
+);
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -226,6 +230,26 @@ describe("engine client resilience", () => {
       const status = await client.captureStatus();
       expect(status.isRunning).toBe(true);
       expect(status.isRecording).toBe(true);
+    } finally {
+      await client.stop();
+    }
+  });
+
+  test("does not restart the engine when stopCapture timeout leaves recording state unknown", async () => {
+    const client = new EngineClient(UNKNOWN_STOP_STATE_TIMEOUT_ENGINE_PATH, 5000, {
+      requestTimeoutByMethod: {
+        "capture.stop": 100,
+        "capture.status": 100,
+      },
+    });
+
+    try {
+      const started = await client.startCurrentWindowCapture(false);
+      expect(started.isRunning).toBe(true);
+
+      await expect(client.stopCapture()).rejects.toThrow(
+        "capture.stop recovery aborted: capture.status probe timed out and recording state is unknown",
+      );
     } finally {
       await client.stop();
     }

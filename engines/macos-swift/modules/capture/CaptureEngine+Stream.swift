@@ -14,7 +14,7 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
 
         guard outputType == .screen else { return }
         let status = frameStatus(for: sampleBuffer)
-        if status == nil || status == .complete {
+        if shouldResolveStartupHandshake(for: status) {
             resolveStartupHandshakeIfNeeded(.success(()))
         }
         if !hasLoggedFirstVideoSample {

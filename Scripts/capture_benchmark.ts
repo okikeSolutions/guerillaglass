@@ -561,8 +561,7 @@ function selectDisplaySource(sources: SourceListing, captureFps: CaptureFrameRat
 }
 
 function rankWindowSources(candidates: WindowSource[]) {
-  const rankedCandidates =
-    candidates.filter((window) => window.title.trim().length > 0) || candidates;
+  const rankedCandidates = candidates.filter((window) => window.title.trim().length > 0);
   const sourcePool = rankedCandidates.length > 0 ? rankedCandidates : candidates;
   sourcePool.sort((left, right) => {
     const areaDelta = right.width * right.height - left.width * left.height;
@@ -711,7 +710,7 @@ async function runScenarioRun(
             clickEventsEmitted: null,
           },
           notes: [
-            `No on-screen window source advertised support for ${scenario.captureFps} fps.`,
+            "No benchmarkable on-screen window source was found.",
           ],
           finalTelemetry: null,
           aggregates: {

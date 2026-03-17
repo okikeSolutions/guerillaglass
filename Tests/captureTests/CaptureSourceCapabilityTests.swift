@@ -6,8 +6,17 @@ final class CaptureSourceCapabilityTests: XCTestCase {
     func testSupportedFrameRatesExpose120OnlyForHighRefreshSources() {
         XCTAssertEqual(CaptureSourceCapability.supportedFrameRates(refreshHz: nil), [24, 30, 60])
         XCTAssertEqual(CaptureSourceCapability.supportedFrameRates(refreshHz: 60), [24, 30, 60])
-        XCTAssertEqual(CaptureSourceCapability.supportedFrameRates(refreshHz: 118), [24, 30, 60, 120])
-        XCTAssertEqual(CaptureSourceCapability.supportedFrameRates(refreshHz: 120), [24, 30, 60, 120])
+        XCTAssertEqual(CaptureSourceCapability.supportedFrameRates(refreshHz: 118), [24, 30, 60])
+        XCTAssertEqual(CaptureSourceCapability.supportedFrameRates(refreshHz: 120), [24, 30, 60])
+        XCTAssertEqual(
+            CaptureSourceCapability.supportedFrameRates(
+                refreshHz: 120,
+                width: 1920,
+                height: 1080,
+                pixelScale: 1
+            ),
+            [24, 30, 60, 120]
+        )
         XCTAssertEqual(
             CaptureSourceCapability.supportedFrameRates(
                 refreshHz: 120,
@@ -66,7 +75,10 @@ final class CaptureSourceCapabilityTests: XCTestCase {
             pixelScale: 2
         )
 
-        let preferred = CaptureSourceCapability.bestDisplayCandidate(for: rect, candidates: [lowerRefresh, higherRefresh])
+        let preferred = CaptureSourceCapability.bestDisplayCandidate(
+            for: rect,
+            candidates: [lowerRefresh, higherRefresh]
+        )
 
         XCTAssertEqual(preferred?.displayID, 4)
     }

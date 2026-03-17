@@ -809,8 +809,7 @@ export class EngineClient {
         throw error;
       }
       const liveStatus = await this.tryCaptureStatusProbe(750);
-      const preResetStatus = liveStatus ?? this.lastKnownCaptureStatus;
-      if (preResetStatus?.isRecording) {
+      if (liveStatus?.isRecording) {
         throw new Error(
           "recording_abandoned: capture.stop timed out while recording was active. " +
             "The engine was not force-restarted to avoid discarding the in-progress recording. " +
@@ -820,6 +819,20 @@ export class EngineClient {
       if (liveStatus && !liveStatus.isRunning) {
         this.rememberCaptureStatus(liveStatus);
         return liveStatus;
+      }
+      if (!liveStatus) {
+        if (this.lastKnownCaptureStatus?.isRecording) {
+          throw new Error(
+            "recording_abandoned: capture.stop timed out and capture.status could not confirm stop. " +
+              "The engine was not force-restarted to avoid discarding a potentially active recording. " +
+              "Retry recording.stop or capture.stop.",
+          );
+        }
+        throw new Error(
+          "capture.stop recovery aborted: capture.status probe timed out and recording state is unknown. " +
+            "The engine was not force-restarted to avoid abandoning a potentially in-progress recording. " +
+            "Retry capture.status or capture.stop.",
+        );
       }
       // Recover from stop-request transport loss by restarting and probing status quickly.
       this.resetForRetry();
