@@ -40,6 +40,22 @@ final class CaptureSourceCapabilityTests: XCTestCase {
         }
     }
 
+    func testUnsupportedCaptureFrameRateErrorUsesSharedParityMessageFormat() {
+        let error = CaptureError.unsupportedCaptureFrameRate(
+            requested: 120,
+            supported: [24, 30, 60],
+            refreshHz: 59.94
+        )
+
+        XCTAssertEqual(
+            error.errorDescription,
+            """
+            captureFps 120 is unsupported for the current source \
+            (refresh rate: 59.94 Hz). Supported values: 24, 30, 60
+            """
+        )
+    }
+
     func testBestDisplayCandidatePicksLargestOverlapThenHighestRefresh() {
         let rect = CGRect(x: 100, y: 100, width: 400, height: 400)
         let primary = CaptureSourceCapability.DisplayCandidate(

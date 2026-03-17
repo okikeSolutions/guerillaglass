@@ -80,6 +80,7 @@ describe("renderer engine bridge", () => {
             id: 1,
             width: 3024,
             height: 1964,
+            pixelScale: 1,
             refreshHz: 120,
             supportedCaptureFrameRates: [24, 30, 60, 120],
           },
@@ -92,6 +93,7 @@ describe("renderer engine bridge", () => {
             width: 800,
             height: 600,
             isOnScreen: true,
+            pixelScale: 1,
             refreshHz: 60,
             supportedCaptureFrameRates: [24, 30, 60],
           },
@@ -237,7 +239,9 @@ describe("renderer engine bridge", () => {
     expect(openedInputMonitoringSettings.success).toBe(true);
     expect(sources.displays.length).toBe(1);
     expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60, 120]);
+    expect(sources.displays[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.refreshHz).toBe(60);
+    expect(sources.windows[0]?.pixelScale).toBe(1);
     expect(capture.eventsURL).toBeNull();
     expect(exportInfo.presets[0]?.id).toBe("h264-1080p-30");
     expect(project.autoZoom.isEnabled).toBe(true);

@@ -159,6 +159,7 @@ describe("engine protocol", () => {
           id: 1,
           width: 3024,
           height: 1964,
+          pixelScale: 1,
           refreshHz: 120,
           supportedCaptureFrameRates: [24, 30, 60, 120],
         },
@@ -171,6 +172,7 @@ describe("engine protocol", () => {
           width: 1280,
           height: 720,
           isOnScreen: true,
+          pixelScale: 1,
           refreshHz: 60,
           supportedCaptureFrameRates: [24, 30, 60],
         },
@@ -264,6 +266,8 @@ describe("engine protocol", () => {
     expect(capabilities.capture.display).toBe(true);
     expect(permissions.inputMonitoring).toBe("notDetermined");
     expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60, 120]);
+    expect(sources.displays[0]?.pixelScale).toBe(1);
+    expect(sources.windows[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.appName).toBe("Xcode");
     expect(captureStatus.eventsURL).toBeNull();
     expect(captureStatus.captureMetadata?.source).toBe("window");

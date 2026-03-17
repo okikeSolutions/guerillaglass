@@ -40,6 +40,8 @@ describe("phase-1 parity e2e", () => {
 
         const sources = await client.listSources();
         expect(sources.displays.length).toBeGreaterThan(0);
+        expect(sources.displays[0]?.pixelScale).toBe(1);
+        expect(sources.windows[0]?.pixelScale).toBe(1);
 
         await client.startDisplayCapture(true);
         await client.startRecording(true);

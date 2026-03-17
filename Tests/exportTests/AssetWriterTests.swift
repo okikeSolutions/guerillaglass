@@ -3,6 +3,22 @@ import AVFoundation
 import XCTest
 
 final class AssetWriterTests: XCTestCase {
+    func testVideoCompressionProfileAllocatesSeparateTierFor120Fps() {
+        let sixtyFpsProfile = AssetWriter.VideoCompressionProfile.resolve(
+            width: 1920,
+            height: 1080,
+            expectedFrameRate: 60
+        )
+        let oneHundredTwentyFpsProfile = AssetWriter.VideoCompressionProfile.resolve(
+            width: 1920,
+            height: 1080,
+            expectedFrameRate: 120
+        )
+
+        XCTAssertEqual(sixtyFpsProfile.averageBitRate, 24_000_000)
+        XCTAssertEqual(oneHundredTwentyFpsProfile.averageBitRate, 48_000_000)
+    }
+
     func testAppendVideoSynchronouslyConfiguresInputAndAppendsFrame() throws {
         let outputURL = makeOutputURL(fileName: "video-append.mov")
         defer { try? FileManager.default.removeItem(at: outputURL.deletingLastPathComponent()) }

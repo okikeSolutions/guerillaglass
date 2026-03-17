@@ -5,6 +5,8 @@ import Foundation
 import ScreenCaptureKit
 
 extension EngineService {
+    typealias WindowCapability = (refreshHz: Double?, pixelScale: Double?)
+
     func sourcesListResponse(id: String) async -> EngineResponse {
         do {
             let result = try await listSources()
@@ -26,69 +28,14 @@ extension EngineService {
         // Keep ScreenCaptureKit's desktop exclusion disabled here so Guerilla Glass applies a
         // single filtering policy via `filteredWindows(from:)` before capability enrichment.
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-
-        var displays: [JSONValue] = []
-        displays.reserveCapacity(content.displays.count)
-        for display in content.displays {
-            let refreshHz = await MainActor.run {
-                CaptureSourceCapability.refreshRate(for: display.displayID)
-            }
-            displays.append(
-                .object([
-                    "id": .number(Double(display.displayID)),
-                    "width": .number(Double(display.width)),
-                    "height": .number(Double(display.height)),
-                    "refreshHz": refreshHz.map { .number($0) } ?? .null,
-                    "supportedCaptureFrameRates": .array(
-                        CaptureSourceCapability.supportedFrameRates(
-                            refreshHz: refreshHz,
-                            width: Double(display.width),
-                            height: Double(display.height),
-                            pixelScale: 1
-                        ).map {
-                            .number(Double($0))
-                        }
-                    )
-                ])
-            )
-        }
-
         let windows = filteredWindows(from: content.windows)
-        let windowsByID = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0) })
+        let (refreshHzByDisplayID, capabilityByWindowID) = await sourceCapabilities(for: content, windows: windows)
+        let displays = content.displays.map { display in
+            encodeDisplay(display, refreshHz: refreshHzByDisplayID[display.displayID] ?? nil)
+        }
         let sorted = ShareableWindow.sorted(windows.map(ShareableWindow.init(window:)))
-        var encodedWindows: [JSONValue] = []
-        encodedWindows.reserveCapacity(sorted.count)
-        for window in sorted {
-            let (refreshHz, pixelScale) = await MainActor.run {
-                if let sourceWindow = windowsByID[CGWindowID(window.id)] {
-                    return (
-                        CaptureSourceCapability.refreshRate(forWindowFrame: sourceWindow.frame),
-                        CaptureSourceCapability.pixelScale(forWindowFrame: sourceWindow.frame)
-                    )
-                }
-                return (nil, nil)
-            }
-            encodedWindows.append(
-                .object([
-                    "id": .number(Double(window.id)),
-                    "title": .string(window.title),
-                    "appName": .string(window.appName),
-                    "width": .number(window.size.width),
-                    "height": .number(window.size.height),
-                    "isOnScreen": .bool(window.isOnScreen),
-                    "refreshHz": refreshHz.map { .number($0) } ?? .null,
-                    "supportedCaptureFrameRates": .array(
-                        CaptureSourceCapability.supportedFrameRates(
-                            refreshHz: refreshHz,
-                            width: window.size.width,
-                            height: window.size.height,
-                            pixelScale: pixelScale
-                        ).map {
-                            .number(Double($0))
-                        }
-                    )
-                ])
-            )
+        let encodedWindows = sorted.map { window in
+            encodeWindow(window, capabilities: capabilityByWindowID[CGWindowID(window.id)] ?? nil)
         }
 
         return .object([
@@ -105,5 +52,76 @@ extension EngineService {
                 isOnScreen: window.isOnScreen
             )
         }
+    }
+
+    private func sourceCapabilities(
+        for content: SCShareableContent,
+        windows: [SCWindow]
+    ) async -> ([CGDirectDisplayID: Double?], [CGWindowID: WindowCapability]) {
+        let displayIDs = content.displays.map(\.displayID)
+        let windowFramesByID = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0.frame) })
+        return await MainActor.run {
+            let refreshHzByDisplayID = Dictionary(uniqueKeysWithValues: displayIDs.map { displayID in
+                (displayID, CaptureSourceCapability.refreshRate(for: displayID))
+            })
+            let capabilityByWindowID = Dictionary(uniqueKeysWithValues: windowFramesByID.map { windowID, frame in
+                (
+                    windowID,
+                    (
+                        refreshHz: CaptureSourceCapability.refreshRate(forWindowFrame: frame),
+                        pixelScale: CaptureSourceCapability.pixelScale(forWindowFrame: frame)
+                    )
+                )
+            })
+            return (refreshHzByDisplayID, capabilityByWindowID)
+        }
+    }
+
+    private func encodeDisplay(_ display: SCDisplay, refreshHz: Double?) -> JSONValue {
+        .object([
+            "id": .number(Double(display.displayID)),
+            "width": .number(Double(display.width)),
+            "height": .number(Double(display.height)),
+            "pixelScale": .number(1),
+            "refreshHz": refreshHz.map { .number($0) } ?? .null,
+            "supportedCaptureFrameRates": .array(
+                CaptureSourceCapability.supportedFrameRates(
+                    refreshHz: refreshHz,
+                    width: Double(display.width),
+                    height: Double(display.height),
+                    pixelScale: 1
+                ).map {
+                    .number(Double($0))
+                }
+            )
+        ])
+    }
+
+    private func encodeWindow(
+        _ window: ShareableWindow,
+        capabilities: WindowCapability?
+    ) -> JSONValue {
+        let refreshHz = capabilities?.refreshHz
+        let pixelScale = capabilities?.pixelScale
+        return .object([
+            "id": .number(Double(window.id)),
+            "title": .string(window.title),
+            "appName": .string(window.appName),
+            "width": .number(window.size.width),
+            "height": .number(window.size.height),
+            "isOnScreen": .bool(window.isOnScreen),
+            "pixelScale": .number(pixelScale ?? 1),
+            "refreshHz": refreshHz.map { .number($0) } ?? .null,
+            "supportedCaptureFrameRates": .array(
+                CaptureSourceCapability.supportedFrameRates(
+                    refreshHz: refreshHz,
+                    width: window.size.width,
+                    height: window.size.height,
+                    pixelScale: pixelScale
+                ).map {
+                    .number(Double($0))
+                }
+            )
+        ])
     }
 }

@@ -448,7 +448,7 @@ function effectivePixelCountForSource(
     | {
         width: number;
         height: number;
-        pixelScale: number | null;
+        pixelScale?: number | null;
       }
     | null
     | undefined,
@@ -640,7 +640,7 @@ function buildSourceDetails(
     appName: overrides?.appName,
     width: overrides?.width ?? source?.width ?? 0,
     height: overrides?.height ?? source?.height ?? 0,
-    pixelScale: overrides?.pixelScale ?? null,
+    pixelScale: overrides?.pixelScale ?? source?.pixelScale ?? null,
     refreshHz: source?.refreshHz ?? null,
     supportedCaptureFrameRates: source?.supportedCaptureFrameRates ?? [],
   };
@@ -769,7 +769,7 @@ async function runScenarioRun(
           effectivePixelCount: effectivePixelCountForSource({
             width: selectedWindow.width,
             height: selectedWindow.height,
-            pixelScale: null,
+            pixelScale: selectedWindow.pixelScale ?? 1,
           }),
           inputTracking: {
             cursorEventsObserved: null,
@@ -1046,9 +1046,17 @@ async function runScenarioRun(
           : null,
       effectivePixelCount: effectivePixelCountForSource(
         selectedDisplay
-          ? { width: selectedDisplay.width, height: selectedDisplay.height, pixelScale: 1 }
+          ? {
+              width: selectedDisplay.width,
+              height: selectedDisplay.height,
+              pixelScale: selectedDisplay.pixelScale ?? 1,
+            }
           : selectedWindow
-            ? { width: selectedWindow.width, height: selectedWindow.height, pixelScale: null }
+            ? {
+                width: selectedWindow.width,
+                height: selectedWindow.height,
+                pixelScale: selectedWindow.pixelScale ?? 1,
+              }
             : null,
       ),
       inputTracking: {
