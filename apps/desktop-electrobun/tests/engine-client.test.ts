@@ -1,4 +1,5 @@
 import path from "node:path";
+import os from "node:os";
 import { describe, expect, test } from "bun:test";
 import { EngineClient, resolveEnginePath } from "../src/bun/engine/client";
 
@@ -6,6 +7,10 @@ const BUN_BASE_DIR = path.resolve(import.meta.dir, "../src/bun");
 const LINUX_STUB_PATH = path.resolve(
   import.meta.dir,
   "../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
+);
+const WINDOWS_STUB_PATH = path.resolve(
+  import.meta.dir,
+  "../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
 );
 const HANGING_ENGINE_PATH = path.resolve(import.meta.dir, "fixtures/hanging-engine.ts");
 const CRASHING_ENGINE_PATH = path.resolve(import.meta.dir, "fixtures/crashing-engine.ts");
@@ -21,6 +26,9 @@ const UNKNOWN_STOP_STATE_TIMEOUT_ENGINE_PATH = path.resolve(
   import.meta.dir,
   "fixtures/unknown-stop-state-timeout-engine.ts",
 );
+const INTEGRATION_STUB_PATH = process.platform === "win32" ? WINDOWS_STUB_PATH : LINUX_STUB_PATH;
+const INTEGRATION_STUB_PLATFORM = process.platform === "win32" ? "windows" : "linux";
+const INTEGRATION_TEMP_DIRECTORY = os.tmpdir();
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -119,10 +127,12 @@ describe("engine client path resolution", () => {
 
 describe("engine client integration", () => {
   test("executes a phase-1 parity flow against the stub engine", async () => {
-    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+    const exportPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-parity-out.mp4");
+    const projectPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-project.gglassproj");
     try {
       const ping = await client.ping();
-      expect(ping.platform).toBe("linux");
+      expect(ping.platform).toBe(INTEGRATION_STUB_PLATFORM);
 
       const capabilities = await client.capabilities();
       expect(capabilities.phase).toBe("stub");
@@ -155,16 +165,16 @@ describe("engine client integration", () => {
       expect(exportInfo.presets.length).toBeGreaterThan(0);
 
       const exportResult = await client.runExport({
-        outputURL: "/tmp/guerillaglass-parity-out.mp4",
+        outputURL: exportPath,
         presetId: exportInfo.presets[0]!.id,
       });
       expect(exportResult.outputURL).toContain("parity-out.mp4");
 
-      const opened = await client.projectOpen("/tmp/guerillaglass-project.gglassproj");
+      const opened = await client.projectOpen(projectPath);
       expect(opened.projectPath).toContain("guerillaglass-project.gglassproj");
 
       const saved = await client.projectSave({
-        projectPath: "/tmp/guerillaglass-project.gglassproj",
+        projectPath,
       });
       expect(saved.projectPath).toContain("guerillaglass-project.gglassproj");
       const recents = await client.projectRecents(5);
