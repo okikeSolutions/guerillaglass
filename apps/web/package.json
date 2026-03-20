@@ -14,7 +14,7 @@
     "generate:auth": "SITE_URL=http://localhost:3000 npx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.10.13",
+    "@convex-dev/better-auth": "^0.11.3",
     "@convex-dev/react-query": "^0.1.0",
     "@guerillaglass/ui": "workspace:*",
     "@react-three/fiber": "^9.5.0",
