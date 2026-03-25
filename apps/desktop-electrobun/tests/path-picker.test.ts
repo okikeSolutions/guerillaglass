@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { pickPathForMode } from "../src/bun/path/picker";
+import { PathPickerError } from "../src/shared/errors";
 
 describe("host path picker", () => {
   test("openProject only accepts project package paths", async () => {
@@ -143,5 +144,21 @@ describe("host path picker", () => {
     });
 
     expect(seenStartingFolder).toBe("/Users/demo/Projects");
+  });
+
+  test("openProject surfaces tagged picker failures", async () => {
+    try {
+      await pickPathForMode("openProject", {
+        defaultFolder: "/Users/demo/Documents",
+        openFileDialog: async () => {
+          throw new Error("open dialog unavailable");
+        },
+      });
+      throw new Error("Expected open dialog failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PathPickerError);
+      expect((error as PathPickerError).code).toBe("PATH_PICKER_OPEN_DIALOG_FAILED");
+      expect((error as Error).message).toBe("open dialog unavailable");
+    }
   });
 });

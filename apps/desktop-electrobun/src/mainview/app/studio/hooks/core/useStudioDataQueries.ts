@@ -12,6 +12,7 @@ import type {
 } from "@guerillaglass/engine-protocol";
 import { captureStatusResultSchema } from "@guerillaglass/engine-protocol";
 import { hostBridgeEventNames } from "../../../../../shared/bridgeRpc";
+import { decodeUnknownWithSchemaSync } from "../../../../../shared/errors";
 import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
@@ -39,7 +40,11 @@ export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | nul
   }
 
   try {
-    return captureStatusResultSchema.parse(payload);
+    return decodeUnknownWithSchemaSync(
+      captureStatusResultSchema,
+      payload,
+      "capture status event",
+    ) as CaptureStatusResult;
   } catch {
     return null;
   }

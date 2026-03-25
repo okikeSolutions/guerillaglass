@@ -3,6 +3,7 @@ import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { MediaServer } from "../src/bun/media/server";
+import { MediaServerError } from "../src/shared/errors";
 
 async function createTempFile(
   fileName: string,
@@ -211,12 +212,23 @@ describe("media server", () => {
     const serve = mockBunServe();
 
     try {
-      await expect(server.resolveMediaSourceURL(fixture.filePath)).rejects.toThrow(
-        "Unsupported media file format.",
-      );
-      await expect(server.resolveMediaSourceURL(missingPath)).rejects.toThrow(
-        "Media file not found.",
-      );
+      try {
+        await server.resolveMediaSourceURL(fixture.filePath);
+        throw new Error("Expected unsupported media file extension to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(MediaServerError);
+        expect((error as MediaServerError).code).toBe("MEDIA_TYPE_UNSUPPORTED");
+        expect((error as Error).message).toBe("Unsupported media file format.");
+      }
+
+      try {
+        await server.resolveMediaSourceURL(missingPath);
+        throw new Error("Expected missing media file to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(MediaServerError);
+        expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
+        expect((error as Error).message).toBe("Media file not found.");
+      }
       expect(serve.invocationCount).toBe(0);
     } finally {
       serve.restore();

@@ -15,6 +15,10 @@ import type {
 import type { StudioMessages } from "@guerillaglass/localization";
 import { engineApi } from "@/lib/engine";
 import type { HostPathPickerMode } from "../../../../../shared/bridgeRpc";
+import {
+  CaptureWindowPickerUnsupportedError,
+  StudioActionError,
+} from "../../../../../shared/errors";
 import { resolveSelectedWindowId } from "../../model/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
 
@@ -146,14 +150,14 @@ export function useStudioMutations({
     permissions = await engineApi.getPermissions();
     queryClient.setQueryData(studioQueryKeys.permissions(), permissions);
     if (!permissions.screenRecordingGranted) {
-      throw new Error(ui.notices.screenPermissionRequired);
+      throw new StudioActionError({ reason: "screen_permission_required" });
     }
 
     const nextSources = await engineApi.listSources().catch(() => null);
     if (nextSources) {
       reconcileSourcesAndSelectedWindow(nextSources);
     }
-  }, [queryClient, reconcileSourcesAndSelectedWindow, ui.notices.screenPermissionRequired]);
+  }, [queryClient, reconcileSourcesAndSelectedWindow]);
 
   const syncCaptureStatus = useCallback(
     async (options?: { expectRunning?: boolean }): Promise<CaptureStatusResult | null> => {
@@ -212,20 +216,17 @@ export function useStudioMutations({
         }
 
         if (resolvedWindowId === 0 && !options?.preferWindowPicker) {
-          throw new Error(ui.notices.selectWindowFirst);
+          throw new StudioActionError({ reason: "window_selection_required" });
         }
 
         try {
           return await engineApi.startWindowCapture(0, micEnabled, captureFps);
         } catch (error) {
-          const unsupportedPickerOnMacOS13 =
-            error instanceof Error &&
-            /windowid must be greater than 0 on macos 13/i.test(error.message);
-          if (!unsupportedPickerOnMacOS13) {
+          if (!(error instanceof CaptureWindowPickerUnsupportedError)) {
             throw error;
           }
           if (resolvedWindowId === 0) {
-            throw new Error(ui.notices.selectWindowFirst);
+            throw new StudioActionError({ reason: "window_selection_required" });
           }
           return await engineApi.startWindowCapture(resolvedWindowId, micEnabled, captureFps);
         }
@@ -237,7 +238,6 @@ export function useStudioMutations({
       reconcileSourcesAndSelectedWindow,
       selectedWindowId,
       settingsForm,
-      ui.notices.selectWindowFirst,
     ],
   );
 
@@ -267,7 +267,7 @@ export function useStudioMutations({
     onError: (error) => {
       setNotice({
         kind: "error",
-        message: error instanceof Error ? mapActionErrorMessage(error) : ui.notices.refreshFailed,
+        message: mapActionErrorMessage(error),
       });
     },
   });
@@ -480,10 +480,10 @@ export function useStudioMutations({
   const exportMutation = useMutation({
     mutationFn: async () => {
       if (!recordingURL) {
-        throw new Error(ui.notices.exportMissingRecording);
+        throw new StudioActionError({ reason: "export_missing_recording" });
       }
       if (!selectedPreset) {
-        throw new Error(ui.notices.exportMissingPreset);
+        throw new StudioActionError({ reason: "export_missing_preset" });
       }
 
       const targetDirectory = await pickPathSafely({

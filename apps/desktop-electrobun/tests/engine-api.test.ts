@@ -5,6 +5,11 @@ import {
   parseInputEventLog,
   sendHostMenuState,
 } from "../src/mainview/lib/engine";
+import {
+  BridgeUnavailableError,
+  CaptureWindowPickerUnsupportedError,
+  EngineResponseError,
+} from "../src/shared/errors";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -43,7 +48,7 @@ describe("renderer engine bridge", () => {
       await engineApi.ping();
       throw new Error("Expected ping to fail when bridge is missing");
     } catch (error) {
-      expect(error).toBeInstanceOf(Error);
+      expect(error).toBeInstanceOf(BridgeUnavailableError);
       expect((error as Error).message).toContain("Missing Electrobun bridge");
     }
   });
@@ -266,6 +271,21 @@ describe("renderer engine bridge", () => {
     });
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("cursorMoved");
+  });
+
+  test("normalizes unsupported window picker capture into a tagged renderer error", async () => {
+    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+      ggEngineStartWindowCapture: async () => {
+        throw new EngineResponseError({
+          code: "invalid_params",
+          description: "windowId must be greater than 0 on macOS 13",
+        });
+      },
+    };
+
+    await expect(engineApi.startWindowCapture(0, true)).rejects.toBeInstanceOf(
+      CaptureWindowPickerUnsupportedError,
+    );
   });
 
   test("sendHostMenuState is a no-op when host sender is not available", () => {

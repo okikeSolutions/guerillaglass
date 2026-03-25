@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
+import { FileAccessPolicyError } from "../src/shared/errors";
 import {
   readAllowedTextFile,
   resolveAllowedMediaFilePath,
@@ -142,9 +143,14 @@ describe("file access policy", () => {
   });
 
   test("rejects non-local file URLs", () => {
-    expect(() =>
-      resolveAllowedMediaFilePath("file://example.com/tmp/guerillaglass-recording.mov"),
-    ).toThrow("Only local file URLs are supported.");
+    try {
+      resolveAllowedMediaFilePath("file://example.com/tmp/guerillaglass-recording.mov");
+      throw new Error("Expected non-local file URL to be rejected");
+    } catch (error) {
+      expect(error).toBeInstanceOf(FileAccessPolicyError);
+      expect((error as FileAccessPolicyError).code).toBe("LOCAL_FILE_URL_UNSUPPORTED");
+      expect((error as Error).message).toBe("Only local file URLs are supported.");
+    }
   });
 
   test("rejects temporary media files without Guerillaglass naming prefix", () => {
@@ -153,13 +159,18 @@ describe("file access policy", () => {
       const filePath = path.join(tempDir, "capture.mov");
       writeFileSync(filePath, "video-bytes", "utf8");
 
-      expect(() =>
+      try {
         resolveAllowedMediaFilePath(filePath, {
           tempDirectory: os.tmpdir(),
-        }),
-      ).toThrow(
-        "Access denied: temporary media file must use the Guerillaglass temp naming prefix.",
-      );
+        });
+        throw new Error("Expected media temp prefix policy rejection");
+      } catch (error) {
+        expect(error).toBeInstanceOf(FileAccessPolicyError);
+        expect((error as FileAccessPolicyError).code).toBe("TEMP_MEDIA_PREFIX_REQUIRED");
+        expect((error as Error).message).toBe(
+          "Access denied: temporary media file must use the Guerillaglass temp naming prefix.",
+        );
+      }
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

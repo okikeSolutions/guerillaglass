@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
+import { Schema } from "effect";
 import {
   agentStatusResultSchema,
   buildRequest,
@@ -29,6 +30,13 @@ const captureTelemetryFixture = {
   writerAppendMs: 0,
 };
 
+function decodeSchemaSync<S extends Schema.Schema.Any>(
+  schema: S,
+  raw: unknown,
+): Schema.Schema.Type<S> {
+  return Schema.decodeUnknownSync(schema as never)(raw) as Schema.Schema.Type<S>;
+}
+
 describe("engine protocol", () => {
   test("parses shared contract fixtures", () => {
     const fixtureDir = path.resolve(import.meta.dir, "../../../packages/engine-protocol/fixtures");
@@ -56,13 +64,15 @@ describe("engine protocol", () => {
     const importedTranscriptValid = JSON.parse(importedTranscriptValidRaw);
     const importedTranscriptInvalid = JSON.parse(importedTranscriptInvalidRaw);
 
-    expect(engineRequestSchema.parse(capabilitiesRequest).method).toBe("engine.capabilities");
-    expect(engineRequestSchema.parse(saveRequest).method).toBe("project.save");
-    expect(engineRequestSchema.parse(recentsRequest).method).toBe("project.recents");
-    expect(importedTranscriptSchema.parse(importedTranscriptValid).segments.length).toBeGreaterThan(
-      0,
+    expect(decodeSchemaSync(engineRequestSchema, capabilitiesRequest).method).toBe(
+      "engine.capabilities",
     );
-    expect(() => importedTranscriptSchema.parse(importedTranscriptInvalid)).toThrow();
+    expect(decodeSchemaSync(engineRequestSchema, saveRequest).method).toBe("project.save");
+    expect(decodeSchemaSync(engineRequestSchema, recentsRequest).method).toBe("project.recents");
+    expect(
+      decodeSchemaSync(importedTranscriptSchema, importedTranscriptValid).segments.length,
+    ).toBeGreaterThan(0);
+    expect(() => decodeSchemaSync(importedTranscriptSchema, importedTranscriptInvalid)).toThrow();
   });
 
   test("builds and validates parity method requests", () => {
@@ -103,21 +113,29 @@ describe("engine protocol", () => {
       limit: 5,
     });
 
-    expect(engineRequestSchema.parse(capabilitiesRequest).method).toBe("engine.capabilities");
-    expect(engineRequestSchema.parse(startCurrentWindowRequest).method).toBe(
+    expect(decodeSchemaSync(engineRequestSchema, capabilitiesRequest).method).toBe(
+      "engine.capabilities",
+    );
+    expect(decodeSchemaSync(engineRequestSchema, startCurrentWindowRequest).method).toBe(
       "capture.startCurrentWindow",
     );
-    expect(engineRequestSchema.parse(startRecordingRequest).method).toBe("recording.start");
-    expect(engineRequestSchema.parse(agentPreflightRequest).method).toBe("agent.preflight");
-    expect(engineRequestSchema.parse(agentRunRequest).method).toBe("agent.run");
-    expect(engineRequestSchema.parse(agentApplyRequest).method).toBe("agent.apply");
-    expect(engineRequestSchema.parse(runCutPlanRequest).method).toBe("export.runCutPlan");
-    expect(engineRequestSchema.parse(saveProjectRequest).method).toBe("project.save");
-    expect(engineRequestSchema.parse(recentsRequest).method).toBe("project.recents");
+    expect(decodeSchemaSync(engineRequestSchema, startRecordingRequest).method).toBe(
+      "recording.start",
+    );
+    expect(decodeSchemaSync(engineRequestSchema, agentPreflightRequest).method).toBe(
+      "agent.preflight",
+    );
+    expect(decodeSchemaSync(engineRequestSchema, agentRunRequest).method).toBe("agent.run");
+    expect(decodeSchemaSync(engineRequestSchema, agentApplyRequest).method).toBe("agent.apply");
+    expect(decodeSchemaSync(engineRequestSchema, runCutPlanRequest).method).toBe(
+      "export.runCutPlan",
+    );
+    expect(decodeSchemaSync(engineRequestSchema, saveProjectRequest).method).toBe("project.save");
+    expect(decodeSchemaSync(engineRequestSchema, recentsRequest).method).toBe("project.recents");
   });
 
   test("validates critical result payloads", () => {
-    const capabilities = capabilitiesResultSchema.parse({
+    const capabilities = decodeSchemaSync(capabilitiesResultSchema, {
       protocolVersion: "2",
       platform: "linux",
       phase: "foundation",
@@ -147,13 +165,13 @@ describe("engine protocol", () => {
       },
     });
 
-    const permissions = permissionsResultSchema.parse({
+    const permissions = decodeSchemaSync(permissionsResultSchema, {
       screenRecordingGranted: true,
       microphoneGranted: false,
       inputMonitoring: "notDetermined",
     });
 
-    const sources = sourcesResultSchema.parse({
+    const sources = decodeSchemaSync(sourcesResultSchema, {
       displays: [
         {
           id: 1,
@@ -179,7 +197,7 @@ describe("engine protocol", () => {
       ],
     });
 
-    const captureStatus = captureStatusResultSchema.parse({
+    const captureStatus = decodeSchemaSync(captureStatusResultSchema, {
       isRunning: false,
       isRecording: false,
       recordingDurationSeconds: 0,
@@ -204,7 +222,7 @@ describe("engine protocol", () => {
       telemetry: captureTelemetryFixture,
     });
 
-    const exportInfo = exportInfoResultSchema.parse({
+    const exportInfo = decodeSchemaSync(exportInfoResultSchema, {
       presets: [
         {
           id: "h264-1080p-30",
@@ -217,7 +235,7 @@ describe("engine protocol", () => {
       ],
     });
 
-    const projectState = projectStateSchema.parse({
+    const projectState = decodeSchemaSync(projectStateSchema, {
       projectPath: "/tmp/project.gglassproj",
       recordingURL: "/tmp/project.gglassproj/recording.mov",
       eventsURL: null,
@@ -235,7 +253,7 @@ describe("engine protocol", () => {
       },
     });
 
-    const recents = projectRecentsResultSchema.parse({
+    const recents = decodeSchemaSync(projectRecentsResultSchema, {
       items: [
         {
           projectPath: "/tmp/project.gglassproj",
@@ -244,7 +262,7 @@ describe("engine protocol", () => {
         },
       ],
     });
-    const blockedAgentStatus = agentStatusResultSchema.parse({
+    const blockedAgentStatus = decodeSchemaSync(agentStatusResultSchema, {
       jobId: "job-456",
       status: "blocked",
       runtimeBudgetMinutes: 10,
@@ -280,7 +298,7 @@ describe("engine protocol", () => {
   });
 
   test("fills telemetry defaults when payload is missing", () => {
-    const captureStatus = captureStatusResultSchema.parse({
+    const captureStatus = decodeSchemaSync(captureStatusResultSchema, {
       isRunning: false,
       isRecording: false,
       recordingDurationSeconds: 0,
@@ -304,7 +322,7 @@ describe("engine protocol", () => {
   });
 
   test("fills telemetry defaults when payload is partial", () => {
-    const captureStatus = captureStatusResultSchema.parse({
+    const captureStatus = decodeSchemaSync(captureStatusResultSchema, {
       isRunning: true,
       isRecording: false,
       recordingDurationSeconds: 0.5,
@@ -348,7 +366,7 @@ describe("engine protocol", () => {
     if (!recentsEnvelope.ok) {
       throw new Error("Expected recents response fixture to be successful");
     }
-    const recents = projectRecentsResultSchema.parse(recentsEnvelope.result);
+    const recents = decodeSchemaSync(projectRecentsResultSchema, recentsEnvelope.result);
 
     expect(success.ok).toBe(true);
     expect(failure.ok).toBe(false);

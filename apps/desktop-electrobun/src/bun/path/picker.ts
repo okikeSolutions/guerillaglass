@@ -1,4 +1,5 @@
 import type { HostPathPickerMode } from "../../shared/bridgeRpc";
+import { PathPickerError, messageFromUnknownError } from "../../shared/errors";
 
 const projectPackageExtension = ".gglassproj";
 const defaultProjectName = "guerillaglass-project";
@@ -178,6 +179,36 @@ async function confirmOverwriteIfNeeded(
   return await dependencies.confirmOverwritePath(projectPath);
 }
 
+async function openFileDialogSafely(
+  dependencies: Pick<FileDialogDependencies, "openFileDialog">,
+  options: OpenFileDialogOptions,
+): Promise<string[]> {
+  try {
+    return await dependencies.openFileDialog(options);
+  } catch (error) {
+    throw new PathPickerError({
+      code: "PATH_PICKER_OPEN_DIALOG_FAILED",
+      description: messageFromUnknownError(error, "Open dialog failed."),
+      cause: error,
+    });
+  }
+}
+
+async function saveFileDialogSafely(
+  saveFileDialog: NonNullable<FileDialogDependencies["saveFileDialog"]>,
+  options: SaveFileDialogOptions,
+): Promise<string | string[] | null> {
+  try {
+    return await saveFileDialog(options);
+  } catch (error) {
+    throw new PathPickerError({
+      code: "PATH_PICKER_SAVE_DIALOG_FAILED",
+      description: messageFromUnknownError(error, "Save dialog failed."),
+      cause: error,
+    });
+  }
+}
+
 /** Opens the host file/save picker for a workflow mode and returns a resolved path target. */
 export async function pickPathForMode(
   mode: HostPathPickerMode,
@@ -191,7 +222,7 @@ export async function pickPathForMode(
 
   if (mode === "openProject") {
     const selectedPath = resolveFirstPath(
-      await dependencies.openFileDialog({
+      await openFileDialogSafely(dependencies, {
         startingFolder,
         canChooseFiles: true,
         canChooseDirectory: true,
@@ -211,7 +242,7 @@ export async function pickPathForMode(
     if (typeof dependencies.saveFileDialog === "function") {
       try {
         const selectedPath = resolveFirstPath(
-          await dependencies.saveFileDialog({
+          await saveFileDialogSafely(dependencies.saveFileDialog, {
             startingFolder,
             defaultName: buildProjectPackageName(dependencies.currentProjectPath),
             allowedFileTypes: "gglassproj",
@@ -223,8 +254,9 @@ export async function pickPathForMode(
           return null;
         }
       } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        console.warn(`saveFileDialog failed, falling back to open picker: ${reason}`);
+        console.warn(
+          `saveFileDialog failed, falling back to open picker: ${messageFromUnknownError(error, "Save dialog failed.")}`,
+        );
       }
     }
 
@@ -235,7 +267,7 @@ export async function pickPathForMode(
         );
       }
       const selectedPath = resolveFirstPath(
-        await dependencies.openFileDialog({
+        await openFileDialogSafely(dependencies, {
           startingFolder,
           canChooseFiles: true,
           canChooseDirectory: true,
@@ -260,7 +292,7 @@ export async function pickPathForMode(
   }
 
   const selectedPath = resolveFirstPath(
-    await dependencies.openFileDialog({
+    await openFileDialogSafely(dependencies, {
       startingFolder,
       canChooseFiles: false,
       canChooseDirectory: true,

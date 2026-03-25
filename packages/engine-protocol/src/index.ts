@@ -1,163 +1,183 @@
-import { z } from "zod";
+/**
+ * Stable JSON-RPC contract between the desktop shell and native Guerillaglass engines.
+ *
+ * The file is organized in the order most consumers traverse the protocol:
+ * shared value objects first, then capture/export payloads, Agent Mode payloads,
+ * project persistence models, request envelopes, and finally response helpers.
+ */
+import { Schema } from "effect";
 import { engineMethods } from "./methods.js";
 
+const NonEmptyString = Schema.NonEmptyString;
+const IsoDateTime = NonEmptyString;
+const NonNegativeInt = Schema.Int.pipe(Schema.greaterThanOrEqualTo(0));
+const PositiveInt = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
+const NonNegativeNumber = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));
+const PositiveNumber = Schema.Number.pipe(Schema.greaterThan(0));
+const RuntimeBudgetMinutesSchema = PositiveInt.pipe(Schema.lessThanOrEqualTo(60));
+const ProjectRecentsLimitSchema = PositiveInt.pipe(Schema.lessThanOrEqualTo(100));
+
+function withDefault<A, I, R>(
+  schema: Schema.Schema<A, I, R>,
+  defaultValue: () => Exclude<A, undefined>,
+) {
+  return Schema.optional(schema).pipe(Schema.withDecodingDefault(defaultValue));
+}
+
+function decodeSchemaSync<A, I>(schema: Schema.Schema<A, I, never>, raw: unknown): A {
+  return Schema.decodeUnknownSync(schema)(raw);
+}
+
+/** Shared value objects reused across capture, project, and permission payloads. */
 /** Input Monitoring permission states returned by the native engine. */
-export const inputMonitoringStatusSchema = z.enum(["notDetermined", "denied", "authorized"]);
+export const inputMonitoringStatusSchema = Schema.Literal("notDetermined", "denied", "authorized");
 
 /** Auto-zoom project settings shared between renderer and native engine. */
-export const autoZoomSettingsSchema = z.object({
-  isEnabled: z.boolean(),
-  intensity: z.number().min(0).max(1),
-  minimumKeyframeInterval: z.number().positive(),
+export const autoZoomSettingsSchema = Schema.Struct({
+  isEnabled: Schema.Boolean,
+  intensity: Schema.Number.pipe(Schema.between(0, 1)),
+  minimumKeyframeInterval: PositiveNumber,
+});
+
+const captureWindowSchema = Schema.Struct({
+  id: NonNegativeInt,
+  title: Schema.String,
+  appName: Schema.String,
+});
+
+const captureContentRectSchema = Schema.Struct({
+  x: Schema.Number,
+  y: Schema.Number,
+  width: PositiveNumber,
+  height: PositiveNumber,
 });
 
 /** Optional capture metadata embedded in capture status and project state. */
-export const captureMetadataSchema = z
-  .object({
-    window: z
-      .object({
-        id: z.number().int().nonnegative(),
-        title: z.string(),
-        appName: z.string(),
-      })
-      .nullable()
-      .optional()
-      .default(null),
-    source: z.enum(["display", "window"]),
-    contentRect: z.object({
-      x: z.number(),
-      y: z.number(),
-      width: z.number().positive(),
-      height: z.number().positive(),
-    }),
-    pixelScale: z.number().positive(),
-    fps: z.number().positive().nullable().optional(),
-  })
-  .nullable();
+export const captureMetadataSchema = Schema.NullOr(
+  Schema.Struct({
+    window: withDefault(Schema.NullOr(captureWindowSchema), () => null),
+    source: Schema.Literal("display", "window"),
+    contentRect: captureContentRectSchema,
+    pixelScale: PositiveNumber,
+    fps: Schema.optional(Schema.NullOr(PositiveNumber)),
+  }),
+);
 
 /** Input event payload captured during recording. */
-export const inputEventSchema = z.object({
-  type: z.enum(["cursorMoved", "mouseDown", "mouseUp"]),
-  timestamp: z.number().nonnegative(),
-  position: z.object({
-    x: z.number(),
-    y: z.number(),
+export const inputEventSchema = Schema.Struct({
+  type: Schema.Literal("cursorMoved", "mouseDown", "mouseUp"),
+  timestamp: NonNegativeNumber,
+  position: Schema.Struct({
+    x: Schema.Number,
+    y: Schema.Number,
   }),
-  button: z.enum(["left", "right", "other"]).optional(),
+  button: Schema.optional(Schema.Literal("left", "right", "other")),
 });
 
 /** Input event log written by engines that support input tracking. */
-export const inputEventLogSchema = z.object({
-  schemaVersion: z.literal(1),
-  events: z.array(inputEventSchema),
+export const inputEventLogSchema = Schema.Struct({
+  schemaVersion: Schema.Literal(1),
+  events: Schema.Array(inputEventSchema),
 });
 
 /** Result payload for `system.ping`. */
-export const pingResultSchema = z.object({
-  app: z.string().min(1),
-  engineVersion: z.string().min(1),
-  protocolVersion: z.string().min(1),
-  platform: z.string().min(1),
+export const pingResultSchema = Schema.Struct({
+  app: NonEmptyString,
+  engineVersion: NonEmptyString,
+  protocolVersion: NonEmptyString,
+  platform: NonEmptyString,
+});
+
+const capabilitiesAgentSchema = Schema.Struct({
+  preflight: Schema.Boolean,
+  run: Schema.Boolean,
+  status: Schema.Boolean,
+  apply: Schema.Boolean,
+  localOnly: withDefault(Schema.Boolean, () => true),
+  runtimeBudgetMinutes: withDefault(PositiveInt, () => 10),
 });
 
 /** Result payload for `engine.capabilities`. */
-export const capabilitiesResultSchema = z.object({
-  protocolVersion: z.string().min(1),
-  platform: z.string().min(1),
-  phase: z.enum(["stub", "foundation", "native"]),
-  capture: z.object({
-    display: z.boolean(),
-    window: z.boolean(),
-    systemAudio: z.boolean(),
-    microphone: z.boolean(),
+export const capabilitiesResultSchema = Schema.Struct({
+  protocolVersion: NonEmptyString,
+  platform: NonEmptyString,
+  phase: Schema.Literal("stub", "foundation", "native"),
+  capture: Schema.Struct({
+    display: Schema.Boolean,
+    window: Schema.Boolean,
+    systemAudio: Schema.Boolean,
+    microphone: Schema.Boolean,
   }),
-  recording: z.object({
-    inputTracking: z.boolean(),
+  recording: Schema.Struct({
+    inputTracking: Schema.Boolean,
   }),
-  export: z.object({
-    presets: z.boolean(),
-    cutPlan: z.boolean().optional().default(false),
+  export: Schema.Struct({
+    presets: Schema.Boolean,
+    cutPlan: withDefault(Schema.Boolean, () => false),
   }),
-  project: z.object({
-    openSave: z.boolean(),
+  project: Schema.Struct({
+    openSave: Schema.Boolean,
   }),
-  agent: z
-    .object({
-      preflight: z.boolean(),
-      run: z.boolean(),
-      status: z.boolean(),
-      apply: z.boolean(),
-      localOnly: z.boolean().optional().default(true),
-      runtimeBudgetMinutes: z.number().int().positive().optional().default(10),
-    })
-    .optional()
-    .default({
-      preflight: false,
-      run: false,
-      status: false,
-      apply: false,
-      localOnly: true,
-      runtimeBudgetMinutes: 10,
-    }),
+  agent: withDefault(capabilitiesAgentSchema, () => ({
+    preflight: false,
+    run: false,
+    status: false,
+    apply: false,
+    localOnly: true,
+    runtimeBudgetMinutes: 10,
+  })),
 });
 
 /** Result payload for `permissions.get`. */
-export const permissionsResultSchema = z.object({
-  screenRecordingGranted: z.boolean(),
-  microphoneGranted: z.boolean(),
+export const permissionsResultSchema = Schema.Struct({
+  screenRecordingGranted: Schema.Boolean,
+  microphoneGranted: Schema.Boolean,
   inputMonitoring: inputMonitoringStatusSchema,
 });
 
 /** Generic success/failure payload for permission action requests. */
-export const actionResultSchema = z.object({
-  success: z.boolean(),
-  message: z.string().optional(),
+export const actionResultSchema = Schema.Struct({
+  success: Schema.Boolean,
+  message: Schema.optional(Schema.String),
 });
 
 /** Supported capture frame rates for all engines. */
 export const captureFrameRates = [24, 30, 60, 120] as const;
 /** Default capture frame rate used when request params omit `captureFps`. */
 export const defaultCaptureFrameRate: (typeof captureFrameRates)[number] = 30;
-const [captureFrameRate24, captureFrameRate30, captureFrameRate60, captureFrameRate120] =
-  captureFrameRates;
-/** Zod schema for engine-supported capture FPS values. */
-export const captureFrameRateSchema = z.union([
-  z.literal(captureFrameRate24),
-  z.literal(captureFrameRate30),
-  z.literal(captureFrameRate60),
-  z.literal(captureFrameRate120),
-]);
+/** Effect schema for engine-supported capture FPS values. */
+export const captureFrameRateSchema = Schema.Literal(...captureFrameRates);
 
 /** Display capture source descriptor. */
-export const displaySourceSchema = z.object({
-  id: z.number().int().nonnegative(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-  pixelScale: z.number().positive().optional(),
-  refreshHz: z.number().positive().nullable(),
-  supportedCaptureFrameRates: z.array(captureFrameRateSchema),
+export const displaySourceSchema = Schema.Struct({
+  id: NonNegativeInt,
+  width: PositiveInt,
+  height: PositiveInt,
+  pixelScale: Schema.optional(PositiveNumber),
+  refreshHz: Schema.NullOr(PositiveNumber),
+  supportedCaptureFrameRates: Schema.Array(captureFrameRateSchema),
 });
 
 /** Window capture source descriptor. */
-export const windowSourceSchema = z.object({
-  id: z.number().int().nonnegative(),
-  title: z.string(),
-  appName: z.string(),
-  width: z.number().positive(),
-  height: z.number().positive(),
-  isOnScreen: z.boolean(),
-  pixelScale: z.number().positive().optional(),
-  refreshHz: z.number().positive().nullable(),
-  supportedCaptureFrameRates: z.array(captureFrameRateSchema),
+export const windowSourceSchema = Schema.Struct({
+  id: NonNegativeInt,
+  title: Schema.String,
+  appName: Schema.String,
+  width: PositiveNumber,
+  height: PositiveNumber,
+  isOnScreen: Schema.Boolean,
+  pixelScale: Schema.optional(PositiveNumber),
+  refreshHz: Schema.NullOr(PositiveNumber),
+  supportedCaptureFrameRates: Schema.Array(captureFrameRateSchema),
 });
 
 /** Result payload for `sources.list`. */
-export const sourcesResultSchema = z.object({
-  displays: z.array(displaySourceSchema),
-  windows: z.array(windowSourceSchema),
+export const sourcesResultSchema = Schema.Struct({
+  displays: Schema.Array(displaySourceSchema),
+  windows: Schema.Array(windowSourceSchema),
 });
 
-const defaultCaptureTelemetry = {
+const createDefaultCaptureTelemetry = () => ({
   sourceDroppedFrames: 0,
   writerDroppedFrames: 0,
   writerBackpressureDrops: 0,
@@ -168,120 +188,119 @@ const defaultCaptureTelemetry = {
   captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
-} as const;
+});
 
+/** Capture and export lifecycle payloads returned directly from the engine. */
 /** Capture telemetry payload returned by `capture.status`. */
-export const captureTelemetrySchema = z.object({
-  sourceDroppedFrames: z.number().int().nonnegative().optional().default(0),
-  writerDroppedFrames: z.number().int().nonnegative().optional().default(0),
-  writerBackpressureDrops: z.number().int().nonnegative().optional().default(0),
-  achievedFps: z.number().nonnegative().optional().default(0),
-  cpuPercent: z.number().nonnegative().nullable().optional().default(null),
-  memoryBytes: z.number().nonnegative().nullable().optional().default(null),
-  recordingBitrateMbps: z.number().nonnegative().nullable().optional().default(null),
-  captureCallbackMs: z.number().nonnegative().optional().default(0),
-  recordQueueLagMs: z.number().nonnegative().optional().default(0),
-  writerAppendMs: z.number().nonnegative().optional().default(0),
+export const captureTelemetrySchema = Schema.Struct({
+  sourceDroppedFrames: withDefault(NonNegativeInt, () => 0),
+  writerDroppedFrames: withDefault(NonNegativeInt, () => 0),
+  writerBackpressureDrops: withDefault(NonNegativeInt, () => 0),
+  achievedFps: withDefault(NonNegativeNumber, () => 0),
+  cpuPercent: withDefault(Schema.NullOr(NonNegativeNumber), () => null),
+  memoryBytes: withDefault(Schema.NullOr(NonNegativeNumber), () => null),
+  recordingBitrateMbps: withDefault(Schema.NullOr(NonNegativeNumber), () => null),
+  captureCallbackMs: withDefault(NonNegativeNumber, () => 0),
+  recordQueueLagMs: withDefault(NonNegativeNumber, () => 0),
+  writerAppendMs: withDefault(NonNegativeNumber, () => 0),
 });
 
 /** Result payload for capture and recording lifecycle methods. */
-export const captureStatusResultSchema = z.object({
-  isRunning: z.boolean(),
-  isRecording: z.boolean(),
-  recordingDurationSeconds: z.number().nonnegative(),
-  recordingURL: z.string().nullable(),
-  captureMetadata: captureMetadataSchema.optional().default(null),
-  lastError: z.string().nullable(),
-  eventsURL: z.string().nullable(),
-  telemetry: captureTelemetrySchema.optional().default(defaultCaptureTelemetry),
+export const captureStatusResultSchema = Schema.Struct({
+  isRunning: Schema.Boolean,
+  isRecording: Schema.Boolean,
+  recordingDurationSeconds: NonNegativeNumber,
+  recordingURL: Schema.NullOr(Schema.String),
+  captureMetadata: withDefault(captureMetadataSchema, () => null),
+  lastError: Schema.NullOr(Schema.String),
+  eventsURL: Schema.NullOr(Schema.String),
+  telemetry: withDefault(captureTelemetrySchema, createDefaultCaptureTelemetry),
 });
 
 /** Export preset descriptor returned by `export.info`. */
-export const exportPresetSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-  fps: z.number().int().positive(),
-  fileType: z.enum(["mp4", "mov"]),
+export const exportPresetSchema = Schema.Struct({
+  id: NonEmptyString,
+  name: NonEmptyString,
+  width: PositiveInt,
+  height: PositiveInt,
+  fps: PositiveInt,
+  fileType: Schema.Literal("mp4", "mov"),
 });
 
 /** Result payload for `export.info`. */
-export const exportInfoResultSchema = z.object({
-  presets: z.array(exportPresetSchema),
+export const exportInfoResultSchema = Schema.Struct({
+  presets: Schema.Array(exportPresetSchema),
 });
 
 /** Result payload for `export.run`. */
-export const exportRunResultSchema = z.object({
-  outputURL: z.string().min(1),
+export const exportRunResultSchema = Schema.Struct({
+  outputURL: NonEmptyString,
 });
 
+/** Agent Mode payloads covering preflight, execution, and persisted artifacts. */
 /** Agent job lifecycle statuses. */
-export const agentJobStatusSchema = z.enum([
+export const agentJobStatusSchema = Schema.Literal(
   "queued",
   "running",
   "completed",
   "failed",
   "cancelled",
   "blocked",
-]);
+);
 
 /** Artifact kinds emitted by `agent.run`. */
-export const agentArtifactKindSchema = z.enum([
+export const agentArtifactKindSchema = Schema.Literal(
   "transcript.full.v1",
   "transcript.words.v1",
   "beat-map.v1",
   "qa-report.v1",
   "cut-plan.v1",
   "run-summary.v1",
-]);
+);
 
 /** Single persisted agent artifact descriptor. */
-export const agentArtifactSchema = z.object({
+export const agentArtifactSchema = Schema.Struct({
   kind: agentArtifactKindSchema,
-  path: z.string().min(1),
+  path: NonEmptyString,
 });
 
 /** Supported transcription providers for Agent Mode v1. */
-export const transcriptionProviderSchema = z.enum(["none", "imported_transcript"]);
+export const transcriptionProviderSchema = Schema.Literal("none", "imported_transcript");
 
 /** Single imported transcript segment entry with absolute timing in seconds. */
-export const importedTranscriptSegmentSchema = z
-  .object({
-    text: z.string().min(1),
-    startSeconds: z.number().min(0),
-    endSeconds: z.number().min(0),
-  })
-  .refine((segment) => segment.endSeconds > segment.startSeconds, {
-    message: "Imported transcript segment endSeconds must be greater than startSeconds.",
-    path: ["endSeconds"],
-  });
+export const importedTranscriptSegmentSchema = Schema.Struct({
+  text: NonEmptyString,
+  startSeconds: NonNegativeNumber,
+  endSeconds: NonNegativeNumber,
+}).pipe(
+  Schema.filter((segment) => segment.endSeconds > segment.startSeconds, {
+    message: () => "Imported transcript segment endSeconds must be greater than startSeconds.",
+  }),
+);
 
 /** Single imported transcript word entry with absolute timing in seconds. */
-export const importedTranscriptWordSchema = z
-  .object({
-    word: z.string().min(1),
-    startSeconds: z.number().min(0),
-    endSeconds: z.number().min(0),
-  })
-  .refine((word) => word.endSeconds > word.startSeconds, {
-    message: "Imported transcript word endSeconds must be greater than startSeconds.",
-    path: ["endSeconds"],
-  });
+export const importedTranscriptWordSchema = Schema.Struct({
+  word: NonEmptyString,
+  startSeconds: NonNegativeNumber,
+  endSeconds: NonNegativeNumber,
+}).pipe(
+  Schema.filter((word) => word.endSeconds > word.startSeconds, {
+    message: () => "Imported transcript word endSeconds must be greater than startSeconds.",
+  }),
+);
 
 /** Canonical imported transcript payload accepted by Agent Mode v1. */
-export const importedTranscriptSchema = z
-  .object({
-    segments: z.array(importedTranscriptSegmentSchema).optional().default([]),
-    words: z.array(importedTranscriptWordSchema).optional().default([]),
-  })
-  .refine((transcript) => transcript.segments.length > 0 || transcript.words.length > 0, {
-    message: "Imported transcript must contain at least one segment or one word entry.",
-    path: ["segments"],
-  });
+export const importedTranscriptSchema = Schema.Struct({
+  segments: withDefault(Schema.Array(importedTranscriptSegmentSchema), () => []),
+  words: withDefault(Schema.Array(importedTranscriptWordSchema), () => []),
+}).pipe(
+  Schema.filter((transcript) => transcript.segments.length > 0 || transcript.words.length > 0, {
+    message: () => "Imported transcript must contain at least one segment or one word entry.",
+  }),
+);
 
 /** Machine-readable reasons emitted by Agent Mode preflight. */
-export const agentPreflightBlockingReasonSchema = z.enum([
+export const agentPreflightBlockingReasonSchema = Schema.Literal(
   "missing_project",
   "missing_recording",
   "invalid_runtime_budget",
@@ -292,10 +311,10 @@ export const agentPreflightBlockingReasonSchema = z.enum([
   "invalid_imported_transcript",
   "no_audio_track",
   "silent_audio",
-]);
+);
 
 /** Machine-readable reasons emitted by Agent Mode run/status payloads. */
-export const agentRunBlockingReasonSchema = z.enum([
+export const agentRunBlockingReasonSchema = Schema.Literal(
   "missing_project",
   "missing_recording",
   "invalid_runtime_budget",
@@ -308,43 +327,45 @@ export const agentRunBlockingReasonSchema = z.enum([
   "silent_audio",
   "empty_transcript",
   "weak_narrative_structure",
-]);
+);
+
+const agentBeatSchema = Schema.Literal("hook", "action", "payoff", "takeaway");
 
 /** Narrative QA gate report produced by `agent.run`. */
-export const agentQAReportSchema = z.object({
-  passed: z.boolean(),
-  score: z.number().min(0).max(1),
-  coverage: z.object({
-    hook: z.boolean(),
-    action: z.boolean(),
-    payoff: z.boolean(),
-    takeaway: z.boolean(),
+export const agentQAReportSchema = Schema.Struct({
+  passed: Schema.Boolean,
+  score: Schema.Number.pipe(Schema.between(0, 1)),
+  coverage: Schema.Struct({
+    hook: Schema.Boolean,
+    action: Schema.Boolean,
+    payoff: Schema.Boolean,
+    takeaway: Schema.Boolean,
   }),
-  missingBeats: z.array(z.enum(["hook", "action", "payoff", "takeaway"])).default([]),
+  missingBeats: withDefault(Schema.Array(agentBeatSchema), () => []),
 });
 
 /** Summary payload for agent pipeline execution. */
-export const agentRunSummarySchema = z.object({
-  jobId: z.string().min(1),
+export const agentRunSummarySchema = Schema.Struct({
+  jobId: NonEmptyString,
   status: agentJobStatusSchema,
-  runtimeBudgetMinutes: z.number().int().positive(),
-  qaReport: agentQAReportSchema.nullable(),
-  blockingReason: agentRunBlockingReasonSchema.nullable(),
-  updatedAt: z.string().datetime(),
+  runtimeBudgetMinutes: PositiveInt,
+  qaReport: Schema.NullOr(agentQAReportSchema),
+  blockingReason: Schema.NullOr(agentRunBlockingReasonSchema),
+  updatedAt: IsoDateTime,
 });
 
 /** Result payload for `agent.preflight`. */
-export const agentPreflightResultSchema = z.object({
-  ready: z.boolean(),
-  blockingReasons: z.array(agentPreflightBlockingReasonSchema),
-  canApplyDestructive: z.boolean(),
+export const agentPreflightResultSchema = Schema.Struct({
+  ready: Schema.Boolean,
+  blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema),
+  canApplyDestructive: Schema.Boolean,
   transcriptionProvider: transcriptionProviderSchema,
-  preflightToken: z.string().min(1).nullable(),
+  preflightToken: Schema.NullOr(NonEmptyString),
 });
 
 /** Result payload for `agent.run`. */
-export const agentRunResultSchema = z.object({
-  jobId: z.string().min(1),
+export const agentRunResultSchema = Schema.Struct({
+  jobId: NonEmptyString,
   status: agentJobStatusSchema,
 });
 
@@ -352,256 +373,294 @@ export const agentRunResultSchema = z.object({
 export const agentStatusResultSchema = agentRunSummarySchema;
 
 /** Result payload for `export.runCutPlan`. */
-export const exportRunCutPlanResultSchema = z.object({
-  outputURL: z.string().min(1),
-  appliedSegments: z.number().int().nonnegative(),
+export const exportRunCutPlanResultSchema = Schema.Struct({
+  outputURL: NonEmptyString,
+  appliedSegments: NonNegativeInt,
 });
 
 /** Project-level summary for the latest agent run metadata. */
-export const projectAgentAnalysisSummarySchema = z.object({
-  latestJobId: z.string().nullable(),
-  latestStatus: agentJobStatusSchema.nullable(),
-  qaPassed: z.boolean().nullable(),
-  updatedAt: z.string().datetime().nullable(),
+export const projectAgentAnalysisSummarySchema = Schema.Struct({
+  latestJobId: Schema.NullOr(Schema.String),
+  latestStatus: Schema.NullOr(agentJobStatusSchema),
+  qaPassed: Schema.NullOr(Schema.Boolean),
+  updatedAt: Schema.NullOr(IsoDateTime),
 });
 
 /** Engine protocol schema for projectStateSchema. */
-export const projectStateSchema = z.object({
-  projectPath: z.string().nullable(),
-  recordingURL: z.string().nullable(),
-  eventsURL: z.string().nullable(),
+export const projectStateSchema = Schema.Struct({
+  projectPath: Schema.NullOr(Schema.String),
+  recordingURL: Schema.NullOr(Schema.String),
+  eventsURL: Schema.NullOr(Schema.String),
   autoZoom: autoZoomSettingsSchema,
   captureMetadata: captureMetadataSchema,
-  agentAnalysis: projectAgentAnalysisSummarySchema.optional().default({
+  agentAnalysis: withDefault(projectAgentAnalysisSummarySchema, () => ({
     latestJobId: null,
     latestStatus: null,
     qaPassed: null,
     updatedAt: null,
-  }),
+  })),
 });
 
 /** Engine protocol schema for projectRecentItemSchema. */
-export const projectRecentItemSchema = z.object({
-  projectPath: z.string().min(1),
-  displayName: z.string().min(1),
-  lastOpenedAt: z.string().datetime(),
+export const projectRecentItemSchema = Schema.Struct({
+  projectPath: NonEmptyString,
+  displayName: NonEmptyString,
+  lastOpenedAt: IsoDateTime,
 });
 
 /** Engine protocol schema for projectRecentsResultSchema. */
-export const projectRecentsResultSchema = z.object({
-  items: z.array(projectRecentItemSchema),
+export const projectRecentsResultSchema = Schema.Struct({
+  items: Schema.Array(projectRecentItemSchema),
 });
 
-const requestBaseSchema = z.object({
-  id: z.string().min(1),
-});
+/** Base request envelope fragments reused by all engine JSON-RPC methods. */
+const requestBaseFields = {
+  id: NonEmptyString,
+} as const;
 
-const emptyParamsSchema = z.looseObject({}).optional().default({});
+const emptyParamsSchema = Schema.Struct({});
+const emptyParamsProperty = withDefault(emptyParamsSchema, () => ({}));
+const runtimeBudgetMinutesProperty = withDefault(RuntimeBudgetMinutesSchema, () => 10);
+const transcriptionProviderProperty = withDefault(
+  transcriptionProviderSchema,
+  () => "none" as const,
+);
+const destructiveIntentProperty = withDefault(Schema.Boolean, () => false);
+const enableMicProperty = withDefault(Schema.Boolean, () => false);
+const captureFrameRateProperty = withDefault(captureFrameRateSchema, () => defaultCaptureFrameRate);
+const trackInputEventsProperty = withDefault(Schema.Boolean, () => false);
 
+/** Request envelopes ordered by the shell lifecycle they participate in. */
 /** Engine protocol schema for systemPingRequestSchema. */
-export const systemPingRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.SystemPing),
-  params: emptyParamsSchema,
+export const systemPingRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.SystemPing),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for engineCapabilitiesRequestSchema. */
-export const engineCapabilitiesRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.EngineCapabilities),
-  params: emptyParamsSchema,
+export const engineCapabilitiesRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.EngineCapabilities),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for agentPreflightRequestSchema. */
-export const agentPreflightRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.AgentPreflight),
-  params: z.object({
-    runtimeBudgetMinutes: z.number().int().positive().max(60).optional().default(10),
-    transcriptionProvider: transcriptionProviderSchema.optional().default("none"),
-    importedTranscriptPath: z.string().min(1).optional(),
+export const agentPreflightRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.AgentPreflight),
+  params: Schema.Struct({
+    runtimeBudgetMinutes: runtimeBudgetMinutesProperty,
+    transcriptionProvider: transcriptionProviderProperty,
+    importedTranscriptPath: Schema.optional(NonEmptyString),
   }),
 });
 
 /** Engine protocol schema for agentRunRequestSchema. */
-export const agentRunRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.AgentRun),
-  params: z.object({
-    preflightToken: z.string().min(1),
-    runtimeBudgetMinutes: z.number().int().positive().max(60).optional().default(10),
-    transcriptionProvider: transcriptionProviderSchema.optional().default("none"),
-    importedTranscriptPath: z.string().min(1).optional(),
-    force: z.boolean().optional().default(false),
+export const agentRunRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.AgentRun),
+  params: Schema.Struct({
+    preflightToken: NonEmptyString,
+    runtimeBudgetMinutes: runtimeBudgetMinutesProperty,
+    transcriptionProvider: transcriptionProviderProperty,
+    importedTranscriptPath: Schema.optional(NonEmptyString),
+    force: withDefault(Schema.Boolean, () => false),
   }),
 });
 
 /** Engine protocol schema for agentStatusRequestSchema. */
-export const agentStatusRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.AgentStatus),
-  params: z.object({
-    jobId: z.string().min(1),
+export const agentStatusRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.AgentStatus),
+  params: Schema.Struct({
+    jobId: NonEmptyString,
   }),
 });
 
 /** Engine protocol schema for agentApplyRequestSchema. */
-export const agentApplyRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.AgentApply),
-  params: z.object({
-    jobId: z.string().min(1),
-    destructiveIntent: z.boolean().optional().default(false),
+export const agentApplyRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.AgentApply),
+  params: Schema.Struct({
+    jobId: NonEmptyString,
+    destructiveIntent: destructiveIntentProperty,
   }),
 });
 
 /** Engine protocol schema for permissionsGetRequestSchema. */
-export const permissionsGetRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.PermissionsGet),
-  params: emptyParamsSchema,
+export const permissionsGetRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.PermissionsGet),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for permissionsRequestScreenRequestSchema. */
-export const permissionsRequestScreenRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.PermissionsRequestScreenRecording),
-  params: emptyParamsSchema,
+export const permissionsRequestScreenRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.PermissionsRequestScreenRecording),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for permissionsRequestMicrophoneRequestSchema. */
-export const permissionsRequestMicrophoneRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.PermissionsRequestMicrophone),
-  params: emptyParamsSchema,
+export const permissionsRequestMicrophoneRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.PermissionsRequestMicrophone),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for permissionsRequestInputMonitoringRequestSchema. */
-export const permissionsRequestInputMonitoringRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.PermissionsRequestInputMonitoring),
-  params: emptyParamsSchema,
+export const permissionsRequestInputMonitoringRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.PermissionsRequestInputMonitoring),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for permissionsOpenInputSettingsRequestSchema. */
-export const permissionsOpenInputSettingsRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.PermissionsOpenInputMonitoringSettings),
-  params: emptyParamsSchema,
+export const permissionsOpenInputSettingsRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.PermissionsOpenInputMonitoringSettings),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for sourcesListRequestSchema. */
-export const sourcesListRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.SourcesList),
-  params: emptyParamsSchema,
+export const sourcesListRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.SourcesList),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for captureStartDisplayRequestSchema. */
-export const captureStartDisplayRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.CaptureStartDisplay),
-  params: z.object({
-    enableMic: z.boolean().optional().default(false),
-    captureFps: captureFrameRateSchema.optional().default(defaultCaptureFrameRate),
+export const captureStartDisplayRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.CaptureStartDisplay),
+  params: Schema.Struct({
+    enableMic: enableMicProperty,
+    captureFps: captureFrameRateProperty,
   }),
 });
 
 /** Engine protocol schema for captureStartCurrentWindowRequestSchema. */
-export const captureStartCurrentWindowRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.CaptureStartCurrentWindow),
-  params: z.object({
-    enableMic: z.boolean().optional().default(false),
-    captureFps: captureFrameRateSchema.optional().default(defaultCaptureFrameRate),
+export const captureStartCurrentWindowRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.CaptureStartCurrentWindow),
+  params: Schema.Struct({
+    enableMic: enableMicProperty,
+    captureFps: captureFrameRateProperty,
   }),
 });
 
 /** Engine protocol schema for captureStartWindowRequestSchema. */
-export const captureStartWindowRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.CaptureStartWindow),
-  params: z.object({
-    windowId: z.number().int().nonnegative(),
-    enableMic: z.boolean().optional().default(false),
-    captureFps: captureFrameRateSchema.optional().default(defaultCaptureFrameRate),
+export const captureStartWindowRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.CaptureStartWindow),
+  params: Schema.Struct({
+    windowId: NonNegativeInt,
+    enableMic: enableMicProperty,
+    captureFps: captureFrameRateProperty,
   }),
 });
 
 /** Engine protocol schema for captureStopRequestSchema. */
-export const captureStopRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.CaptureStop),
-  params: emptyParamsSchema,
+export const captureStopRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.CaptureStop),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for recordingStartRequestSchema. */
-export const recordingStartRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.RecordingStart),
-  params: z.object({
-    trackInputEvents: z.boolean().optional().default(false),
+export const recordingStartRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.RecordingStart),
+  params: Schema.Struct({
+    trackInputEvents: trackInputEventsProperty,
   }),
 });
 
 /** Engine protocol schema for recordingStopRequestSchema. */
-export const recordingStopRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.RecordingStop),
-  params: emptyParamsSchema,
+export const recordingStopRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.RecordingStop),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for captureStatusRequestSchema. */
-export const captureStatusRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.CaptureStatus),
-  params: emptyParamsSchema,
+export const captureStatusRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.CaptureStatus),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for exportInfoRequestSchema. */
-export const exportInfoRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ExportInfo),
-  params: emptyParamsSchema,
+export const exportInfoRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ExportInfo),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for exportRunRequestSchema. */
-export const exportRunRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ExportRun),
-  params: z.object({
-    outputURL: z.string().min(1),
-    presetId: z.string().min(1),
-    trimStartSeconds: z.number().min(0).optional(),
-    trimEndSeconds: z.number().min(0).optional(),
+export const exportRunRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ExportRun),
+  params: Schema.Struct({
+    outputURL: NonEmptyString,
+    presetId: NonEmptyString,
+    trimStartSeconds: Schema.optional(NonNegativeNumber),
+    trimEndSeconds: Schema.optional(NonNegativeNumber),
   }),
 });
 
 /** Engine protocol schema for exportRunCutPlanRequestSchema. */
-export const exportRunCutPlanRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ExportRunCutPlan),
-  params: z.object({
-    outputURL: z.string().min(1),
-    presetId: z.string().min(1),
-    jobId: z.string().min(1),
+export const exportRunCutPlanRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ExportRunCutPlan),
+  params: Schema.Struct({
+    outputURL: NonEmptyString,
+    presetId: NonEmptyString,
+    jobId: NonEmptyString,
   }),
 });
 
 /** Engine protocol schema for projectCurrentRequestSchema. */
-export const projectCurrentRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ProjectCurrent),
-  params: emptyParamsSchema,
+export const projectCurrentRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ProjectCurrent),
+  params: emptyParamsProperty,
 });
 
 /** Engine protocol schema for projectOpenRequestSchema. */
-export const projectOpenRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ProjectOpen),
-  params: z.object({
-    projectPath: z.string().min(1),
+export const projectOpenRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ProjectOpen),
+  params: Schema.Struct({
+    projectPath: NonEmptyString,
   }),
 });
 
 /** Engine protocol schema for projectSaveRequestSchema. */
-export const projectSaveRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ProjectSave),
-  params: z.object({
-    projectPath: z.string().min(1).optional(),
-    autoZoom: autoZoomSettingsSchema.optional(),
+export const projectSaveRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ProjectSave),
+  params: Schema.Struct({
+    projectPath: Schema.optional(NonEmptyString),
+    autoZoom: Schema.optional(autoZoomSettingsSchema),
   }),
 });
 
 /** Engine protocol schema for projectRecentsRequestSchema. */
-export const projectRecentsRequestSchema = requestBaseSchema.extend({
-  method: z.literal(engineMethods.ProjectRecents),
-  params: z
-    .object({
-      limit: z.number().int().positive().max(100).optional(),
-    })
-    .optional()
-    .default({}),
+export const projectRecentsRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.ProjectRecents),
+  params: withDefault(
+    Schema.Struct({
+      limit: Schema.optional(ProjectRecentsLimitSchema),
+    }),
+    () => ({}),
+  ),
 });
 
 /** Discriminated union of all request payloads supported by the engine. */
-export const engineRequestSchema = z.discriminatedUnion("method", [
+export const engineRequestSchema = Schema.Union(
   systemPingRequestSchema,
   engineCapabilitiesRequestSchema,
   agentPreflightRequestSchema,
@@ -628,10 +687,10 @@ export const engineRequestSchema = z.discriminatedUnion("method", [
   projectOpenRequestSchema,
   projectSaveRequestSchema,
   projectRecentsRequestSchema,
-]);
+);
 
 /** Error code values returned on failed engine responses. */
-export const engineErrorCodeSchema = z.enum([
+export const engineErrorCodeSchema = Schema.Literal(
   "invalid_request",
   "invalid_params",
   "unsupported_method",
@@ -641,120 +700,144 @@ export const engineErrorCodeSchema = z.enum([
   "missing_local_model",
   "invalid_cut_plan",
   "runtime_error",
-]);
+);
 
 /** Error object shape returned by failed engine responses. */
-export const engineErrorSchema = z.object({
+export const engineErrorSchema = Schema.Struct({
   code: engineErrorCodeSchema,
-  message: z.string().min(1),
+  message: NonEmptyString,
 });
 
 /** Success response envelope. */
-export const engineSuccessResponseSchema = z.object({
-  id: z.string().min(1),
-  ok: z.literal(true),
-  result: z.unknown(),
+export const engineSuccessResponseSchema = Schema.Struct({
+  id: NonEmptyString,
+  ok: Schema.Literal(true),
+  result: Schema.Unknown,
 });
 
 /** Error response envelope. */
-export const engineErrorResponseSchema = z.object({
-  id: z.string().min(1),
-  ok: z.literal(false),
+export const engineErrorResponseSchema = Schema.Struct({
+  id: NonEmptyString,
+  ok: Schema.Literal(false),
   error: engineErrorSchema,
 });
 
 /** Union of success and error engine response envelopes. */
-export const engineResponseSchema = z.union([
+export const engineResponseSchema = Schema.Union(
   engineSuccessResponseSchema,
   engineErrorResponseSchema,
-]);
+);
 
+type MutableDeep<T> =
+  T extends ReadonlyArray<infer U>
+    ? MutableDeep<U>[]
+    : T extends object
+      ? { -readonly [K in keyof T]: MutableDeep<T[K]> }
+      : T;
+
+/** Inferred TypeScript aliases for consumers that only need static typing. */
 /** Type alias for EngineRequest. */
-export type EngineRequest = z.infer<typeof engineRequestSchema>;
+export type EngineRequest = MutableDeep<typeof engineRequestSchema.Type>;
+/** Type alias for EngineRequestEncoded. */
+export type EngineRequestEncoded = typeof engineRequestSchema.Encoded;
 /** Type alias for EngineResponse. */
-export type EngineResponse = z.infer<typeof engineResponseSchema>;
+export type EngineResponse = MutableDeep<typeof engineResponseSchema.Type>;
 /** Type alias for EngineErrorCode. */
-export type EngineErrorCode = z.infer<typeof engineErrorCodeSchema>;
+export type EngineErrorCode = MutableDeep<typeof engineErrorCodeSchema.Type>;
 /** Type alias for PingResult. */
-export type PingResult = z.infer<typeof pingResultSchema>;
+export type PingResult = MutableDeep<typeof pingResultSchema.Type>;
 /** Type alias for CapabilitiesResult. */
-export type CapabilitiesResult = z.infer<typeof capabilitiesResultSchema>;
+export type CapabilitiesResult = MutableDeep<typeof capabilitiesResultSchema.Type>;
 /** Type alias for PermissionsResult. */
-export type PermissionsResult = z.infer<typeof permissionsResultSchema>;
+export type PermissionsResult = MutableDeep<typeof permissionsResultSchema.Type>;
 /** Type alias for ActionResult. */
-export type ActionResult = z.infer<typeof actionResultSchema>;
+export type ActionResult = MutableDeep<typeof actionResultSchema.Type>;
 /** Type alias for SourcesResult. */
-export type SourcesResult = z.infer<typeof sourcesResultSchema>;
+export type SourcesResult = MutableDeep<typeof sourcesResultSchema.Type>;
 /** Type alias for CaptureFrameRate. */
-export type CaptureFrameRate = z.infer<typeof captureFrameRateSchema>;
+export type CaptureFrameRate = MutableDeep<typeof captureFrameRateSchema.Type>;
 /** Type alias for CaptureTelemetry. */
-export type CaptureTelemetry = z.infer<typeof captureTelemetrySchema>;
+export type CaptureTelemetry = MutableDeep<typeof captureTelemetrySchema.Type>;
 /** Type alias for CaptureStatusResult. */
-export type CaptureStatusResult = z.infer<typeof captureStatusResultSchema>;
+export type CaptureStatusResult = MutableDeep<typeof captureStatusResultSchema.Type>;
 /** Type alias for ExportPreset. */
-export type ExportPreset = z.infer<typeof exportPresetSchema>;
+export type ExportPreset = MutableDeep<typeof exportPresetSchema.Type>;
 /** Type alias for ExportInfoResult. */
-export type ExportInfoResult = z.infer<typeof exportInfoResultSchema>;
+export type ExportInfoResult = MutableDeep<typeof exportInfoResultSchema.Type>;
 /** Type alias for ExportRunResult. */
-export type ExportRunResult = z.infer<typeof exportRunResultSchema>;
+export type ExportRunResult = MutableDeep<typeof exportRunResultSchema.Type>;
 /** Type alias for AgentJobStatus. */
-export type AgentJobStatus = z.infer<typeof agentJobStatusSchema>;
+export type AgentJobStatus = MutableDeep<typeof agentJobStatusSchema.Type>;
 /** Type alias for AgentArtifactKind. */
-export type AgentArtifactKind = z.infer<typeof agentArtifactKindSchema>;
+export type AgentArtifactKind = MutableDeep<typeof agentArtifactKindSchema.Type>;
 /** Type alias for AgentArtifact. */
-export type AgentArtifact = z.infer<typeof agentArtifactSchema>;
+export type AgentArtifact = MutableDeep<typeof agentArtifactSchema.Type>;
 /** Type alias for TranscriptionProvider. */
-export type TranscriptionProvider = z.infer<typeof transcriptionProviderSchema>;
+export type TranscriptionProvider = MutableDeep<typeof transcriptionProviderSchema.Type>;
 /** Type alias for ImportedTranscriptSegment. */
-export type ImportedTranscriptSegment = z.infer<typeof importedTranscriptSegmentSchema>;
+export type ImportedTranscriptSegment = MutableDeep<typeof importedTranscriptSegmentSchema.Type>;
 /** Type alias for ImportedTranscriptWord. */
-export type ImportedTranscriptWord = z.infer<typeof importedTranscriptWordSchema>;
+export type ImportedTranscriptWord = MutableDeep<typeof importedTranscriptWordSchema.Type>;
 /** Type alias for ImportedTranscript. */
-export type ImportedTranscript = z.infer<typeof importedTranscriptSchema>;
+export type ImportedTranscript = MutableDeep<typeof importedTranscriptSchema.Type>;
 /** Type alias for AgentPreflightBlockingReason. */
-export type AgentPreflightBlockingReason = z.infer<typeof agentPreflightBlockingReasonSchema>;
+export type AgentPreflightBlockingReason = MutableDeep<
+  typeof agentPreflightBlockingReasonSchema.Type
+>;
 /** Type alias for AgentRunBlockingReason. */
-export type AgentRunBlockingReason = z.infer<typeof agentRunBlockingReasonSchema>;
+export type AgentRunBlockingReason = MutableDeep<typeof agentRunBlockingReasonSchema.Type>;
 /** Type alias for AgentQAReport. */
-export type AgentQAReport = z.infer<typeof agentQAReportSchema>;
+export type AgentQAReport = MutableDeep<typeof agentQAReportSchema.Type>;
 /** Type alias for AgentRunSummary. */
-export type AgentRunSummary = z.infer<typeof agentRunSummarySchema>;
+export type AgentRunSummary = MutableDeep<typeof agentRunSummarySchema.Type>;
 /** Type alias for AgentPreflightResult. */
-export type AgentPreflightResult = z.infer<typeof agentPreflightResultSchema>;
+export type AgentPreflightResult = MutableDeep<typeof agentPreflightResultSchema.Type>;
 /** Type alias for AgentRunResult. */
-export type AgentRunResult = z.infer<typeof agentRunResultSchema>;
+export type AgentRunResult = MutableDeep<typeof agentRunResultSchema.Type>;
 /** Type alias for AgentStatusResult. */
-export type AgentStatusResult = z.infer<typeof agentStatusResultSchema>;
+export type AgentStatusResult = MutableDeep<typeof agentStatusResultSchema.Type>;
 /** Type alias for ExportRunCutPlanResult. */
-export type ExportRunCutPlanResult = z.infer<typeof exportRunCutPlanResultSchema>;
+export type ExportRunCutPlanResult = MutableDeep<typeof exportRunCutPlanResultSchema.Type>;
 /** Type alias for ProjectAgentAnalysisSummary. */
-export type ProjectAgentAnalysisSummary = z.infer<typeof projectAgentAnalysisSummarySchema>;
+export type ProjectAgentAnalysisSummary = MutableDeep<
+  typeof projectAgentAnalysisSummarySchema.Type
+>;
 /** Type alias for ProjectState. */
-export type ProjectState = z.infer<typeof projectStateSchema>;
+export type ProjectState = MutableDeep<typeof projectStateSchema.Type>;
 /** Type alias for ProjectRecentItem. */
-export type ProjectRecentItem = z.infer<typeof projectRecentItemSchema>;
+export type ProjectRecentItem = MutableDeep<typeof projectRecentItemSchema.Type>;
 /** Type alias for ProjectRecentsResult. */
-export type ProjectRecentsResult = z.infer<typeof projectRecentsResultSchema>;
+export type ProjectRecentsResult = MutableDeep<typeof projectRecentsResultSchema.Type>;
 /** Type alias for AutoZoomSettings. */
-export type AutoZoomSettings = z.infer<typeof autoZoomSettingsSchema>;
+export type AutoZoomSettings = MutableDeep<typeof autoZoomSettingsSchema.Type>;
 /** Type alias for InputEvent. */
-export type InputEvent = z.infer<typeof inputEventSchema>;
+export type InputEvent = MutableDeep<typeof inputEventSchema.Type>;
 /** Type alias for InputEventLog. */
-export type InputEventLog = z.infer<typeof inputEventLogSchema>;
+export type InputEventLog = MutableDeep<typeof inputEventLogSchema.Type>;
 
-/** Builds and validates a typed engine request payload. */
-export function buildRequest<TMethod extends EngineRequest["method"]>(
+/**
+ * Builds and validates a method-specific engine request envelope.
+ *
+ * Consumers should prefer this helper over hand-rolled objects so defaulted params,
+ * discriminated unions, and request ids remain aligned with the wire contract.
+ */
+export function buildRequest<TMethod extends EngineRequestEncoded["method"]>(
   method: TMethod,
-  params: Extract<EngineRequest, { method: TMethod }>["params"],
+  params: Extract<EngineRequestEncoded, { method: TMethod }>["params"],
   id = crypto.randomUUID(),
 ): Extract<EngineRequest, { method: TMethod }> {
-  return engineRequestSchema.parse({ id, method, params }) as Extract<
+  return decodeSchemaSync(engineRequestSchema, { id, method, params }) as Extract<
     EngineRequest,
     { method: TMethod }
   >;
 }
 
-/** Parses and validates an engine response payload. */
+/**
+ * Parses an unknown engine response and narrows it to the validated response envelope union.
+ *
+ * This is the last contract boundary before renderer code branches on `ok` or reads
+ * engine-specific payloads, so all untrusted bridge data should pass through here first.
+ */
 export function parseResponse(raw: unknown): EngineResponse {
-  return engineResponseSchema.parse(raw);
+  return decodeSchemaSync(engineResponseSchema, raw);
 }

@@ -1,4 +1,5 @@
 import { createContext, useContext, type PropsWithChildren } from "react";
+import { StudioContextUnavailableError } from "../../../../shared/errors";
 import type { StudioController } from "../hooks/core/useStudioController";
 
 const StudioContext = createContext<StudioController | null>(null);
@@ -13,7 +14,7 @@ export function StudioProvider({
 export function useStudio(): StudioController {
   const value = useContext(StudioContext);
   if (!value) {
-    throw new Error("Studio context is not available");
+    throw new StudioContextUnavailableError({});
   }
   return value;
 }

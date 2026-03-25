@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import path from "node:path";
+import { MediaServerError, messageFromUnknownError } from "../../shared/errors";
 import { isSupportedMediaPath, mediaTypeForPath } from "./policy";
 
 const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;
@@ -95,17 +96,38 @@ function randomLoopbackPort(): number {
 async function reserveLoopbackPort(host: string): Promise<number> {
   return await new Promise<number>((resolve, reject) => {
     const server = createServer();
-    server.once("error", reject);
+    server.once("error", (cause) =>
+      reject(
+        new MediaServerError({
+          code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+          description: "Unable to reserve loopback media server port.",
+          cause,
+        }),
+      ),
+    );
     server.listen({ host, port: 0 }, () => {
       const address = server.address();
       if (!address || typeof address === "string") {
-        server.close(() => reject(new Error("Unable to reserve loopback media server port.")));
+        server.close(() =>
+          reject(
+            new MediaServerError({
+              code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+              description: "Unable to reserve loopback media server port.",
+            }),
+          ),
+        );
         return;
       }
       const { port } = address;
       server.close((closeError) => {
         if (closeError) {
-          reject(closeError);
+          reject(
+            new MediaServerError({
+              code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+              description: "Unable to reserve loopback media server port.",
+              cause: closeError,
+            }),
+          );
           return;
         }
         resolve(port);
@@ -207,7 +229,13 @@ export class MediaServer {
       }
     }
 
-    throw lastError ?? new Error("Unable to bind media playback server.");
+    throw (
+      lastError ??
+      new MediaServerError({
+        code: "MEDIA_SERVER_BIND_FAILED",
+        description: "Unable to bind media playback server.",
+      })
+    );
   }
 
   private pruneTokens(): void {
@@ -357,24 +385,47 @@ export class MediaServer {
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
     if (typeof filePath !== "string" || filePath.trim().length === 0) {
-      throw new Error("A media file path is required.");
+      throw new MediaServerError({
+        code: "MEDIA_PATH_REQUIRED",
+        description: "A media file path is required.",
+      });
     }
 
     const trimmedPath = filePath.trim();
     if (!path.isAbsolute(trimmedPath)) {
-      throw new Error("Media source path must be an absolute local file path.");
+      throw new MediaServerError({
+        code: "MEDIA_PATH_NOT_ABSOLUTE",
+        description: "Media source path must be an absolute local file path.",
+      });
     }
     const normalizedPath = path.resolve(trimmedPath);
     if (!isSupportedMediaPath(normalizedPath)) {
-      throw new Error("Unsupported media file format.");
+      throw new MediaServerError({
+        code: "MEDIA_TYPE_UNSUPPORTED",
+        description: "Unsupported media file format.",
+      });
     }
 
     const mediaFile = Bun.file(normalizedPath);
     if (!(await mediaFile.exists())) {
-      throw new Error("Media file not found.");
+      throw new MediaServerError({
+        code: "MEDIA_FILE_MISSING",
+        description: "Media file not found.",
+      });
     }
 
-    await this.ensureServer();
+    try {
+      await this.ensureServer();
+    } catch (error) {
+      if (error instanceof MediaServerError) {
+        throw error;
+      }
+      throw new MediaServerError({
+        code: "MEDIA_SERVER_BIND_FAILED",
+        description: messageFromUnknownError(error, "Unable to bind media playback server."),
+        cause: error,
+      });
+    }
     this.pruneTokens();
 
     const token = randomUUID();
