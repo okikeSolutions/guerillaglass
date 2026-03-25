@@ -1,5 +1,8 @@
 import { cn } from "../lib/utils";
 
+/**
+ * Displays a single keyboard keycap with consistent sizing across menus, tooltips, and inline hints.
+ */
 function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
   return (
     <kbd
@@ -13,6 +16,7 @@ function Kbd({ className, ...props }: React.ComponentProps<"kbd">) {
   );
 }
 
+/** Groups multiple `Kbd` elements into a compact inline shortcut sequence. */
 function KbdGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <kbd

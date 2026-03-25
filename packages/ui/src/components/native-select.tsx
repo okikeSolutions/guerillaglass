@@ -7,6 +7,12 @@ type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
   size?: "sm" | "default";
 };
 
+/**
+ * Styled native `<select>` wrapper for forms that need browser-native behavior and mobile fidelity.
+ *
+ * Prefer this over fully custom comboboxes when the interaction is simple and the platform picker
+ * is the right accessibility and performance tradeoff.
+ */
 function NativeSelect({ className, size = "default", ...props }: NativeSelectProps) {
   return (
     <div
@@ -32,10 +38,12 @@ function NativeSelect({ className, size = "default", ...props }: NativeSelectPro
   );
 }
 
+/** Native option primitive paired with `NativeSelect`. */
 function NativeSelectOption({ ...props }: React.ComponentProps<"option">) {
   return <option data-slot="native-select-option" {...props} />;
 }
 
+/** Native optgroup primitive paired with `NativeSelect`. */
 function NativeSelectOptGroup({ className, ...props }: React.ComponentProps<"optgroup">) {
   return <optgroup data-slot="native-select-optgroup" className={cn(className)} {...props} />;
 }
