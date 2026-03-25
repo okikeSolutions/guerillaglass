@@ -1,9 +1,15 @@
+import { Schema } from "effect";
 import {
   defaultStudioLocale,
   normalizeStudioLocale,
   type StudioLocale,
 } from "@guerillaglass/localization";
-import { z } from "zod";
+import {
+  BrowserStorageError,
+  ContractDecodeError,
+  JsonParseError,
+  decodeJsonStringWithSchemaSync,
+} from "../../../../shared/errors";
 import type { StudioMode } from "./inspectorSelectionModel";
 
 export const studioLayoutStorageKey = "gg.studio.layout.v1";
@@ -48,18 +54,23 @@ const localizedRouteTargetByRoute: Record<StudioLayoutRoute, StudioLocalizedRout
   "/deliver": "/$locale/deliver",
 };
 
-const studioLayoutStorageCandidateSchema = z.looseObject({
-  leftPaneWidthPx: z.number().optional(),
-  rightPaneWidthPx: z.number().optional(),
-  leftCollapsed: z.boolean().optional(),
-  rightCollapsed: z.boolean().optional(),
-  timelineHeightPx: z.number().optional(),
-  timelineCollapsed: z.boolean().optional(),
-  lastRoute: z.string().optional(),
-  locale: z.string().optional(),
-  densityMode: z.string().optional(),
-  presetRoutesApplied: z.array(z.string()).optional(),
-  presetVersionByRoute: z.record(z.string(), z.number()).optional(),
+const studioLayoutStorageCandidateSchema = Schema.Struct({
+  leftPaneWidthPx: Schema.optional(Schema.Number),
+  rightPaneWidthPx: Schema.optional(Schema.Number),
+  leftCollapsed: Schema.optional(Schema.Boolean),
+  rightCollapsed: Schema.optional(Schema.Boolean),
+  timelineHeightPx: Schema.optional(Schema.Number),
+  timelineCollapsed: Schema.optional(Schema.Boolean),
+  lastRoute: Schema.optional(Schema.String),
+  locale: Schema.optional(Schema.String),
+  densityMode: Schema.optional(Schema.String),
+  presetRoutesApplied: Schema.optional(Schema.Array(Schema.String)),
+  presetVersionByRoute: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: Schema.Number,
+    }),
+  ),
 });
 
 export type StudioLayoutState = {
@@ -449,14 +460,17 @@ export function parseStudioLayoutState(raw: string | null | undefined): StudioLa
     return defaultStudioLayoutState;
   }
   try {
-    const parsedJson: unknown = JSON.parse(raw);
-    const parsedCandidate = studioLayoutStorageCandidateSchema.safeParse(parsedJson);
-    if (!parsedCandidate.success) {
+    const parsedCandidate = decodeJsonStringWithSchemaSync(
+      studioLayoutStorageCandidateSchema,
+      raw,
+      "studio layout state",
+    );
+    return sanitizeStudioLayoutState(parsedCandidate as Partial<StudioLayoutState>);
+  } catch (error) {
+    if (error instanceof JsonParseError || error instanceof ContractDecodeError) {
       return defaultStudioLayoutState;
     }
-    return sanitizeStudioLayoutState(parsedCandidate.data as Partial<StudioLayoutState>);
-  } catch {
-    return defaultStudioLayoutState;
+    throw error;
   }
 }
 
@@ -466,13 +480,37 @@ function getStorage(): Storage | null {
   }
   try {
     return window.localStorage;
+  } catch (error) {
+    throw new BrowserStorageError({
+      code: "BROWSER_STORAGE_UNAVAILABLE",
+      description: "Browser localStorage is unavailable.",
+      cause: error,
+    });
+  }
+}
+
+function tryGetStorage(): Storage | null {
+  try {
+    return getStorage();
   } catch {
     return null;
   }
 }
 
+function persistStudioLayoutState(storage: Storage, layout: StudioLayoutState): void {
+  try {
+    storage.setItem(studioLayoutStorageKey, JSON.stringify(layout));
+  } catch (error) {
+    throw new BrowserStorageError({
+      code: "BROWSER_STORAGE_WRITE_FAILED",
+      description: "Failed to persist studio layout state.",
+      cause: error,
+    });
+  }
+}
+
 export function loadStudioLayoutState(): StudioLayoutState {
-  const storage = getStorage();
+  const storage = tryGetStorage();
   if (!storage) {
     return defaultStudioLayoutState;
   }
@@ -490,12 +528,18 @@ export function loadStudioLayoutState(): StudioLayoutState {
 }
 
 export function saveStudioLayoutState(layout: StudioLayoutState): void {
-  const storage = getStorage();
+  const storage = tryGetStorage();
   if (!storage) {
     return;
   }
   const normalized = sanitizeStudioLayoutState(layout);
-  storage.setItem(studioLayoutStorageKey, JSON.stringify(normalized));
+  try {
+    persistStudioLayoutState(storage, normalized);
+  } catch (error) {
+    if (!(error instanceof BrowserStorageError)) {
+      throw error;
+    }
+  }
 }
 
 export function getInitialStudioRoute(): StudioLayoutRoute {

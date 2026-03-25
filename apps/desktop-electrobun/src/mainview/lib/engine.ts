@@ -29,6 +29,17 @@ import type {
   HostPathPickerMode,
   WindowBridgeBindings,
 } from "../../shared/bridgeRpc";
+import {
+  BridgeInvocationError,
+  BridgeUnavailableError,
+  CaptureWindowPickerUnsupportedError,
+  EngineResponseError,
+  PathPickerError,
+  decodeUnknownWithSchemaPromise,
+  decodeUnknownWithSchemaSync,
+  parseJsonStringSync,
+  type MutableDeep,
+} from "../../shared/errors";
 
 function requireBridge<K extends keyof WindowBridgeBindings>(
   name: K,
@@ -36,18 +47,61 @@ function requireBridge<K extends keyof WindowBridgeBindings>(
   const bridgeWindow = window as Window & WindowBridgeBindings;
   const bridge = bridgeWindow[name];
   if (!bridge) {
-    throw new Error(`Missing Electrobun bridge: ${String(name)}`);
+    throw new BridgeUnavailableError({ bridge: String(name) });
   }
   return bridge as NonNullable<WindowBridgeBindings[K]>;
 }
 
+async function invokeBridge<K extends keyof WindowBridgeBindings>(
+  name: K,
+  ...args: unknown[]
+): Promise<unknown> {
+  const bridge = requireBridge(name) as (...bridgeArgs: unknown[]) => Promise<unknown>;
+  try {
+    return await bridge(...args);
+  } catch (error) {
+    throw new BridgeInvocationError({
+      bridge: String(name),
+      cause: error,
+    });
+  }
+}
+
+async function invokeBridgeDecoded<
+  K extends keyof WindowBridgeBindings,
+  S extends import("effect").Schema.Schema.AnyNoContext,
+>(
+  name: K,
+  schema: S,
+  contract: string,
+  ...args: unknown[]
+): Promise<MutableDeep<import("effect").Schema.Schema.Type<S>>> {
+  const raw = await invokeBridge(name, ...args);
+  return await decodeUnknownWithSchemaPromise(schema, raw, contract);
+}
+
+function isMacOS13WindowPickerUnsupported(error: unknown): boolean {
+  if (error instanceof BridgeInvocationError) {
+    return isMacOS13WindowPickerUnsupported(error.cause);
+  }
+  return (
+    error instanceof EngineResponseError &&
+    error.code === "invalid_params" &&
+    /windowid must be greater than 0 on macos 13/i.test(error.description)
+  );
+}
+
 export const engineApi = {
   async ping(): Promise<PingResult> {
-    return pingResultSchema.parse(await requireBridge("ggEnginePing")());
+    return await invokeBridgeDecoded("ggEnginePing", pingResultSchema, "engine ping result");
   },
 
   async getPermissions(): Promise<PermissionsResult> {
-    return permissionsResultSchema.parse(await requireBridge("ggEngineGetPermissions")());
+    return await invokeBridgeDecoded(
+      "ggEngineGetPermissions",
+      permissionsResultSchema,
+      "permissions result",
+    );
   },
 
   async agentPreflight(params?: {
@@ -55,7 +109,12 @@ export const engineApi = {
     transcriptionProvider?: "none" | "imported_transcript";
     importedTranscriptPath?: string;
   }) {
-    return agentPreflightResultSchema.parse(await requireBridge("ggEngineAgentPreflight")(params));
+    return await invokeBridgeDecoded(
+      "ggEngineAgentPreflight",
+      agentPreflightResultSchema,
+      "agent preflight result",
+      params,
+    );
   },
 
   async agentRun(params: {
@@ -65,47 +124,78 @@ export const engineApi = {
     importedTranscriptPath?: string;
     force?: boolean;
   }) {
-    return agentRunResultSchema.parse(await requireBridge("ggEngineAgentRun")(params));
+    return await invokeBridgeDecoded(
+      "ggEngineAgentRun",
+      agentRunResultSchema,
+      "agent run result",
+      params,
+    );
   },
 
   async agentStatus(jobId: string) {
-    return agentStatusResultSchema.parse(await requireBridge("ggEngineAgentStatus")(jobId));
+    return await invokeBridgeDecoded(
+      "ggEngineAgentStatus",
+      agentStatusResultSchema,
+      "agent status result",
+      jobId,
+    );
   },
 
   async agentApply(params: { jobId: string; destructiveIntent?: boolean }) {
-    return actionResultSchema.parse(await requireBridge("ggEngineAgentApply")(params));
+    return await invokeBridgeDecoded(
+      "ggEngineAgentApply",
+      actionResultSchema,
+      "agent apply result",
+      params,
+    );
   },
 
   async requestScreenRecordingPermission() {
-    return actionResultSchema.parse(
-      await requireBridge("ggEngineRequestScreenRecordingPermission")(),
+    return await invokeBridgeDecoded(
+      "ggEngineRequestScreenRecordingPermission",
+      actionResultSchema,
+      "screen recording permission request result",
     );
   },
 
   async requestMicrophonePermission() {
-    return actionResultSchema.parse(await requireBridge("ggEngineRequestMicrophonePermission")());
+    return await invokeBridgeDecoded(
+      "ggEngineRequestMicrophonePermission",
+      actionResultSchema,
+      "microphone permission request result",
+    );
   },
 
   async requestInputMonitoringPermission() {
-    return actionResultSchema.parse(
-      await requireBridge("ggEngineRequestInputMonitoringPermission")(),
+    return await invokeBridgeDecoded(
+      "ggEngineRequestInputMonitoringPermission",
+      actionResultSchema,
+      "input monitoring permission request result",
     );
   },
 
   async openInputMonitoringSettings() {
-    return actionResultSchema.parse(await requireBridge("ggEngineOpenInputMonitoringSettings")());
+    return await invokeBridgeDecoded(
+      "ggEngineOpenInputMonitoringSettings",
+      actionResultSchema,
+      "open input monitoring settings result",
+    );
   },
 
   async listSources(): Promise<SourcesResult> {
-    return sourcesResultSchema.parse(await requireBridge("ggEngineListSources")());
+    return await invokeBridgeDecoded("ggEngineListSources", sourcesResultSchema, "sources result");
   },
 
   async startDisplayCapture(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge("ggEngineStartDisplayCapture")(enableMic, captureFps),
+    return await invokeBridgeDecoded(
+      "ggEngineStartDisplayCapture",
+      captureStatusResultSchema,
+      "capture status result",
+      enableMic,
+      captureFps,
     );
   },
 
@@ -113,8 +203,12 @@ export const engineApi = {
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge("ggEngineStartCurrentWindowCapture")(enableMic, captureFps),
+    return await invokeBridgeDecoded(
+      "ggEngineStartCurrentWindowCapture",
+      captureStatusResultSchema,
+      "capture status result",
+      enableMic,
+      captureFps,
     );
   },
 
@@ -123,31 +217,62 @@ export const engineApi = {
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
   ): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge("ggEngineStartWindowCapture")(windowId, enableMic, captureFps),
-    );
+    try {
+      return await invokeBridgeDecoded(
+        "ggEngineStartWindowCapture",
+        captureStatusResultSchema,
+        "capture status result",
+        windowId,
+        enableMic,
+        captureFps,
+      );
+    } catch (error) {
+      if (windowId === 0 && isMacOS13WindowPickerUnsupported(error)) {
+        throw new CaptureWindowPickerUnsupportedError({ cause: error });
+      }
+      throw error;
+    }
   },
 
   async stopCapture(): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(await requireBridge("ggEngineStopCapture")());
+    return await invokeBridgeDecoded(
+      "ggEngineStopCapture",
+      captureStatusResultSchema,
+      "capture status result",
+    );
   },
 
   async startRecording(trackInputEvents: boolean): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(
-      await requireBridge("ggEngineStartRecording")(trackInputEvents),
+    return await invokeBridgeDecoded(
+      "ggEngineStartRecording",
+      captureStatusResultSchema,
+      "capture status result",
+      trackInputEvents,
     );
   },
 
   async stopRecording(): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(await requireBridge("ggEngineStopRecording")());
+    return await invokeBridgeDecoded(
+      "ggEngineStopRecording",
+      captureStatusResultSchema,
+      "capture status result",
+    );
   },
 
   async captureStatus(): Promise<CaptureStatusResult> {
-    return captureStatusResultSchema.parse(await requireBridge("ggEngineCaptureStatus")());
+    return await invokeBridgeDecoded(
+      "ggEngineCaptureStatus",
+      captureStatusResultSchema,
+      "capture status result",
+    );
   },
 
   async exportInfo() {
-    return exportInfoResultSchema.parse(await requireBridge("ggEngineExportInfo")());
+    return await invokeBridgeDecoded(
+      "ggEngineExportInfo",
+      exportInfoResultSchema,
+      "export info result",
+    );
   },
 
   async runExport(params: {
@@ -156,32 +281,55 @@ export const engineApi = {
     trimStartSeconds?: number;
     trimEndSeconds?: number;
   }) {
-    return exportRunResultSchema.parse(await requireBridge("ggEngineRunExport")(params));
+    return await invokeBridgeDecoded(
+      "ggEngineRunExport",
+      exportRunResultSchema,
+      "export run result",
+      params,
+    );
   },
 
   async runCutPlanExport(params: { outputURL: string; presetId: string; jobId: string }) {
-    return exportRunCutPlanResultSchema.parse(
-      await requireBridge("ggEngineRunCutPlanExport")(params),
+    return await invokeBridgeDecoded(
+      "ggEngineRunCutPlanExport",
+      exportRunCutPlanResultSchema,
+      "cut plan export result",
+      params,
     );
   },
 
   async projectCurrent(): Promise<ProjectState> {
-    return projectStateSchema.parse(await requireBridge("ggEngineProjectCurrent")());
+    return await invokeBridgeDecoded("ggEngineProjectCurrent", projectStateSchema, "project state");
   },
 
   async projectOpen(projectPath: string): Promise<ProjectState> {
-    return projectStateSchema.parse(await requireBridge("ggEngineProjectOpen")(projectPath));
+    return await invokeBridgeDecoded(
+      "ggEngineProjectOpen",
+      projectStateSchema,
+      "project state",
+      projectPath,
+    );
   },
 
   async projectSave(params: {
     projectPath?: string;
     autoZoom?: AutoZoomSettings;
   }): Promise<ProjectState> {
-    return projectStateSchema.parse(await requireBridge("ggEngineProjectSave")(params));
+    return await invokeBridgeDecoded(
+      "ggEngineProjectSave",
+      projectStateSchema,
+      "project state",
+      params,
+    );
   },
 
   async projectRecents(limit?: number): Promise<ProjectRecentsResult> {
-    return projectRecentsResultSchema.parse(await requireBridge("ggEngineProjectRecents")(limit));
+    return await invokeBridgeDecoded(
+      "ggEngineProjectRecents",
+      projectRecentsResultSchema,
+      "project recents result",
+      limit,
+    );
   },
 };
 
@@ -190,15 +338,26 @@ export const desktopApi = {
     mode: HostPathPickerMode;
     startingFolder?: string;
   }): Promise<string | null> {
-    return await requireBridge("ggPickPath")(params);
+    try {
+      return (await invokeBridge("ggPickPath", params)) as string | null;
+    } catch (error) {
+      if (error instanceof BridgeUnavailableError || error instanceof BridgeInvocationError) {
+        throw new PathPickerError({
+          code: "PATH_PICKER_REQUEST_FAILED",
+          description: error.message,
+          cause: error,
+        });
+      }
+      throw error;
+    }
   },
 
   async readTextFile(filePath: string): Promise<string> {
-    return await requireBridge("ggReadTextFile")(filePath);
+    return (await invokeBridge("ggReadTextFile", filePath)) as string;
   },
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
-    return await requireBridge("ggResolveMediaSourceURL")(filePath);
+    return (await invokeBridge("ggResolveMediaSourceURL", filePath)) as string;
   },
 };
 
@@ -211,7 +370,7 @@ export function sendHostMenuState(state: HostMenuState): void {
 }
 
 export function parseInputEventLog(raw: string): InputEvent[] {
-  const parsed = JSON.parse(raw) as unknown;
-  const log = inputEventLogSchema.parse(parsed);
-  return log.events;
+  const parsed = parseJsonStringSync(raw, "input event log");
+  const log = decodeUnknownWithSchemaSync(inputEventLogSchema, parsed, "input event log");
+  return [...log.events];
 }

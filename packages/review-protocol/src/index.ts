@@ -1,158 +1,190 @@
-import { z } from "zod";
+/**
+ * Typed contract for the Deliver review bridge.
+ *
+ * The protocol models the persisted review snapshot plus the realtime events that keep the
+ * desktop Deliver route in sync with collaboration state, playback readiness, and comments.
+ */
+import { Schema } from "effect";
 
+/** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */
-export const reviewWorkflowStatusSchema = z.enum(["review", "rework", "done"]);
+export const reviewWorkflowStatusSchema = Schema.Union(
+  Schema.Literal("review"),
+  Schema.Literal("rework"),
+  Schema.Literal("done"),
+);
 
 /** Team roles used for collaboration access and review attribution. */
-export const reviewRoleSchema = z.enum(["owner", "admin", "member", "viewer"]);
+export const reviewRoleSchema = Schema.Union(
+  Schema.Literal("owner"),
+  Schema.Literal("admin"),
+  Schema.Literal("member"),
+  Schema.Literal("viewer"),
+);
 
 /** Processing state for cloud review playback sources. */
-export const reviewProcessingStateSchema = z.enum(["pending", "processing", "ready", "failed"]);
+export const reviewProcessingStateSchema = Schema.Union(
+  Schema.Literal("pending"),
+  Schema.Literal("processing"),
+  Schema.Literal("ready"),
+  Schema.Literal("failed"),
+);
 
 /** Preferred playback source when review media is loaded. */
-export const reviewPlaybackSourceSchema = z.enum(["processed", "original"]);
+export const reviewPlaybackSourceSchema = Schema.Union(
+  Schema.Literal("processed"),
+  Schema.Literal("original"),
+);
 
 /** Access policy for review share links. */
-export const reviewSharePolicySchema = z.object({
-  allowDownloads: z.boolean(),
-  expiresAt: z.string().datetime().nullable(),
-  passwordProtected: z.boolean(),
+export const reviewSharePolicySchema = Schema.Struct({
+  allowDownloads: Schema.Boolean,
+  expiresAt: Schema.NullOr(Schema.String),
+  passwordProtected: Schema.Boolean,
 });
 
 /** Presence signal for a watcher in an active review session. */
-export const reviewPresenceSchema = z.object({
-  userId: z.string().min(1),
-  displayName: z.string().min(1),
+export const reviewPresenceSchema = Schema.Struct({
+  userId: Schema.NonEmptyString,
+  displayName: Schema.NonEmptyString,
   role: reviewRoleSchema,
-  lastActiveAt: z.string().datetime(),
+  lastActiveAt: Schema.String,
 });
 
 /** Frame/time-accurate review comment model. */
-export const reviewCommentSchema = z.object({
-  id: z.string().min(1),
-  reviewId: z.string().min(1),
-  authorId: z.string().min(1),
-  authorName: z.string().min(1),
-  body: z.string().min(1),
-  frameNumber: z.number().int().nonnegative().nullable(),
-  timestampSeconds: z.number().nonnegative().nullable(),
-  resolved: z.boolean(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  parentCommentId: z.string().min(1).nullable(),
+export const reviewCommentSchema = Schema.Struct({
+  id: Schema.NonEmptyString,
+  reviewId: Schema.NonEmptyString,
+  authorId: Schema.NonEmptyString,
+  authorName: Schema.NonEmptyString,
+  body: Schema.NonEmptyString,
+  frameNumber: Schema.NullOr(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))),
+  timestampSeconds: Schema.NullOr(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0))),
+  resolved: Schema.Boolean,
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+  parentCommentId: Schema.NullOr(Schema.NonEmptyString),
 });
 
 /** Full review-session snapshot payload consumed by the desktop Deliver route. */
-export const reviewSessionSnapshotSchema = z.object({
-  reviewId: z.string().min(1),
+export const reviewSessionSnapshotSchema = Schema.Struct({
+  reviewId: Schema.NonEmptyString,
   status: reviewWorkflowStatusSchema,
   processingState: reviewProcessingStateSchema,
   preferredPlaybackSource: reviewPlaybackSourceSchema,
   sharePolicy: reviewSharePolicySchema,
-  comments: z.array(reviewCommentSchema),
-  presence: z.array(reviewPresenceSchema),
-  updatedAt: z.string().datetime(),
+  comments: Schema.Array(reviewCommentSchema),
+  presence: Schema.Array(reviewPresenceSchema),
+  updatedAt: Schema.String,
 });
 
+/** Request and response payloads used by the review bridge command surface. */
 /** Request payload for reading a review session snapshot. */
-export const reviewSessionSnapshotRequestSchema = z.object({
-  reviewId: z.string().min(1),
+export const reviewSessionSnapshotRequestSchema = Schema.Struct({
+  reviewId: Schema.NonEmptyString,
 });
 
 /** Request payload for creating a new review comment. */
-export const reviewCreateCommentRequestSchema = z.object({
-  reviewId: z.string().min(1),
-  body: z.string().min(1),
-  frameNumber: z.number().int().nonnegative().optional(),
-  timestampSeconds: z.number().nonnegative().optional(),
-  parentCommentId: z.string().min(1).optional(),
+export const reviewCreateCommentRequestSchema = Schema.Struct({
+  reviewId: Schema.NonEmptyString,
+  body: Schema.NonEmptyString,
+  frameNumber: Schema.optional(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))),
+  timestampSeconds: Schema.optional(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0))),
+  parentCommentId: Schema.optional(Schema.NonEmptyString),
 });
 
 /** Request payload for updating review workflow status. */
-export const reviewSetWorkflowStatusRequestSchema = z.object({
-  reviewId: z.string().min(1),
+export const reviewSetWorkflowStatusRequestSchema = Schema.Struct({
+  reviewId: Schema.NonEmptyString,
   status: reviewWorkflowStatusSchema,
 });
 
 /** Response payload for workflow status updates. */
-export const reviewSetWorkflowStatusResponseSchema = z.object({
-  reviewId: z.string().min(1),
+export const reviewSetWorkflowStatusResponseSchema = Schema.Struct({
+  reviewId: Schema.NonEmptyString,
   status: reviewWorkflowStatusSchema,
-  updatedAt: z.string().datetime(),
+  updatedAt: Schema.String,
 });
 
+/** Realtime events emitted while a Deliver review session is active. */
 /** Event emitted when review presence changes for the active session. */
-export const reviewPresenceUpdatedEventSchema = z.object({
-  type: z.literal("presence.updated"),
-  reviewId: z.string().min(1),
-  presence: z.array(reviewPresenceSchema),
-  emittedAt: z.string().datetime(),
+export const reviewPresenceUpdatedEventSchema = Schema.Struct({
+  type: Schema.Literal("presence.updated"),
+  reviewId: Schema.NonEmptyString,
+  presence: Schema.Array(reviewPresenceSchema),
+  emittedAt: Schema.String,
 });
 
 /** Event emitted when a new comment is created in the active session. */
-export const reviewCommentCreatedEventSchema = z.object({
-  type: z.literal("comment.created"),
-  reviewId: z.string().min(1),
+export const reviewCommentCreatedEventSchema = Schema.Struct({
+  type: Schema.Literal("comment.created"),
+  reviewId: Schema.NonEmptyString,
   comment: reviewCommentSchema,
-  emittedAt: z.string().datetime(),
+  emittedAt: Schema.String,
 });
 
 /** Event emitted when review workflow status changes. */
-export const reviewStatusChangedEventSchema = z.object({
-  type: z.literal("workflow.statusChanged"),
-  reviewId: z.string().min(1),
+export const reviewStatusChangedEventSchema = Schema.Struct({
+  type: Schema.Literal("workflow.statusChanged"),
+  reviewId: Schema.NonEmptyString,
   status: reviewWorkflowStatusSchema,
-  emittedAt: z.string().datetime(),
+  emittedAt: Schema.String,
 });
 
 /** Event emitted when playback readiness changes in review delivery flows. */
-export const reviewPlaybackStateChangedEventSchema = z.object({
-  type: z.literal("playback.stateChanged"),
-  reviewId: z.string().min(1),
+export const reviewPlaybackStateChangedEventSchema = Schema.Struct({
+  type: Schema.Literal("playback.stateChanged"),
+  reviewId: Schema.NonEmptyString,
   processingState: reviewProcessingStateSchema,
   preferredPlaybackSource: reviewPlaybackSourceSchema,
-  emittedAt: z.string().datetime(),
+  emittedAt: Schema.String,
 });
 
-/** Discriminated union for review bridge realtime events. */
-export const reviewBridgeEventSchema = z.discriminatedUnion("type", [
+/**
+ * Discriminated union for all realtime events emitted by the review bridge.
+ *
+ * Consumers should branch on `type` instead of probing payload shapes so newly-added event
+ * payloads can extend the union without ambiguous runtime checks.
+ */
+export const reviewBridgeEventSchema = Schema.Union(
   reviewPresenceUpdatedEventSchema,
   reviewCommentCreatedEventSchema,
   reviewStatusChangedEventSchema,
   reviewPlaybackStateChangedEventSchema,
-]);
+);
 
+/** Inferred TypeScript aliases for consumers that only need the review data model. */
 /** Type alias for ReviewWorkflowStatus. */
-export type ReviewWorkflowStatus = z.infer<typeof reviewWorkflowStatusSchema>;
+export type ReviewWorkflowStatus = typeof reviewWorkflowStatusSchema.Type;
 /** Type alias for ReviewRole. */
-export type ReviewRole = z.infer<typeof reviewRoleSchema>;
+export type ReviewRole = typeof reviewRoleSchema.Type;
 /** Type alias for ReviewProcessingState. */
-export type ReviewProcessingState = z.infer<typeof reviewProcessingStateSchema>;
+export type ReviewProcessingState = typeof reviewProcessingStateSchema.Type;
 /** Type alias for ReviewPlaybackSource. */
-export type ReviewPlaybackSource = z.infer<typeof reviewPlaybackSourceSchema>;
+export type ReviewPlaybackSource = typeof reviewPlaybackSourceSchema.Type;
 /** Type alias for ReviewSharePolicy. */
-export type ReviewSharePolicy = z.infer<typeof reviewSharePolicySchema>;
+export type ReviewSharePolicy = typeof reviewSharePolicySchema.Type;
 /** Type alias for ReviewPresence. */
-export type ReviewPresence = z.infer<typeof reviewPresenceSchema>;
+export type ReviewPresence = typeof reviewPresenceSchema.Type;
 /** Type alias for ReviewComment. */
-export type ReviewComment = z.infer<typeof reviewCommentSchema>;
+export type ReviewComment = typeof reviewCommentSchema.Type;
 /** Type alias for ReviewSessionSnapshot. */
-export type ReviewSessionSnapshot = z.infer<typeof reviewSessionSnapshotSchema>;
+export type ReviewSessionSnapshot = typeof reviewSessionSnapshotSchema.Type;
 /** Type alias for ReviewSessionSnapshotRequest. */
-export type ReviewSessionSnapshotRequest = z.infer<typeof reviewSessionSnapshotRequestSchema>;
+export type ReviewSessionSnapshotRequest = typeof reviewSessionSnapshotRequestSchema.Type;
 /** Type alias for ReviewCreateCommentRequest. */
-export type ReviewCreateCommentRequest = z.infer<typeof reviewCreateCommentRequestSchema>;
+export type ReviewCreateCommentRequest = typeof reviewCreateCommentRequestSchema.Type;
 /** Type alias for ReviewSetWorkflowStatusRequest. */
-export type ReviewSetWorkflowStatusRequest = z.infer<typeof reviewSetWorkflowStatusRequestSchema>;
+export type ReviewSetWorkflowStatusRequest = typeof reviewSetWorkflowStatusRequestSchema.Type;
 /** Type alias for ReviewSetWorkflowStatusResponse. */
-export type ReviewSetWorkflowStatusResponse = z.infer<typeof reviewSetWorkflowStatusResponseSchema>;
+export type ReviewSetWorkflowStatusResponse = typeof reviewSetWorkflowStatusResponseSchema.Type;
 /** Type alias for ReviewPresenceUpdatedEvent. */
-export type ReviewPresenceUpdatedEvent = z.infer<typeof reviewPresenceUpdatedEventSchema>;
+export type ReviewPresenceUpdatedEvent = typeof reviewPresenceUpdatedEventSchema.Type;
 /** Type alias for ReviewCommentCreatedEvent. */
-export type ReviewCommentCreatedEvent = z.infer<typeof reviewCommentCreatedEventSchema>;
+export type ReviewCommentCreatedEvent = typeof reviewCommentCreatedEventSchema.Type;
 /** Type alias for ReviewStatusChangedEvent. */
-export type ReviewStatusChangedEvent = z.infer<typeof reviewStatusChangedEventSchema>;
+export type ReviewStatusChangedEvent = typeof reviewStatusChangedEventSchema.Type;
 /** Type alias for ReviewPlaybackStateChangedEvent. */
-export type ReviewPlaybackStateChangedEvent = z.infer<typeof reviewPlaybackStateChangedEventSchema>;
+export type ReviewPlaybackStateChangedEvent = typeof reviewPlaybackStateChangedEventSchema.Type;
 /** Type alias for ReviewBridgeEvent. */
-export type ReviewBridgeEvent = z.infer<typeof reviewBridgeEventSchema>;
+export type ReviewBridgeEvent = typeof reviewBridgeEventSchema.Type;

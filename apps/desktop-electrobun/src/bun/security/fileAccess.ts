@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { FileAccessPolicyError } from "../../shared/errors";
 import { isSupportedMediaPath } from "../media/policy";
 
 const DEFAULT_MAX_TEXT_READ_BYTES = 5 * 1024 * 1024;
@@ -45,17 +46,27 @@ function normalizeLocalFilePathInput(filePath: string): string {
   let parsedURL: URL;
   try {
     parsedURL = new URL(trimmedPath);
-  } catch {
-    throw new Error("A valid local file path is required.");
+  } catch (error) {
+    throw new FileAccessPolicyError({
+      code: "LOCAL_FILE_PATH_INVALID",
+      description: "A valid local file path is required.",
+      cause: error,
+    });
   }
 
   if (parsedURL.protocol !== "file:") {
-    throw new Error("A valid local file path is required.");
+    throw new FileAccessPolicyError({
+      code: "LOCAL_FILE_PATH_INVALID",
+      description: "A valid local file path is required.",
+    });
   }
 
   const host = parsedURL.hostname.toLowerCase();
   if (host && host !== "localhost") {
-    throw new Error("Only local file URLs are supported.");
+    throw new FileAccessPolicyError({
+      code: "LOCAL_FILE_URL_UNSUPPORTED",
+      description: "Only local file URLs are supported.",
+    });
   }
 
   return fileURLToPath(parsedURL);
@@ -83,7 +94,10 @@ function ensurePathWithinAllowedRoots(
   const canonicalTargetPath = canonicalizePath(resolvedPath);
   const isAllowed = roots.some((rootPath) => isPathWithinRoot(canonicalTargetPath, rootPath));
   if (!isAllowed) {
-    throw new Error("Access denied: file path is outside allowed project and temp directories.");
+    throw new FileAccessPolicyError({
+      code: "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS",
+      description: "Access denied: file path is outside allowed project and temp directories.",
+    });
   }
   return canonicalTargetPath;
 }
@@ -94,12 +108,18 @@ export function resolveAllowedTextFilePath(
   options: ReadTextFileOptions = {},
 ): string {
   if (typeof filePath !== "string" || filePath.trim().length === 0) {
-    throw new Error("A file path is required.");
+    throw new FileAccessPolicyError({
+      code: "FILE_PATH_REQUIRED",
+      description: "A file path is required.",
+    });
   }
 
   const resolvedPath = path.resolve(normalizeLocalFilePathInput(filePath));
   if (path.extname(resolvedPath).toLowerCase() !== ".json") {
-    throw new Error("Only .json files can be read through the desktop bridge.");
+    throw new FileAccessPolicyError({
+      code: "TEXT_FILE_TYPE_UNSUPPORTED",
+      description: "Only .json files can be read through the desktop bridge.",
+    });
   }
 
   return ensurePathWithinAllowedRoots(resolvedPath, options);
@@ -111,12 +131,18 @@ export function resolveAllowedMediaFilePath(
   options: ResolveAllowedMediaFileOptions = {},
 ): string {
   if (typeof filePath !== "string" || filePath.trim().length === 0) {
-    throw new Error("A file path is required.");
+    throw new FileAccessPolicyError({
+      code: "FILE_PATH_REQUIRED",
+      description: "A file path is required.",
+    });
   }
 
   const resolvedPath = path.resolve(normalizeLocalFilePathInput(filePath));
   if (!isSupportedMediaPath(resolvedPath)) {
-    throw new Error("Only video media files can be read through the desktop bridge.");
+    throw new FileAccessPolicyError({
+      code: "MEDIA_FILE_TYPE_UNSUPPORTED",
+      description: "Only video media files can be read through the desktop bridge.",
+    });
   }
 
   const canonicalPath = ensurePathWithinAllowedRoots(resolvedPath, options);
@@ -127,14 +153,19 @@ export function resolveAllowedMediaFilePath(
 
   const tempRoot = tempRootPath(options);
   if (!isPathWithinRoot(canonicalPath, tempRoot)) {
-    throw new Error("Access denied: file path is outside allowed project and temp directories.");
+    throw new FileAccessPolicyError({
+      code: "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS",
+      description: "Access denied: file path is outside allowed project and temp directories.",
+    });
   }
 
   const mediaFileName = path.basename(canonicalPath).toLowerCase();
   if (!mediaFileName.startsWith(mediaTempFilePrefix)) {
-    throw new Error(
-      "Access denied: temporary media file must use the Guerillaglass temp naming prefix.",
-    );
+    throw new FileAccessPolicyError({
+      code: "TEMP_MEDIA_PREFIX_REQUIRED",
+      description:
+        "Access denied: temporary media file must use the Guerillaglass temp naming prefix.",
+    });
   }
 
   return canonicalPath;
@@ -148,12 +179,18 @@ export async function readAllowedTextFile(
   const resolvedPath = resolveAllowedTextFilePath(filePath, options);
   const fileStat = await stat(resolvedPath);
   if (!fileStat.isFile()) {
-    throw new Error("Path must point to a file.");
+    throw new FileAccessPolicyError({
+      code: "PATH_NOT_FILE",
+      description: "Path must point to a file.",
+    });
   }
 
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_TEXT_READ_BYTES;
   if (fileStat.size > maxBytes) {
-    throw new Error(`File too large to read safely (max ${maxBytes} bytes).`);
+    throw new FileAccessPolicyError({
+      code: "FILE_TOO_LARGE",
+      description: `File too large to read safely (max ${maxBytes} bytes).`,
+    });
   }
 
   return await readFile(resolvedPath, "utf8");

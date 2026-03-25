@@ -2,6 +2,7 @@ import path from "node:path";
 import os from "node:os";
 import { describe, expect, test } from "bun:test";
 import { EngineClient, resolveEnginePath } from "../src/bun/engine/client";
+import { EngineRequestValidationError, EngineResponseError } from "../src/shared/errors";
 
 const BUN_BASE_DIR = path.resolve(import.meta.dir, "../src/bun");
 const LINUX_STUB_PATH = path.resolve(
@@ -397,6 +398,7 @@ describe("engine client validation", () => {
           importedTranscriptPath: "/tmp/example.json",
         }),
       );
+      expect(error).toBeInstanceOf(EngineRequestValidationError);
       expect(error.message).toContain("invalid_params: agent.run request validation failed");
       expect(error.message).toContain("Call agent.preflight first");
       expect(error.message).toContain("params.preflightToken");
@@ -409,6 +411,7 @@ describe("engine client validation", () => {
     const client = new EngineClient(LINUX_STUB_PATH, 2000);
     try {
       const error = await captureError(client.sendRaw("agent.run", {}));
+      expect(error).toBeInstanceOf(EngineResponseError);
       expect(error.message).toContain(
         "invalid_params: agent.preflight must be called first. preflightToken is required.",
       );
@@ -425,6 +428,7 @@ describe("engine client validation", () => {
     const client = new EngineClient(LINUX_STUB_PATH, 2000);
     try {
       const error = await captureError(client.sendRaw("system.ping", {}));
+      expect(error).toBeInstanceOf(EngineResponseError);
       expect(error.message).toContain("permission_denied: sendRaw is disabled in production");
     } finally {
       if (previousNodeEnv === undefined) {

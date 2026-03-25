@@ -21,8 +21,8 @@ export default defineConfig({
           if (id.includes("/lucide-react/")) {
             return "vendor-icons";
           }
-          if (id.includes("/zod/")) {
-            return "vendor-zod";
+          if (id.includes("/effect/")) {
+            return "vendor-effect";
           }
           return;
         },

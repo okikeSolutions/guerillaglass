@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { Schema } from "effect";
 import {
   agentPreflightResultSchema,
   agentRunResultSchema,
@@ -20,10 +21,22 @@ import {
   sourcesResultSchema,
   type AgentRunResult,
   type AutoZoomSettings,
+  type CaptureStatusResult,
   type CaptureFrameRate,
   type EngineRequest,
+  type EngineRequestEncoded,
   type TranscriptionProvider,
 } from "@guerillaglass/engine-protocol";
+import {
+  EngineClientError,
+  EngineOperationError,
+  EngineRequestValidationError,
+  EngineResponseError,
+  decodeUnknownWithSchemaPromise,
+  type EngineClientErrorCode,
+  type MutableDeep,
+  extractValidationIssues,
+} from "../../shared/errors";
 
 type PendingRequest = {
   resolve: (value: unknown) => void;
@@ -50,36 +63,13 @@ const WINDOWS_NATIVE_BINARY = "guerillaglass-engine-windows.exe";
 const LINUX_NATIVE_BINARY = "guerillaglass-engine-linux";
 const textEncoder = new TextEncoder();
 
-type EngineClientErrorCode =
-  | "ENGINE_CLIENT_STOPPED"
-  | "ENGINE_PROCESS_UNAVAILABLE"
-  | "ENGINE_REQUEST_TIMEOUT"
-  | "ENGINE_STDIO_WRITE_FAILED"
-  | "ENGINE_PROCESS_EXITED"
-  | "ENGINE_PROCESS_FAILED"
-  | "ENGINE_RESTART_CIRCUIT_OPEN";
-
-class EngineClientError extends Error {
-  readonly code: EngineClientErrorCode;
-  override readonly cause: unknown;
-
-  constructor(code: EngineClientErrorCode, message: string, cause?: unknown) {
-    super(message);
-    this.code = code;
-    this.cause = cause;
-    this.name = "EngineClientError";
-  }
-}
-
-type EngineMethodDefinition<TResult, TArgs extends unknown[]> = {
+type EngineMethodDefinition<TSchema extends Schema.Schema.Any, TArgs extends unknown[]> = {
   method: EngineRequest["method"];
   toParams: (...args: TArgs) => unknown;
-  schema: { parse: (value: unknown) => TResult };
+  schema: TSchema;
   timeoutMs: number;
   retryableRead: boolean;
 };
-
-type CaptureStatusResult = ReturnType<typeof captureStatusResultSchema.parse>;
 
 const emptyParams = () => ({});
 
@@ -90,17 +80,14 @@ const engineMethodDefinitions = {
     schema: pingResultSchema,
     timeoutMs: 3000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof pingResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof pingResultSchema, []>,
   capabilities: {
     method: "engine.capabilities",
     toParams: emptyParams,
     schema: capabilitiesResultSchema,
     timeoutMs: 5000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof capabilitiesResultSchema.parse>>,
-    []
-  >,
+  } satisfies EngineMethodDefinition<typeof capabilitiesResultSchema, []>,
   agentPreflight: {
     method: "agent.preflight",
     toParams: (params?: {
@@ -112,7 +99,7 @@ const engineMethodDefinitions = {
     timeoutMs: 5000,
     retryableRead: true,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof agentPreflightResultSchema.parse>>,
+    typeof agentPreflightResultSchema,
     [
       params?: {
         runtimeBudgetMinutes?: number;
@@ -134,7 +121,7 @@ const engineMethodDefinitions = {
     timeoutMs: 0,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof agentRunResultSchema.parse>>,
+    typeof agentRunResultSchema,
     [
       params: {
         preflightToken: string;
@@ -151,10 +138,7 @@ const engineMethodDefinitions = {
     schema: agentStatusResultSchema,
     timeoutMs: 5000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof agentStatusResultSchema.parse>>,
-    [jobId: string]
-  >,
+  } satisfies EngineMethodDefinition<typeof agentStatusResultSchema, [jobId: string]>,
   agentApply: {
     method: "agent.apply",
     toParams: (params: { jobId: string; destructiveIntent?: boolean }) => params,
@@ -162,7 +146,7 @@ const engineMethodDefinitions = {
     timeoutMs: 8000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof actionResultSchema.parse>>,
+    typeof actionResultSchema,
     [params: { jobId: string; destructiveIntent?: boolean }]
   >,
   getPermissions: {
@@ -171,42 +155,42 @@ const engineMethodDefinitions = {
     schema: permissionsResultSchema,
     timeoutMs: 5000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof permissionsResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof permissionsResultSchema, []>,
   requestScreenRecordingPermission: {
     method: "permissions.requestScreenRecording",
     toParams: emptyParams,
     schema: actionResultSchema,
     timeoutMs: 10_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof actionResultSchema, []>,
   requestMicrophonePermission: {
     method: "permissions.requestMicrophone",
     toParams: emptyParams,
     schema: actionResultSchema,
     timeoutMs: 10_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof actionResultSchema, []>,
   requestInputMonitoringPermission: {
     method: "permissions.requestInputMonitoring",
     toParams: emptyParams,
     schema: actionResultSchema,
     timeoutMs: 10_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof actionResultSchema, []>,
   openInputMonitoringSettings: {
     method: "permissions.openInputMonitoringSettings",
     toParams: emptyParams,
     schema: actionResultSchema,
     timeoutMs: 5000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof actionResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof actionResultSchema, []>,
   listSources: {
     method: "sources.list",
     toParams: emptyParams,
     schema: sourcesResultSchema,
     timeoutMs: 8000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof sourcesResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof sourcesResultSchema, []>,
   startDisplayCapture: {
     method: "capture.startDisplay",
     toParams: (enableMic: boolean, captureFps: CaptureFrameRate) => ({ enableMic, captureFps }),
@@ -214,7 +198,7 @@ const engineMethodDefinitions = {
     timeoutMs: 15_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    typeof captureStatusResultSchema,
     [enableMic: boolean, captureFps: CaptureFrameRate]
   >,
   startCurrentWindowCapture: {
@@ -224,7 +208,7 @@ const engineMethodDefinitions = {
     timeoutMs: 15_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    typeof captureStatusResultSchema,
     [enableMic: boolean, captureFps: CaptureFrameRate]
   >,
   startWindowCapture: {
@@ -239,7 +223,7 @@ const engineMethodDefinitions = {
     timeoutMs: 0,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
+    typeof captureStatusResultSchema,
     [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate]
   >,
   stopCapture: {
@@ -248,47 +232,35 @@ const engineMethodDefinitions = {
     schema: captureStatusResultSchema,
     timeoutMs: 10_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
-    []
-  >,
+  } satisfies EngineMethodDefinition<typeof captureStatusResultSchema, []>,
   startRecording: {
     method: "recording.start",
     toParams: (trackInputEvents: boolean) => ({ trackInputEvents }),
     schema: captureStatusResultSchema,
     timeoutMs: 15_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
-    [trackInputEvents: boolean]
-  >,
+  } satisfies EngineMethodDefinition<typeof captureStatusResultSchema, [trackInputEvents: boolean]>,
   stopRecording: {
     method: "recording.stop",
     toParams: emptyParams,
     schema: captureStatusResultSchema,
     timeoutMs: 15_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
-    []
-  >,
+  } satisfies EngineMethodDefinition<typeof captureStatusResultSchema, []>,
   captureStatus: {
     method: "capture.status",
     toParams: emptyParams,
     schema: captureStatusResultSchema,
     timeoutMs: 5000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof captureStatusResultSchema.parse>>,
-    []
-  >,
+  } satisfies EngineMethodDefinition<typeof captureStatusResultSchema, []>,
   exportInfo: {
     method: "export.info",
     toParams: emptyParams,
     schema: exportInfoResultSchema,
     timeoutMs: 10_000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof exportInfoResultSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof exportInfoResultSchema, []>,
   runExport: {
     method: "export.run",
     toParams: (params: {
@@ -302,7 +274,7 @@ const engineMethodDefinitions = {
     timeoutMs: 0,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof exportRunResultSchema.parse>>,
+    typeof exportRunResultSchema,
     [
       params: {
         outputURL: string;
@@ -319,7 +291,7 @@ const engineMethodDefinitions = {
     timeoutMs: 0,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof exportRunCutPlanResultSchema.parse>>,
+    typeof exportRunCutPlanResultSchema,
     [params: { outputURL: string; presetId: string; jobId: string }]
   >,
   projectCurrent: {
@@ -328,17 +300,14 @@ const engineMethodDefinitions = {
     schema: projectStateSchema,
     timeoutMs: 5000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<Awaited<ReturnType<typeof projectStateSchema.parse>>, []>,
+  } satisfies EngineMethodDefinition<typeof projectStateSchema, []>,
   projectOpen: {
     method: "project.open",
     toParams: (projectPath: string) => ({ projectPath }),
     schema: projectStateSchema,
     timeoutMs: 20_000,
     retryableRead: false,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof projectStateSchema.parse>>,
-    [projectPath: string]
-  >,
+  } satisfies EngineMethodDefinition<typeof projectStateSchema, [projectPath: string]>,
   projectSave: {
     method: "project.save",
     toParams: (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) => params,
@@ -346,7 +315,7 @@ const engineMethodDefinitions = {
     timeoutMs: 20_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof projectStateSchema.parse>>,
+    typeof projectStateSchema,
     [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
   >,
   projectRecents: {
@@ -355,10 +324,7 @@ const engineMethodDefinitions = {
     schema: projectRecentsResultSchema,
     timeoutMs: 5000,
     retryableRead: true,
-  } satisfies EngineMethodDefinition<
-    Awaited<ReturnType<typeof projectRecentsResultSchema.parse>>,
-    [limit?: number]
-  >,
+  } satisfies EngineMethodDefinition<typeof projectRecentsResultSchema, [limit?: number]>,
 } as const;
 
 const requestMethodPolicy = Object.freeze(
@@ -398,58 +364,32 @@ type EngineClientOptions = {
   maxRetryAttempts?: number;
 };
 
-type ValidationIssue = {
-  path: Array<string | number>;
-  message: string;
-};
-
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   });
 }
 
-function isValidationIssue(value: unknown): value is ValidationIssue {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const candidate = value as { path?: unknown; message?: unknown };
-  return Array.isArray(candidate.path) && typeof candidate.message === "string";
-}
-
-function extractValidationIssues(error: unknown): ValidationIssue[] {
-  if (Array.isArray(error) && error.every((issue) => isValidationIssue(issue))) {
-    return error;
-  }
-  if (!error || typeof error !== "object") {
-    return [];
-  }
-  const issues = (error as { issues?: unknown }).issues;
-  if (!Array.isArray(issues)) {
-    return [];
-  }
-  return issues.filter((issue): issue is ValidationIssue => isValidationIssue(issue));
-}
-
-function formatValidationIssue(issue: ValidationIssue): string {
-  const path = issue.path.length > 0 ? issue.path.join(".") : "params";
-  return `${path}: ${issue.message}`;
-}
-
 function toInvalidParamsError(method: string, error: unknown): Error {
   const issues = extractValidationIssues(error);
   if (issues.length === 0) {
-    return error instanceof Error ? error : new Error(String(error));
+    return error instanceof Error
+      ? error
+      : new EngineOperationError({
+          operation: method,
+          description: String(error),
+        });
   }
-  const details = issues
-    .slice(0, 3)
-    .map((issue) => formatValidationIssue(issue))
-    .join("; ");
   const hint =
     method === "agent.run"
       ? "Call agent.preflight first and pass the returned preflightToken to agent.run."
       : "Check request fields against the engine protocol schema.";
-  return new Error(`invalid_params: ${method} request validation failed (${details}). ${hint}`);
+  return new EngineRequestValidationError({
+    method,
+    issues,
+    hint,
+    cause: error,
+  });
 }
 
 function findWorkspaceRoot(startDir: string): string | null {
@@ -641,7 +581,12 @@ export class EngineClient {
 
   async stop(): Promise<void> {
     this.isStopping = true;
-    this.rejectAllPending(new EngineClientError("ENGINE_CLIENT_STOPPED", "Engine client stopped"));
+    this.rejectAllPending(
+      new EngineClientError({
+        code: "ENGINE_CLIENT_STOPPED",
+        description: "Engine client stopped",
+      }),
+    );
 
     const stdin = this.stdin;
     const process = this.process;
@@ -699,13 +644,18 @@ export class EngineClient {
     const rawRpcAllowed =
       process.env.NODE_ENV !== "production" || process.env.GG_ENGINE_ALLOW_RAW_RPC === "1";
     if (!rawRpcAllowed) {
-      throw new Error(
-        "permission_denied: sendRaw is disabled in production. Set GG_ENGINE_ALLOW_RAW_RPC=1 for diagnostics.",
-      );
+      throw new EngineResponseError({
+        code: "permission_denied",
+        description:
+          "sendRaw is disabled in production. Set GG_ENGINE_ALLOW_RAW_RPC=1 for diagnostics.",
+      });
     }
     const trimmedMethod = method.trim();
     if (!trimmedMethod) {
-      throw new Error("invalid_params: method is required");
+      throw new EngineResponseError({
+        code: "invalid_params",
+        description: "method is required",
+      });
     }
     const timeoutMs = this.resolveRawRequestTimeoutMs(trimmedMethod, options?.timeoutMs);
     return this.requestRaw(trimmedMethod, params, timeoutMs);
@@ -810,11 +760,13 @@ export class EngineClient {
       }
       const liveStatus = await this.tryCaptureStatusProbe(750);
       if (liveStatus?.isRecording) {
-        throw new Error(
-          "recording_abandoned: capture.stop timed out while recording was active. " +
+        throw new EngineResponseError({
+          code: "recording_abandoned",
+          description:
+            "capture.stop timed out while recording was active. " +
             "The engine was not force-restarted to avoid discarding the in-progress recording. " +
             "Retry recording.stop or capture.stop.",
-        );
+        });
       }
       if (liveStatus && !liveStatus.isRunning) {
         this.rememberCaptureStatus(liveStatus);
@@ -822,27 +774,33 @@ export class EngineClient {
       }
       if (!liveStatus) {
         if (this.lastKnownCaptureStatus?.isRecording) {
-          throw new Error(
-            "recording_abandoned: capture.stop timed out and capture.status could not confirm stop. " +
+          throw new EngineResponseError({
+            code: "recording_abandoned",
+            description:
+              "capture.stop timed out and capture.status could not confirm stop. " +
               "The engine was not force-restarted to avoid discarding a potentially active recording. " +
               "Retry recording.stop or capture.stop.",
-          );
+          });
         }
-        throw new Error(
-          "capture.stop recovery aborted: capture.status probe timed out and recording state is unknown. " +
+        throw new EngineOperationError({
+          operation: "capture.stop",
+          description:
+            "capture.stop recovery aborted: capture.status probe timed out and recording state is unknown. " +
             "The engine was not force-restarted to avoid abandoning a potentially in-progress recording. " +
             "Retry capture.status or capture.stop.",
-        );
+        });
       }
       // Recover from stop-request transport loss by restarting and probing status quickly.
       this.resetForRetry();
       await this.start();
       const recoveredStatus = await this.tryCaptureStatusProbe(5000);
       if (!recoveredStatus) {
-        throw new Error(
-          "capture.stop recovery failed after engine restart: capture.status probe timed out. " +
+        throw new EngineOperationError({
+          operation: "capture.stop",
+          description:
+            "capture.stop recovery failed after engine restart: capture.status probe timed out. " +
             "Retry capture.status once the engine is responsive.",
-        );
+        });
       }
       this.rememberCaptureStatus(recoveredStatus);
       return recoveredStatus;
@@ -926,12 +884,16 @@ export class EngineClient {
     return this.callAndParse(definition.method, definition.toParams(limit), definition.schema);
   }
 
-  private async callAndParse<TResult>(
+  private async callAndParse<TSchema extends Schema.Schema.AnyNoContext>(
     method: EngineRequest["method"],
     params: unknown,
-    schema: { parse: (value: unknown) => TResult },
-  ): Promise<TResult> {
-    return schema.parse(await this.request(method, params));
+    schema: TSchema,
+  ): Promise<MutableDeep<Schema.Schema.Type<TSchema>>> {
+    return await decodeUnknownWithSchemaPromise(
+      schema,
+      await this.request(method, params),
+      `${method} result`,
+    );
   }
 
   private async request(method: EngineRequest["method"], params: unknown): Promise<unknown> {
@@ -962,8 +924,10 @@ export class EngineClient {
   private async tryCaptureStatusProbe(timeoutMs: number): Promise<CaptureStatusResult | null> {
     const definition = engineMethodDefinitions.captureStatus;
     try {
-      return definition.schema.parse(
+      return await decodeUnknownWithSchemaPromise(
+        definition.schema,
         await this.dispatchRequest(definition.method, definition.toParams(), timeoutMs),
+        `${definition.method} result`,
       );
     } catch {
       return null;
@@ -976,11 +940,14 @@ export class EngineClient {
     timeoutMs: number,
   ): Promise<unknown> {
     if (!this.stdin) {
-      throw new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable");
+      throw new EngineClientError({
+        code: "ENGINE_PROCESS_UNAVAILABLE",
+        description: "Engine process unavailable",
+      });
     }
     let request: EngineRequest;
     try {
-      request = buildRequest(method as EngineRequest["method"], params as never) as EngineRequest;
+      request = buildRequest(method as EngineRequestEncoded["method"], params as never);
     } catch (error) {
       throw toInvalidParamsError(method, error);
     }
@@ -992,10 +959,10 @@ export class EngineClient {
           ? setTimeout(() => {
               this.pending.delete(request.id);
               reject(
-                new EngineClientError(
-                  "ENGINE_REQUEST_TIMEOUT",
-                  `Engine request timed out: ${method}`,
-                ),
+                new EngineClientError({
+                  code: "ENGINE_REQUEST_TIMEOUT",
+                  description: `Engine request timed out: ${method}`,
+                }),
               );
             }, timeoutMs)
           : undefined;
@@ -1007,7 +974,12 @@ export class EngineClient {
           clearTimeout(timeout);
         }
         this.pending.delete(request.id);
-        reject(new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable"));
+        reject(
+          new EngineClientError({
+            code: "ENGINE_PROCESS_UNAVAILABLE",
+            description: "Engine process unavailable",
+          }),
+        );
         return;
       }
       try {
@@ -1018,11 +990,11 @@ export class EngineClient {
         }
         this.pending.delete(request.id);
         reject(
-          new EngineClientError(
-            "ENGINE_STDIO_WRITE_FAILED",
-            "Failed to write request to engine stdin",
-            error,
-          ),
+          new EngineClientError({
+            code: "ENGINE_STDIO_WRITE_FAILED",
+            description: "Failed to write request to engine stdin",
+            cause: error,
+          }),
         );
       }
     });
@@ -1030,7 +1002,10 @@ export class EngineClient {
 
   private dispatchRawRequest(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
     if (!this.stdin) {
-      throw new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable");
+      throw new EngineClientError({
+        code: "ENGINE_PROCESS_UNAVAILABLE",
+        description: "Engine process unavailable",
+      });
     }
     const requestId = crypto.randomUUID();
     const payload = `${JSON.stringify({ id: requestId, method, params: params ?? {} })}\n`;
@@ -1041,10 +1016,10 @@ export class EngineClient {
           ? setTimeout(() => {
               this.pending.delete(requestId);
               reject(
-                new EngineClientError(
-                  "ENGINE_REQUEST_TIMEOUT",
-                  `Engine request timed out: ${method}`,
-                ),
+                new EngineClientError({
+                  code: "ENGINE_REQUEST_TIMEOUT",
+                  description: `Engine request timed out: ${method}`,
+                }),
               );
             }, timeoutMs)
           : undefined;
@@ -1056,7 +1031,12 @@ export class EngineClient {
           clearTimeout(timeout);
         }
         this.pending.delete(requestId);
-        reject(new EngineClientError("ENGINE_PROCESS_UNAVAILABLE", "Engine process unavailable"));
+        reject(
+          new EngineClientError({
+            code: "ENGINE_PROCESS_UNAVAILABLE",
+            description: "Engine process unavailable",
+          }),
+        );
         return;
       }
       try {
@@ -1067,11 +1047,11 @@ export class EngineClient {
         }
         this.pending.delete(requestId);
         reject(
-          new EngineClientError(
-            "ENGINE_STDIO_WRITE_FAILED",
-            "Failed to write request to engine stdin",
-            error,
-          ),
+          new EngineClientError({
+            code: "ENGINE_STDIO_WRITE_FAILED",
+            description: "Failed to write request to engine stdin",
+            cause: error,
+          }),
         );
       }
     });
@@ -1174,7 +1154,12 @@ export class EngineClient {
         pending.resolve(response.result);
         return;
       }
-      pending.reject(new Error(`${response.error.code}: ${response.error.message}`));
+      pending.reject(
+        new EngineResponseError({
+          code: response.error.code,
+          description: response.error.message,
+        }),
+      );
     } catch (error) {
       console.error("Failed to parse engine response", error);
     }
@@ -1195,10 +1180,10 @@ export class EngineClient {
 
       this.registerUnexpectedRestart();
       this.rejectAllPending(
-        new EngineClientError(
-          "ENGINE_PROCESS_EXITED",
-          `Engine process exited unexpectedly (code ${exitCode})`,
-        ),
+        new EngineClientError({
+          code: "ENGINE_PROCESS_EXITED",
+          description: `Engine process exited unexpectedly (code ${exitCode})`,
+        }),
       );
     } catch (error) {
       if (this.process !== process) {
@@ -1213,11 +1198,11 @@ export class EngineClient {
 
       this.registerUnexpectedRestart();
       this.rejectAllPending(
-        new EngineClientError(
-          "ENGINE_PROCESS_FAILED",
-          `Engine process failed: ${String(error)}`,
-          error,
-        ),
+        new EngineClientError({
+          code: "ENGINE_PROCESS_FAILED",
+          description: `Engine process failed: ${String(error)}`,
+          cause: error,
+        }),
       );
     }
   }
@@ -1308,9 +1293,9 @@ export class EngineClient {
       return;
     }
 
-    throw new EngineClientError(
-      "ENGINE_RESTART_CIRCUIT_OPEN",
-      `Engine restart circuit open until ${new Date(this.restartCircuitOpenUntilMs).toISOString()}`,
-    );
+    throw new EngineClientError({
+      code: "ENGINE_RESTART_CIRCUIT_OPEN",
+      description: `Engine restart circuit open until ${new Date(this.restartCircuitOpenUntilMs).toISOString()}`,
+    });
   }
 }
