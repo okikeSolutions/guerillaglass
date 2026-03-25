@@ -22,6 +22,11 @@ const buttonGroupVariants = cva(
   },
 );
 
+/**
+ * Layout wrapper that visually joins adjacent buttons, inputs, or select triggers into one control.
+ *
+ * Use this when related actions need shared borders and focus management instead of ad hoc spacing.
+ */
 function ButtonGroup({
   className,
   orientation,
@@ -38,6 +43,7 @@ function ButtonGroup({
   );
 }
 
+/** Text-only segment for `ButtonGroup` compositions that should match adjacent control chrome. */
 function ButtonGroupText({ className, render, ...props }: useRender.ComponentProps<"div">) {
   return useRender({
     defaultTagName: "div",
@@ -57,6 +63,7 @@ function ButtonGroupText({ className, render, ...props }: useRender.ComponentPro
   });
 }
 
+/** Visual divider tuned for use inside `ButtonGroup` layouts. */
 function ButtonGroupSeparator({
   className,
   orientation = "vertical",

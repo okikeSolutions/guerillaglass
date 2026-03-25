@@ -20,6 +20,12 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+/**
+ * Applies a persisted desktop theme preference to the document root and exposes it via context.
+ *
+ * The provider intentionally writes the resolved theme class directly to `documentElement`
+ * because desktop shells often mount outside the routing tree and still need global styling.
+ */
 export function ThemeProvider({
   children,
   defaultTheme = "system",
@@ -62,6 +68,12 @@ export function ThemeProvider({
   );
 }
 
+/**
+ * Returns the current theme preference and setter from the nearest `ThemeProvider`.
+ *
+ * The hook throws when used outside the provider so desktop shells fail fast during setup
+ * instead of silently rendering with inconsistent theme state.
+ */
 export const useTheme = () => {
   const context = useContext(ThemeProviderContext);
 
