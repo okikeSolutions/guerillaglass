@@ -30,6 +30,7 @@ Creator Studio tracking checklist (current repo):
 - [x] Route `Current Window` recording through engine-side frontmost window resolution (`capture.startCurrentWindow`) instead of renderer-side source-order inference
 - [x] Handle host-dialog RPC timeouts as recoverable workflow interruptions with guidance copy
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
+- [ ] Add user-configurable shortcut overrides with validation and conflict handling
 - [x] Keep degraded-mode messaging visible near preview/recording context
 - [x] Add host command bus between Bun shell menu/tray and renderer actions
 - [x] Add cross-platform native shell actions (application menu on macOS/Windows, tray fallback on Linux)
@@ -92,7 +93,53 @@ Creator Studio pro-UI parity backlog (next pass):
 
 ---
 
-## 3) Deliver review acceleration track (Convex plane)
+## 3) Agent Mode productization track
+
+Reference requirements: `docs/SPEC.md` §7.7
+
+This track turns the existing Agent Mode protocol surface into a first-class desktop workflow inside Creator Studio.
+
+Workspace UX checklist:
+
+- [ ] Add visible Agent Mode entry points in the desktop workspace without creating a separate dashboard shell
+- [ ] Surface preflight readiness and blocking reasons in the active project workflow
+- [ ] Render proposed cut plans / apply intent as first-class reviewable UI objects
+- [ ] Add explicit destructive apply confirmation flow in the workspace
+- [ ] Render structured approvals and user-input requests inline instead of generic modal-only handling
+- [ ] Surface agent artifacts (`run-summary`, QA report, cut plan) from project context panels
+- [ ] Ensure Agent Mode augments preview/timeline/inspector workflows rather than displacing them
+
+Groundwork already present:
+
+- [x] Agent Mode protocol surface exists across TypeScript/Swift/Rust contracts
+- [x] Preflight token handshake and blocking semantics are implemented
+- [x] Agent artifacts persist inside project packages under `analysis/*.v1.json`
+- [x] Deterministic cut-plan apply/export path exists in the engine contract
+
+---
+
+## 4) Release engineering & distribution track
+
+Reference requirements: `docs/SPEC.md` §19
+
+This track formalizes desktop packaging, tagged releases, smoke validation, and signing/notarization operations.
+
+Release workflow checklist:
+
+- [x] Canonical quality gate workflow exists in CI (`.github/workflows/full_gate.yml`)
+- [x] Desktop parity matrix workflow exists for cross-target verification groundwork
+- [ ] Add tag-triggered desktop release workflow with explicit prerelease/latest semantics
+- [ ] Add release preflight job that reruns canonical quality gates before packaging/publish
+- [ ] Add desktop packaging pipeline for supported artifact targets
+- [ ] Add release-smoke validation job for version propagation and packaging metadata
+- [ ] Add packaged-app startup smoke coverage in CI where feasible
+- [ ] Document signing/notarization secret requirements and dry-run unsigned packaging path
+- [ ] Document expected artifact set and manual release verification checklist
+- [ ] Decide and document desktop update metadata/update-channel strategy
+
+---
+
+## 5) Deliver review acceleration track (Convex plane)
 
 Reference requirements: `docs/SPEC.md` §7.8 and §16
 
@@ -144,7 +191,7 @@ Upload/transcode and reliability checklist:
 
 ---
 
-## 4) Billing commercialization track (Convex Stripe plane)
+## 6) Billing commercialization track (Convex Stripe plane)
 
 Reference requirements: `docs/SPEC.md` §7.10 and §18
 
@@ -177,7 +224,7 @@ Reliability and compliance checklist:
 
 ---
 
-## 5) Phased delivery execution status
+## 7) Phased delivery execution status
 
 Reference scope: `docs/SPEC.md` §18
 

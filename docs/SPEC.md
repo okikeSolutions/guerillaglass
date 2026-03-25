@@ -229,6 +229,7 @@ Design baseline (from pro-tool patterns):
 - Persistent workstation panes: top transport/status, left utility panel, center viewer, right inspector, bottom timeline.
 - Contextual controls: inspector content changes by selection/mode; avoid showing unrelated settings by default.
 - Keyboard-first operations: all core actions remain available without pointer dependency.
+- User-customizable shortcuts are part of the workstation contract, not a debug convenience.
 - Capture-first telemetry: record state, elapsed time, and health indicators stay visible while recording/editing.
 - Desktop renderer state architecture:
   - TanStack Router for explicit mode navigation (`Capture`, `Edit`, `Deliver`)
@@ -260,6 +261,12 @@ Creator Studio implementation requirements:
 - Project utility panel must provide:
   - active project metadata (name/path, capture metadata, URLs, duration)
   - recent projects list with one-action reopen from the utility rail
+- Keyboard and shortcut policy:
+  - Ship with platform-appropriate default shortcuts for record/playback/project/export actions.
+  - Maintain one canonical shortcut registry shared by renderer hotkeys, tooltip hints, and native menu accelerators.
+  - Allow per-user keybinding overrides for non-text-entry contexts.
+  - Validate conflicts and scope rules before accepting custom bindings; unsafe or ambiguous bindings must be rejected with guidance.
+  - Preserve expected platform conventions unless the user explicitly overrides them.
 
 Execution tracking, rollout sequencing, and backlog checklists for the Creator Studio shell are maintained in `docs/ROADMAP.md`.
 Detailed accessibility policy and verification steps remain in `docs/DESKTOP_ACCESSIBILITY.md`.
@@ -352,6 +359,15 @@ Retry rules:
 
 - If run/apply returns preflight-token mismatch/expiry errors, rerun `agent.preflight` and retry with the new token.
 - If `qaReport.missingBeats` is non-empty, regenerate transcript/beat quality before apply/export.
+
+Workspace UX requirements:
+
+- Agent Mode is project-scoped and must feel like a workstation assistant inside Creator Studio, not a separate dashboard product.
+- Agent preflight readiness, blocking reasons, and the latest run/apply state must be visible from the desktop workspace without opening debug-only views.
+- Proposed cut plans and apply intent must be surfaced as first-class reviewable UI objects with explicit user confirmation paths for destructive actions.
+- Structured approvals and user-input requests should render inline in the active workspace flow instead of generic modal-only interruptions.
+- Agent artifacts (`run-summary`, QA report, cut plan) must be inspectable from the project context so users can understand what will be changed before apply/export.
+- Agent interactions must not displace the core preview/timeline/inspector workflow; they augment the editing surface rather than replacing it.
 
 Artifact contract (project-relative paths):
 
@@ -797,7 +813,45 @@ Detailed phase task lists and completion status are tracked in `docs/ROADMAP.md`
 
 ---
 
-## 19) Licensing
+## 19) Release engineering & distribution
+
+Release policy:
+
+- Desktop distribution is a first-class product requirement, not a post-MVP packaging task.
+- Release automation must rerun quality gates before packaging or publishing any desktop artifacts.
+- Tagged releases should produce a consistent cross-platform artifact set with explicit prerelease vs latest semantics.
+- Release engineering must preserve the local-first product promise: packaged builds, updater metadata, and signing flows must not weaken offline capture/edit/export behavior.
+
+Required release workflow baseline:
+
+- CI preflight job:
+  - reruns the canonical quality gates used for day-to-day verification
+  - blocks packaging/publishing on any failure
+- Desktop packaging workflow:
+  - builds platform-specific desktop artifacts from a tagged revision
+  - stages only the dependencies and assets required for production packaging
+  - validates artifact metadata needed by the chosen update/distribution mechanism
+- Release smoke validation:
+  - verifies version propagation and packaging metadata before public publish
+  - includes a packaged-app startup smoke path in CI where feasible
+- Manual validation checklist:
+  - install/open packaged app on each supported desktop OS target
+  - verify project open/save/export basics
+  - verify updater metadata presence and signing/notarization status when enabled
+
+Distribution and update constraints:
+
+- Update behavior must be explicit and user-controlled; background availability checks are acceptable, but automatic destructive install flows are not required for v1.
+- Signing/notarization configuration must be isolated from unsigned dev/test builds so dry-run packaging remains possible.
+- Release docs must describe:
+  - tag format and release trigger conditions
+  - required secrets for signing/notarization
+  - expected artifact set per platform
+  - smoke-test procedure for shipped builds
+
+---
+
+## 20) Licensing
 
 - Code: choose **MIT** or **Apache-2.0** and document the rationale.
 - Assets: license-compatible or optional download; all assets must have explicit licenses.
@@ -805,7 +859,7 @@ Detailed phase task lists and completion status are tracked in `docs/ROADMAP.md`
 
 ---
 
-## 20) Open-source readiness & contribution setup
+## 21) Open-source readiness & contribution setup
 
 Required repo artifacts:
 
@@ -831,7 +885,7 @@ License hygiene:
 
 ---
 
-## 21) Human Interface Guidelines (HIG) & native feel
+## 22) Human Interface Guidelines (HIG) & native feel
 
 - Follow platform HIG principles for desktop layout, navigation patterns, and control behavior.
 - Keep navigation and primary actions discoverable in the shell (keyboard-first paths for start/stop record, export, and project save/open).
@@ -840,7 +894,7 @@ License hygiene:
 
 ---
 
-## 22) Localization & internationalization
+## 23) Localization & internationalization
 
 - **String catalogs:** Use a single desktop-shell localization source of truth (e.g. locale JSON catalogs in the React app).
 - **Internationalize first:** All user-facing strings must be localizable. Avoid hardcoded UI copy in components.
@@ -870,7 +924,7 @@ License hygiene:
 
 ---
 
-## 23) Verification sources (links)
+## 24) Verification sources (links)
 
 - Apple WWDC22: “Meet ScreenCaptureKit” — https://developer.apple.com/videos/play/wwdc2022/10156/
 - Apple ScreenCaptureKit sample app (WWDC22) README — https://github.com/Fidetro/CapturingScreenContentInMacOS
