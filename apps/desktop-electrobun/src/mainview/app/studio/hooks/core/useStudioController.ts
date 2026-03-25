@@ -11,7 +11,25 @@ import { getStudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@/lib/engine";
 import type { HostMenuCommand, HostPathPickerMode } from "../../../../../shared/bridgeRpc";
 import { hostBridgeEventNames } from "../../../../../shared/bridgeRpc";
+import {
+  BridgeInvocationError,
+  BridgeUnavailableError,
+  ContractDecodeError,
+  EngineClientError,
+  EngineResponseError,
+  PathPickerError,
+  StudioActionError,
+  messageFromUnknownError,
+} from "../../../../../shared/errors";
 import { createHostCommandRunnerFromHandlers } from "../../../../../shared/hostCommandRegistry";
+import {
+  detectStudioShortcutPlatform,
+  sanitizeStudioShortcutOverrides,
+  validateStudioShortcutOverride,
+  type ShortcutDisplayPlatform,
+  type StudioShortcutId,
+  type StudioShortcutOverrides,
+} from "../../../../../shared/shortcuts";
 import {
   emptyInspectorSelection,
   type InspectorSelection,
@@ -19,6 +37,10 @@ import {
   selectionFromPreset,
 } from "../../model/inspectorSelectionModel";
 import { resolveSelectedWindowId } from "../../model/preferredWindowSelection";
+import {
+  loadStudioShortcutOverrides,
+  saveStudioShortcutOverrides,
+} from "../../model/studioShortcutOverridesModel";
 import { useStudioHotkeys } from "./useStudioHotkeys";
 import { useStudioLayoutController } from "./useStudioLayoutController";
 import { useStudioMutations, type ExportFormApi, type SettingsFormApi } from "./useStudioMutations";
@@ -33,20 +55,6 @@ export const defaultAutoZoom: AutoZoomSettings = {
   intensity: 1,
   minimumKeyframeInterval: 1 / 30,
 };
-
-function formatError(error: unknown, fallbackMessage: string): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return fallbackMessage;
-}
-
-function isBridgeTimeoutError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-  return /rpc request timed out/i.test(error.message.trim());
-}
 
 export function formatDuration(seconds: number): string {
   const clamped = Math.max(0, Math.floor(seconds));
@@ -97,6 +105,13 @@ export function useStudioController() {
   const [rawInspectorSelection, setRawInspectorSelection] =
     useState<InspectorSelection>(emptyInspectorSelection);
   const locale = layout.locale;
+  const shortcutPlatform = useMemo<ShortcutDisplayPlatform>(
+    () => detectStudioShortcutPlatform(),
+    [],
+  );
+  const [shortcutOverrides, setShortcutOverrides] = useState<StudioShortcutOverrides>(() =>
+    loadStudioShortcutOverrides(shortcutPlatform),
+  );
   const ui = useMemo(() => getStudioMessages(locale), [locale]);
   const integerFormatter = useMemo(
     () =>
@@ -142,12 +157,41 @@ export function useStudioController() {
   );
   const mapActionErrorMessage = useCallback(
     (error: unknown): string => {
-      if (isBridgeTimeoutError(error)) {
+      if (error instanceof StudioActionError) {
+        switch (error.reason) {
+          case "screen_permission_required":
+            return ui.notices.screenPermissionRequired;
+          case "window_selection_required":
+            return ui.notices.selectWindowFirst;
+          case "export_missing_recording":
+            return ui.notices.exportMissingRecording;
+          case "export_missing_preset":
+            return ui.notices.exportMissingPreset;
+        }
+      }
+      if (error instanceof EngineClientError && error.code === "ENGINE_REQUEST_TIMEOUT") {
         return ui.notices.rpcTimedOut;
       }
-      return formatError(error, ui.notices.actionFailed);
+      if (
+        error instanceof BridgeUnavailableError ||
+        error instanceof BridgeInvocationError ||
+        error instanceof ContractDecodeError ||
+        error instanceof EngineClientError ||
+        error instanceof EngineResponseError ||
+        error instanceof PathPickerError
+      ) {
+        return error.message;
+      }
+      return messageFromUnknownError(error, ui.notices.actionFailed);
     },
-    [ui.notices.actionFailed, ui.notices.rpcTimedOut],
+    [
+      ui.notices.actionFailed,
+      ui.notices.exportMissingPreset,
+      ui.notices.exportMissingRecording,
+      ui.notices.rpcTimedOut,
+      ui.notices.screenPermissionRequired,
+      ui.notices.selectWindowFirst,
+    ],
   );
 
   const settingsForm = useForm({
@@ -188,6 +232,10 @@ export function useStudioController() {
   const recentsLimit = studioRecentsLimit;
 
   const lastHydratedProjectAutoZoomSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    saveStudioShortcutOverrides(shortcutOverrides, shortcutPlatform);
+  }, [shortcutOverrides, shortcutPlatform]);
 
   useEffect(() => {
     const projectAutoZoom = projectQuery.data?.autoZoom;
@@ -328,24 +376,9 @@ export function useStudioController() {
   );
 
   const pickPathSafely = useCallback(
-    async (params: {
-      mode: HostPathPickerMode;
-      startingFolder?: string;
-    }): Promise<string | null> => {
-      try {
-        return await desktopApi.pickPath(params);
-      } catch (error) {
-        if (isBridgeTimeoutError(error)) {
-          setNotice({
-            kind: "info",
-            message: ui.notices.directoryPickerTimedOut,
-          });
-          return null;
-        }
-        throw error;
-      }
-    },
-    [ui.notices.directoryPickerTimedOut],
+    async (params: { mode: HostPathPickerMode; startingFolder?: string }): Promise<string | null> =>
+      await desktopApi.pickPath(params),
+    [],
   );
 
   const {
@@ -527,9 +560,50 @@ export function useStudioController() {
     setNotice(null);
   }, []);
 
+  const applyShortcutOverride = useCallback(
+    (shortcutId: StudioShortcutId, hotkey: string) => {
+      const validation = validateStudioShortcutOverride({
+        shortcutId,
+        hotkey,
+        platform: shortcutPlatform,
+        overrides: shortcutOverrides,
+      });
+      if (!validation.ok) {
+        return validation;
+      }
+      setShortcutOverrides((currentOverrides) =>
+        sanitizeStudioShortcutOverrides(
+          {
+            ...currentOverrides,
+            [shortcutId]: validation.hotkey,
+          },
+          shortcutPlatform,
+        ),
+      );
+      return validation;
+    },
+    [shortcutOverrides, shortcutPlatform],
+  );
+
+  const resetShortcutOverride = useCallback(
+    (shortcutId: StudioShortcutId) => {
+      setShortcutOverrides((currentOverrides) => {
+        if (!currentOverrides[shortcutId]) {
+          return currentOverrides;
+        }
+        const nextOverrides = { ...currentOverrides };
+        delete nextOverrides[shortcutId];
+        return sanitizeStudioShortcutOverrides(nextOverrides, shortcutPlatform);
+      });
+    },
+    [shortcutPlatform],
+  );
+
   useStudioHotkeys({
     runHostCommand,
     singleKeyShortcutsEnabled: settingsForm.state.values.singleKeyShortcutsEnabled,
+    shortcutOverrides,
+    shortcutPlatform,
     clearInspectorSelection,
     clearNotice,
     setTimelineTool,
@@ -543,6 +617,7 @@ export function useStudioController() {
       recordingURL,
       locale,
       densityMode: layout.densityMode,
+      shortcutOverrides,
     });
   }, [
     captureStatusQuery.data?.isRecording,
@@ -550,6 +625,7 @@ export function useStudioController() {
     layout.densityMode,
     locale,
     recordingURL,
+    shortcutOverrides,
   ]);
 
   useEffect(() => {
@@ -615,6 +691,7 @@ export function useStudioController() {
     requestPermissionMutation,
     resetLayout,
     runHostCommand,
+    applyShortcutOverride,
     saveProjectMutation,
     selectedPreset,
     selectedPresetId,
@@ -663,10 +740,13 @@ export function useStudioController() {
     sourcesQuery,
     startPreviewMutation,
     stopPreviewMutation,
+    shortcutOverrides,
+    shortcutPlatform,
     supportedCaptureFrameRates,
     timelineDuration,
     timelineLanes,
     toggleRecordingMutation,
+    resetShortcutOverride,
     toggleRightPaneCollapsed,
     toggleTimelineCollapsed,
     toggleTimelinePlayback,

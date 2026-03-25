@@ -1,6 +1,12 @@
-import { useHotkey } from "@tanstack/react-hotkeys";
+import { useHotkey, type RegisterableHotkey } from "@tanstack/react-hotkeys";
 import { hostMenuCommands, type HostMenuCommand } from "../../../../../shared/bridgeRpc";
-import { studioShortcuts } from "../../../../../shared/shortcuts";
+import {
+  isStudioShortcutSingleKey,
+  resolveStudioShortcutHotkey,
+  type ShortcutDisplayPlatform,
+  type StudioShortcutId,
+  type StudioShortcutOverrides,
+} from "../../../../../shared/shortcuts";
 
 type TimelineTool = "select" | "trim" | "blade";
 
@@ -34,20 +40,53 @@ function shouldBlockGlobalSingleKeyHotkey(target: EventTarget | null): boolean {
 type UseStudioHotkeysOptions = {
   runHostCommand: (command: HostMenuCommand) => void;
   singleKeyShortcutsEnabled: boolean;
+  shortcutOverrides: StudioShortcutOverrides;
+  shortcutPlatform: ShortcutDisplayPlatform;
   clearInspectorSelection: () => void;
   clearNotice: () => void;
   setTimelineTool: (tool: TimelineTool) => void;
 };
 
+function shortcutOptionsFor(
+  shortcutId: StudioShortcutId,
+  shortcutOverrides: StudioShortcutOverrides,
+  shortcutPlatform: ShortcutDisplayPlatform,
+) {
+  const hotkey = resolveStudioShortcutHotkey(shortcutId, {
+    platform: shortcutPlatform,
+    overrides: shortcutOverrides,
+  });
+  const singleKey = isStudioShortcutSingleKey(shortcutId, {
+    platform: shortcutPlatform,
+    overrides: shortcutOverrides,
+  });
+
+  return {
+    hotkey: hotkey as RegisterableHotkey,
+    singleKey,
+  };
+}
+
 export function useStudioHotkeys({
   runHostCommand,
   singleKeyShortcutsEnabled,
+  shortcutOverrides,
+  shortcutPlatform,
   clearInspectorSelection,
   clearNotice,
   setTimelineTool,
 }: UseStudioHotkeysOptions): void {
+  const saveShortcut = shortcutOptionsFor("save", shortcutOverrides, shortcutPlatform);
+  const saveAsShortcut = shortcutOptionsFor("saveAs", shortcutOverrides, shortcutPlatform);
+  const exportShortcut = shortcutOptionsFor("export", shortcutOverrides, shortcutPlatform);
+  const playPauseShortcut = shortcutOptionsFor("playPause", shortcutOverrides, shortcutPlatform);
+  const recordShortcut = shortcutOptionsFor("record", shortcutOverrides, shortcutPlatform);
+  const trimInShortcut = shortcutOptionsFor("trimIn", shortcutOverrides, shortcutPlatform);
+  const trimOutShortcut = shortcutOptionsFor("trimOut", shortcutOverrides, shortcutPlatform);
+  const bladeShortcut = shortcutOptionsFor("timelineBlade", shortcutOverrides, shortcutPlatform);
+
   useHotkey(
-    studioShortcuts.save.hotkey,
+    saveShortcut.hotkey,
     (event) => {
       if (event.shiftKey) {
         return;
@@ -63,7 +102,7 @@ export function useStudioHotkeys({
   );
 
   useHotkey(
-    studioShortcuts.saveAs.hotkey,
+    saveAsShortcut.hotkey,
     (event) => {
       event.preventDefault();
       runHostCommand(hostMenuCommands.fileSaveProjectAs);
@@ -76,7 +115,7 @@ export function useStudioHotkeys({
   );
 
   useHotkey(
-    studioShortcuts.export.hotkey,
+    exportShortcut.hotkey,
     (event) => {
       event.preventDefault();
       runHostCommand(hostMenuCommands.fileExport);
@@ -98,95 +137,95 @@ export function useStudioHotkeys({
   );
 
   useHotkey(
-    studioShortcuts.playPause.hotkey,
+    playPauseShortcut.hotkey,
     (event) => {
-      if (!singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+      if (
+        playPauseShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
         return;
       }
       event.preventDefault();
       runHostCommand(hostMenuCommands.timelinePlayPause);
     },
     {
-      ignoreInputs: true,
+      ignoreInputs: playPauseShortcut.singleKey,
       preventDefault: false,
       stopPropagation: false,
     },
   );
 
   useHotkey(
-    studioShortcuts.record.hotkey,
+    recordShortcut.hotkey,
     (event) => {
-      if (!singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+      if (
+        recordShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
         return;
       }
       event.preventDefault();
       runHostCommand(hostMenuCommands.captureToggleRecording);
     },
     {
-      ignoreInputs: true,
+      ignoreInputs: recordShortcut.singleKey,
       preventDefault: false,
       stopPropagation: false,
     },
   );
 
   useHotkey(
-    studioShortcuts.trimIn.hotkey,
+    trimInShortcut.hotkey,
     (event) => {
-      if (!singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+      if (
+        trimInShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
         return;
       }
       event.preventDefault();
       runHostCommand(hostMenuCommands.timelineTrimIn);
     },
     {
-      ignoreInputs: true,
+      ignoreInputs: trimInShortcut.singleKey,
       preventDefault: false,
       stopPropagation: false,
     },
   );
 
   useHotkey(
-    studioShortcuts.trimOut.hotkey,
+    trimOutShortcut.hotkey,
     (event) => {
-      if (!singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+      if (
+        trimOutShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
         return;
       }
       event.preventDefault();
       runHostCommand(hostMenuCommands.timelineTrimOut);
     },
     {
-      ignoreInputs: true,
+      ignoreInputs: trimOutShortcut.singleKey,
       preventDefault: false,
       stopPropagation: false,
     },
   );
 
   useHotkey(
-    studioShortcuts.timelineBlade.hotkey,
+    bladeShortcut.hotkey,
     (event) => {
-      if (!singleKeyShortcutsEnabled) {
-        return;
-      }
-      if (shouldBlockGlobalSingleKeyHotkey(event.target)) {
+      if (
+        bladeShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
         return;
       }
       event.preventDefault();
       setTimelineTool("blade");
     },
     {
-      ignoreInputs: true,
+      ignoreInputs: bladeShortcut.singleKey,
       preventDefault: false,
       stopPropagation: false,
     },

@@ -14,6 +14,7 @@ import {
   parseCaptureFrameRate,
   readSliderValue,
 } from "./InspectorPrimitives";
+import { ShortcutOverridesSection } from "./ShortcutOverridesSection";
 
 type InspectorModeStudio = Pick<
   StudioController,
@@ -255,6 +256,9 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
             />
           )}
         </studio.settingsForm.Field>
+        <div className="mt-4">
+          <ShortcutOverridesSection />
+        </div>
       </InspectorSection>
     </>
   );

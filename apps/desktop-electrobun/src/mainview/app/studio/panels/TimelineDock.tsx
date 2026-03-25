@@ -103,6 +103,7 @@ export function TimelineDock() {
                 label={studio.ui.actions.setTrimIn}
                 shortcutKeys={studioShortcutDisplayTokens("trimIn", {
                   platform: shortcutPlatform,
+                  overrides: studio.shortcutOverrides,
                 })}
                 onClick={studio.setTrimInFromPlayhead}
               >
@@ -112,6 +113,7 @@ export function TimelineDock() {
                 label={studio.ui.actions.setTrimOut}
                 shortcutKeys={studioShortcutDisplayTokens("trimOut", {
                   platform: shortcutPlatform,
+                  overrides: studio.shortcutOverrides,
                 })}
                 onClick={studio.setTrimOutFromPlayhead}
               >
@@ -138,6 +140,7 @@ export function TimelineDock() {
                 label={studio.ui.actions.timelineToolBlade}
                 shortcutKeys={studioShortcutDisplayTokens("timelineBlade", {
                   platform: shortcutPlatform,
+                  overrides: studio.shortcutOverrides,
                 })}
                 tone={studio.timelineTool === "blade" ? "selected" : "neutral"}
                 onClick={() => studio.setTimelineTool("blade")}
@@ -197,6 +200,7 @@ export function TimelineDock() {
               label={studio.ui.actions.saveProjectAs}
               shortcutKeys={studioShortcutDisplayTokens("saveAs", {
                 platform: shortcutPlatform,
+                overrides: studio.shortcutOverrides,
               })}
               onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
               disabled={studio.isRunningAction || !studio.recordingURL}

@@ -10,7 +10,7 @@ import {
   resolveHostCommandLabel,
   type HostCommandDefinition,
 } from "../../shared/hostCommandRegistry";
-import { withShortcutLabel } from "../../shared/shortcuts";
+import { normalizeShortcutDisplayPlatform, withShortcutLabel } from "../../shared/shortcuts";
 import { encodeHostMenuAction } from "./actions";
 
 const separator = { type: "separator" as const };
@@ -22,6 +22,7 @@ function prefixedCheckLabel(label: string, checked: boolean): string {
 function buildAppSectionCommands(
   section: "file" | "capture" | "timeline" | "language" | "density",
   state: HostMenuState,
+  platform: NodeJS.Platform,
   locale?: string,
 ): ApplicationMenuItemConfig[] {
   const labels = getDesktopMenuMessages(locale ?? state.locale);
@@ -45,7 +46,10 @@ function buildAppSectionCommands(
         isHostCommandChecked(definition, state),
       ),
       action: encodeHostMenuAction(definition.id),
-      accelerator: resolveHostCommandAccelerator(definition),
+      accelerator: resolveHostCommandAccelerator(definition, {
+        platform: normalizeShortcutDisplayPlatform(platform),
+        overrides: state.shortcutOverrides,
+      }),
       enabled: resolveHostCommandEnabled(definition, state),
     });
   }
@@ -63,7 +67,10 @@ function toTrayCommandItem(
     isHostCommandChecked(definition, state),
   );
   const label = definition.shortcut
-    ? withShortcutLabel(checkedLabel, definition.shortcut, { platform: "linux" })
+    ? withShortcutLabel(checkedLabel, definition.shortcut, {
+        platform: "linux",
+        overrides: state.shortcutOverrides,
+      })
     : checkedLabel;
 
   return {
@@ -122,7 +129,7 @@ export function buildApplicationMenu(
       label: labels.file,
       action: "menu.file",
       submenu: [
-        ...buildAppSectionCommands("file", state, locale),
+        ...buildAppSectionCommands("file", state, platform, locale),
         separator,
         {
           label: labels.quit,
@@ -147,12 +154,12 @@ export function buildApplicationMenu(
     {
       label: labels.capture,
       action: "menu.capture",
-      submenu: buildAppSectionCommands("capture", state, locale),
+      submenu: buildAppSectionCommands("capture", state, platform, locale),
     },
     {
       label: labels.timeline,
       action: "menu.timeline",
-      submenu: buildAppSectionCommands("timeline", state, locale),
+      submenu: buildAppSectionCommands("timeline", state, platform, locale),
     },
     {
       label: labels.view,
@@ -163,12 +170,12 @@ export function buildApplicationMenu(
         {
           label: labels.language,
           action: "menu.view.language",
-          submenu: buildAppSectionCommands("language", state, locale),
+          submenu: buildAppSectionCommands("language", state, platform, locale),
         },
         {
           label: labels.density,
           action: "menu.view.density",
-          submenu: buildAppSectionCommands("density", state, locale),
+          submenu: buildAppSectionCommands("density", state, platform, locale),
         },
         separator,
         {

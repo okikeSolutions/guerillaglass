@@ -1,17 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import {
-  studioShortcutDisplayTokens,
+  resolveStudioShortcutHotkey,
+  sanitizeStudioShortcutOverrides,
+  studioHotkeyMenuAccelerator,
   studioShortcutDisplayText,
-  studioShortcuts,
-  withShortcutLabel,
+  studioShortcutDisplayTokens,
+  validateStudioShortcutOverride,
 } from "../src/shared/shortcuts";
 
 describe("studio shortcuts", () => {
-  test("defines display text for all menu-exposed shortcuts", () => {
+  test("resolves platform-aware defaults for menu-exposed shortcuts", () => {
     expect(studioShortcutDisplayText("playPause")).toBe("Space");
-    expect(studioShortcutDisplayText("save")).toBe("Ctrl+S");
-    expect(studioShortcutDisplayText("saveAs")).toBe("Ctrl+Shift+S");
-    expect(studioShortcutDisplayText("export")).toBe("Ctrl+E");
+    expect(resolveStudioShortcutHotkey("save", { platform: "mac" })).toBe("Meta+S");
+    expect(resolveStudioShortcutHotkey("save", { platform: "windows" })).toBe("Control+S");
+    expect(resolveStudioShortcutHotkey("saveAs", { platform: "linux" })).toBe("Control+Shift+S");
   });
 
   test("resolves platform-aware shortcut tokens", () => {
@@ -29,15 +31,55 @@ describe("studio shortcuts", () => {
     ).toEqual(["Leertaste"]);
   });
 
-  test("formats labels with shortcut hints", () => {
-    expect(withShortcutLabel("Play/Pause", "playPause")).toBe("Play/Pause (Space)");
-    expect(withShortcutLabel("Blade", "timelineBlade")).toBe("Blade (B)");
+  test("sanitizes overrides and drops invalid or conflicting entries", () => {
+    expect(
+      sanitizeStudioShortcutOverrides(
+        {
+          save: "Control+Shift+P",
+          export: "Control+Shift+P",
+          record: "Bad Shortcut",
+          trimIn: "I",
+        },
+        "windows",
+      ),
+    ).toEqual({
+      save: "Control+Shift+P",
+    });
   });
 
-  test("keeps menu accelerators and hotkeys aligned for core actions", () => {
-    expect(studioShortcuts.record.menuAccelerator).toBe("r");
-    expect(studioShortcuts.record.hotkey).toBe("R");
-    expect(studioShortcuts.trimIn.menuAccelerator).toBe("i");
-    expect(studioShortcuts.trimOut.menuAccelerator).toBe("o");
+  test("validates shortcut overrides against active bindings", () => {
+    expect(
+      validateStudioShortcutOverride({
+        shortcutId: "export",
+        hotkey: "Control+Shift+P",
+        platform: "windows",
+        overrides: {
+          save: "Control+Shift+P",
+        },
+      }),
+    ).toEqual({
+      ok: false,
+      reason: "conflict",
+      message: "Shortcut is already assigned.",
+      conflictingShortcutId: "save",
+    });
+
+    expect(
+      validateStudioShortcutOverride({
+        shortcutId: "export",
+        hotkey: "Control+Alt+E",
+        platform: "windows",
+        overrides: {},
+      }),
+    ).toEqual({
+      ok: true,
+      hotkey: "Control+Alt+E",
+    });
+  });
+
+  test("formats hotkeys for menu accelerators", () => {
+    expect(studioHotkeyMenuAccelerator("Meta+Shift+S")).toBe("Command+Shift+S");
+    expect(studioHotkeyMenuAccelerator("Control+Alt+E")).toBe("Control+Alt+E");
+    expect(studioHotkeyMenuAccelerator("Space")).toBe("Space");
   });
 });
