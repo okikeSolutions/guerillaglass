@@ -62,7 +62,7 @@ describe("shell menu helpers", () => {
     const saveItem = fileSubmenu.find(
       (item) => isNormalApplicationItem(item) && item.label === "Save Project",
     );
-    expect(saveItem).toEqual(expect.objectContaining({ enabled: false, accelerator: "s" }));
+    expect(saveItem).toEqual(expect.objectContaining({ enabled: false, accelerator: "Control+S" }));
 
     const darwinFileMenu = darwinMenu.find(
       (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
@@ -118,6 +118,55 @@ describe("shell menu helpers", () => {
     expect(
       trayMenu.some(
         (item) => item.type === "normal" && item.action === encodeHostMenuAction("app.locale.enUS"),
+      ),
+    ).toBe(true);
+  });
+
+  test("menu accelerators and tray hints reflect shortcut overrides", () => {
+    const menu = buildApplicationMenu(
+      {
+        canSave: true,
+        canExport: true,
+        isRecording: false,
+        locale: "en-US",
+        densityMode: "comfortable",
+        shortcutOverrides: {
+          save: "Control+Shift+P",
+          export: "Control+Alt+E",
+        },
+      },
+      "win32",
+    );
+
+    const fileMenu = menu.find(
+      (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
+        isNormalApplicationItem(item) && item.label === "File",
+    );
+    const fileSubmenu: ApplicationMenuItemConfig[] = fileMenu?.submenu ?? [];
+    const saveItem = fileSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Save Project",
+    );
+    const exportItem = fileSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Export...",
+    );
+
+    expect(saveItem).toEqual(expect.objectContaining({ accelerator: "Control+Shift+P" }));
+    expect(exportItem).toEqual(expect.objectContaining({ accelerator: "Control+Alt+E" }));
+
+    const trayMenu = buildLinuxTrayMenu({
+      canSave: true,
+      canExport: true,
+      isRecording: false,
+      locale: "en-US",
+      densityMode: "comfortable",
+      shortcutOverrides: {
+        save: "Control+Shift+P",
+      },
+    });
+
+    expect(
+      trayMenu.some(
+        (item) => item.type === "normal" && item.label === "Save Project (Ctrl+Shift+P)",
       ),
     ).toBe(true);
   });

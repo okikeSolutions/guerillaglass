@@ -34,7 +34,7 @@ import {
   TooltipTrigger,
 } from "@guerillaglass/ui/components/tooltip";
 import {
-  normalizeShortcutDisplayPlatform,
+  detectStudioShortcutPlatform,
   type ShortcutDisplayPlatform,
   studioShortcutDisplayTokens,
 } from "../../../../shared/shortcuts";
@@ -74,12 +74,7 @@ function resolveShortcutPlatform(): ShortcutDisplayPlatform | undefined {
   if (typeof navigator === "undefined") {
     return undefined;
   }
-
-  return normalizeShortcutDisplayPlatform(
-    (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ??
-      navigator.platform ??
-      navigator.userAgent,
-  );
+  return detectStudioShortcutPlatform();
 }
 
 function HeaderIconButton({
@@ -174,7 +169,10 @@ export function buildUtilityActions(
       tooltip: (
         <ShortcutHint
           label={studio.ui.actions.saveProject}
-          keys={studioShortcutDisplayTokens("save", { platform: shortcutPlatform })}
+          keys={studioShortcutDisplayTokens("save", {
+            platform: shortcutPlatform,
+            overrides: studio.shortcutOverrides,
+          })}
         />
       ),
       icon: <Save className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
@@ -188,7 +186,10 @@ export function buildUtilityActions(
       tooltip: (
         <ShortcutHint
           label={studio.ui.actions.exportNow}
-          keys={studioShortcutDisplayTokens("export", { platform: shortcutPlatform })}
+          keys={studioShortcutDisplayTokens("export", {
+            platform: shortcutPlatform,
+            overrides: studio.shortcutOverrides,
+          })}
         />
       ),
       icon: <HardDriveDownload className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
@@ -312,6 +313,7 @@ export function StudioShellHeader({
                     label={studio.ui.actions.playPause}
                     keys={studioShortcutDisplayTokens("playPause", {
                       platform: shortcutPlatform,
+                      overrides: studio.shortcutOverrides,
                       spaceKeyLabel: studio.ui.shortcuts.playPause,
                     })}
                   />
@@ -339,6 +341,7 @@ export function StudioShellHeader({
                       label={studio.ui.actions.stopRecording}
                       keys={studioShortcutDisplayTokens("record", {
                         platform: shortcutPlatform,
+                        overrides: studio.shortcutOverrides,
                       })}
                     />
                   </TooltipContent>
@@ -369,6 +372,7 @@ export function StudioShellHeader({
                         label={studio.ui.actions.startRecording}
                         keys={studioShortcutDisplayTokens("record", {
                           platform: shortcutPlatform,
+                          overrides: studio.shortcutOverrides,
                         })}
                       />
                     </TooltipContent>

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { enUS } from "@guerillaglass/localization";
 import { InspectorPanel } from "../src/mainview/app/studio/panels/InspectorPanel";
+import { ShortcutOverridesSection } from "../src/mainview/app/studio/panels/inspector/ShortcutOverridesSection";
 import { StudioProvider } from "../src/mainview/app/studio/state/StudioProvider";
 import type {
   InspectorSelection,
@@ -25,6 +26,7 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
   };
 
   return {
+    applyShortcutOverride: () => ({ ok: true as const, hotkey: "Control+Shift+P" }),
     audioMixer: {
       masterGain: 0.8,
       masterMuted: false,
@@ -81,6 +83,9 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
           handleChange: () => {},
         }),
     },
+    resetShortcutOverride: () => {},
+    shortcutOverrides: {},
+    shortcutPlatform: "windows",
     supportedCaptureFrameRates: [24, 30, 60],
     toggleAudioMixerMuted: () => {},
     ui: enUS,
@@ -91,6 +96,14 @@ function render(mode: StudioMode, selection: InspectorSelection): string {
   return renderToStaticMarkup(
     <StudioProvider value={makeStudioMock(selection)}>
       <InspectorPanel mode={mode} />
+    </StudioProvider>,
+  );
+}
+
+function renderShortcutOverridesSection(): string {
+  return renderToStaticMarkup(
+    <StudioProvider value={makeStudioMock({ kind: "none" })}>
+      <ShortcutOverridesSection />
     </StudioProvider>,
   );
 }
@@ -148,5 +161,14 @@ describe("inspector panel", () => {
     expect(html).toContain("CAPTURE");
     expect(html).toContain("EFFECTS");
     expect(html).not.toContain("120 fps");
+  });
+
+  test("renders configurable shortcut controls in the advanced inspector section", () => {
+    const html = renderShortcutOverridesSection();
+    expect(html).toContain("Shortcut overrides are local to this workstation");
+    expect(html).toContain("Save Project");
+    expect(html).toContain("Start Recording");
+    expect(html).toContain("Record");
+    expect(html).toContain("Reset");
   });
 });

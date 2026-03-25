@@ -1,6 +1,11 @@
 import { normalizeStudioLocale, type StudioLocale } from "./studio";
 
-/** Localized labels used to build desktop application and tray menus. */
+/**
+ * Localized labels used to build desktop application and tray menus.
+ *
+ * Keep this contract aligned with the menu builders so every visible menu action has a
+ * translation slot and locale switches can update the full native shell consistently.
+ */
 export type DesktopMenuMessages = {
   file: string;
   openProject: string;
@@ -98,7 +103,12 @@ const desktopMenuMessagesByLocale: Record<StudioLocale, DesktopMenuMessages> = {
   },
 };
 
-/** Returns localized desktop menu labels for the requested locale. */
+/**
+ * Returns desktop menu labels for any supported or loosely formatted locale string.
+ *
+ * The helper delegates locale coercion to `normalizeStudioLocale`, so callers can pass raw
+ * OS locale values and still receive a complete, supported message bundle.
+ */
 export function getDesktopMenuMessages(locale: string | null | undefined): DesktopMenuMessages {
   return desktopMenuMessagesByLocale[normalizeStudioLocale(locale)];
 }

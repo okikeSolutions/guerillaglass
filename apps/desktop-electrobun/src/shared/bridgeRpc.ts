@@ -25,6 +25,7 @@ import type {
   ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
 import type { RPCSchema } from "electrobun/bun";
+import type { StudioShortcutOverrides } from "./shortcuts";
 
 export const hostMenuCommands = {
   appRefresh: "app.refresh",
@@ -61,6 +62,7 @@ export type HostMenuState = {
   recordingURL?: string | null;
   locale?: string;
   densityMode?: "comfortable" | "compact";
+  shortcutOverrides?: StudioShortcutOverrides;
 };
 
 /** Host path-picker modes used by renderer workflows. */

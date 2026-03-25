@@ -81,6 +81,9 @@ export const deDE: StudioMessages = {
     toggleRightPane: "Inspektor umschalten",
     toggleTimeline: "Zeitleiste umschalten",
     resetLayout: "Layout zurücksetzen",
+    recordShortcut: "Aufnehmen",
+    cancelShortcutRecording: "Abbrechen",
+    resetShortcut: "Zurücksetzen",
   },
   shortcuts: {
     title: "Kurzbefehle",
@@ -112,6 +115,9 @@ export const deDE: StudioMessages = {
     trackInput: "Cursor + Klicks erfassen",
     captureFrameRate: "Aufnahme-FPS",
     singleKeyShortcuts: "Single-Key-Kurzbefehle aktivieren",
+    shortcutDefault: "Standard",
+    shortcutCustom: "Benutzerdefiniert",
+    shortcutRecording: "Aufnahme",
     inputMonitoring: "Input Monitoring",
     technicalFeedback: "Technisches Feedback",
     status: "Status",
@@ -286,6 +292,13 @@ export const deDE: StudioMessages = {
       "Hintergrundrahmung, Bewegungsunschärfe, segmentbezogene Overrides und Simulator-Auto-Crop sind hier für die phasenweise native Anbindung vorbereitet.",
     singleKeyShortcuts:
       "Single-Key-Kurzbefehle (R/I/O/Leertaste) greifen nur, wenn der Fokus nicht auf interaktiven Steuerelementen liegt.",
+    shortcutCustomization:
+      "Kurzbefehls-Overrides gelten nur auf dieser Workstation und aktualisieren Menüleiste, Tray-Hinweise und In-App-Steuerungen sofort.",
+    shortcutRecording: "Jetzt den neuen Kurzbefehl drücken. Escape beendet den Aufnahmezustand.",
+    shortcutInvalid: (reason: string) => `Kurzbefehl abgelehnt: ${reason}`,
+    shortcutConflict: (label: string) => `Kurzbefehl ist bereits ${label} zugewiesen.`,
+    shortcutDefault: (binding: string) => `Standardbelegung: ${binding}`,
+    shortcutCustomized: (binding: string) => `Benutzerdefinierte Belegung: ${binding}`,
     recordToEnableAction:
       "Nimm mindestens einen Take auf, bevor du Projektschnappschüsse speicherst oder Exporte auslieferst.",
   },

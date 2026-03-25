@@ -1,4 +1,9 @@
-/** English (US) studio localization dictionary. */
+/**
+ * English (US) base Creator Studio localization dictionary.
+ *
+ * Other locale dictionaries should conform to this shape so translators inherit a stable
+ * message contract from the source language instead of redefining nested keys by hand.
+ */
 export const enUS = {
   app: {
     title: "Guerillaglass",
@@ -78,6 +83,9 @@ export const enUS = {
     toggleRightPane: "Toggle Inspector",
     toggleTimeline: "Toggle Timeline",
     resetLayout: "Reset Layout",
+    recordShortcut: "Record",
+    cancelShortcutRecording: "Cancel",
+    resetShortcut: "Reset",
   },
   shortcuts: {
     title: "Shortcuts",
@@ -109,6 +117,9 @@ export const enUS = {
     trackInput: "Track cursor + clicks",
     captureFrameRate: "Capture FPS",
     singleKeyShortcuts: "Enable single-key shortcuts",
+    shortcutDefault: "Default",
+    shortcutCustom: "Custom",
+    shortcutRecording: "Recording",
     inputMonitoring: "Input Monitoring",
     technicalFeedback: "Technical Feedback",
     status: "Status",
@@ -283,6 +294,13 @@ export const enUS = {
       "Background framing, motion blur, per-segment overrides, and Simulator auto-crop are surfaced here for phased native wiring.",
     singleKeyShortcuts:
       "Single-key shortcuts (R/I/O/Space) only fire when focus is outside interactive controls.",
+    shortcutCustomization:
+      "Shortcut overrides are local to this workstation and update the menu bar, tray hints, and in-app controls immediately.",
+    shortcutRecording: "Press the new shortcut now. Escape cancels the recording state.",
+    shortcutInvalid: (reason: string) => `Shortcut rejected: ${reason}`,
+    shortcutConflict: (label: string) => `Shortcut already assigned to ${label}.`,
+    shortcutDefault: (binding: string) => `Default binding: ${binding}`,
+    shortcutCustomized: (binding: string) => `Customized binding: ${binding}`,
     recordToEnableAction:
       "Record at least one take before saving project snapshots or exporting deliverables.",
   },
@@ -302,5 +320,10 @@ type WidenLiterals<T> = T extends string
             ? { [K in keyof T]: WidenLiterals<T[K]> }
             : T;
 
-/** Studio message contract widened from the base English locale dictionary. */
+/**
+ * Widened Creator Studio message contract inferred from the base English dictionary.
+ *
+ * String literals are widened so locale implementations can provide translated strings and
+ * equivalent formatter functions without inheriting the exact English literal values.
+ */
 export type StudioMessages = WidenLiterals<typeof enUS>;

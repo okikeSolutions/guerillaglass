@@ -1,6 +1,11 @@
 import type { DesktopMenuMessages } from "@guerillaglass/localization";
 import { hostMenuCommands, type HostMenuCommand, type HostMenuState } from "./bridgeRpc";
-import { studioShortcuts, type StudioShortcutId } from "./shortcuts";
+import {
+  studioShortcutMenuAccelerator,
+  type ShortcutDisplayPlatform,
+  type StudioShortcutId,
+  type StudioShortcutOverrides,
+} from "./shortcuts";
 
 type HostCommandLabelKey = keyof DesktopMenuMessages | "recordingToggle";
 type HostCommandEnablement = "canSave" | "canExport";
@@ -282,6 +287,10 @@ export function isHostCommandChecked(
 
 export function resolveHostCommandAccelerator(
   definition: HostCommandDefinition,
+  options?: {
+    platform?: ShortcutDisplayPlatform;
+    overrides?: StudioShortcutOverrides;
+  },
 ): string | undefined {
   if (definition.menu.accelerator) {
     return definition.menu.accelerator;
@@ -289,7 +298,7 @@ export function resolveHostCommandAccelerator(
   if (!definition.shortcut) {
     return undefined;
   }
-  return studioShortcuts[definition.shortcut].menuAccelerator;
+  return studioShortcutMenuAccelerator(definition.shortcut, options);
 }
 
 export function listHostCommandsForAppSection(

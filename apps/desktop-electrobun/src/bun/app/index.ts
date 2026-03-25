@@ -12,6 +12,7 @@ import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { EngineClient } from "../engine/client";
 import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
+import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
@@ -34,6 +35,7 @@ let hostMenuState: HostMenuState = {
   recordingURL: null,
   locale: "en-US",
   densityMode: "comfortable",
+  shortcutOverrides: {},
 };
 let currentProjectPath: string | null = null;
 let captureStatusStreamTimer: ReturnType<typeof setTimeout> | null = null;
@@ -138,7 +140,8 @@ function updateHostMenuState(nextState: HostMenuState) {
     hostMenuState.isRecording !== nextState.isRecording ||
     hostMenuState.recordingURL !== nextState.recordingURL ||
     hostMenuState.locale !== nextState.locale ||
-    hostMenuState.densityMode !== nextState.densityMode;
+    hostMenuState.densityMode !== nextState.densityMode ||
+    !studioShortcutOverridesEqual(hostMenuState.shortcutOverrides, nextState.shortcutOverrides);
   if (!hasChange) {
     return;
   }
