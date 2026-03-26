@@ -5,10 +5,13 @@ import {
   parseInputEventLog,
   sendHostMenuState,
 } from "../src/mainview/lib/engine";
+import { createBunBridgeHandlers, createWindowBridgeBindings } from "../src/shared/bridgeBindings";
+import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "../src/shared/bridgeRpc";
 import {
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,
   EngineResponseError,
+  MediaServerError,
 } from "../src/shared/errors";
 
 const captureTelemetryFixture = {
@@ -34,6 +37,32 @@ function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
     eventsURL: null,
     telemetry: { ...captureTelemetryFixture },
     ...overrides,
+  };
+}
+
+function installWindowBridge(
+  overrides: Partial<Record<keyof BridgeRequestHandlerMap, (params: unknown) => Promise<unknown>>>,
+) {
+  const rawHandlers = new Proxy(
+    {},
+    {
+      get: (_target, property: string) => {
+        const override = overrides[property as keyof typeof overrides];
+        if (override) {
+          return override;
+        }
+        return async () => {
+          throw new Error(`Unhandled bridge request in test: ${property}`);
+        };
+      },
+    },
+  ) as BridgeRequestHandlerMap;
+  const bunHandlers = createBunBridgeHandlers(rawHandlers);
+  const invoke: BridgeRequestInvoker = (name, params) =>
+    (bunHandlers[name] as (value: unknown) => Promise<unknown>)(params) as Promise<never>;
+  const bindings = createWindowBridgeBindings(invoke, () => {});
+  (globalThis as unknown as { window: Record<string, unknown> }).window = {
+    ...bindings,
   };
 }
 
@@ -274,18 +303,38 @@ describe("renderer engine bridge", () => {
   });
 
   test("normalizes unsupported window picker capture into a tagged renderer error", async () => {
-    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+    installWindowBridge({
       ggEngineStartWindowCapture: async () => {
         throw new EngineResponseError({
           code: "invalid_params",
           description: "windowId must be greater than 0 on macOS 13",
         });
       },
-    };
+    });
 
     await expect(engineApi.startWindowCapture(0, true)).rejects.toBeInstanceOf(
       CaptureWindowPickerUnsupportedError,
     );
+  });
+
+  test("preserves Bun-side media errors across bridge serialization", async () => {
+    installWindowBridge({
+      ggResolveMediaSourceURL: async () => {
+        throw new MediaServerError({
+          code: "MEDIA_FILE_MISSING",
+          description: "Media file could not be found.",
+        });
+      },
+    });
+
+    try {
+      await desktopApi.resolveMediaSourceURL("/tmp/missing.mov");
+      throw new Error("Expected media source resolution to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(MediaServerError);
+      expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
+      expect((error as Error).message).toBe("Media file could not be found.");
+    }
   });
 
   test("sendHostMenuState is a no-op when host sender is not available", () => {

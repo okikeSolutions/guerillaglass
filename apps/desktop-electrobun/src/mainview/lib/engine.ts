@@ -37,6 +37,7 @@ import {
   PathPickerError,
   decodeUnknownWithSchemaPromise,
   decodeUnknownWithSchemaSync,
+  isKnownTaggedError,
   parseJsonStringSync,
   type MutableDeep,
 } from "../../shared/errors";
@@ -60,6 +61,9 @@ async function invokeBridge<K extends keyof WindowBridgeBindings>(
   try {
     return await bridge(...args);
   } catch (error) {
+    if (isKnownTaggedError(error)) {
+      throw error;
+    }
     throw new BridgeInvocationError({
       bridge: String(name),
       cause: error,

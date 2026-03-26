@@ -8,7 +8,7 @@ import type {
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
 import { createBunBridgeHandlers } from "../../shared/bridgeBindings";
-import type { BridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridgeRpc";
+import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridgeRpc";
 import type { EngineClient } from "../engine/client";
 
 type BridgeHandlerDependencies = {
@@ -122,7 +122,7 @@ export function createEngineBridgeHandlers({
   resolveMediaSourceURL,
   setCurrentProjectPath,
   emitReviewEvent,
-}: BridgeHandlerDependencies): BridgeRequestHandlerMap {
+}: BridgeHandlerDependencies): BunBridgeRequestHandlerMap {
   const reviewGateway = createReviewGateway();
 
   return createBunBridgeHandlers({

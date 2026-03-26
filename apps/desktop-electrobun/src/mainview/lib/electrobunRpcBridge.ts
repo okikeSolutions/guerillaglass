@@ -3,7 +3,10 @@ import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createWindowBridgeBindings } from "../../shared/bridgeBindings";
 import type {
+  BridgeRequestName,
   BridgeRequestInvoker,
+  BridgeRequests,
+  BridgeResponseEnvelope,
   DesktopBridgeRPC,
   HostMenuCommand,
   WindowBridgeBindings,
@@ -58,12 +61,17 @@ export function initializeElectrobunRpcBridge(): void {
   });
   new Electroview({ rpc });
 
-  const invoke: BridgeRequestInvoker = (name, params) => {
+  const invoke: BridgeRequestInvoker = <K extends BridgeRequestName>(
+    name: K,
+    params: BridgeRequests[K]["params"],
+  ) => {
     const requestProxy = rpc.request as unknown as Record<
       string,
       (value: unknown) => Promise<unknown>
     >;
-    return requestProxy[name](params) as Promise<never>;
+    return requestProxy[name](params) as Promise<
+      BridgeResponseEnvelope<BridgeRequests[K]["response"]>
+    >;
   };
 
   const bindings: WindowBridgeBindings = createWindowBridgeBindings(invoke, (state) =>
