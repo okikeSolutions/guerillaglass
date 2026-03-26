@@ -25,6 +25,7 @@ import type {
   ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
 import type { RPCSchema } from "electrobun/bun";
+import type { SerializedBridgeError } from "./errors";
 import type { StudioShortcutOverrides } from "./shortcuts";
 
 export const hostMenuCommands = {
@@ -259,15 +260,41 @@ export type BridgeRequests = {
   };
 };
 
+/** Internal Electrobun request envelope used to carry Bun-side failures across process boundaries. */
+export type BridgeResponseEnvelope<T> =
+  | {
+      ok: true;
+      data: T;
+    }
+  | {
+      ok: false;
+      error: SerializedBridgeError;
+    };
+
+type BridgeTransportRequests = {
+  [K in BridgeRequestName]: {
+    params: BridgeRequests[K]["params"];
+    response: BridgeResponseEnvelope<BridgeRequests[K]["response"]>;
+  };
+};
+
 export type BridgeRequestInvoker = <K extends BridgeRequestName>(
   name: K,
   params: BridgeRequests[K]["params"],
-) => Promise<BridgeRequests[K]["response"]>;
+) => Promise<BridgeTransportRequests[K]["response"]>;
 
+/** Logical Bun handlers that return raw responses before bridge envelope wrapping. */
 export type BridgeRequestHandlerMap = {
   [K in BridgeRequestName]: (
     params: BridgeRequests[K]["params"],
   ) => Promise<BridgeRequests[K]["response"]>;
+};
+
+/** Electrobun request handlers after success/failure envelopes are applied. */
+export type BunBridgeRequestHandlerMap = {
+  [K in BridgeRequestName]: (
+    params: BridgeRequests[K]["params"],
+  ) => Promise<BridgeTransportRequests[K]["response"]>;
 };
 
 export type WindowBridgeBindings = {
@@ -279,7 +306,7 @@ export type WindowBridgeBindings = {
 };
 
 export type DesktopBridgeRPC = {
-  bun: RPCSchema<{ requests: BridgeRequests; messages: { hostMenuState: HostMenuState } }>;
+  bun: RPCSchema<{ requests: BridgeTransportRequests; messages: { hostMenuState: HostMenuState } }>;
   webview: RPCSchema<{
     requests: Record<string, never>;
     messages: {

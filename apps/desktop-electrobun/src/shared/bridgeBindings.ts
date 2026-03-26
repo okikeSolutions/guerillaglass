@@ -1,22 +1,35 @@
 import type {
+  BunBridgeRequestHandlerMap,
+  BridgeRequestName,
   BridgeRequestHandlerMap,
   BridgeRequestInvoker,
+  BridgeRequests,
   HostMenuState,
   WindowBridgeBindings,
 } from "./bridgeRpc";
+import { deserializeBridgeError, serializeBridgeError } from "./errors";
 import { bridgeRequestDefinitions, bridgeRequestNameList } from "./bridgeRpc";
 
 export function createWindowBridgeBindings(
   invoke: BridgeRequestInvoker,
   sendHostMenuState: (state: HostMenuState) => void,
 ): WindowBridgeBindings {
+  function createBinding<K extends BridgeRequestName>(name: K) {
+    const definition = bridgeRequestDefinitions[name];
+    const toParams = definition.toParams as (...values: unknown[]) => BridgeRequests[K]["params"];
+
+    return async (...args: unknown[]) => {
+      const response = await invoke(name, toParams(...args));
+      if (response.ok) {
+        return response.data;
+      }
+      throw deserializeBridgeError(response.error);
+    };
+  }
+
   const bindings = Object.fromEntries(
     bridgeRequestNameList.map((name) => {
-      const definition = bridgeRequestDefinitions[name];
-      const toParams = definition.toParams as (...values: unknown[]) => unknown;
-      const handler = (...args: unknown[]) =>
-        invoke(name as never, toParams(...args) as never) as Promise<unknown>;
-      return [name, handler];
+      return [name, createBinding(name)];
     }),
   ) as WindowBridgeBindings;
   bindings.ggHostSendMenuState = sendHostMenuState;
@@ -25,6 +38,27 @@ export function createWindowBridgeBindings(
 
 export function createBunBridgeHandlers(
   handlers: BridgeRequestHandlerMap,
-): BridgeRequestHandlerMap {
-  return handlers;
+): BunBridgeRequestHandlerMap {
+  return Object.fromEntries(
+    bridgeRequestNameList.map((name) => {
+      const handler = handlers[name] as (params: unknown) => Promise<unknown>;
+      return [
+        name,
+        async (params: unknown) => {
+          try {
+            const data = await handler(params);
+            return {
+              ok: true as const,
+              data,
+            };
+          } catch (error) {
+            return {
+              ok: false as const,
+              error: serializeBridgeError(error),
+            };
+          }
+        },
+      ];
+    }),
+  ) as BunBridgeRequestHandlerMap;
 }
