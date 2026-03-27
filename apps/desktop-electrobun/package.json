@@ -26,7 +26,7 @@
     "@guerillaglass/ui": "workspace:*",
     "@tailwindcss/vite": "^4.2.0",
     "@tanstack/react-form": "^1.28.3",
-    "@tanstack/react-hotkeys": "^0.3.0",
+    "@tanstack/react-hotkeys": "^0.8.3",
     "@tanstack/react-pacer": "^0.20.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.161.3",
