@@ -16,6 +16,7 @@
 - **Web Convex backend (new):** `apps/web/convex/` — Convex schema/functions for web auth/review/billing surfaces.
 - **Protocol (new):** `packages/engine-protocol/` — Zod schemas + TypeScript types for engine requests/responses.
 - **Review protocol (new):** `packages/review-protocol/` — Zod schemas + TypeScript types for review bridge requests/events.
+- **Schema primitives (new):** `packages/schema-primitives/` — shared Effect Schema helpers reused by protocol packages.
 - **Localization (new):** `packages/localization/` — shared locale dictionaries + helpers consumed by renderer UI and desktop shell menus.
 - **Native engine (new):** `engines/macos-swift/` — Swift sidecar executable target (`guerillaglass-engine`).
 - **Native engine modules:** `engines/macos-swift/modules/` — capture, input tracking, project, automation, rendering, export.
@@ -40,11 +41,11 @@ When adding modules or moving code, keep the spec’s architecture (§16–17) a
 - **JS/TS format check:** `bun run js:format:check`  
   Runs `oxfmt --check` on workspace JS/TS code.
 - **JS/TS lint:** `bun run js:lint`  
-  Runs `oxlint -c oxlint.config.mjs --deny-warnings --type-aware` with the repo’s strict Oxlint config (including React Hooks checks).
+  Runs `bunx oxlint .`; project rules and type-aware settings are auto-discovered from `oxlint.config.mjs`.
 - **React effect guard lint:** `bun run js:lint:react-effects`  
   Runs the custom guard that rejects direct React state updates in effects (`Scripts/lint_no_state_updates_in_effect.mjs`).
 - **TypeScript gate (format + lint + typecheck + tests):** `bun run gate:typescript`  
-  Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → docs coverage gate (TypeScript surfaces) → desktop shell typecheck → landing app typecheck → protocol package typecheck → desktop tests.
+  Runs: JS/TS format check (Oxfmt) → JS/TS lint (Oxlint) → React effect guard lint → docs coverage gate (TypeScript surfaces) → desktop shell typecheck → landing app typecheck → protocol package typecheck → desktop tests.
 - **Docs coverage gate (all surfaces):** `bun run docs:check`  
   Runs coverage checks for TypeScript, Swift, and Rust public/exported API surfaces using `docs/doc_coverage_policy.json`.
 - **Docs coverage gate (TypeScript surfaces):** `bun run docs:check:ts`

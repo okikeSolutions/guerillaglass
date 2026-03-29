@@ -5,14 +5,7 @@
  * desktop Deliver route in sync with collaboration state, playback readiness, and comments.
  */
 import { Schema } from "effect";
-
-const isoDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
-const isoDateTimeSchema = Schema.String.pipe(
-  Schema.pattern(isoDateTimePattern),
-  Schema.filter((value) => !Number.isNaN(Date.parse(value)), {
-    message: () => "Expected an ISO 8601 datetime string.",
-  }),
-);
+import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
 
 /** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */

@@ -81,6 +81,7 @@ Guerilla Glass should feel like a professional creator tool:
   - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 60 and 120 fps and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
 - **Review control plane (Phase 2.5+):** Convex query/mutation/action layer for review workflows (`shareLinks`, `comments`, `presence`, review statuses) and webhook-driven media state reconciliation.
 - **Contract split:** local media RPC stays in `packages/engine-protocol`; cloud review surfaces use a separate contract package (`packages/review-protocol`) so capture/edit/export methods remain clean and deterministic.
+- **Shared contract primitives:** reusable Effect Schema helpers that must stay aligned across protocol packages live in `packages/schema-primitives`.
 - **Authentication stack (Phase 2.5+):**
   - Better Auth is the canonical identity/session provider for product access.
   - Convex auth configuration validates Better Auth-issued identity tokens for cloud review/collaboration functions.
@@ -724,6 +725,8 @@ guerillaglass/
 │  ├─ review-protocol/
 │  │  ├─ src/
 │  │  └─ fixtures/
+│  ├─ schema-primitives/
+│  │  └─ src/
 │  └─ localization/
 │     └─ src/
 ├─ engines/
