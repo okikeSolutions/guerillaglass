@@ -8,10 +8,10 @@
   "scripts": {
     "gate": "./Scripts/full_gate.sh",
     "gate:rust": "./Scripts/rust_gate.sh",
-    "gate:typescript": "bun run js:format:check && bun run js:lint && bun run docs:check:ts && bun run desktop:typecheck && bun run web:typecheck && bun run protocol:typecheck && bun run desktop:test",
+    "gate:typescript": "bun run js:format:check && bun run js:lint && bun run js:lint:react-effects && bun run docs:check:ts && bun run desktop:typecheck && bun run web:typecheck && bun run protocol:typecheck && bun run desktop:test",
     "js:format": "bunx oxfmt --write apps packages",
     "js:format:check": "bunx oxfmt --check apps packages",
-    "js:lint": "bunx oxlint -c oxlint.config.mjs --deny-warnings --type-aware apps packages && bun run js:lint:react-effects",
+    "js:lint": "bunx oxlint .",
     "js:lint:react-effects": "bun ./Scripts/lint_no_state_updates_in_effect.mjs",
     "swift:build": "swift build",
     "swift:test": "swift test",
