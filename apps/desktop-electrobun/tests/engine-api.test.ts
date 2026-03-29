@@ -1,18 +1,14 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import {
-  desktopApi,
-  engineApi,
-  parseInputEventLog,
-  sendHostMenuState,
-} from "../src/mainview/lib/engine";
-import { createBunBridgeHandlers, createWindowBridgeBindings } from "../src/shared/bridgeBindings";
-import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "../src/shared/bridgeRpc";
+import { desktopApi, engineApi, parseInputEventLog, sendHostMenuState } from "@lib/engine";
+import { createBunBridgeHandlers, createWindowBridgeBindings } from "@shared/bridge";
+import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "@shared/bridge";
 import {
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,
+  ContractDecodeError,
   EngineResponseError,
   MediaServerError,
-} from "../src/shared/errors";
+} from "@shared/errors";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -335,6 +331,36 @@ describe("renderer engine bridge", () => {
       expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
       expect((error as Error).message).toBe("Media file could not be found.");
     }
+  });
+
+  test("rejects invalid host path picker payloads at the bridge contract boundary", async () => {
+    installWindowBridge({
+      ggPickPath: async () => 42,
+    });
+
+    await expect(desktopApi.pickPath({ mode: "export" })).rejects.toBeInstanceOf(
+      ContractDecodeError,
+    );
+  });
+
+  test("rejects invalid text file payloads at the bridge contract boundary", async () => {
+    installWindowBridge({
+      ggReadTextFile: async () => 42,
+    });
+
+    await expect(desktopApi.readTextFile("/tmp/events.json")).rejects.toBeInstanceOf(
+      ContractDecodeError,
+    );
+  });
+
+  test("rejects invalid media source URL payloads at the bridge contract boundary", async () => {
+    installWindowBridge({
+      ggResolveMediaSourceURL: async () => "",
+    });
+
+    await expect(desktopApi.resolveMediaSourceURL("/tmp/out.mp4")).rejects.toBeInstanceOf(
+      ContractDecodeError,
+    );
   });
 
   test("sendHostMenuState is a no-op when host sender is not available", () => {

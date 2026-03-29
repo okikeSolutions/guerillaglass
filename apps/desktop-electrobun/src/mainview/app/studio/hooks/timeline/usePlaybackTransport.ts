@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { quantizeSecondsToFrame } from "../../model/timelineFrameTimebase";
+import { quantizeSecondsToFrame } from "../../domain/timelineFrameTimebase";
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);

@@ -15,8 +15,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "types": ["bun", "node", "vite/client"],
     "paths": {
       "@/*": ["./src/mainview/*"],
+      "@lib/*": ["./src/mainview/lib/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@studio/*": ["./src/mainview/app/studio/*"],
       "electrobun/bun": ["./src/types/electrobun-bun-shim.d.ts"],
       "electrobun/view": ["./src/types/electrobun-view-shim.d.ts"]
     }

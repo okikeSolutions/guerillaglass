@@ -1,6 +1,6 @@
 import type { ApplicationMenuItemConfig, MenuItemConfig } from "electrobun/bun";
 import { getDesktopMenuMessages } from "@guerillaglass/localization";
-import type { HostMenuState } from "../../shared/bridgeRpc";
+import type { HostMenuState } from "@shared/bridge";
 import {
   isHostCommandChecked,
   listHostCommandsForAppSection,
@@ -9,8 +9,8 @@ import {
   resolveHostCommandEnabled,
   resolveHostCommandLabel,
   type HostCommandDefinition,
-} from "../../shared/hostCommandRegistry";
-import { normalizeShortcutDisplayPlatform, withShortcutLabel } from "../../shared/shortcuts";
+} from "@shared/hostCommandRegistry";
+import { normalizeShortcutDisplayPlatform, withShortcutLabel } from "@shared/shortcuts";
 import { encodeHostMenuAction } from "./actions";
 
 const separator = { type: "separator" as const };

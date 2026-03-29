@@ -37,14 +37,14 @@ import {
   detectStudioShortcutPlatform,
   type ShortcutDisplayPlatform,
   studioShortcutDisplayTokens,
-} from "../../../../shared/shortcuts";
+} from "@shared/shortcuts";
 import { useStudio } from "../state/StudioProvider";
-import type { StudioLayoutRoute, StudioLocalizedRouteTarget } from "../model/studioLayoutModel";
+import type { StudioLayoutRoute, StudioLocalizedRouteTarget } from "../contracts/studioLayoutModel";
 import {
   studioBadgeToneClass,
   studioButtonToneClass,
   studioIconToneClass,
-} from "../model/studioSemanticTone";
+} from "../view-model/studioSemanticTone";
 
 type ModeItem = {
   route: StudioLayoutRoute;

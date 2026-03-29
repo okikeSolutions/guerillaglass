@@ -2,7 +2,7 @@ import { Keyboard, Mic, MousePointer, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/components/field";
 import { Slider } from "@guerillaglass/ui/components/slider";
-import { buildCaptureTelemetryPresentation } from "../../model/captureTelemetryViewModel";
+import { buildCaptureTelemetryPresentation } from "../../view-model/captureTelemetryViewModel";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
   AudioMixerChannel,

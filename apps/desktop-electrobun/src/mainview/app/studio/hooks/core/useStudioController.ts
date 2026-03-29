@@ -8,20 +8,21 @@ import {
   type ExportPreset,
 } from "@guerillaglass/engine-protocol";
 import { getStudioMessages } from "@guerillaglass/localization";
-import { desktopApi, sendHostMenuState } from "@/lib/engine";
-import type { HostMenuCommand, HostPathPickerMode } from "../../../../../shared/bridgeRpc";
-import { hostBridgeEventNames } from "../../../../../shared/bridgeRpc";
+import { desktopApi, sendHostMenuState } from "@lib/engine";
+import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge";
+import { hostBridgeEventNames } from "@shared/bridge";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
   ContractDecodeError,
   EngineClientError,
   EngineResponseError,
+  JsonParseError,
   PathPickerError,
   StudioActionError,
   messageFromUnknownError,
-} from "../../../../../shared/errors";
-import { createHostCommandRunnerFromHandlers } from "../../../../../shared/hostCommandRegistry";
+} from "@shared/errors";
+import { createHostCommandRunnerFromHandlers } from "@shared/hostCommandRegistry";
 import {
   detectStudioShortcutPlatform,
   sanitizeStudioShortcutOverrides,
@@ -29,18 +30,18 @@ import {
   type ShortcutDisplayPlatform,
   type StudioShortcutId,
   type StudioShortcutOverrides,
-} from "../../../../../shared/shortcuts";
+} from "@shared/shortcuts";
 import {
   emptyInspectorSelection,
   type InspectorSelection,
   normalizeInspectorSelection,
   selectionFromPreset,
-} from "../../model/inspectorSelectionModel";
-import { resolveSelectedWindowId } from "../../model/preferredWindowSelection";
+} from "../../domain/inspectorSelectionModel";
+import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import {
   loadStudioShortcutOverrides,
   saveStudioShortcutOverrides,
-} from "../../model/studioShortcutOverridesModel";
+} from "../../contracts/studioShortcutOverridesModel";
 import { useStudioHotkeys } from "./useStudioHotkeys";
 import { useStudioLayoutController } from "./useStudioLayoutController";
 import { useStudioMutations, type ExportFormApi, type SettingsFormApi } from "./useStudioMutations";
@@ -178,6 +179,7 @@ export function useStudioController() {
         error instanceof ContractDecodeError ||
         error instanceof EngineClientError ||
         error instanceof EngineResponseError ||
+        error instanceof JsonParseError ||
         error instanceof PathPickerError
       ) {
         return error.message;

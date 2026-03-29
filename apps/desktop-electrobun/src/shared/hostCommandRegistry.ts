@@ -1,5 +1,5 @@
 import type { DesktopMenuMessages } from "@guerillaglass/localization";
-import { hostMenuCommands, type HostMenuCommand, type HostMenuState } from "./bridgeRpc";
+import { hostMenuCommands, type HostMenuCommand, type HostMenuState } from "./bridge";
 import {
   studioShortcutMenuAccelerator,
   type ShortcutDisplayPlatform,
@@ -287,8 +287,8 @@ export function isHostCommandChecked(
 
 export function resolveHostCommandAccelerator(
   definition: HostCommandDefinition,
-  options?: {
-    platform?: ShortcutDisplayPlatform;
+  options: {
+    platform: ShortcutDisplayPlatform;
     overrides?: StudioShortcutOverrides;
   },
 ): string | undefined {

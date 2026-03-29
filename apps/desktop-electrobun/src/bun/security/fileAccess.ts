@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { FileAccessPolicyError } from "../../shared/errors";
+import { FileAccessPolicyError } from "@shared/errors";
 import { isSupportedMediaPath } from "../media/policy";
 
 const DEFAULT_MAX_TEXT_READ_BYTES = 5 * 1024 * 1024;

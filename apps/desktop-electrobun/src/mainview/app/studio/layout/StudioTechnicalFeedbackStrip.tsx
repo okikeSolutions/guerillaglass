@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useStudio } from "../state/StudioProvider";
-import { studioToneClass } from "../model/studioSemanticTone";
-import { buildTechnicalFeedbackMetrics } from "../model/technicalFeedbackStripModel";
+import { studioToneClass } from "../view-model/studioSemanticTone";
+import { buildTechnicalFeedbackMetrics } from "../view-model/technicalFeedbackStripModel";
 
 export function StudioTechnicalFeedbackStrip() {
   const studio = useStudio();

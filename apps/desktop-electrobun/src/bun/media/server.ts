@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import path from "node:path";
-import { MediaServerError, messageFromUnknownError } from "../../shared/errors";
+import { Cause, Effect, Either, Exit } from "effect";
+import { MediaServerError, messageFromUnknownError } from "@shared/errors";
 import { isSupportedMediaPath, mediaTypeForPath } from "./policy";
 
 const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;
@@ -28,6 +29,10 @@ type MediaTokenEntry = {
 };
 
 type TokenPathResult = { token: string; response: null } | { token: null; response: Response };
+type StartedMediaServer = {
+  server: ReturnType<typeof Bun.serve>;
+  origin: string;
+};
 
 function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   const trimmedRangeHeader = rangeHeader.trim();
@@ -93,49 +98,6 @@ function randomLoopbackPort(): number {
   return mediaServerPortFloor + Math.floor(Math.random() * span);
 }
 
-async function reserveLoopbackPort(host: string): Promise<number> {
-  return await new Promise<number>((resolve, reject) => {
-    const server = createServer();
-    server.once("error", (cause) =>
-      reject(
-        new MediaServerError({
-          code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
-          description: "Unable to reserve loopback media server port.",
-          cause,
-        }),
-      ),
-    );
-    server.listen({ host, port: 0 }, () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close(() =>
-          reject(
-            new MediaServerError({
-              code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
-              description: "Unable to reserve loopback media server port.",
-            }),
-          ),
-        );
-        return;
-      }
-      const { port } = address;
-      server.close((closeError) => {
-        if (closeError) {
-          reject(
-            new MediaServerError({
-              code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
-              description: "Unable to reserve loopback media server port.",
-              cause: closeError,
-            }),
-          );
-          return;
-        }
-        resolve(port);
-      });
-    });
-  });
-}
-
 function isLoopbackHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase();
   return (
@@ -152,6 +114,95 @@ function mediaSecurityHeaders(): Record<string, string> {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
   };
+}
+
+function runMediaEffectSync<A, E>(effect: Effect.Effect<A, E>): A {
+  const exit = Effect.runSyncExit(effect);
+  if (Exit.isSuccess(exit)) {
+    return exit.value;
+  }
+  const failure = Cause.failureOrCause(exit.cause);
+  if (Either.isLeft(failure)) {
+    throw failure.left;
+  }
+  throw Cause.squash(exit.cause);
+}
+
+async function runMediaEffectPromise<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+  const exit = await Effect.runPromiseExit(effect);
+  if (Exit.isSuccess(exit)) {
+    return exit.value;
+  }
+  const failure = Cause.failureOrCause(exit.cause);
+  if (Either.isLeft(failure)) {
+    throw failure.left;
+  }
+  throw Cause.squash(exit.cause);
+}
+
+function normalizeMediaBindError(error: unknown): MediaServerError {
+  if (error instanceof MediaServerError) {
+    return error;
+  }
+  return new MediaServerError({
+    code: "MEDIA_SERVER_BIND_FAILED",
+    description: messageFromUnknownError(error, "Unable to bind media playback server."),
+    cause: error,
+  });
+}
+
+function reserveLoopbackPortEffect(host: string): Effect.Effect<number, MediaServerError> {
+  return Effect.tryPromise({
+    try: () =>
+      new Promise<number>((resolve, reject) => {
+        const server = createServer();
+        server.once("error", (cause) =>
+          reject(
+            new MediaServerError({
+              code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+              description: "Unable to reserve loopback media server port.",
+              cause,
+            }),
+          ),
+        );
+        server.listen({ host, port: 0 }, () => {
+          const address = server.address();
+          if (!address || typeof address === "string") {
+            server.close(() =>
+              reject(
+                new MediaServerError({
+                  code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+                  description: "Unable to reserve loopback media server port.",
+                }),
+              ),
+            );
+            return;
+          }
+          const { port } = address;
+          server.close((closeError) => {
+            if (closeError) {
+              reject(
+                new MediaServerError({
+                  code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+                  description: "Unable to reserve loopback media server port.",
+                  cause: closeError,
+                }),
+              );
+              return;
+            }
+            resolve(port);
+          });
+        });
+      }),
+    catch: (cause) =>
+      cause instanceof MediaServerError
+        ? cause
+        : new MediaServerError({
+            code: "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+            description: "Unable to reserve loopback media server port.",
+            cause,
+          }),
+  });
 }
 
 /** Loopback-only media server that mints temporary file-backed playback URLs. */
@@ -191,51 +242,56 @@ export class MediaServer {
     });
   }
 
-  private async ensureServer(): Promise<void> {
-    if (this.server && this.origin) {
-      return;
-    }
+  private startServerEffect(
+    host: string,
+    port: number,
+  ): Effect.Effect<StartedMediaServer, unknown> {
+    return Effect.try({
+      try: () => {
+        const server = this.startServer(host, port);
+        return {
+          server,
+          origin: `http://${host}:${server.port}`,
+        };
+      },
+      catch: (cause) => cause,
+    });
+  }
 
-    const host = "127.0.0.1";
-    let lastError: unknown;
+  private bindReservedServerEffect(host: string): Effect.Effect<StartedMediaServer, unknown> {
+    return Effect.catchAll(reserveLoopbackPortEffect(host), () => Effect.sync(randomLoopbackPort))
+      .pipe(Effect.flatMap((port) => this.startServerEffect(host, port)))
+      .pipe(
+        Effect.retry({
+          times: mediaServerMaxBindAttempts - 1,
+          while: (error) => isAddressInUse(error),
+        }),
+      );
+  }
 
-    try {
-      this.server = this.startServer(host, 0);
-      this.origin = `http://${host}:${this.server.port}`;
-      return;
-    } catch (error) {
-      lastError = error;
-      if (!isUnsupportedPortZeroError(error) && !isAddressInUse(error)) {
-        throw error;
+  private ensureServerEffect(): Effect.Effect<void, MediaServerError> {
+    return Effect.suspend(() => {
+      if (this.server && this.origin) {
+        return Effect.void;
       }
-    }
 
-    for (let attempt = 0; attempt < mediaServerMaxBindAttempts; attempt += 1) {
-      let port: number;
-      try {
-        port = await reserveLoopbackPort(host);
-      } catch {
-        port = randomLoopbackPort();
-      }
-      try {
-        this.server = this.startServer(host, port);
-        this.origin = `http://${host}:${this.server.port}`;
-        return;
-      } catch (error) {
-        lastError = error;
-        if (!isAddressInUse(error)) {
-          throw error;
+      const host = "127.0.0.1";
+      return Effect.catchAll(this.startServerEffect(host, 0), (error) => {
+        if (!isUnsupportedPortZeroError(error) && !isAddressInUse(error)) {
+          return Effect.fail(error);
         }
-      }
-    }
-
-    throw (
-      lastError ??
-      new MediaServerError({
-        code: "MEDIA_SERVER_BIND_FAILED",
-        description: "Unable to bind media playback server.",
-      })
-    );
+        return this.bindReservedServerEffect(host);
+      }).pipe(
+        Effect.mapError(normalizeMediaBindError),
+        Effect.tap((started) =>
+          Effect.sync(() => {
+            this.server = started.server;
+            this.origin = started.origin;
+          }),
+        ),
+        Effect.asVoid,
+      );
+    });
   }
 
   private pruneTokens(): void {
@@ -383,65 +439,108 @@ export class MediaServer {
     });
   }
 
-  async resolveMediaSourceURL(filePath: string): Promise<string> {
-    if (typeof filePath !== "string" || filePath.trim().length === 0) {
-      throw new MediaServerError({
-        code: "MEDIA_PATH_REQUIRED",
-        description: "A media file path is required.",
-      });
-    }
-
-    const trimmedPath = filePath.trim();
-    if (!path.isAbsolute(trimmedPath)) {
-      throw new MediaServerError({
-        code: "MEDIA_PATH_NOT_ABSOLUTE",
-        description: "Media source path must be an absolute local file path.",
-      });
-    }
-    const normalizedPath = path.resolve(trimmedPath);
-    if (!isSupportedMediaPath(normalizedPath)) {
-      throw new MediaServerError({
-        code: "MEDIA_TYPE_UNSUPPORTED",
-        description: "Unsupported media file format.",
-      });
-    }
-
-    const mediaFile = Bun.file(normalizedPath);
-    if (!(await mediaFile.exists())) {
-      throw new MediaServerError({
-        code: "MEDIA_FILE_MISSING",
-        description: "Media file not found.",
-      });
-    }
-
-    try {
-      await this.ensureServer();
-    } catch (error) {
-      if (error instanceof MediaServerError) {
-        throw error;
+  private resolveMediaPathEffect(filePath: string): Effect.Effect<string, MediaServerError> {
+    return Effect.gen(function* () {
+      if (typeof filePath !== "string" || filePath.trim().length === 0) {
+        return yield* Effect.fail(
+          new MediaServerError({
+            code: "MEDIA_PATH_REQUIRED",
+            description: "A media file path is required.",
+          }),
+        );
       }
-      throw new MediaServerError({
-        code: "MEDIA_SERVER_BIND_FAILED",
-        description: messageFromUnknownError(error, "Unable to bind media playback server."),
-        cause: error,
+
+      const trimmedPath = filePath.trim();
+      if (!path.isAbsolute(trimmedPath)) {
+        return yield* Effect.fail(
+          new MediaServerError({
+            code: "MEDIA_PATH_NOT_ABSOLUTE",
+            description: "Media source path must be an absolute local file path.",
+          }),
+        );
+      }
+
+      const normalizedPath = path.resolve(trimmedPath);
+      if (!isSupportedMediaPath(normalizedPath)) {
+        return yield* Effect.fail(
+          new MediaServerError({
+            code: "MEDIA_TYPE_UNSUPPORTED",
+            description: "Unsupported media file format.",
+          }),
+        );
+      }
+
+      const mediaFile = Bun.file(normalizedPath);
+      const exists = yield* Effect.tryPromise({
+        try: () => mediaFile.exists(),
+        catch: (cause) =>
+          new MediaServerError({
+            code: "MEDIA_FILE_MISSING",
+            description: messageFromUnknownError(cause, "Media file not found."),
+            cause,
+          }),
       });
-    }
-    this.pruneTokens();
+      if (!exists) {
+        return yield* Effect.fail(
+          new MediaServerError({
+            code: "MEDIA_FILE_MISSING",
+            description: "Media file not found.",
+          }),
+        );
+      }
 
-    const token = randomUUID();
-    this.tokens.set(token, {
-      filePath: normalizedPath,
-      createdAt: Date.now(),
-      lastAccessedAt: Date.now(),
+      return normalizedPath;
     });
+  }
 
-    return `${this.origin}/media/${encodeURIComponent(token)}`;
+  private resolveMediaSourceURLEffect(filePath: string): Effect.Effect<string, MediaServerError> {
+    return this.resolveMediaPathEffect(filePath).pipe(
+      Effect.flatMap((normalizedPath) =>
+        this.ensureServerEffect().pipe(
+          Effect.flatMap(() =>
+            Effect.try({
+              try: () => {
+                this.pruneTokens();
+                const origin = this.origin;
+                if (!origin) {
+                  throw new MediaServerError({
+                    code: "MEDIA_SERVER_BIND_FAILED",
+                    description: "Unable to bind media playback server.",
+                  });
+                }
+
+                const token = randomUUID();
+                const now = Date.now();
+                this.tokens.set(token, {
+                  filePath: normalizedPath,
+                  createdAt: now,
+                  lastAccessedAt: now,
+                });
+
+                return `${origin}/media/${encodeURIComponent(token)}`;
+              },
+              catch: (cause) => normalizeMediaBindError(cause),
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  async resolveMediaSourceURL(filePath: string): Promise<string> {
+    return await runMediaEffectPromise(this.resolveMediaSourceURLEffect(filePath));
+  }
+
+  private stopEffect(): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.server?.stop();
+      this.server = null;
+      this.origin = null;
+      this.tokens.clear();
+    });
   }
 
   stop(): void {
-    this.server?.stop();
-    this.server = null;
-    this.origin = null;
-    this.tokens.clear();
+    runMediaEffectSync(this.stopEffect());
   }
 }

@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  resolveStudioShortcutBinding,
   resolveStudioShortcutHotkey,
   sanitizeStudioShortcutOverrides,
   studioHotkeyMenuAccelerator,
   studioShortcutDisplayText,
   studioShortcutDisplayTokens,
   validateStudioShortcutOverride,
-} from "../src/shared/shortcuts";
+} from "@shared/shortcuts";
 
 describe("studio shortcuts", () => {
   test("resolves platform-aware defaults for menu-exposed shortcuts", () => {
@@ -29,6 +30,25 @@ describe("studio shortcuts", () => {
         spaceKeyLabel: "Leertaste",
       }),
     ).toEqual(["Leertaste"]);
+  });
+
+  test("builds one resolved binding shape for display and menu consumers", () => {
+    expect(
+      resolveStudioShortcutBinding("saveAs", {
+        platform: "windows",
+        overrides: {
+          saveAs: "Control+Shift+P",
+        },
+      }),
+    ).toEqual({
+      hotkey: "Control+Shift+P",
+      key: "P",
+      modifiers: ["Control", "Shift"],
+      singleKey: false,
+      displayTokens: ["Ctrl", "Shift", "P"],
+      displayText: "Ctrl+Shift+P",
+      menuAccelerator: "Control+Shift+P",
+    });
   });
 
   test("sanitizes overrides and drops invalid or conflicting entries", () => {
@@ -78,8 +98,14 @@ describe("studio shortcuts", () => {
   });
 
   test("formats hotkeys for menu accelerators", () => {
-    expect(studioHotkeyMenuAccelerator("Meta+Shift+S")).toBe("Command+Shift+S");
-    expect(studioHotkeyMenuAccelerator("Control+Alt+E")).toBe("Control+Alt+E");
-    expect(studioHotkeyMenuAccelerator("Space")).toBe("Space");
+    expect(studioHotkeyMenuAccelerator("Meta+Shift+S", { platform: "mac" })).toBe(
+      "Command+Shift+S",
+    );
+    expect(studioHotkeyMenuAccelerator("Meta+P", { platform: "windows" })).toBe("Super+P");
+    expect(studioHotkeyMenuAccelerator("Meta+P", { platform: "linux" })).toBe("Super+P");
+    expect(studioHotkeyMenuAccelerator("Control+Alt+E", { platform: "windows" })).toBe(
+      "Control+Alt+E",
+    );
+    expect(studioHotkeyMenuAccelerator("Space", { platform: "linux" })).toBe("Space");
   });
 });

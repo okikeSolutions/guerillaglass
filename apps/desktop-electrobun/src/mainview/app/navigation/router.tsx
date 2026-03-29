@@ -13,7 +13,7 @@ import {
   getInitialStudioPath,
   localizedRouteTargetFor,
   type StudioLayoutRoute,
-} from "../studio/model/studioLayoutModel";
+} from "../studio/contracts/studioLayoutModel";
 
 const CaptureRoute = lazyRouteComponent(
   () => import("../studio/routes/CaptureRoute"),

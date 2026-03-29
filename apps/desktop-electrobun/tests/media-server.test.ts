@@ -3,7 +3,7 @@ import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "bun:test";
 import { MediaServer } from "../src/bun/media/server";
-import { MediaServerError } from "../src/shared/errors";
+import { MediaServerError } from "@shared/errors";
 
 async function createTempFile(
   fileName: string,

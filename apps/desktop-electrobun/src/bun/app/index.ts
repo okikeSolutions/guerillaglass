@@ -11,8 +11,8 @@ import { access } from "node:fs/promises";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { EngineClient } from "../engine/client";
-import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "../../shared/bridgeRpc";
-import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
+import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "@shared/bridge";
+import { studioShortcutOverridesEqual } from "@shared/shortcuts";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
@@ -20,7 +20,7 @@ import { readAllowedTextFile, resolveAllowedMediaFilePath } from "../security/fi
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
 import { MediaServer } from "../media/server";
 import { pickPathForMode } from "../path/picker";
-import type { HostPathPickerMode } from "../../shared/bridgeRpc";
+import type { HostPathPickerMode } from "@shared/bridge";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;

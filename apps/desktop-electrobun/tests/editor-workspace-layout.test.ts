@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createResizeHandleKeyDown } from "../src/mainview/app/studio/hooks/useEditorWorkspaceLayout";
+import { createResizeHandleKeyDown } from "@studio/hooks/useEditorWorkspaceLayout";
 
 function createKeyEvent(key: string, shiftKey = false) {
   let prevented = false;

@@ -12,7 +12,7 @@ import {
   rebalanceStudioHorizontalPanesForViewport,
   resolveStudioCenterPaneMinWidthForViewport,
   studioLayoutBounds,
-} from "../model/studioLayoutModel";
+} from "../contracts/studioLayoutModel";
 
 type SizeBounds = {
   minPx: number;

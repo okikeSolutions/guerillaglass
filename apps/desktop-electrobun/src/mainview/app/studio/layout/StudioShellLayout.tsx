@@ -6,7 +6,7 @@ import {
   localizedRouteTargetFor,
   resolveStudioLocation,
   type StudioLayoutRoute,
-} from "../model/studioLayoutModel";
+} from "../contracts/studioLayoutModel";
 import { StudioShellHeader } from "./StudioShellHeader";
 import { StudioTechnicalFeedbackStrip } from "./StudioTechnicalFeedbackStrip";
 

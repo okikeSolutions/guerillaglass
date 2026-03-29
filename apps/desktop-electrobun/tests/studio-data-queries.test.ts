@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseCaptureStatusEvent } from "../src/mainview/app/studio/hooks/core/useStudioDataQueries";
+import { parseCaptureStatusEvent } from "@studio/hooks/core/useStudioDataQueries";
 
 describe("studio capture status stream events", () => {
   test("parses valid capture status payloads", () => {

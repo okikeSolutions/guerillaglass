@@ -1,11 +1,11 @@
 import { Schema } from "effect";
 import { normalizeHotkey, parseHotkey, validateHotkey } from "@tanstack/react-hotkeys";
 
-type ShortcutModifier = "Control" | "Alt" | "Shift" | "Meta";
+export type StudioShortcutModifier = "Control" | "Alt" | "Shift" | "Meta";
 
 type ParsedShortcutToken = {
   key: string;
-  modifiers: ShortcutModifier[];
+  modifiers: StudioShortcutModifier[];
 };
 
 type StudioShortcutDefinition = {
@@ -35,15 +35,12 @@ export const studioShortcutIds = [
   "timelineBlade",
 ] as const;
 
-/** Canonical shortcut identifier contract shared across the desktop shell. */
 export const studioShortcutIdSchema = Schema.Literal(...studioShortcutIds);
 export type StudioShortcutId = (typeof studioShortcutIds)[number];
 
-/** Supported keyboard layout platform used to render and resolve shortcut labels. */
 export const shortcutDisplayPlatformSchema = Schema.Literal("mac", "windows", "linux");
 export type ShortcutDisplayPlatform = "mac" | "windows" | "linux";
 
-/** Canonical hotkey contract used for shortcut storage, display, and conflict checks. */
 export const studioHotkeySchema = Schema.String;
 export type StudioHotkey = string;
 
@@ -147,7 +144,7 @@ function canonicalizeStudioHotkey(hotkey: string): StudioHotkey {
 
 function parseStudioHotkey(hotkey: string): ParsedShortcutToken {
   const parsed = parseHotkey(canonicalizeStudioHotkey(hotkey));
-  const modifiers: ShortcutModifier[] = [];
+  const modifiers: StudioShortcutModifier[] = [];
   if (parsed.meta) {
     modifiers.push("Meta");
   }
@@ -167,7 +164,7 @@ function parseStudioHotkey(hotkey: string): ParsedShortcutToken {
 }
 
 function displayTokenForModifier(
-  modifier: ShortcutModifier,
+  modifier: StudioShortcutModifier,
   platform: ShortcutDisplayPlatform,
 ): string {
   if (platform === "mac") {
@@ -308,6 +305,47 @@ export function resolveStudioShortcutHotkey(
   return override ?? defaultShortcutHotkey(shortcutId, platform);
 }
 
+/**
+ * Resolves a shortcut into one normalized binding shape used by hotkeys, labels, and menus.
+ *
+ * Keeping the parsed representation centralized avoids drift between shortcut registration,
+ * rendered labels, and native accelerator strings when overrides are active.
+ */
+export function resolveStudioShortcutBinding(
+  shortcutId: StudioShortcutId,
+  options?: {
+    platform?: ShortcutDisplayPlatform;
+    overrides?: StudioShortcutOverrides;
+    spaceKeyLabel?: string;
+  },
+): {
+  hotkey: StudioHotkey;
+  key: string;
+  modifiers: readonly StudioShortcutModifier[];
+  singleKey: boolean;
+  displayTokens: string[];
+  displayText: string;
+  menuAccelerator: string;
+} {
+  const platform = options?.platform ?? "linux";
+  const hotkey = resolveStudioShortcutHotkey(shortcutId, options);
+  const parsed = parseStudioHotkey(hotkey);
+  const displayTokens = [
+    ...parsed.modifiers.map((modifier) => displayTokenForModifier(modifier, platform)),
+    displayTokenForKey(parsed.key, options?.spaceKeyLabel),
+  ];
+
+  return {
+    hotkey,
+    key: parsed.key,
+    modifiers: parsed.modifiers,
+    singleKey: parsed.modifiers.length === 0,
+    displayTokens,
+    displayText: displayTokens.join("+"),
+    menuAccelerator: studioHotkeyMenuAccelerator(hotkey, { platform }),
+  };
+}
+
 export function isStudioShortcutSingleKey(
   shortcutId: StudioShortcutId,
   options?: {
@@ -315,11 +353,15 @@ export function isStudioShortcutSingleKey(
     overrides?: StudioShortcutOverrides;
   },
 ): boolean {
-  return isStudioHotkeySingleKey(resolveStudioShortcutHotkey(shortcutId, options));
+  return resolveStudioShortcutBinding(shortcutId, options).singleKey;
 }
 
 export function isStudioHotkeySingleKey(hotkey: string): boolean {
   return parseStudioHotkey(hotkey).modifiers.length === 0;
+}
+
+export function studioHotkeyHasModifier(hotkey: string, modifier: StudioShortcutModifier): boolean {
+  return parseStudioHotkey(hotkey).modifiers.includes(modifier);
 }
 
 export function studioHotkeyDisplayTokens(
@@ -345,7 +387,7 @@ export function studioShortcutDisplayTokens(
     spaceKeyLabel?: string;
   },
 ): string[] {
-  return studioHotkeyDisplayTokens(resolveStudioShortcutHotkey(shortcutId, options), options);
+  return resolveStudioShortcutBinding(shortcutId, options).displayTokens;
 }
 
 export function studioShortcutDisplayText(
@@ -356,7 +398,7 @@ export function studioShortcutDisplayText(
     spaceKeyLabel?: string;
   },
 ): string {
-  return studioShortcutDisplayTokens(shortcutId, options).join("+");
+  return resolveStudioShortcutBinding(shortcutId, options).displayText;
 }
 
 export function withShortcutLabel(
@@ -373,20 +415,26 @@ export function withShortcutLabel(
 
 export function studioShortcutMenuAccelerator(
   shortcutId: StudioShortcutId,
-  options?: {
-    platform?: ShortcutDisplayPlatform;
+  options: {
+    platform: ShortcutDisplayPlatform;
     overrides?: StudioShortcutOverrides;
   },
 ): string {
-  return studioHotkeyMenuAccelerator(resolveStudioShortcutHotkey(shortcutId, options));
+  return resolveStudioShortcutBinding(shortcutId, options).menuAccelerator;
 }
 
-export function studioHotkeyMenuAccelerator(hotkey: string): string {
+export function studioHotkeyMenuAccelerator(
+  hotkey: string,
+  options: {
+    platform: ShortcutDisplayPlatform;
+  },
+): string {
+  const { platform } = options;
   const parsed = parseStudioHotkey(hotkey);
   const parts = parsed.modifiers.map((modifier) => {
     switch (modifier) {
       case "Meta":
-        return "Command";
+        return platform === "mac" ? "Command" : "Super";
       case "Control":
         return "Control";
       case "Alt":

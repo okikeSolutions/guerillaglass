@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ApplicationMenuItemConfig } from "electrobun/bun";
-import { hostMenuCommandList } from "../src/shared/bridgeRpc";
+import { hostMenuCommandList } from "@shared/bridge";
 import {
   decodeHostMenuAction,
   encodeHostMenuAction,
@@ -9,7 +9,7 @@ import {
 } from "../src/bun/menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../src/bun/menu/builders";
 import { routeMenuAction } from "../src/bun/menu/router";
-import { withShortcutLabel } from "../src/shared/shortcuts";
+import { withShortcutLabel } from "@shared/shortcuts";
 
 function isNormalApplicationItem(
   item: ApplicationMenuItemConfig,

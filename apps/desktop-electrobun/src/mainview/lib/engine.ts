@@ -24,11 +24,12 @@ import {
   type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import type {
-  HostMenuState,
-  HostPathPickerMode,
-  WindowBridgeBindings,
-} from "../../shared/bridgeRpc";
+import type { HostMenuState, HostPathPickerMode, WindowBridgeBindings } from "@shared/bridge";
+import {
+  pickPathResponseSchema,
+  readTextFileResponseSchema,
+  resolveMediaSourceURLResponseSchema,
+} from "@shared/bridge";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
@@ -40,7 +41,7 @@ import {
   isKnownTaggedError,
   parseJsonStringSync,
   type MutableDeep,
-} from "../../shared/errors";
+} from "@shared/errors";
 
 function requireBridge<K extends keyof WindowBridgeBindings>(
   name: K,
@@ -343,7 +344,12 @@ export const desktopApi = {
     startingFolder?: string;
   }): Promise<string | null> {
     try {
-      return (await invokeBridge("ggPickPath", params)) as string | null;
+      return await invokeBridgeDecoded(
+        "ggPickPath",
+        pickPathResponseSchema,
+        "host path picker result",
+        params,
+      );
     } catch (error) {
       if (error instanceof BridgeUnavailableError || error instanceof BridgeInvocationError) {
         throw new PathPickerError({
@@ -357,11 +363,21 @@ export const desktopApi = {
   },
 
   async readTextFile(filePath: string): Promise<string> {
-    return (await invokeBridge("ggReadTextFile", filePath)) as string;
+    return await invokeBridgeDecoded(
+      "ggReadTextFile",
+      readTextFileResponseSchema,
+      "read text file result",
+      filePath,
+    );
   },
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
-    return (await invokeBridge("ggResolveMediaSourceURL", filePath)) as string;
+    return await invokeBridgeDecoded(
+      "ggResolveMediaSourceURL",
+      resolveMediaSourceURLResponseSchema,
+      "media source URL result",
+      filePath,
+    );
   },
 };
 

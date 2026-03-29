@@ -11,7 +11,7 @@ import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
 import { TimelineDock } from "../panels/TimelineDock";
 import { ProjectUtilityPanel } from "../panels/ProjectUtilityPanel";
-import { formatCaptureTargetLabelFromMetadata } from "../model/captureTargetLabelFormatter";
+import { formatCaptureTargetLabelFromMetadata } from "../view-model/captureTargetLabelFormatter";
 import { useRecordingMediaSource } from "../hooks/useRecordingMediaSource";
 import { useVideoPlaybackSync } from "../hooks/useVideoPlaybackSync";
 import {
