@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { normalizeHotkey, parseHotkey, validateHotkey } from "@tanstack/react-hotkeys";
+import { parseHotkey, validateHotkey } from "@tanstack/react-hotkeys";
 
 export type StudioShortcutModifier = "Control" | "Alt" | "Shift" | "Meta";
 
@@ -139,7 +139,24 @@ const supportedNamedShortcutKeys = new Set([
 ]);
 
 function canonicalizeStudioHotkey(hotkey: string): StudioHotkey {
-  return normalizeHotkey(hotkey.trim());
+  const parsed = parseHotkey(hotkey.trim());
+  const parts: string[] = [];
+
+  if (parsed.meta) {
+    parts.push("Meta");
+  }
+  if (parsed.ctrl) {
+    parts.push("Control");
+  }
+  if (parsed.alt) {
+    parts.push("Alt");
+  }
+  if (parsed.shift) {
+    parts.push("Shift");
+  }
+
+  parts.push(parsed.key);
+  return parts.join("+");
 }
 
 function parseStudioHotkey(hotkey: string): ParsedShortcutToken {

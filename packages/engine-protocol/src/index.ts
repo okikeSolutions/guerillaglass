@@ -6,10 +6,11 @@
  * project persistence models, request envelopes, and finally response helpers.
  */
 import { Schema } from "effect";
+import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
 import { engineMethods } from "./methods.js";
 
 const NonEmptyString = Schema.NonEmptyString;
-const IsoDateTime = NonEmptyString;
+const IsoDateTime = isoDateTimeSchema;
 const NonNegativeInt = Schema.Int.pipe(Schema.greaterThanOrEqualTo(0));
 const PositiveInt = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
 const NonNegativeNumber = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));

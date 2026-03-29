@@ -25,9 +25,22 @@ export default defineConfig({
     "perfectionist/sort-objects": "off",
     "@typescript-eslint/array-type": "off",
   },
+  "options": {
+    "typeAware": true
+  },
   overrides: [
     {
       files: ["apps/desktop-electrobun/src/bun/**/*.ts"],
+      rules: {
+        "no-console": "off",
+      },
+    },
+    {
+      files: ["Scripts/**/*.mjs", "Scripts/**/*.ts"],
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
       rules: {
         "no-console": "off",
       },
