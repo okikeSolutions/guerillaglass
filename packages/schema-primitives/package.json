@@ -1,8 +1,7 @@
 {
-  "name": "@guerillaglass/engine-protocol",
+  "name": "@guerillaglass/schema-primitives",
   "version": "0.1.0",
   "private": true,
-  "description": "Effect Schema-based JSON-RPC contract for Guerillaglass native engines",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -11,7 +10,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@guerillaglass/schema-primitives": "workspace:*",
     "effect": "^3.21.0"
   },
   "devDependencies": {
