@@ -124,6 +124,7 @@
       "name": "@guerillaglass/engine-protocol",
       "version": "0.1.0",
       "dependencies": {
+        "@guerillaglass/schema-primitives": "workspace:*",
         "effect": "^3.21.0",
       },
       "devDependencies": {
@@ -143,11 +144,23 @@
       "name": "@guerillaglass/review-protocol",
       "version": "0.1.0",
       "dependencies": {
+        "@guerillaglass/schema-primitives": "workspace:*",
         "effect": "^3.21.0",
       },
       "devDependencies": {
         "@guerillaglass/typescript-config": "workspace:*",
         "typescript": "^5.9.3",
+      },
+    },
+    "packages/schema-primitives": {
+      "name": "@guerillaglass/schema-primitives",
+      "version": "0.1.0",
+      "dependencies": {
+        "effect": "^3.21.0",
+      },
+      "devDependencies": {
+        "@guerillaglass/typescript-config": "workspace:*",
+        "typescript": "^6.0.2",
       },
     },
     "packages/typescript-config": {
@@ -391,6 +404,8 @@
     "@guerillaglass/localization": ["@guerillaglass/localization@workspace:packages/localization"],
 
     "@guerillaglass/review-protocol": ["@guerillaglass/review-protocol@workspace:packages/review-protocol"],
+
+    "@guerillaglass/schema-primitives": ["@guerillaglass/schema-primitives@workspace:packages/schema-primitives"],
 
     "@guerillaglass/typescript-config": ["@guerillaglass/typescript-config@workspace:packages/typescript-config"],
 
