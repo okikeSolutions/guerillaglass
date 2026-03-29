@@ -11,9 +11,9 @@ import type {
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
 import { captureStatusResultSchema } from "@guerillaglass/engine-protocol";
-import { hostBridgeEventNames } from "../../../../../shared/bridgeRpc";
-import { decodeUnknownWithSchemaSync } from "../../../../../shared/errors";
-import { desktopApi, engineApi, parseInputEventLog } from "@/lib/engine";
+import { hostBridgeEventNames } from "@shared/bridge";
+import { decodeUnknownWithSchemaSync } from "@shared/errors";
+import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
 const emptyExportPresets: ExportPreset[] = [];

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseStudioShortcutOverrides } from "../src/mainview/app/studio/model/studioShortcutOverridesModel";
+import { parseStudioShortcutOverrides } from "@studio/contracts/studioShortcutOverridesModel";
 
 describe("studio shortcut overrides model", () => {
   test("parses valid persisted overrides and drops invalid entries", () => {

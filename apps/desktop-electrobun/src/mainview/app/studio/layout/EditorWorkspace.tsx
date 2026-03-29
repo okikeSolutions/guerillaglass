@@ -4,7 +4,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@guerillaglass/ui/components/resizable";
-import { studioLayoutBounds } from "../model/studioLayoutModel";
+import { studioLayoutBounds } from "../contracts/studioLayoutModel";
 import { useEditorWorkspaceLayout } from "../hooks/useEditorWorkspaceLayout";
 
 type EditorWorkspaceProps = {

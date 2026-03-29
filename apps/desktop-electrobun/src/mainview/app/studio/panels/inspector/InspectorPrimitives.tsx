@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@guerillaglass/ui/components/select";
 import { Slider } from "@guerillaglass/ui/components/slider";
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 
 export function InspectorSection({
   title,

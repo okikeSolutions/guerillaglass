@@ -7,8 +7,8 @@ import type {
   ReviewSetWorkflowStatusResponse,
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
-import { createBunBridgeHandlers } from "../../shared/bridgeBindings";
-import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridgeRpc";
+import { createBunBridgeHandlers } from "@shared/bridge";
+import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "@shared/bridge";
 import type { EngineClient } from "../engine/client";
 
 type BridgeHandlerDependencies = {

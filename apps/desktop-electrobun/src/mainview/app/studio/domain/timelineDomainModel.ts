@@ -157,7 +157,7 @@ export function buildEventWaveform(
   const maximumBuckets = options?.maximumBuckets ?? 1200;
   const requestedBuckets = Math.round(durationSeconds * 40);
   const bucketCount = Math.min(Math.max(requestedBuckets, minimumBuckets), maximumBuckets);
-  const buckets = new Array<number>(bucketCount).fill(0.05);
+  const buckets = Array.from({ length: bucketCount }, () => 0.05);
 
   for (const event of events) {
     if (event.timestamp < 0 || event.timestamp > durationSeconds) {

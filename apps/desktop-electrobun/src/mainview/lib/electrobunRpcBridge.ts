@@ -1,7 +1,7 @@
 import { Electroview } from "electrobun/view";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { createWindowBridgeBindings } from "../../shared/bridgeBindings";
+import { createWindowBridgeBindings } from "@shared/bridge";
 import type {
   BridgeRequestName,
   BridgeRequestInvoker,
@@ -10,8 +10,8 @@ import type {
   DesktopBridgeRPC,
   HostMenuCommand,
   WindowBridgeBindings,
-} from "../../shared/bridgeRpc";
-import { hostBridgeEventNames } from "../../shared/bridgeRpc";
+} from "@shared/bridge";
+import { hostBridgeEventNames } from "@shared/bridge";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;

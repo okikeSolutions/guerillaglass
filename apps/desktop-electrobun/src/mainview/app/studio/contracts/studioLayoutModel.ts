@@ -5,14 +5,19 @@ import {
   type StudioLocale,
 } from "@guerillaglass/localization";
 import {
-  BrowserStorageError,
   ContractDecodeError,
   JsonParseError,
   decodeJsonStringWithSchemaSync,
-} from "../../../../shared/errors";
-import type { StudioMode } from "./inspectorSelectionModel";
+} from "@shared/errors";
+import type { StudioMode } from "../domain/inspectorSelectionModel";
+import {
+  createDesktopPreferenceStorageKey,
+  loadDesktopPreference,
+  saveDesktopPreference,
+  type DesktopPreferenceDefinition,
+} from "../services/desktopPreferences";
 
-export const studioLayoutStorageKey = "gg.studio.layout.v1";
+export const studioLayoutStorageKey = createDesktopPreferenceStorageKey("studio.layout", 1);
 
 export const studioLayoutBounds = {
   leftPaneMinWidthPx: 150,
@@ -474,48 +479,20 @@ export function parseStudioLayoutState(raw: string | null | undefined): StudioLa
   }
 }
 
-function getStorage(): Storage | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  try {
-    return window.localStorage;
-  } catch (error) {
-    throw new BrowserStorageError({
-      code: "BROWSER_STORAGE_UNAVAILABLE",
-      description: "Browser localStorage is unavailable.",
-      cause: error,
-    });
-  }
-}
+const studioLayoutPreference: DesktopPreferenceDefinition<StudioLayoutState> = {
+  key: studioLayoutStorageKey,
+  fallback: defaultStudioLayoutState,
+  parse: parseStudioLayoutState,
+  serialize: (layout) => JSON.stringify(layout),
+  writeDescription: "Failed to persist studio layout state.",
+};
 
-function tryGetStorage(): Storage | null {
-  try {
-    return getStorage();
-  } catch {
-    return null;
-  }
-}
-
-function persistStudioLayoutState(storage: Storage, layout: StudioLayoutState): void {
-  try {
-    storage.setItem(studioLayoutStorageKey, JSON.stringify(layout));
-  } catch (error) {
-    throw new BrowserStorageError({
-      code: "BROWSER_STORAGE_WRITE_FAILED",
-      description: "Failed to persist studio layout state.",
-      cause: error,
-    });
-  }
+function loadStoredStudioLayoutState(): StudioLayoutState {
+  return loadDesktopPreference(studioLayoutPreference);
 }
 
 export function loadStudioLayoutState(): StudioLayoutState {
-  const storage = tryGetStorage();
-  if (!storage) {
-    return defaultStudioLayoutState;
-  }
-  const raw = storage.getItem(studioLayoutStorageKey);
-  const parsed = parseStudioLayoutState(raw);
+  const parsed = loadStoredStudioLayoutState();
   const viewportWidthPx =
     typeof window === "undefined" || !Number.isFinite(window.innerWidth) ? null : window.innerWidth;
   if (!viewportWidthPx || viewportWidthPx <= 0) {
@@ -528,18 +505,8 @@ export function loadStudioLayoutState(): StudioLayoutState {
 }
 
 export function saveStudioLayoutState(layout: StudioLayoutState): void {
-  const storage = tryGetStorage();
-  if (!storage) {
-    return;
-  }
   const normalized = sanitizeStudioLayoutState(layout);
-  try {
-    persistStudioLayoutState(storage, normalized);
-  } catch (error) {
-    if (!(error instanceof BrowserStorageError)) {
-      throw error;
-    }
-  }
+  saveDesktopPreference(studioLayoutPreference, normalized);
 }
 
 export function getInitialStudioRoute(): StudioLayoutRoute {

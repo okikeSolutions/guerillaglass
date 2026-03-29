@@ -1,5 +1,5 @@
-import type { HostPathPickerMode } from "../../shared/bridgeRpc";
-import { PathPickerError, messageFromUnknownError } from "../../shared/errors";
+import type { HostPathPickerMode } from "@shared/bridge";
+import { PathPickerError, messageFromUnknownError } from "@shared/errors";
 
 const projectPackageExtension = ".gglassproj";
 const defaultProjectName = "guerillaglass-project";

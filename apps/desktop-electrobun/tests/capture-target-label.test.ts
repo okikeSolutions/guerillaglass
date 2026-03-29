@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatCaptureTargetLabelFromMetadata } from "../src/mainview/app/studio/model/captureTargetLabelFormatter";
+import { formatCaptureTargetLabelFromMetadata } from "@studio/view-model/captureTargetLabelFormatter";
 
 const formatInteger = (value: number): string => String(Math.trunc(value));
 

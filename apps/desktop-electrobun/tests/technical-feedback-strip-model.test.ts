@@ -3,7 +3,7 @@ import type { CaptureTelemetry } from "@guerillaglass/engine-protocol";
 import {
   buildTechnicalFeedbackMetrics,
   formatTelemetryMemoryBytes,
-} from "../src/mainview/app/studio/model/technicalFeedbackStripModel";
+} from "@studio/view-model/technicalFeedbackStripModel";
 
 const formatter = {
   formatInteger: (value: number) => value.toFixed(0),

@@ -5,7 +5,7 @@ import {
   resolveInspectorView,
   type InspectorView,
   type StudioMode,
-} from "../model/inspectorSelectionModel";
+} from "../domain/inspectorSelectionModel";
 import {
   CaptureInspectorContent,
   DeliverInspectorContent,

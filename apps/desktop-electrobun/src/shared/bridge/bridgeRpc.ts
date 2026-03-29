@@ -24,9 +24,10 @@ import type {
   ReviewSetWorkflowStatusRequest,
   ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
+import { Schema } from "effect";
 import type { RPCSchema } from "electrobun/bun";
-import type { SerializedBridgeError } from "./errors";
-import type { StudioShortcutOverrides } from "./shortcuts";
+import type { SerializedBridgeError } from "../errors";
+import type { StudioShortcutOverrides } from "../shortcuts";
 
 export const hostMenuCommands = {
   appRefresh: "app.refresh",
@@ -69,9 +70,26 @@ export type HostMenuState = {
 /** Host path-picker modes used by renderer workflows. */
 export type HostPathPickerMode = "openProject" | "saveProjectAs" | "export";
 
+export const hostPathPickerModeSchema = Schema.Literal("openProject", "saveProjectAs", "export");
+export const pickPathRequestSchema = Schema.Struct({
+  mode: hostPathPickerModeSchema,
+  startingFolder: Schema.optional(Schema.String),
+});
+export const pickPathResponseSchema = Schema.NullOr(Schema.String);
+export const readTextFileRequestSchema = Schema.Struct({
+  filePath: Schema.NonEmptyString,
+});
+export const readTextFileResponseSchema = Schema.String;
+export const resolveMediaSourceURLRequestSchema = Schema.Struct({
+  filePath: Schema.NonEmptyString,
+});
+export const resolveMediaSourceURLResponseSchema = Schema.NonEmptyString;
+
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
   responseType: Response;
+  paramsSchema?: Schema.Schema.AnyNoContext;
+  responseSchema?: Schema.Schema.AnyNoContext;
 };
 
 type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
@@ -80,10 +98,25 @@ type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
 
 function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
   toParams: (...args: Args) => Params,
+  options?: {
+    paramsSchema?: Schema.Schema.AnyNoContext;
+    responseSchema?: Schema.Schema.AnyNoContext;
+  },
 ): BridgeRequestDefinition<Params, Response, Args> {
-  return { toParams, responseType: undefined as Response };
+  return {
+    toParams,
+    responseType: undefined as Response,
+    paramsSchema: options?.paramsSchema,
+    responseSchema: options?.responseSchema,
+  };
 }
 
+/**
+ * Canonical request definitions for every Bun bridge call.
+ *
+ * Each entry defines the request name, argument-to-params mapping, and optional
+ * runtime schemas used to validate transport inputs and outputs at the bridge boundary.
+ */
 export const bridgeRequestDefinitions = {
   ggEnginePing: defineBridgeRequest<undefined, PingResult, []>(() => undefined),
   ggEngineGetPermissions: defineBridgeRequest<undefined, PermissionsResult, []>(() => undefined),
@@ -227,12 +260,27 @@ export const bridgeRequestDefinitions = {
     { mode: HostPathPickerMode; startingFolder?: string },
     string | null,
     [params: { mode: HostPathPickerMode; startingFolder?: string }]
-  >((params) => params),
+  >((params) => params, {
+    paramsSchema: pickPathRequestSchema,
+    responseSchema: pickPathResponseSchema,
+  }),
   ggReadTextFile: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
-    (filePath) => ({ filePath }),
+    (filePath) => ({
+      filePath,
+    }),
+    {
+      paramsSchema: readTextFileRequestSchema,
+      responseSchema: readTextFileResponseSchema,
+    },
   ),
   ggResolveMediaSourceURL: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
-    (filePath) => ({ filePath }),
+    (filePath) => ({
+      filePath,
+    }),
+    {
+      paramsSchema: resolveMediaSourceURLRequestSchema,
+      responseSchema: resolveMediaSourceURLResponseSchema,
+    },
   ),
 } as const;
 
@@ -260,7 +308,6 @@ export type BridgeRequests = {
   };
 };
 
-/** Internal Electrobun request envelope used to carry Bun-side failures across process boundaries. */
 export type BridgeResponseEnvelope<T> =
   | {
       ok: true;
@@ -283,14 +330,12 @@ export type BridgeRequestInvoker = <K extends BridgeRequestName>(
   params: BridgeRequests[K]["params"],
 ) => Promise<BridgeTransportRequests[K]["response"]>;
 
-/** Logical Bun handlers that return raw responses before bridge envelope wrapping. */
 export type BridgeRequestHandlerMap = {
   [K in BridgeRequestName]: (
     params: BridgeRequests[K]["params"],
   ) => Promise<BridgeRequests[K]["response"]>;
 };
 
-/** Electrobun request handlers after success/failure envelopes are applied. */
 export type BunBridgeRequestHandlerMap = {
   [K in BridgeRequestName]: (
     params: BridgeRequests[K]["params"],

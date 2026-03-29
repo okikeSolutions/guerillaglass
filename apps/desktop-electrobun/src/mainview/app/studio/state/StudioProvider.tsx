@@ -1,5 +1,5 @@
 import { createContext, useContext, type PropsWithChildren } from "react";
-import { StudioContextUnavailableError } from "../../../../shared/errors";
+import { StudioContextUnavailableError } from "@shared/errors";
 import type { StudioController } from "../hooks/core/useStudioController";
 
 const StudioContext = createContext<StudioController | null>(null);

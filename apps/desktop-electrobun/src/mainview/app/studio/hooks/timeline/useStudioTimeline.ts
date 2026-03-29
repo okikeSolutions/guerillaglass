@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InputEvent } from "@guerillaglass/engine-protocol";
-import { buildTimelineLanes } from "../../model/timelineDomainModel";
+import { buildTimelineLanes } from "../../domain/timelineDomainModel";
 import {
   defaultTimelineFrameRate,
   normalizeTimelineFrameRate,
   quantizeSecondsToFrame,
-} from "../../model/timelineFrameTimebase";
+} from "../../domain/timelineFrameTimebase";
 import { usePlaybackTransport } from "./usePlaybackTransport";
 import { useTimelineWaveform } from "./useTimelineWaveform";
 

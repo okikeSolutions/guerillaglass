@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Badge } from "@guerillaglass/ui/components/badge";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Kbd, KbdGroup } from "@guerillaglass/ui/components/kbd";
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 import {
   resolveStudioShortcutHotkey,
   studioHotkeyDisplayTokens,
   studioShortcutDisplayTokens,
   studioShortcutIds,
   type StudioShortcutId,
-} from "../../../../../shared/shortcuts";
+} from "@shared/shortcuts";
 import { useStudio } from "../../state/StudioProvider";
 
 function shortcutLabelFor(

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { FileAccessPolicyError } from "../src/shared/errors";
+import { FileAccessPolicyError } from "@shared/errors";
 import {
   readAllowedTextFile,
   resolveAllowedMediaFilePath,

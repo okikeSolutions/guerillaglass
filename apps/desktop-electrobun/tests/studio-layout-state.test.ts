@@ -12,7 +12,7 @@ import {
   resolveStudioLocation,
   routeForStudioMode,
   studioLayoutBounds,
-} from "../src/mainview/app/studio/model/studioLayoutModel";
+} from "@studio/contracts/studioLayoutModel";
 
 describe("studio layout state", () => {
   test("normalizes known route prefixes", () => {

@@ -13,7 +13,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@guerillaglass/ui/components/empty";
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 
 function projectNameFromPath(projectPath: string | null): string {

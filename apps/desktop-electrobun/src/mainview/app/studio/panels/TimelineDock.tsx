@@ -24,13 +24,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@guerillaglass/ui/components/tooltip";
-import { cn } from "@/lib/utils";
-import {
-  normalizeShortcutDisplayPlatform,
-  studioShortcutDisplayTokens,
-} from "../../../../shared/shortcuts";
+import { cn } from "@lib/utils";
+import { normalizeShortcutDisplayPlatform, studioShortcutDisplayTokens } from "@shared/shortcuts";
 import { useStudio } from "../state/StudioProvider";
-import { studioToneClass, type StudioSemanticState } from "../model/studioSemanticTone";
+import { studioToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 import { TimelineSurface } from "./TimelineSurface";
 
 function TimelineIconAction({

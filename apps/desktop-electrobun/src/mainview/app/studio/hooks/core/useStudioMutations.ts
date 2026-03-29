@@ -13,13 +13,10 @@ import type {
   SourcesResult,
 } from "@guerillaglass/engine-protocol";
 import type { StudioMessages } from "@guerillaglass/localization";
-import { engineApi } from "@/lib/engine";
-import type { HostPathPickerMode } from "../../../../../shared/bridgeRpc";
-import {
-  CaptureWindowPickerUnsupportedError,
-  StudioActionError,
-} from "../../../../../shared/errors";
-import { resolveSelectedWindowId } from "../../model/preferredWindowSelection";
+import { engineApi } from "@lib/engine";
+import type { HostPathPickerMode } from "@shared/bridge";
+import { CaptureWindowPickerUnsupportedError, StudioActionError } from "@shared/errors";
+import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
 
 const captureStatusSyncAttempts = 4;

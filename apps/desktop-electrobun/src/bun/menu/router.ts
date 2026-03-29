@@ -1,4 +1,4 @@
-import type { HostMenuCommand } from "../../shared/bridgeRpc";
+import type { HostMenuCommand } from "@shared/bridge";
 import { decodeHostMenuAction } from "./actions";
 
 type MenuActionHandlers = {

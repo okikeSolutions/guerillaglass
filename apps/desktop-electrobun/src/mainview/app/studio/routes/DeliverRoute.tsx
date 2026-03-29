@@ -9,7 +9,7 @@ import {
 import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/components/field";
 import { Input } from "@guerillaglass/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";

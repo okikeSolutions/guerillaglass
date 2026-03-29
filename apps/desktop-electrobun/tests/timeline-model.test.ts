@@ -7,7 +7,7 @@ import {
   clampSeconds,
   pixelsToSeconds,
   secondsToPixels,
-} from "../src/mainview/app/studio/model/timelineDomainModel";
+} from "@studio/domain/timelineDomainModel";
 
 describe("timeline model", () => {
   test("converts between seconds and pixels with clamping", () => {

@@ -17,8 +17,8 @@ import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/components/fi
 import { Label } from "@guerillaglass/ui/components/label";
 import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
 import { RadioGroup, RadioGroupItem } from "@guerillaglass/ui/components/radio-group";
-import { engineApi } from "@/lib/engine";
-import { cn } from "@/lib/utils";
+import { engineApi } from "@lib/engine";
+import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";

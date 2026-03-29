@@ -1,5 +1,5 @@
 import type { ComponentProps, ElementType, ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@lib/utils";
 
 type StudioPaneProps<T extends ElementType> = {
   as?: T;

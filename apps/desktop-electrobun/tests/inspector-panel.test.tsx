@@ -1,14 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { enUS } from "@guerillaglass/localization";
-import { InspectorPanel } from "../src/mainview/app/studio/panels/InspectorPanel";
-import { ShortcutOverridesSection } from "../src/mainview/app/studio/panels/inspector/ShortcutOverridesSection";
-import { StudioProvider } from "../src/mainview/app/studio/state/StudioProvider";
-import type {
-  InspectorSelection,
-  StudioMode,
-} from "../src/mainview/app/studio/model/inspectorSelectionModel";
-import type { StudioController } from "../src/mainview/app/studio/hooks/core/useStudioController";
+import { InspectorPanel } from "@studio/panels/InspectorPanel";
+import { ShortcutOverridesSection } from "@studio/panels/inspector/ShortcutOverridesSection";
+import { StudioProvider } from "@studio/state/StudioProvider";
+import type { InspectorSelection, StudioMode } from "@studio/domain/inspectorSelectionModel";
+import type { StudioController } from "@studio/hooks/core/useStudioController";
 
 function makeStudioMock(selection: InspectorSelection): StudioController {
   const settingsValues = {

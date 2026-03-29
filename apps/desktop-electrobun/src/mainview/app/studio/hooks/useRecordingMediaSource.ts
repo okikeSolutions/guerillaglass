@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { desktopApi } from "@/lib/engine";
-import { toMediaSourceURL } from "../model/mediaSourceUrl";
+import { desktopApi } from "@lib/engine";
+import { toMediaSourceURL } from "../domain/mediaSourceUrl";
 
 const recordingMediaSourceQueryKey = (recordingURL: string | null) =>
   ["studio", "recordingMediaSource", recordingURL] as const;

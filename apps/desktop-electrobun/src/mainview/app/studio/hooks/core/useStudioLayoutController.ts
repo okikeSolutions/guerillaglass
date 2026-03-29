@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { StudioLocale } from "@guerillaglass/localization";
-import type { StudioMode } from "../../model/inspectorSelectionModel";
+import type { StudioMode } from "../../domain/inspectorSelectionModel";
 import {
   defaultStudioLayoutState,
   dominantLayoutPresetForRoute,
@@ -11,7 +11,7 @@ import {
   saveStudioLayoutState,
   studioLayoutBounds,
   type StudioDensityMode,
-} from "../../model/studioLayoutModel";
+} from "../../contracts/studioLayoutModel";
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);

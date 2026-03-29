@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { InputEvent } from "@guerillaglass/engine-protocol";
-import { desktopApi } from "@/lib/engine";
-import { toMediaSourceURL } from "../../model/mediaSourceUrl";
-import { buildEventWaveform, type TimelineWaveform } from "../../model/timelineDomainModel";
+import { desktopApi } from "@lib/engine";
+import { toMediaSourceURL } from "../../domain/mediaSourceUrl";
+import { buildEventWaveform, type TimelineWaveform } from "../../domain/timelineDomainModel";
 
 type AudioContextConstructor = typeof AudioContext;
 
@@ -43,7 +43,7 @@ function buildDecodedWaveform(audioBuffer: AudioBuffer): TimelineWaveform {
   );
   const bucketCount = Math.min(Math.max(Math.round(durationSeconds * 90), 500), 2400);
   const samplesPerBucket = Math.max(1, Math.floor(audioBuffer.length / bucketCount));
-  const peaks = new Array<number>(bucketCount).fill(0);
+  const peaks = Array.from({ length: bucketCount }, () => 0);
 
   for (let bucketIndex = 0; bucketIndex < bucketCount; bucketIndex += 1) {
     const start = bucketIndex * samplesPerBucket;

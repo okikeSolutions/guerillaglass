@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ProjectUtilityPanel } from "../src/mainview/app/studio/panels/ProjectUtilityPanel";
-import { StudioProvider } from "../src/mainview/app/studio/state/StudioProvider";
-import type { StudioController } from "../src/mainview/app/studio/hooks/core/useStudioController";
+import { ProjectUtilityPanel } from "@studio/panels/ProjectUtilityPanel";
+import { StudioProvider } from "@studio/state/StudioProvider";
+import type { StudioController } from "@studio/hooks/core/useStudioController";
 import { enUS } from "@guerillaglass/localization";
 
 type PanelOptions = {

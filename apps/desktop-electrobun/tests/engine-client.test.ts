@@ -2,7 +2,12 @@ import path from "node:path";
 import os from "node:os";
 import { describe, expect, test } from "bun:test";
 import { EngineClient, resolveEnginePath } from "../src/bun/engine/client";
-import { EngineRequestValidationError, EngineResponseError } from "../src/shared/errors";
+import {
+  ContractDecodeError,
+  EngineRequestValidationError,
+  EngineResponseError,
+  JsonParseError,
+} from "@shared/errors";
 
 const BUN_BASE_DIR = path.resolve(import.meta.dir, "../src/bun");
 const LINUX_STUB_PATH = path.resolve(
@@ -15,6 +20,14 @@ const WINDOWS_STUB_PATH = path.resolve(
 );
 const HANGING_ENGINE_PATH = path.resolve(import.meta.dir, "fixtures/hanging-engine.ts");
 const CRASHING_ENGINE_PATH = path.resolve(import.meta.dir, "fixtures/crashing-engine.ts");
+const INVALID_JSON_RESPONSE_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/invalid-json-response-engine.ts",
+);
+const INVALID_ENVELOPE_RESPONSE_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/invalid-envelope-response-engine.ts",
+);
 const DROPPED_STOP_RESPONSE_ENGINE_PATH = path.resolve(
   import.meta.dir,
   "fixtures/dropped-stop-response-engine.ts",
@@ -352,6 +365,34 @@ describe("engine client resilience", () => {
       expect(error.message).toContain("Engine process exited unexpectedly");
       const elapsed = Date.now() - startedAt;
       expect(elapsed).toBeLessThan(1000);
+    } finally {
+      await client.stop();
+    }
+  });
+
+  test("fails pending requests immediately when engine emits invalid JSON on stdout", async () => {
+    const client = new EngineClient(INVALID_JSON_RESPONSE_ENGINE_PATH, 5000);
+    const startedAt = Date.now();
+
+    try {
+      const error = await captureError(client.ping());
+      expect(error).toBeInstanceOf(JsonParseError);
+      expect(error.message).toBe("Invalid engine response JSON.");
+      expect(Date.now() - startedAt).toBeLessThan(1000);
+    } finally {
+      await client.stop();
+    }
+  });
+
+  test("fails the matching pending request when engine emits an invalid response envelope", async () => {
+    const client = new EngineClient(INVALID_ENVELOPE_RESPONSE_ENGINE_PATH, 5000);
+    const startedAt = Date.now();
+
+    try {
+      const error = await captureError(client.ping());
+      expect(error).toBeInstanceOf(ContractDecodeError);
+      expect(error.message).toContain("Invalid engine response payload");
+      expect(Date.now() - startedAt).toBeLessThan(1000);
     } finally {
       await client.stop();
     }

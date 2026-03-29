@@ -11,9 +11,9 @@ import { useThrottler } from "@tanstack/react-pacer";
 import { AudioLines, Headphones, Lock, Video, VolumeX } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@guerillaglass/ui/components/tooltip";
-import type { TimelineClip, TimelineLane, TimelineWaveform } from "../model/timelineDomainModel";
-import { clampSeconds, pixelsToSeconds } from "../model/timelineDomainModel";
-import { studioToggleToneClass, type StudioSemanticState } from "../model/studioSemanticTone";
+import type { TimelineClip, TimelineLane, TimelineWaveform } from "../domain/timelineDomainModel";
+import { clampSeconds, pixelsToSeconds } from "../domain/timelineDomainModel";
+import { studioToggleToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 
 type TimelineSurfaceLabels = {
   playhead: string;

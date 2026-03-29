@@ -10,10 +10,10 @@ import {
   buildRequest,
   captureStatusResultSchema,
   defaultCaptureFrameRate,
+  engineResponseSchema,
   exportInfoResultSchema,
   exportRunCutPlanResultSchema,
   exportRunResultSchema,
-  parseResponse,
   permissionsResultSchema,
   projectRecentsResultSchema,
   pingResultSchema,
@@ -33,10 +33,12 @@ import {
   EngineRequestValidationError,
   EngineResponseError,
   decodeUnknownWithSchemaPromise,
+  decodeUnknownWithSchemaSync,
+  parseJsonStringSync,
   type EngineClientErrorCode,
   type MutableDeep,
   extractValidationIssues,
-} from "../../shared/errors";
+} from "@shared/errors";
 
 type PendingRequest = {
   resolve: (value: unknown) => void;
@@ -368,6 +370,14 @@ function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   });
+}
+
+function responseIdFromUnknown(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const responseId = (raw as { id?: unknown }).id;
+  return typeof responseId === "string" && responseId.length > 0 ? responseId : null;
 }
 
 function toInvalidParamsError(method: string, error: unknown): Error {
@@ -1140,15 +1150,16 @@ export class EngineClient {
 
   private handleResponseLine(line: string): void {
     try {
-      const response = parseResponse(JSON.parse(line));
-      const pending = this.pending.get(response.id);
+      const rawResponse = parseJsonStringSync(line, "engine response");
+      const response = decodeUnknownWithSchemaSync(
+        engineResponseSchema,
+        rawResponse,
+        "engine response",
+      );
+      const pending = this.takePendingRequest(response.id);
       if (!pending) {
         return;
       }
-      if (pending.timeout) {
-        clearTimeout(pending.timeout);
-      }
-      this.pending.delete(response.id);
 
       if (response.ok) {
         pending.resolve(response.result);
@@ -1161,6 +1172,7 @@ export class EngineClient {
         }),
       );
     } catch (error) {
+      this.rejectPendingForInvalidResponseLine(line, error);
       console.error("Failed to parse engine response", error);
     }
   }
@@ -1205,6 +1217,47 @@ export class EngineClient {
         }),
       );
     }
+  }
+
+  private rejectPendingForInvalidResponseLine(line: string, error: unknown): void {
+    const normalizedError =
+      error instanceof Error
+        ? error
+        : new EngineOperationError({
+            operation: "engine.response",
+            description: String(error),
+          });
+    const responseId = this.tryReadResponseId(line);
+    if (responseId) {
+      this.rejectPendingRequest(responseId, normalizedError);
+      return;
+    }
+    this.rejectAllPending(normalizedError);
+  }
+
+  private tryReadResponseId(line: string): string | null {
+    try {
+      return responseIdFromUnknown(parseJsonStringSync(line, "engine response"));
+    } catch {
+      return null;
+    }
+  }
+
+  private takePendingRequest(requestId: string): PendingRequest | null {
+    const pending = this.pending.get(requestId);
+    if (!pending) {
+      return null;
+    }
+    if (pending.timeout) {
+      clearTimeout(pending.timeout);
+    }
+    this.pending.delete(requestId);
+    return pending;
+  }
+
+  private rejectPendingRequest(requestId: string, error: Error): void {
+    const pending = this.takePendingRequest(requestId);
+    pending?.reject(error);
   }
 
   private rejectAllPending(error: Error): void {

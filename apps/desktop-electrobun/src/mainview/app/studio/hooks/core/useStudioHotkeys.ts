@@ -1,12 +1,11 @@
 import { useHotkey, type RegisterableHotkey } from "@tanstack/react-hotkeys";
-import { hostMenuCommands, type HostMenuCommand } from "../../../../../shared/bridgeRpc";
+import { hostMenuCommands, type HostMenuCommand } from "@shared/bridge";
 import {
-  isStudioShortcutSingleKey,
-  resolveStudioShortcutHotkey,
+  resolveStudioShortcutBinding,
   type ShortcutDisplayPlatform,
   type StudioShortcutId,
   type StudioShortcutOverrides,
-} from "../../../../../shared/shortcuts";
+} from "@shared/shortcuts";
 
 type TimelineTool = "select" | "trim" | "blade";
 
@@ -52,18 +51,15 @@ function shortcutOptionsFor(
   shortcutOverrides: StudioShortcutOverrides,
   shortcutPlatform: ShortcutDisplayPlatform,
 ) {
-  const hotkey = resolveStudioShortcutHotkey(shortcutId, {
-    platform: shortcutPlatform,
-    overrides: shortcutOverrides,
-  });
-  const singleKey = isStudioShortcutSingleKey(shortcutId, {
+  const binding = resolveStudioShortcutBinding(shortcutId, {
     platform: shortcutPlatform,
     overrides: shortcutOverrides,
   });
 
   return {
-    hotkey: hotkey as RegisterableHotkey,
-    singleKey,
+    hotkey: binding.hotkey as RegisterableHotkey,
+    singleKey: binding.singleKey,
+    usesShift: binding.modifiers.includes("Shift"),
   };
 }
 
@@ -88,7 +84,7 @@ export function useStudioHotkeys({
   useHotkey(
     saveShortcut.hotkey,
     (event) => {
-      if (event.shiftKey) {
+      if (!saveShortcut.usesShift && event.shiftKey) {
         return;
       }
       event.preventDefault();

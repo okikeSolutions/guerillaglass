@@ -3,7 +3,7 @@ import type { SourcesResult } from "@guerillaglass/engine-protocol";
 import {
   pickPreferredWindowId,
   resolveSelectedWindowId,
-} from "../src/mainview/app/studio/model/preferredWindowSelection";
+} from "@studio/domain/preferredWindowSelection";
 
 function makeWindowSource(
   overrides: Partial<SourcesResult["windows"][number]>,

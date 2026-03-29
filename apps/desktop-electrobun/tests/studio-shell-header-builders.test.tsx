@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { ShortcutDisplayPlatform } from "../src/shared/shortcuts";
-import {
-  buildModeItems,
-  buildUtilityActions,
-} from "../src/mainview/app/studio/layout/StudioShellHeader";
+import type { ShortcutDisplayPlatform } from "@shared/shortcuts";
+import { buildModeItems, buildUtilityActions } from "@studio/layout/StudioShellHeader";
 
 type HeaderStudio = Parameters<typeof buildModeItems>[0];
 
