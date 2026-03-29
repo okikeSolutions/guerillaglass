@@ -71,7 +71,7 @@ Guerilla Glass should feel like a professional creator tool:
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
 - **Web app/auth shell:** TanStack Start + Convex (`apps/web`)
-- **Protocol contract:** Zod (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
+- **Protocol contract:** Effect Schema (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
   - `capture.status` telemetry is performance-first and includes `sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`, `cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `captureCallbackMs`, `recordQueueLagMs`, and `writerAppendMs`.
   - Runtime telemetry diagnostics are engine-owned and sampled from monotonic process/runtime counters (no renderer-side metric synthesis).
   - Desktop shell delivers high-frequency capture telemetry via host push stream (`hostCaptureStatus` / `gg-host-capture-status`) rather than renderer timer polling.

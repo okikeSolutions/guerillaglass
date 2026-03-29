@@ -14,7 +14,7 @@ Guerilla Glass now follows a hybrid multiplatform architecture with strict local
    - Uses existing Swift capture/render/export modules
    - Exposed as `guerillaglass-engine` executable target
 4. Protocol layer (`/packages/engine-protocol`)
-   - Zod runtime schemas + TypeScript types
+   - Effect Schema runtime schemas + TypeScript types
    - Wire contracts for request/response envelopes
 5. Rust protocol layer (`/engines/protocol-rust`)
    - Shared Rust request/response envelope models
@@ -47,7 +47,7 @@ North star:
 2. Electrobun main process handles these via `BrowserView.defineRPC` request handlers.
 3. Bun `EngineClient` sends JSON line requests to the Swift sidecar.
 4. Swift sidecar dispatches methods to native APIs (`ScreenCaptureKit`, `AVFoundation`, Input Monitoring checks).
-5. Response envelopes are validated in TypeScript with Zod before UI rendering.
+5. Response envelopes are validated in TypeScript with Effect Schema before UI rendering.
 6. Agent Mode jobs write structured artifacts into the active project package (`analysis/*.v1.json`) and expose status/artifact access via protocol methods.
 
 Deliver-review flow (Phase 2.5+):

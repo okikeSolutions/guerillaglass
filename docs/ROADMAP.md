@@ -71,7 +71,7 @@ Creator Studio pro-UI parity backlog (next pass):
   - [x] Rebalance default layout so preview + timeline are visually dominant and utility rails are more recessive/collapsible.
   - Implementation notes:
     - Added dominant layout presets per route (`capture`/`edit`/`deliver`) with one-time application per route and reset-to-preset behavior.
-    - Layout persistence parsing now runs through a Zod schema before migration/sanitize steps.
+    - Layout persistence parsing now runs through an Effect Schema before migration/sanitize steps.
     - Updated pane and timeline surface styling so utility rails are visually recessive while center preview/timeline surfaces carry stronger emphasis.
   - [x] Upgrade timeline readability (audio waveform-rich lanes, stronger clip semantics, clearer selected-state/playhead contrast).
   - Implementation notes:
@@ -147,7 +147,7 @@ This track adds async review collaboration in `Deliver` while preserving local-f
 
 Contract and architecture checklist:
 
-- [x] Add review contract package scaffold (`packages/review-protocol`) with Zod schemas + fixtures for share/comment/presence payloads.
+- [x] Add review contract package scaffold (`packages/review-protocol`) with Effect Schema models + fixtures for share/comment/presence payloads.
 - [x] Keep `packages/engine-protocol` focused on local native media operations (no review-specific method leakage).
 - [x] Add bridge request/message schema for review RPC and review realtime events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
 - [x] Add web app/auth scaffold (`apps/web`) using TanStack Start + Convex baseline wiring.
@@ -237,7 +237,7 @@ Reference scope: `docs/SPEC.md` §18
 Progress (current repo)
 
 - [x] Electrobun shell scaffolded
-- [x] Zod protocol package added
+- [x] Effect Schema protocol package added
 - [x] Native Swift `guerillaglass-engine` target added
 
 **Phase 1 — Recorder MVP**
