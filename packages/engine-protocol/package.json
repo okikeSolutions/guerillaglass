@@ -2,6 +2,7 @@
   "name": "@guerillaglass/engine-protocol",
   "version": "0.1.0",
   "private": true,
+  "description": "Effect Schema-based JSON-RPC contract for Guerillaglass native engines",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -14,6 +15,6 @@
   },
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   }
 }
