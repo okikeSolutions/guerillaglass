@@ -6,14 +6,9 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const config = defineConfig({
-  plugins: [
-    devtools(),
-    tailwindcss(),
-    tanstackStart(),
-    viteReact(),
-  ],
+  plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
   resolve: {
-    tsconfigPaths: true
+    tsconfigPaths: true,
   },
   ssr: {
     noExternal: ["@convex-dev/better-auth"],
