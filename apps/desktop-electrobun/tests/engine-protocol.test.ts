@@ -339,6 +339,31 @@ describe("engine protocol", () => {
     expect(captureStatus.telemetry.cpuPercent).toBeNull();
   });
 
+  test("rejects invalid ISO datetime fields in engine payloads", () => {
+    expect(() =>
+      decodeSchemaSync(projectRecentsResultSchema, {
+        items: [
+          {
+            projectPath: "/tmp/project.gglassproj",
+            displayName: "project",
+            lastOpenedAt: "yesterday",
+          },
+        ],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      decodeSchemaSync(agentStatusResultSchema, {
+        jobId: "job-456",
+        status: "blocked",
+        runtimeBudgetMinutes: 10,
+        qaReport: null,
+        blockingReason: "weak_narrative_structure",
+        updatedAt: "2026-02-25 10:00:00.000Z",
+      }),
+    ).toThrow();
+  });
+
   test("parses success and error response envelopes", () => {
     const fixtureDir = path.resolve(import.meta.dir, "../../../packages/engine-protocol/fixtures");
     const recentsResponseRaw = fs.readFileSync(

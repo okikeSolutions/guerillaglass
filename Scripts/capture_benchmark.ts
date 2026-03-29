@@ -267,7 +267,7 @@ function startupThresholdsForCaptureFrameRate(captureFps: CaptureFrameRate): Sta
 function parseArgs(argv: string[]) {
   let durationSeconds = 10;
   let pollIntervalMs = 500;
-  let warmupMs = 1_000;
+  let warmupMs = 1000;
   let outputDir = path.join(process.cwd(), ".tmp", "capture-benchmarks");
   let scenarioFilter: BenchmarkScenarioID[] | null = null;
 
@@ -381,12 +381,16 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 
 async function stopCaptureSession(engine: EngineClient) {
   try {
-    await withTimeout(engine.stopRecording(), 5_000, "stopRecording cleanup");
-  } catch {}
+    await withTimeout(engine.stopRecording(), 5000, "stopRecording cleanup");
+  } catch {
+    // Best-effort cleanup; preserve the original benchmark failure.
+  }
 
   try {
-    await withTimeout(engine.stopCapture(), 5_000, "stopCapture cleanup");
-  } catch {}
+    await withTimeout(engine.stopCapture(), 5000, "stopCapture cleanup");
+  } catch {
+    // Best-effort cleanup; preserve the original benchmark failure.
+  }
 }
 
 function mean(values: number[]): number | null {
@@ -507,7 +511,7 @@ async function ensurePermissions(engine: EngineClient, scenario: ScenarioConfig)
     if (!response.success) {
       throw new Error("Screen Recording permission request was rejected by the engine.");
     }
-    await sleep(1_000);
+    await sleep(1000);
     permissions = await engine.getPermissions();
   }
 
@@ -520,7 +524,7 @@ async function ensurePermissions(engine: EngineClient, scenario: ScenarioConfig)
     if (!response.success) {
       throw new Error("Microphone permission request was rejected by the engine.");
     }
-    await sleep(1_000);
+    await sleep(1000);
     permissions = await engine.getPermissions();
   }
 
@@ -533,7 +537,7 @@ async function ensurePermissions(engine: EngineClient, scenario: ScenarioConfig)
     if (!response.success) {
       throw new Error("Input Monitoring permission request was rejected by the engine.");
     }
-    await sleep(1_000);
+    await sleep(1000);
     permissions = await engine.getPermissions();
   }
 
@@ -850,13 +854,13 @@ async function runScenarioRun(
       writerBackpressureDrops: finalStatus?.telemetry.writerBackpressureDrops ?? 0,
     };
     const sampleStart = performance.now();
-    const sampleDeadline = sampleStart + options.durationSeconds * 1_000;
+    const sampleDeadline = sampleStart + options.durationSeconds * 1000;
 
     while (performance.now() < sampleDeadline) {
       const status = await engine.captureStatus();
       finalStatus = status;
       samples.push({
-        relativeSeconds: (performance.now() - sampleStart) / 1_000,
+        relativeSeconds: (performance.now() - sampleStart) / 1000,
         telemetry: status.telemetry,
       });
       await sleep(options.pollIntervalMs);
@@ -1032,7 +1036,7 @@ async function runScenarioRun(
         ...startup,
         status: "error",
       },
-      durationSeconds: (performance.now() - startedAt) / 1_000,
+      durationSeconds: (performance.now() - startedAt) / 1000,
       source: selectedDisplay
         ? buildSourceDetails(selectedDisplay, {
             displayId: selectedDisplay.id,

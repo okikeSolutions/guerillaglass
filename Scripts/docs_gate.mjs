@@ -183,7 +183,10 @@ function hasDocCommentAboveTypeScriptNode(sourceText, node) {
     return false;
   }
 
-  const lastRange = ranges[ranges.length - 1];
+  const lastRange = ranges.at(-1);
+  if (!lastRange) {
+    return false;
+  }
   const between = sourceText.slice(lastRange.end, node.getStart());
   if (between.trim().length > 0) {
     return false;
