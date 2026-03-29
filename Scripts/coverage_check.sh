@@ -100,10 +100,14 @@ TS_REPORT="$COVERAGE_DIR/typescript-coverage.txt"
 bun run desktop:test:coverage 2>&1 | tee "$TS_REPORT"
 
 ts_all_lines="$(awk -F'|' '$1 ~ /All files/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT")"
-ts_engine_client_lines="$(awk -F'|' '$1 ~ /src\/bun\/engine\/client.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT")"
-ts_engine_lines="$(awk -F'|' '$1 ~ /src\/mainview\/lib\/engine.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT")"
+ts_engine_client_lines="$(
+  awk -F'|' 'NF >= 3 && $1 ~ /src\/bun\/engine\/client.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+)"
+ts_engine_lines="$(
+  awk -F'|' 'NF >= 3 && $1 ~ /src\/mainview\/lib\/engine.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+)"
 ts_capture_telemetry_lines="$(
-  awk -F'|' '$1 ~ /src\/mainview\/app\/studio\/model\/captureTelemetryViewModel.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+  awk -F'|' 'NF >= 3 && $1 ~ /src\/mainview\/app\/studio\/view-model\/captureTelemetryViewModel.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
 )"
 
 echo "==> rust coverage report"
