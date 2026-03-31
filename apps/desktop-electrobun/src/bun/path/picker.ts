@@ -1,5 +1,5 @@
-import type { HostPathPickerMode } from "@shared/bridge";
-import { PathPickerError, messageFromUnknownError } from "@shared/errors";
+import type { HostPathPickerMode } from "../../shared/bridge";
+import { PathPickerError, messageFromUnknownError } from "../../shared/errors";
 
 const projectPackageExtension = ".gglassproj";
 const defaultProjectName = "guerillaglass-project";
@@ -9,13 +9,7 @@ type OpenFileDialogOptions = {
   canChooseFiles?: boolean;
   canChooseDirectory?: boolean;
   allowsMultipleSelection?: boolean;
-  allowedFileTypes?: string | string[];
-};
-
-type SaveFileDialogOptions = {
-  startingFolder?: string;
-  defaultName?: string;
-  allowedFileTypes?: string | string[];
+  allowedFileTypes?: string;
 };
 
 type FileDialogDependencies = {
@@ -23,7 +17,6 @@ type FileDialogDependencies = {
   startingFolder?: string;
   defaultFolder: string;
   openFileDialog: (options: OpenFileDialogOptions) => Promise<string[]>;
-  saveFileDialog?: (options: SaveFileDialogOptions) => Promise<string | string[] | null>;
   pathExists?: (filePath: string) => Promise<boolean>;
   confirmOverwritePath?: (filePath: string) => Promise<boolean>;
 };
@@ -140,14 +133,6 @@ function resolveFirstPath(value: string | string[] | null | undefined): string |
   return value;
 }
 
-function resolveSaveDialogProjectPath(selectedPath: string): string {
-  const trimmedPath = trimTrailingSeparators(selectedPath);
-  if (trimmedPath.toLowerCase().endsWith(projectPackageExtension)) {
-    return trimmedPath;
-  }
-  return `${trimmedPath}${projectPackageExtension}`;
-}
-
 function joinPath(directoryPath: string, fileName: string): string {
   const trimmedDirectory = trimTrailingSeparators(directoryPath);
   const separator = inferPathSeparator(trimmedDirectory);
@@ -194,21 +179,6 @@ async function openFileDialogSafely(
   }
 }
 
-async function saveFileDialogSafely(
-  saveFileDialog: NonNullable<FileDialogDependencies["saveFileDialog"]>,
-  options: SaveFileDialogOptions,
-): Promise<string | string[] | null> {
-  try {
-    return await saveFileDialog(options);
-  } catch (error) {
-    throw new PathPickerError({
-      code: "PATH_PICKER_SAVE_DIALOG_FAILED",
-      description: messageFromUnknownError(error, "Save dialog failed."),
-      cause: error,
-    });
-  }
-}
-
 /** Opens the host file/save picker for a workflow mode and returns a resolved path target. */
 export async function pickPathForMode(
   mode: HostPathPickerMode,
@@ -237,52 +207,22 @@ export async function pickPathForMode(
   }
 
   if (mode === "saveProjectAs") {
-    let saveTargetPath: string | null = null;
-
-    if (typeof dependencies.saveFileDialog === "function") {
-      try {
-        const selectedPath = resolveFirstPath(
-          await saveFileDialogSafely(dependencies.saveFileDialog, {
-            startingFolder,
-            defaultName: buildProjectPackageName(dependencies.currentProjectPath),
-            allowedFileTypes: "gglassproj",
-          }),
-        );
-        if (selectedPath) {
-          saveTargetPath = resolveSaveDialogProjectPath(selectedPath);
-        } else {
-          return null;
-        }
-      } catch (error) {
-        console.warn(
-          `saveFileDialog failed, falling back to open picker: ${messageFromUnknownError(error, "Save dialog failed.")}`,
-        );
-      }
+    const selectedPath = resolveFirstPath(
+      await openFileDialogSafely(dependencies, {
+        startingFolder,
+        canChooseFiles: true,
+        canChooseDirectory: true,
+        allowsMultipleSelection: false,
+        allowedFileTypes: "gglassproj",
+      }),
+    );
+    if (!selectedPath) {
+      return null;
     }
-
-    if (!saveTargetPath) {
-      if (typeof dependencies.saveFileDialog !== "function") {
-        console.info(
-          "saveFileDialog is unavailable; using open picker fallback for saveProjectAs.",
-        );
-      }
-      const selectedPath = resolveFirstPath(
-        await openFileDialogSafely(dependencies, {
-          startingFolder,
-          canChooseFiles: true,
-          canChooseDirectory: true,
-          allowsMultipleSelection: false,
-          allowedFileTypes: "gglassproj",
-        }),
-      );
-      if (!selectedPath) {
-        return null;
-      }
-      saveTargetPath = resolveSaveTargetFromOpenSelection({
-        selectedPath,
-        currentProjectPath: dependencies.currentProjectPath,
-      });
-    }
+    const saveTargetPath = resolveSaveTargetFromOpenSelection({
+      selectedPath,
+      currentProjectPath: dependencies.currentProjectPath,
+    });
 
     if (!(await confirmOverwriteIfNeeded(saveTargetPath, dependencies))) {
       return null;

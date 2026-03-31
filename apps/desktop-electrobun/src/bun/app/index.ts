@@ -11,15 +11,15 @@ import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { decodeUnknownWithSchemaSync } from "@shared/errors";
+import { decodeUnknownWithSchemaSync } from "../../shared/errors";
 import { EngineClient } from "../engine/client";
 import {
   hostReviewEventMessageSchema,
   type DesktopBridgeRPC,
   type HostMenuCommand,
   type HostMenuState,
-} from "@shared/bridge";
-import { studioShortcutOverridesEqual } from "@shared/shortcuts";
+} from "../../shared/bridge";
+import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
@@ -27,7 +27,7 @@ import { readAllowedTextFile, resolveAllowedMediaFilePath } from "../security/fi
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
 import { MediaServer } from "../media/server";
 import { pickPathForMode } from "../path/picker";
-import type { HostPathPickerMode } from "@shared/bridge";
+import type { HostPathPickerMode } from "../../shared/bridge";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -66,7 +66,6 @@ async function pickPath(params: {
   startingFolder?: string;
 }): Promise<string | null> {
   const defaultPickerFolder = Utils.paths.videos ?? Utils.paths.documents;
-  const saveFileDialog = Utils.saveFileDialog;
 
   return await pickPathForMode(params.mode, {
     currentProjectPath,
@@ -74,7 +73,6 @@ async function pickPath(params: {
     defaultFolder: defaultPickerFolder,
     // Keep dialog calls bound to Utils to avoid runtime method-context issues.
     openFileDialog: (options) => Utils.openFileDialog(options),
-    saveFileDialog: saveFileDialog ? (options) => saveFileDialog(options) : undefined,
     pathExists: async (filePath) => {
       try {
         await access(filePath, fsConstants.F_OK);

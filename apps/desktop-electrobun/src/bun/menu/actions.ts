@@ -1,4 +1,4 @@
-import { hostMenuCommandList, type HostMenuCommand } from "@shared/bridge";
+import { hostMenuCommandList, type HostMenuCommand } from "../../shared/bridge";
 
 const hostCommandPrefix = "host:";
 const hostMenuCommandSet = new Set<HostMenuCommand>(hostMenuCommandList);

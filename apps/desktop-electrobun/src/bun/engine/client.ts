@@ -40,7 +40,7 @@ import {
   type EngineClientErrorCode,
   type MutableDeep,
   extractValidationIssues,
-} from "@shared/errors";
+} from "../../shared/errors";
 
 type PendingRequest = {
   resolve: (value: unknown) => void;

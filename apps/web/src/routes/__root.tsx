@@ -8,7 +8,6 @@ import {
   Outlet,
   Scripts,
   createRootRouteWithContext,
-  useRouteContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
@@ -48,14 +47,14 @@ export const Route = createRootRouteWithContext<{
       },
     ],
   }),
-  beforeLoad: async (ctx) => {
+  beforeLoad: async ({ context }: { context: { convexQueryClient: ConvexQueryClient } }) => {
     const token = await getAuth();
     // all queries, mutations and actions through TanStack Query will be
     // authenticated during SSR if we have a valid token
     if (token) {
       // During SSR only (the only time serverHttpClient exists),
       // set the auth token to make HTTP queries with.
-      ctx.context.convexQueryClient.serverHttpClient?.setAuth(token);
+      context.convexQueryClient.serverHttpClient?.setAuth(token);
     }
     return {
       isAuthenticated: !!token,
@@ -67,7 +66,7 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootComponent() {
-  const context = useRouteContext({ from: Route.id });
+  const context = Route.useRouteContext();
   return (
     <ConvexBetterAuthProvider
       client={context.convexQueryClient.convexClient}

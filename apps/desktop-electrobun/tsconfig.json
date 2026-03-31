@@ -6,6 +6,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -20,11 +21,9 @@
       "@/*": ["./src/mainview/*"],
       "@lib/*": ["./src/mainview/lib/*"],
       "@shared/*": ["./src/shared/*"],
-      "@studio/*": ["./src/mainview/app/studio/*"],
-      "electrobun/bun": ["./src/types/electrobun-bun-shim.d.ts"],
-      "electrobun/view": ["./src/types/electrobun-view-shim.d.ts"]
+      "@studio/*": ["./src/mainview/app/studio/*"]
     }
   },
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "scripts", "*.config.ts"],
   "exclude": ["node_modules", "dist", "build", "tests/ui"]
 }
