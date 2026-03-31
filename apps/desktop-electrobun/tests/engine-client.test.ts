@@ -51,6 +51,7 @@ const STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH = path.resolve(
 );
 const INTEGRATION_STUB_PATH = process.platform === "win32" ? WINDOWS_STUB_PATH : LINUX_STUB_PATH;
 const INTEGRATION_STUB_PLATFORM = process.platform === "win32" ? "windows" : "linux";
+const POSIX_SIGNAL_SHUTDOWN_TEST = process.platform === "win32" ? test.skip : test;
 const INTEGRATION_TEMP_DIRECTORY = os.tmpdir();
 const SLOW_SHUTDOWN_LOCK_PATH = path.join(
   INTEGRATION_TEMP_DIRECTORY,
@@ -437,59 +438,65 @@ describe("engine client resilience", () => {
     }
   });
 
-  test("allows a brief graceful shutdown before retrying a timed-out read", async () => {
-    try {
-      fs.rmSync(SLOW_SHUTDOWN_LOCK_PATH, { force: true });
-      fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
-
-      const startedAt = Date.now();
-      const client = new EngineClient(SLOW_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
-        requestTimeoutByMethod: {
-          "system.ping": 50,
-        },
-        restartBackoffMs: 0,
-        restartJitterMs: 0,
-      });
-
+  POSIX_SIGNAL_SHUTDOWN_TEST(
+    "allows a brief graceful shutdown before retrying a timed-out read",
+    async () => {
       try {
-        const ping = await client.ping();
-        expect(ping.platform).toBe("linux");
-        const elapsed = Date.now() - startedAt;
-        expect(elapsed).toBeGreaterThanOrEqual(150);
-        expect(elapsed).toBeLessThan(1000);
+        fs.rmSync(SLOW_SHUTDOWN_LOCK_PATH, { force: true });
+        fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
+
+        const startedAt = Date.now();
+        const client = new EngineClient(SLOW_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
+          requestTimeoutByMethod: {
+            "system.ping": 50,
+          },
+          restartBackoffMs: 0,
+          restartJitterMs: 0,
+        });
+
+        try {
+          const ping = await client.ping();
+          expect(ping.platform).toBe("linux");
+          const elapsed = Date.now() - startedAt;
+          expect(elapsed).toBeGreaterThanOrEqual(150);
+          expect(elapsed).toBeLessThan(1000);
+        } finally {
+          await client.stop();
+        }
       } finally {
-        await client.stop();
+        fs.rmSync(SLOW_SHUTDOWN_LOCK_PATH, { force: true });
+        fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
       }
-    } finally {
-      fs.rmSync(SLOW_SHUTDOWN_LOCK_PATH, { force: true });
-      fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
-    }
-  });
+    },
+  );
 
-  test("does not hang retrying a timed-out read when shutdown stalls", async () => {
-    try {
-      fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
-
-      const startedAt = Date.now();
-      const client = new EngineClient(STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
-        requestTimeoutByMethod: {
-          "system.ping": 50,
-        },
-        restartBackoffMs: 0,
-        restartJitterMs: 0,
-      });
-
+  POSIX_SIGNAL_SHUTDOWN_TEST(
+    "does not hang retrying a timed-out read when shutdown stalls",
+    async () => {
       try {
-        const ping = await client.ping();
-        expect(ping.platform).toBe("linux");
-        expect(Date.now() - startedAt).toBeLessThan(1000);
+        fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
+
+        const startedAt = Date.now();
+        const client = new EngineClient(STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
+          requestTimeoutByMethod: {
+            "system.ping": 50,
+          },
+          restartBackoffMs: 0,
+          restartJitterMs: 0,
+        });
+
+        try {
+          const ping = await client.ping();
+          expect(ping.platform).toBe("linux");
+          expect(Date.now() - startedAt).toBeLessThan(1000);
+        } finally {
+          await client.stop();
+        }
       } finally {
-        await client.stop();
+        fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
       }
-    } finally {
-      fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
-    }
-  });
+    },
+  );
 
   test("reacquires a scoped engine session after explicit stop", async () => {
     const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
