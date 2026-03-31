@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { Schema } from "effect";
+import { Effect, Exit, Scope, Schema } from "effect";
 import {
   agentPreflightResultSchema,
   agentRunResultSchema,
@@ -35,6 +35,8 @@ import {
   decodeUnknownWithSchemaPromise,
   decodeUnknownWithSchemaSync,
   parseJsonStringSync,
+  runEffectSync,
+  runEffectPromise,
   type EngineClientErrorCode,
   type MutableDeep,
   extractValidationIssues,
@@ -43,7 +45,6 @@ import {
 type PendingRequest = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
-  timeout?: ReturnType<typeof setTimeout>;
 };
 
 type EngineStdin = {
@@ -52,6 +53,14 @@ type EngineStdin = {
 };
 
 type EngineProcess = Bun.PipedSubprocess;
+type EngineSession = {
+  process: EngineProcess;
+  stdin: EngineStdin;
+};
+type SessionCloseOptions = {
+  maxWaitMs?: number;
+  reason: string;
+};
 
 /** Supported native and stub engine targets. */
 export type EngineTarget =
@@ -63,6 +72,9 @@ export type EngineTarget =
 
 const WINDOWS_NATIVE_BINARY = "guerillaglass-engine-windows.exe";
 const LINUX_NATIVE_BINARY = "guerillaglass-engine-linux";
+const retryShutdownGraceMs = 500;
+const stopShutdownGraceMs = 1_000;
+const forcedShutdownDrainMs = 100;
 const textEncoder = new TextEncoder();
 
 type EngineMethodDefinition<TSchema extends Schema.Schema.Any, TArgs extends unknown[]> = {
@@ -366,12 +378,6 @@ type EngineClientOptions = {
   maxRetryAttempts?: number;
 };
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-}
-
 function responseIdFromUnknown(raw: unknown): string | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
@@ -506,10 +512,10 @@ export function resolveEnginePath(options?: {
 
 /** JSON-RPC client for the native engine stdio transport. */
 export class EngineClient {
-  private process: EngineProcess | null = null;
-  private stdin: EngineStdin | null = null;
+  private session: EngineSession | null = null;
+  private sessionScope: Scope.CloseableScope | null = null;
   private pending = new Map<string, PendingRequest>();
-  private startPromise: Promise<void> | null = null;
+  private sessionPromise: Promise<EngineSession> | null = null;
   private readonly enginePath: string;
   private readonly requestTimeoutMs: number;
   private readonly requestTimeoutByMethod: Readonly<Record<EngineRequest["method"], number>>;
@@ -545,48 +551,7 @@ export class EngineClient {
   }
 
   async start(): Promise<void> {
-    if (this.process) {
-      return;
-    }
-    if (this.startPromise) {
-      return this.startPromise;
-    }
-
-    this.startPromise = (async () => {
-      this.throwIfRestartCircuitOpen();
-      const now = Date.now();
-      if (this.restartAllowedAtMs > now) {
-        await delay(this.restartAllowedAtMs - now);
-      }
-      if (!existsSync(this.enginePath)) {
-        throw new Error(
-          `Engine executable not found at ${this.enginePath}. Run bun run swift:build or set GG_ENGINE_PATH.`,
-        );
-      }
-
-      const command = this.enginePath.endsWith(".ts")
-        ? ["bun", this.enginePath]
-        : [this.enginePath];
-      const process: EngineProcess = Bun.spawn({
-        cmd: command,
-        stdin: "pipe",
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      this.process = process;
-      this.stdin = process.stdin as unknown as EngineStdin;
-
-      this.isStopping = false;
-      void this.watchProcessExit(process);
-      void this.readStdout(process);
-      void this.readStderr(process);
-    })();
-
-    try {
-      await this.startPromise;
-    } finally {
-      this.startPromise = null;
-    }
+    await this.ensureSession();
   }
 
   async stop(): Promise<void> {
@@ -597,22 +562,19 @@ export class EngineClient {
         description: "Engine client stopped",
       }),
     );
-
-    const stdin = this.stdin;
-    const process = this.process;
-    this.stdin = null;
-    this.process = null;
-
-    if (stdin) {
-      try {
-        stdin.end();
-      } catch (error) {
-        console.warn("Failed to close engine stdin cleanly", error);
-      }
+    const session = this.session;
+    try {
+      const closePromise = this.closeSessionScope(
+        this.detachSessionScope(),
+        Exit.succeed(undefined),
+      );
+      await this.waitForSessionClose(closePromise, session, {
+        maxWaitMs: stopShutdownGraceMs,
+        reason: "client stop",
+      });
+    } finally {
+      this.isStopping = false;
     }
-
-    process?.kill();
-    this.isStopping = false;
   }
 
   async ping() {
@@ -801,7 +763,7 @@ export class EngineClient {
         });
       }
       // Recover from stop-request transport loss by restarting and probing status quickly.
-      this.resetForRetry();
+      await this.resetForRetry();
       await this.start();
       const recoveredStatus = await this.tryCaptureStatusProbe(5000);
       if (!recoveredStatus) {
@@ -907,24 +869,107 @@ export class EngineClient {
   }
 
   private async request(method: EngineRequest["method"], params: unknown): Promise<unknown> {
-    let attempt = 0;
-    while (true) {
-      try {
-        await this.start();
-        return await this.dispatchRequest(method, params, this.resolveRequestTimeoutMs(method));
-      } catch (error) {
-        if (!this.shouldRetryRequest(method, error, attempt)) {
-          throw error;
-        }
-        attempt += 1;
-        this.resetForRetry();
-      }
-    }
+    return await runEffectPromise(this.requestEffect(method, params, 0));
   }
 
   private async requestRaw(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
-    await this.start();
-    return this.dispatchRawRequest(method, params, timeoutMs);
+    const session = await this.ensureSession();
+    return await runEffectPromise(
+      this.dispatchRawRequestEffect(session, method, params, timeoutMs),
+    );
+  }
+
+  private requestEffect(
+    method: EngineRequest["method"],
+    params: unknown,
+    attempt: number,
+  ): Effect.Effect<unknown, unknown> {
+    return Effect.tryPromise({
+      try: () => this.ensureSession(),
+      catch: (cause) => cause,
+    }).pipe(
+      Effect.flatMap((session) =>
+        this.dispatchRequestEffect(session, method, params, this.resolveRequestTimeoutMs(method)),
+      ),
+      Effect.catchAll((error) => {
+        if (!this.shouldRetryRequest(method, error, attempt)) {
+          return Effect.fail(error);
+        }
+        return Effect.promise(() => this.resetForRetry()).pipe(
+          Effect.flatMap(() => this.requestEffect(method, params, attempt + 1)),
+        );
+      }),
+    );
+  }
+
+  private dispatchPendingPayloadEffect(
+    session: EngineSession,
+    requestId: string,
+    method: string,
+    payload: string,
+    timeoutMs: number,
+  ): Effect.Effect<unknown, Error> {
+    const pendingEffect = Effect.async<unknown, Error>((resume, signal) => {
+      let settled = false;
+      const pending: PendingRequest = {
+        resolve: (value) => {
+          if (settled || signal.aborted) {
+            return;
+          }
+          settled = true;
+          this.pending.delete(requestId);
+          resume(Effect.succeed(value));
+        },
+        reject: (error) => {
+          if (settled || signal.aborted) {
+            return;
+          }
+          settled = true;
+          this.pending.delete(requestId);
+          resume(Effect.fail(error));
+        },
+      };
+
+      this.pending.set(requestId, pending);
+
+      try {
+        session.stdin.write(textEncoder.encode(payload));
+      } catch (error) {
+        settled = true;
+        this.pending.delete(requestId);
+        resume(
+          Effect.fail(
+            new EngineClientError({
+              code: "ENGINE_STDIO_WRITE_FAILED",
+              description: "Failed to write request to engine stdin",
+              cause: error,
+            }),
+          ),
+        );
+        return;
+      }
+
+      return Effect.sync(() => {
+        if (!settled) {
+          settled = true;
+          this.pending.delete(requestId);
+        }
+      });
+    });
+
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      return pendingEffect;
+    }
+    return pendingEffect.pipe(
+      Effect.timeoutFail({
+        duration: `${Math.max(1, Math.round(timeoutMs))} millis`,
+        onTimeout: () =>
+          new EngineClientError({
+            code: "ENGINE_REQUEST_TIMEOUT",
+            description: `Engine request timed out: ${method}`,
+          }),
+      }),
+    );
   }
 
   private rememberCaptureStatus(status: CaptureStatusResult): void {
@@ -934,9 +979,12 @@ export class EngineClient {
   private async tryCaptureStatusProbe(timeoutMs: number): Promise<CaptureStatusResult | null> {
     const definition = engineMethodDefinitions.captureStatus;
     try {
+      const session = await this.ensureSession();
       return await decodeUnknownWithSchemaPromise(
         definition.schema,
-        await this.dispatchRequest(definition.method, definition.toParams(), timeoutMs),
+        await runEffectPromise(
+          this.dispatchRequestEffect(session, definition.method, definition.toParams(), timeoutMs),
+        ),
         `${definition.method} result`,
       );
     } catch {
@@ -944,135 +992,39 @@ export class EngineClient {
     }
   }
 
-  private async dispatchRequest(
+  private dispatchRequestEffect(
+    session: EngineSession,
     method: EngineRequest["method"],
     params: unknown,
     timeoutMs: number,
-  ): Promise<unknown> {
-    if (!this.stdin) {
-      throw new EngineClientError({
-        code: "ENGINE_PROCESS_UNAVAILABLE",
-        description: "Engine process unavailable",
-      });
-    }
+  ): Effect.Effect<unknown, Error> {
     let request: EngineRequest;
     try {
       request = buildRequest(method as EngineRequestEncoded["method"], params as never);
     } catch (error) {
-      throw toInvalidParamsError(method, error);
+      return Effect.fail(toInvalidParamsError(method, error));
     }
     const payload = `${JSON.stringify(request)}\n`;
-
-    return new Promise<unknown>((resolve, reject) => {
-      const timeout =
-        Number.isFinite(timeoutMs) && timeoutMs > 0
-          ? setTimeout(() => {
-              this.pending.delete(request.id);
-              reject(
-                new EngineClientError({
-                  code: "ENGINE_REQUEST_TIMEOUT",
-                  description: `Engine request timed out: ${method}`,
-                }),
-              );
-            }, timeoutMs)
-          : undefined;
-
-      this.pending.set(request.id, { resolve, reject, timeout });
-      const stdin = this.stdin;
-      if (!stdin) {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        this.pending.delete(request.id);
-        reject(
-          new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "Engine process unavailable",
-          }),
-        );
-        return;
-      }
-      try {
-        stdin.write(textEncoder.encode(payload));
-      } catch (error) {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        this.pending.delete(request.id);
-        reject(
-          new EngineClientError({
-            code: "ENGINE_STDIO_WRITE_FAILED",
-            description: "Failed to write request to engine stdin",
-            cause: error,
-          }),
-        );
-      }
-    });
+    return this.dispatchPendingPayloadEffect(session, request.id, method, payload, timeoutMs);
   }
 
-  private dispatchRawRequest(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
-    if (!this.stdin) {
-      throw new EngineClientError({
-        code: "ENGINE_PROCESS_UNAVAILABLE",
-        description: "Engine process unavailable",
-      });
-    }
+  private dispatchRawRequestEffect(
+    session: EngineSession,
+    method: string,
+    params: unknown,
+    timeoutMs: number,
+  ): Effect.Effect<unknown, Error> {
     const requestId = crypto.randomUUID();
     const payload = `${JSON.stringify({ id: requestId, method, params: params ?? {} })}\n`;
-
-    return new Promise<unknown>((resolve, reject) => {
-      const timeout =
-        Number.isFinite(timeoutMs) && timeoutMs > 0
-          ? setTimeout(() => {
-              this.pending.delete(requestId);
-              reject(
-                new EngineClientError({
-                  code: "ENGINE_REQUEST_TIMEOUT",
-                  description: `Engine request timed out: ${method}`,
-                }),
-              );
-            }, timeoutMs)
-          : undefined;
-
-      this.pending.set(requestId, { resolve, reject, timeout });
-      const stdin = this.stdin;
-      if (!stdin) {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        this.pending.delete(requestId);
-        reject(
-          new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "Engine process unavailable",
-          }),
-        );
-        return;
-      }
-      try {
-        stdin.write(textEncoder.encode(payload));
-      } catch (error) {
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-        this.pending.delete(requestId);
-        reject(
-          new EngineClientError({
-            code: "ENGINE_STDIO_WRITE_FAILED",
-            description: "Failed to write request to engine stdin",
-            cause: error,
-          }),
-        );
-      }
-    });
+    return this.dispatchPendingPayloadEffect(session, requestId, method, payload, timeoutMs);
   }
 
-  private async readStdout(process: EngineProcess): Promise<void> {
-    if (!process.stdout) {
+  private async readStdout(session: EngineSession): Promise<void> {
+    if (!session.process.stdout) {
       return;
     }
 
-    const reader = process.stdout.getReader();
+    const reader = session.process.stdout.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -1099,7 +1051,7 @@ export class EngineClient {
         this.handleResponseLine(trailing);
       }
     } catch (error) {
-      if (this.process === process && !this.isStopping) {
+      if (this.session === session && !this.isStopping) {
         console.error("Engine stdout stream failed", error);
       }
     } finally {
@@ -1107,12 +1059,12 @@ export class EngineClient {
     }
   }
 
-  private async readStderr(process: EngineProcess): Promise<void> {
-    if (!process.stderr) {
+  private async readStderr(session: EngineSession): Promise<void> {
+    if (!session.process.stderr) {
       return;
     }
 
-    const reader = process.stderr.getReader();
+    const reader = session.process.stderr.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -1140,7 +1092,7 @@ export class EngineClient {
         console.error("[engine]", trailing);
       }
     } catch (error) {
-      if (this.process === process && !this.isStopping) {
+      if (this.session === session && !this.isStopping) {
         console.error("Engine stderr stream failed", error);
       }
     } finally {
@@ -1177,16 +1129,16 @@ export class EngineClient {
     }
   }
 
-  private async watchProcessExit(process: EngineProcess): Promise<void> {
+  private async watchProcessExit(session: EngineSession): Promise<void> {
     try {
-      const exitCode = await process.exited;
-      if (this.process !== process) {
+      const exitCode = await session.process.exited;
+      if (this.session !== session) {
         return;
       }
 
-      this.process = null;
-      this.stdin = null;
+      const scope = this.detachSessionScope(session);
       if (this.isStopping) {
+        this.closeDetachedSessionScope(scope, Exit.succeed(undefined));
         return;
       }
 
@@ -1197,14 +1149,15 @@ export class EngineClient {
           description: `Engine process exited unexpectedly (code ${exitCode})`,
         }),
       );
+      this.closeDetachedSessionScope(scope, Exit.succeed(undefined));
     } catch (error) {
-      if (this.process !== process) {
+      if (this.session !== session) {
         return;
       }
 
-      this.process = null;
-      this.stdin = null;
+      const scope = this.detachSessionScope(session);
       if (this.isStopping) {
+        this.closeDetachedSessionScope(scope, Exit.succeed(undefined));
         return;
       }
 
@@ -1216,6 +1169,7 @@ export class EngineClient {
           cause: error,
         }),
       );
+      this.closeDetachedSessionScope(scope, Exit.succeed(undefined));
     }
   }
 
@@ -1248,9 +1202,6 @@ export class EngineClient {
     if (!pending) {
       return null;
     }
-    if (pending.timeout) {
-      clearTimeout(pending.timeout);
-    }
     this.pending.delete(requestId);
     return pending;
   }
@@ -1262,9 +1213,6 @@ export class EngineClient {
 
   private rejectAllPending(error: Error): void {
     for (const pending of this.pending.values()) {
-      if (pending.timeout) {
-        clearTimeout(pending.timeout);
-      }
       pending.reject(error);
     }
     this.pending.clear();
@@ -1301,22 +1249,14 @@ export class EngineClient {
     return retryableTransportErrors.has(error.code);
   }
 
-  private resetForRetry(): void {
+  private async resetForRetry(): Promise<void> {
     this.registerUnexpectedRestart();
-
-    const stdin = this.stdin;
-    const process = this.process;
-    this.stdin = null;
-    this.process = null;
-
-    if (stdin) {
-      try {
-        stdin.end();
-      } catch {
-        // Best effort close before respawn.
-      }
-    }
-    process?.kill();
+    const session = this.session;
+    const closePromise = this.closeSessionScope(this.detachSessionScope(), Exit.succeed(undefined));
+    await this.waitForSessionClose(closePromise, session, {
+      maxWaitMs: retryShutdownGraceMs,
+      reason: "request retry",
+    });
   }
 
   private registerUnexpectedRestart(): void {
@@ -1349,6 +1289,193 @@ export class EngineClient {
     throw new EngineClientError({
       code: "ENGINE_RESTART_CIRCUIT_OPEN",
       description: `Engine restart circuit open until ${new Date(this.restartCircuitOpenUntilMs).toISOString()}`,
+    });
+  }
+
+  private async ensureSession(): Promise<EngineSession> {
+    if (this.session) {
+      return this.session;
+    }
+    if (this.sessionPromise) {
+      return this.sessionPromise;
+    }
+
+    const pendingSession = (async () => {
+      const scope = runEffectSync(Scope.make());
+      try {
+        const session = await runEffectPromise(Scope.extend(this.acquireSessionEffect(), scope));
+        if (this.isStopping) {
+          this.closeDetachedSessionScope(scope, Exit.succeed(undefined));
+          throw new EngineClientError({
+            code: "ENGINE_CLIENT_STOPPED",
+            description: "Engine client stopped",
+          });
+        }
+        this.sessionScope = scope;
+        this.session = session;
+        this.isStopping = false;
+        return session;
+      } catch (error) {
+        this.closeDetachedSessionScope(scope, Exit.fail(error));
+        throw error;
+      }
+    })();
+
+    this.sessionPromise = pendingSession;
+    try {
+      return await pendingSession;
+    } finally {
+      if (this.sessionPromise === pendingSession) {
+        this.sessionPromise = null;
+      }
+    }
+  }
+
+  private acquireSessionEffect(): Effect.Effect<EngineSession, Error, Scope.Scope> {
+    return Effect.gen(this, function* () {
+      yield* Effect.sync(() => {
+        this.throwIfRestartCircuitOpen();
+      });
+
+      const waitMs = Math.max(0, this.restartAllowedAtMs - Date.now());
+      if (waitMs > 0) {
+        yield* Effect.sleep(`${waitMs} millis`);
+      }
+
+      const command = yield* Effect.sync(() => this.resolveEngineCommand());
+      const session = yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          const process: EngineProcess = Bun.spawn({
+            cmd: command,
+            stdin: "pipe",
+            stdout: "pipe",
+            stderr: "pipe",
+          });
+          return {
+            process,
+            stdin: process.stdin as unknown as EngineStdin,
+          } satisfies EngineSession;
+        }),
+        (session) =>
+          Effect.sync(() => {
+            if (this.session === session) {
+              this.session = null;
+            }
+            try {
+              session.stdin.end();
+            } catch (error) {
+              if (!this.isStopping) {
+                console.warn("Failed to close engine stdin cleanly", error);
+              }
+            }
+            session.process.kill();
+          }),
+      );
+
+      yield* Effect.promise(() => this.watchProcessExit(session)).pipe(Effect.forkScoped);
+      yield* Effect.promise(() => this.readStdout(session)).pipe(Effect.forkScoped);
+      yield* Effect.promise(() => this.readStderr(session)).pipe(Effect.forkScoped);
+
+      return session;
+    });
+  }
+
+  private resolveEngineCommand(): string[] {
+    if (!existsSync(this.enginePath)) {
+      throw new Error(
+        `Engine executable not found at ${this.enginePath}. Run bun run swift:build or set GG_ENGINE_PATH.`,
+      );
+    }
+
+    return this.enginePath.endsWith(".ts") ? ["bun", this.enginePath] : [this.enginePath];
+  }
+
+  private detachSessionScope(expectedSession?: EngineSession): Scope.CloseableScope | null {
+    if (expectedSession && this.session !== expectedSession) {
+      return null;
+    }
+    const scope = this.sessionScope;
+    this.sessionScope = null;
+    this.session = null;
+    return scope;
+  }
+
+  private closeDetachedSessionScope(
+    scope: Scope.CloseableScope | null,
+    exit: Exit.Exit<unknown, unknown>,
+  ): void {
+    void this.closeSessionScope(scope, exit);
+  }
+
+  private async waitForSessionClose(
+    closePromise: Promise<void>,
+    session: EngineSession | null,
+    options: SessionCloseOptions,
+  ): Promise<void> {
+    if (
+      !session ||
+      options.maxWaitMs === undefined ||
+      !Number.isFinite(options.maxWaitMs) ||
+      options.maxWaitMs <= 0
+    ) {
+      await closePromise;
+      return;
+    }
+
+    const exitedCleanly = await this.waitForProcessExit(session, closePromise, options.maxWaitMs);
+    if (exitedCleanly) {
+      return;
+    }
+
+    if (!this.isStopping) {
+      console.warn(
+        `Engine session shutdown exceeded ${options.maxWaitMs}ms during ${options.reason}; sending SIGKILL.`,
+      );
+    }
+    try {
+      session.process.kill("SIGKILL");
+    } catch (error) {
+      if (!this.isStopping) {
+        console.warn("Failed to force-kill engine process cleanly", error);
+      }
+    }
+
+    await Promise.race([
+      session.process.exited.then(() => closePromise),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, forcedShutdownDrainMs);
+      }),
+    ]);
+  }
+
+  private async waitForProcessExit(
+    session: EngineSession,
+    closePromise: Promise<void>,
+    waitMs: number,
+  ): Promise<boolean> {
+    const exitPromise = session.process.exited.then(async () => {
+      await closePromise;
+      return true as const;
+    });
+    const timeoutPromise = new Promise<false>((resolve) => {
+      setTimeout(() => {
+        resolve(false);
+      }, waitMs);
+    });
+    return await Promise.race([exitPromise, timeoutPromise]);
+  }
+
+  private async closeSessionScope(
+    scope: Scope.CloseableScope | null,
+    exit: Exit.Exit<unknown, unknown>,
+  ): Promise<void> {
+    if (!scope) {
+      return;
+    }
+    await runEffectPromise(Scope.close(scope, exit)).catch((error) => {
+      if (!this.isStopping) {
+        console.warn("Failed to close engine session scope cleanly", error);
+      }
     });
   }
 }

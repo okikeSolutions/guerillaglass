@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { describe, expect, test } from "bun:test";
@@ -40,9 +41,29 @@ const UNKNOWN_STOP_STATE_TIMEOUT_ENGINE_PATH = path.resolve(
   import.meta.dir,
   "fixtures/unknown-stop-state-timeout-engine.ts",
 );
+const SLOW_SHUTDOWN_TIMEOUT_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/slow-shutdown-timeout-engine.ts",
+);
+const STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH = path.resolve(
+  import.meta.dir,
+  "fixtures/stubborn-shutdown-timeout-engine.ts",
+);
 const INTEGRATION_STUB_PATH = process.platform === "win32" ? WINDOWS_STUB_PATH : LINUX_STUB_PATH;
 const INTEGRATION_STUB_PLATFORM = process.platform === "win32" ? "windows" : "linux";
 const INTEGRATION_TEMP_DIRECTORY = os.tmpdir();
+const SLOW_SHUTDOWN_LOCK_PATH = path.join(
+  INTEGRATION_TEMP_DIRECTORY,
+  "guerillaglass-slow-shutdown.lock",
+);
+const SLOW_SHUTDOWN_STATE_PATH = path.join(
+  INTEGRATION_TEMP_DIRECTORY,
+  "guerillaglass-slow-shutdown.state",
+);
+const STUBBORN_SHUTDOWN_STATE_PATH = path.join(
+  INTEGRATION_TEMP_DIRECTORY,
+  "guerillaglass-stubborn-shutdown.state",
+);
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -411,6 +432,76 @@ describe("engine client resilience", () => {
     try {
       const error = await captureError(client.ping());
       expect(error.message).toContain("Engine restart circuit open until");
+    } finally {
+      await client.stop();
+    }
+  });
+
+  test("allows a brief graceful shutdown before retrying a timed-out read", async () => {
+    try {
+      fs.rmSync(SLOW_SHUTDOWN_LOCK_PATH, { force: true });
+      fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
+
+      const startedAt = Date.now();
+      const client = new EngineClient(SLOW_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
+        requestTimeoutByMethod: {
+          "system.ping": 50,
+        },
+        restartBackoffMs: 0,
+        restartJitterMs: 0,
+      });
+
+      try {
+        const ping = await client.ping();
+        expect(ping.platform).toBe("linux");
+        const elapsed = Date.now() - startedAt;
+        expect(elapsed).toBeGreaterThanOrEqual(150);
+        expect(elapsed).toBeLessThan(1000);
+      } finally {
+        await client.stop();
+      }
+    } finally {
+      fs.rmSync(SLOW_SHUTDOWN_LOCK_PATH, { force: true });
+      fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
+    }
+  });
+
+  test("does not hang retrying a timed-out read when shutdown stalls", async () => {
+    try {
+      fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
+
+      const startedAt = Date.now();
+      const client = new EngineClient(STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
+        requestTimeoutByMethod: {
+          "system.ping": 50,
+        },
+        restartBackoffMs: 0,
+        restartJitterMs: 0,
+      });
+
+      try {
+        const ping = await client.ping();
+        expect(ping.platform).toBe("linux");
+        expect(Date.now() - startedAt).toBeLessThan(1000);
+      } finally {
+        await client.stop();
+      }
+    } finally {
+      fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
+    }
+  });
+
+  test("reacquires a scoped engine session after explicit stop", async () => {
+    const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+
+    try {
+      const first = await client.ping();
+      expect(first.platform).toBe(INTEGRATION_STUB_PLATFORM);
+
+      await client.stop();
+
+      const second = await client.ping();
+      expect(second.platform).toBe(INTEGRATION_STUB_PLATFORM);
     } finally {
       await client.stop();
     }

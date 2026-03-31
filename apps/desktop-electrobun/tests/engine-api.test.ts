@@ -9,6 +9,7 @@ import {
   EngineResponseError,
   MediaServerError,
 } from "@shared/errors";
+import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -60,6 +61,7 @@ function installWindowBridge(
   (globalThis as unknown as { window: Record<string, unknown> }).window = {
     ...bindings,
   };
+  return bindings;
 }
 
 beforeEach(() => {
@@ -361,6 +363,77 @@ describe("renderer engine bridge", () => {
     await expect(desktopApi.resolveMediaSourceURL("/tmp/out.mp4")).rejects.toBeInstanceOf(
       ContractDecodeError,
     );
+  });
+
+  test("rejects invalid engine ping payloads at the generic bridge boundary", async () => {
+    const bindings = installWindowBridge({
+      ggEnginePing: async () => ({
+        protocolVersion: 2,
+      }),
+    });
+
+    const ping = bindings.ggEnginePing as () => Promise<unknown>;
+    await expect(ping()).rejects.toBeInstanceOf(ContractDecodeError);
+  });
+
+  test("rejects invalid review snapshot payloads at the generic bridge boundary", async () => {
+    const bindings = installWindowBridge({
+      ggReviewSessionSnapshot: async () => ({
+        reviewId: "review-123",
+      }),
+    });
+
+    const sessionSnapshot = bindings.ggReviewSessionSnapshot as (params: {
+      authToken: string;
+      reviewId: string;
+    }) => Promise<unknown>;
+    await expect(
+      sessionSnapshot({
+        authToken: "token",
+        reviewId: "review-123",
+      }),
+    ).rejects.toBeInstanceOf(ContractDecodeError);
+  });
+
+  test("serializes tagged review bridge configuration failures", async () => {
+    const originalReviewConvexUrl = process.env.GG_REVIEW_CONVEX_URL;
+    const originalViteConvexUrl = process.env.VITE_CONVEX_URL;
+    delete process.env.GG_REVIEW_CONVEX_URL;
+    delete process.env.VITE_CONVEX_URL;
+
+    try {
+      const handlers = createEngineBridgeHandlers({
+        engineClient: {} as never,
+        pickPath: async () => null,
+        readTextFile: async () => "",
+        resolveMediaSourceURL: async () => "media://token",
+        setCurrentProjectPath: () => {},
+        emitReviewEvent: () => {},
+      });
+
+      const response = await handlers.ggReviewSessionSnapshot({
+        authToken: "token",
+        reviewId: "review-123",
+      });
+
+      expect(response.ok).toBe(false);
+      if (response.ok) {
+        throw new Error("Expected review snapshot bridge request to fail");
+      }
+      expect(response.error.tag).toBe("ReviewBridgeError");
+      expect(response.error.data?.code).toBe("REVIEW_BRIDGE_URL_MISSING");
+    } finally {
+      if (originalReviewConvexUrl === undefined) {
+        delete process.env.GG_REVIEW_CONVEX_URL;
+      } else {
+        process.env.GG_REVIEW_CONVEX_URL = originalReviewConvexUrl;
+      }
+      if (originalViteConvexUrl === undefined) {
+        delete process.env.VITE_CONVEX_URL;
+      } else {
+        process.env.VITE_CONVEX_URL = originalViteConvexUrl;
+      }
+    }
   });
 
   test("sendHostMenuState is a no-op when host sender is not available", () => {

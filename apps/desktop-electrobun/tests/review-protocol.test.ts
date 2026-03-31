@@ -53,8 +53,15 @@ describe("review protocol", () => {
       status: "done",
       emittedAt: "2026-13-02T09:21:00.000Z",
     };
+    const impossibleDateEvent = {
+      type: "workflow.statusChanged",
+      reviewId: "review-123",
+      status: "done",
+      emittedAt: "2026-02-30T09:21:00.000Z",
+    };
 
     expect(() => decodeSchemaSync(reviewSessionSnapshotSchema, invalidSnapshot)).toThrow();
     expect(() => decodeSchemaSync(reviewBridgeEventSchema, invalidEvent)).toThrow();
+    expect(() => decodeSchemaSync(reviewBridgeEventSchema, impossibleDateEvent)).toThrow();
   });
 });

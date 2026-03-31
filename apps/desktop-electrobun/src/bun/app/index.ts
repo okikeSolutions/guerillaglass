@@ -6,12 +6,19 @@ import Electrobun, {
   Updater,
   Utils,
 } from "electrobun/bun";
+import { Effect, Fiber } from "effect";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
+import { decodeUnknownWithSchemaSync } from "@shared/errors";
 import { EngineClient } from "../engine/client";
-import type { DesktopBridgeRPC, HostMenuCommand, HostMenuState } from "@shared/bridge";
+import {
+  hostReviewEventMessageSchema,
+  type DesktopBridgeRPC,
+  type HostMenuCommand,
+  type HostMenuState,
+} from "@shared/bridge";
 import { studioShortcutOverridesEqual } from "@shared/shortcuts";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
@@ -38,9 +45,7 @@ let hostMenuState: HostMenuState = {
   shortcutOverrides: {},
 };
 let currentProjectPath: string | null = null;
-let captureStatusStreamTimer: ReturnType<typeof setTimeout> | null = null;
-let captureStatusStreamInFlight = false;
-let captureStatusStreamEnabled = false;
+let captureStatusStreamFiber: Fiber.RuntimeFiber<void, unknown> | null = null;
 
 async function getMainViewURL(): Promise<string> {
   const channel = await Updater.localInfo.channel();
@@ -171,7 +176,12 @@ function dispatchReviewEvent(event: ReviewBridgeEvent) {
   }
 
   try {
-    mainWindow.webview.rpc?.send.hostReviewEvent({ event });
+    const payload = decodeUnknownWithSchemaSync(
+      hostReviewEventMessageSchema,
+      { event },
+      "host review event",
+    );
+    mainWindow.webview.rpc?.send.hostReviewEvent(payload);
   } catch (error) {
     console.warn("Failed to dispatch review bridge event:", event.type, error);
   }
@@ -188,53 +198,48 @@ function captureStatusStreamInterval(status: CaptureStatusResult): number {
 }
 
 function stopCaptureStatusStream() {
-  captureStatusStreamEnabled = false;
-  if (captureStatusStreamTimer) {
-    clearTimeout(captureStatusStreamTimer);
-    captureStatusStreamTimer = null;
+  const fiber = captureStatusStreamFiber;
+  captureStatusStreamFiber = null;
+  if (fiber) {
+    void Effect.runFork(Fiber.interrupt(fiber));
   }
 }
 
-function scheduleCaptureStatusStreamTick(delayMs: number) {
-  if (!captureStatusStreamEnabled) {
-    return;
-  }
-  stopCaptureStatusStream();
-  captureStatusStreamEnabled = true;
-  captureStatusStreamTimer = setTimeout(() => {
-    void runCaptureStatusStreamTick();
-  }, delayMs);
-}
+function captureStatusStreamEffect(initialDelayMs: number): Effect.Effect<void, unknown> {
+  return Effect.gen(function* () {
+    let nextDelay = Math.max(0, initialDelayMs);
+    while (true) {
+      if (nextDelay > 0) {
+        yield* Effect.sleep(`${nextDelay} millis`);
+      }
+      if (!mainWindow) {
+        nextDelay = 500;
+        continue;
+      }
 
-async function runCaptureStatusStreamTick() {
-  if (!captureStatusStreamEnabled) {
-    return;
-  }
-  if (captureStatusStreamInFlight) {
-    scheduleCaptureStatusStreamTick(250);
-    return;
-  }
-
-  if (!mainWindow) {
-    scheduleCaptureStatusStreamTick(500);
-    return;
-  }
-
-  captureStatusStreamInFlight = true;
-  let nextDelay = 1000;
-  try {
-    const captureStatus = await engineClient.captureStatus();
-    nextDelay = captureStatusStreamInterval(captureStatus);
-    mainWindow.webview.rpc?.send.hostCaptureStatus({ captureStatus });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`capture status stream tick failed: ${message}`);
-  } finally {
-    captureStatusStreamInFlight = false;
-    if (captureStatusStreamEnabled) {
-      scheduleCaptureStatusStreamTick(nextDelay);
+      try {
+        const captureStatus = yield* Effect.tryPromise({
+          try: () => engineClient.captureStatus(),
+          catch: (cause) => cause,
+        });
+        nextDelay = captureStatusStreamInterval(captureStatus);
+        yield* Effect.sync(() => {
+          mainWindow?.webview.rpc?.send.hostCaptureStatus({ captureStatus });
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        nextDelay = 1000;
+        yield* Effect.sync(() => {
+          console.warn(`capture status stream tick failed: ${message}`);
+        });
+      }
     }
-  }
+  });
+}
+
+function startCaptureStatusStream(initialDelayMs = 0): void {
+  stopCaptureStatusStream();
+  captureStatusStreamFiber = Effect.runFork(captureStatusStreamEffect(initialDelayMs));
 }
 
 function handleShellAction(action: string) {
@@ -293,8 +298,7 @@ mainWindow = new BrowserWindow({
   },
 });
 
-captureStatusStreamEnabled = true;
-scheduleCaptureStatusStreamTick(0);
+startCaptureStatusStream(0);
 
 setTimeout(() => {
   applyShellMenus();

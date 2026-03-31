@@ -353,6 +353,18 @@ describe("engine protocol", () => {
     ).toThrow();
 
     expect(() =>
+      decodeSchemaSync(projectRecentsResultSchema, {
+        items: [
+          {
+            projectPath: "/tmp/project.gglassproj",
+            displayName: "project",
+            lastOpenedAt: "2026-02-30T10:00:00.000Z",
+          },
+        ],
+      }),
+    ).toThrow();
+
+    expect(() =>
       decodeSchemaSync(agentStatusResultSchema, {
         jobId: "job-456",
         status: "blocked",
