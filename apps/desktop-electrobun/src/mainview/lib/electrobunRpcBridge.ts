@@ -2,6 +2,7 @@ import { Electroview } from "electrobun/view";
 import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createWindowBridgeBindings } from "@shared/bridge";
+import { decodeUnknownWithSchemaSync } from "@shared/errors";
 import type {
   BridgeRequestName,
   BridgeRequestInvoker,
@@ -11,7 +12,7 @@ import type {
   HostMenuCommand,
   WindowBridgeBindings,
 } from "@shared/bridge";
-import { hostBridgeEventNames } from "@shared/bridge";
+import { hostBridgeEventNames, hostReviewEventMessageSchema } from "@shared/bridge";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;
@@ -50,11 +51,20 @@ export function initializeElectrobunRpcBridge(): void {
           );
         },
         hostReviewEvent: ({ event }: { event: ReviewBridgeEvent }) => {
-          window.dispatchEvent(
-            new CustomEvent(hostBridgeEventNames.reviewEvent, {
-              detail: { event },
-            }),
-          );
+          try {
+            const payload = decodeUnknownWithSchemaSync(
+              hostReviewEventMessageSchema,
+              { event },
+              "host review event",
+            );
+            window.dispatchEvent(
+              new CustomEvent(hostBridgeEventNames.reviewEvent, {
+                detail: payload,
+              }),
+            );
+          } catch (error) {
+            console.warn("Rejected invalid host review event payload", error);
+          }
         },
       },
     },

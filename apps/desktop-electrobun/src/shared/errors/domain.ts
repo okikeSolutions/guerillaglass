@@ -1,11 +1,6 @@
-import { Data } from "effect";
+import { Data, type Types } from "effect";
 
-export type MutableDeep<T> =
-  T extends ReadonlyArray<infer U>
-    ? MutableDeep<U>[]
-    : T extends object
-      ? { -readonly [K in keyof T]: MutableDeep<T[K]> }
-      : T;
+export type MutableDeep<T> = Types.DeepMutable<T>;
 
 export type ValidationIssue = {
   path: Array<string | number>;
@@ -48,6 +43,11 @@ export type PathPickerErrorCode =
 export type BrowserStorageErrorCode =
   | "BROWSER_STORAGE_UNAVAILABLE"
   | "BROWSER_STORAGE_WRITE_FAILED";
+
+export type ReviewBridgeErrorCode =
+  | "REVIEW_BRIDGE_URL_MISSING"
+  | "REVIEW_AUTH_TOKEN_MISSING"
+  | "REVIEW_REQUEST_FAILED";
 
 export type StudioActionReason =
   | "screen_permission_required"
@@ -197,6 +197,16 @@ export class BrowserStorageError extends Data.TaggedError("BrowserStorageError")
   }
 }
 
+export class ReviewBridgeError extends Data.TaggedError("ReviewBridgeError")<{
+  code: ReviewBridgeErrorCode;
+  description: string;
+  cause?: unknown;
+}> {
+  get message(): string {
+    return this.description;
+  }
+}
+
 export class JsonParseError extends Data.TaggedError("JsonParseError")<{
   source: string;
   cause?: unknown;
@@ -237,6 +247,7 @@ export type KnownTaggedError =
   | MediaServerError
   | PathPickerError
   | BrowserStorageError
+  | ReviewBridgeError
   | JsonParseError
   | StudioContextUnavailableError
   | CaptureWindowPickerUnsupportedError;
@@ -255,6 +266,7 @@ export function isKnownTaggedError(error: unknown): error is KnownTaggedError {
     error instanceof MediaServerError ||
     error instanceof PathPickerError ||
     error instanceof BrowserStorageError ||
+    error instanceof ReviewBridgeError ||
     error instanceof JsonParseError ||
     error instanceof StudioContextUnavailableError ||
     error instanceof CaptureWindowPickerUnsupportedError

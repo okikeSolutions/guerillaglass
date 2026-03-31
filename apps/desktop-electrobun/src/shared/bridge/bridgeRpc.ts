@@ -1,28 +1,48 @@
-import type {
-  AgentPreflightResult,
-  AgentRunResult,
-  AgentStatusResult,
-  ActionResult,
-  AutoZoomSettings,
-  CaptureFrameRate,
-  CaptureStatusResult,
-  ExportInfoResult,
-  ExportRunCutPlanResult,
-  ExportRunResult,
-  PermissionsResult,
-  PingResult,
-  ProjectRecentsResult,
-  ProjectState,
-  SourcesResult,
+import {
+  actionResultSchema,
+  agentPreflightResultSchema,
+  agentRunResultSchema,
+  agentStatusResultSchema,
+  autoZoomSettingsSchema,
+  captureFrameRateSchema,
+  captureStatusResultSchema,
+  exportInfoResultSchema,
+  exportRunCutPlanResultSchema,
+  exportRunResultSchema,
+  permissionsResultSchema,
+  pingResultSchema,
+  projectRecentsResultSchema,
+  projectStateSchema,
+  sourcesResultSchema,
+  type AgentPreflightResult,
+  type AgentRunResult,
+  type AgentStatusResult,
+  type ActionResult,
+  type AutoZoomSettings,
+  type CaptureFrameRate,
+  type CaptureStatusResult,
+  type ExportInfoResult,
+  type ExportRunCutPlanResult,
+  type ExportRunResult,
+  type PermissionsResult,
+  type PingResult,
+  type ProjectRecentsResult,
+  type ProjectState,
+  type SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import type {
-  ReviewBridgeEvent,
-  ReviewComment,
-  ReviewCreateCommentRequest,
-  ReviewSessionSnapshot,
-  ReviewSessionSnapshotRequest,
-  ReviewSetWorkflowStatusRequest,
-  ReviewSetWorkflowStatusResponse,
+import {
+  reviewBridgeEventSchema,
+  reviewCommentSchema,
+  reviewSessionSnapshotSchema,
+  reviewSetWorkflowStatusResponseSchema,
+  reviewWorkflowStatusSchema,
+  type ReviewBridgeEvent,
+  type ReviewComment,
+  type ReviewCreateCommentRequest,
+  type ReviewSessionSnapshot,
+  type ReviewSessionSnapshotRequest,
+  type ReviewSetWorkflowStatusRequest,
+  type ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
 import { Schema } from "effect";
 import type { RPCSchema } from "electrobun/bun";
@@ -84,6 +104,93 @@ export const resolveMediaSourceURLRequestSchema = Schema.Struct({
   filePath: Schema.NonEmptyString,
 });
 export const resolveMediaSourceURLResponseSchema = Schema.NonEmptyString;
+export const hostReviewEventMessageSchema = Schema.Struct({
+  event: reviewBridgeEventSchema,
+});
+const nonNegativeIntSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(0));
+const nonNegativeNumberSchema = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));
+const positiveIntSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
+const runtimeBudgetMinutesSchema = Schema.optional(
+  positiveIntSchema.pipe(Schema.lessThanOrEqualTo(60)),
+);
+const projectRecentsLimitSchema = Schema.optional(
+  positiveIntSchema.pipe(Schema.lessThanOrEqualTo(100)),
+);
+const reviewAuthTokenSchema = Schema.String.pipe(
+  Schema.filter((value) => value.trim().length > 0, {
+    message: () => "Expected a non-empty review auth token.",
+  }),
+);
+const undefinedBridgeParamsSchema = Schema.Undefined;
+const engineAgentPreflightBridgeParamsSchema = Schema.Struct({
+  runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
+  transcriptionProvider: Schema.optional(Schema.Literal("none", "imported_transcript")),
+  importedTranscriptPath: Schema.optional(Schema.NonEmptyString),
+});
+const engineAgentRunBridgeParamsSchema = Schema.Struct({
+  preflightToken: Schema.NonEmptyString,
+  runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
+  transcriptionProvider: Schema.optional(Schema.Literal("none", "imported_transcript")),
+  importedTranscriptPath: Schema.optional(Schema.NonEmptyString),
+  force: Schema.optional(Schema.Boolean),
+});
+const engineAgentStatusBridgeParamsSchema = Schema.Struct({
+  jobId: Schema.NonEmptyString,
+});
+const engineAgentApplyBridgeParamsSchema = Schema.Struct({
+  jobId: Schema.NonEmptyString,
+  destructiveIntent: Schema.optional(Schema.Boolean),
+});
+const engineCaptureStartBridgeParamsSchema = Schema.Struct({
+  enableMic: Schema.optional(Schema.Boolean),
+  captureFps: Schema.optional(captureFrameRateSchema),
+});
+const engineCaptureStartWindowBridgeParamsSchema = Schema.Struct({
+  windowId: nonNegativeIntSchema,
+  enableMic: Schema.optional(Schema.Boolean),
+  captureFps: Schema.optional(captureFrameRateSchema),
+});
+const engineStartRecordingBridgeParamsSchema = Schema.Struct({
+  trackInputEvents: Schema.optional(Schema.Boolean),
+});
+const engineRunExportBridgeParamsSchema = Schema.Struct({
+  outputURL: Schema.NonEmptyString,
+  presetId: Schema.NonEmptyString,
+  trimStartSeconds: Schema.optional(nonNegativeNumberSchema),
+  trimEndSeconds: Schema.optional(nonNegativeNumberSchema),
+});
+const engineRunCutPlanExportBridgeParamsSchema = Schema.Struct({
+  outputURL: Schema.NonEmptyString,
+  presetId: Schema.NonEmptyString,
+  jobId: Schema.NonEmptyString,
+});
+const engineProjectOpenBridgeParamsSchema = Schema.Struct({
+  projectPath: Schema.NonEmptyString,
+});
+const engineProjectSaveBridgeParamsSchema = Schema.Struct({
+  projectPath: Schema.optional(Schema.NonEmptyString),
+  autoZoom: Schema.optional(autoZoomSettingsSchema),
+});
+const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
+  limit: projectRecentsLimitSchema,
+});
+const reviewSessionSnapshotBridgeParamsSchema = Schema.Struct({
+  authToken: reviewAuthTokenSchema,
+  reviewId: Schema.NonEmptyString,
+});
+const reviewCreateCommentBridgeParamsSchema = Schema.Struct({
+  authToken: reviewAuthTokenSchema,
+  reviewId: Schema.NonEmptyString,
+  body: Schema.NonEmptyString,
+  frameNumber: Schema.optional(nonNegativeIntSchema),
+  timestampSeconds: Schema.optional(nonNegativeNumberSchema),
+  parentCommentId: Schema.optional(Schema.NonEmptyString),
+});
+const reviewSetWorkflowStatusBridgeParamsSchema = Schema.Struct({
+  authToken: reviewAuthTokenSchema,
+  reviewId: Schema.NonEmptyString,
+  status: reviewWorkflowStatusSchema,
+});
 
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
@@ -111,6 +218,17 @@ function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
   };
 }
 
+function defineValidatedBridgeRequest<Params, Response, Args extends readonly unknown[]>(
+  toParams: (...args: Args) => Params,
+  paramsSchema: Schema.Schema.AnyNoContext,
+  responseSchema: Schema.Schema.AnyNoContext,
+): BridgeRequestDefinition<Params, Response, Args> {
+  return defineBridgeRequest(toParams, {
+    paramsSchema,
+    responseSchema,
+  });
+}
+
 /**
  * Canonical request definitions for every Bun bridge call.
  *
@@ -118,9 +236,17 @@ function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
  * runtime schemas used to validate transport inputs and outputs at the bridge boundary.
  */
 export const bridgeRequestDefinitions = {
-  ggEnginePing: defineBridgeRequest<undefined, PingResult, []>(() => undefined),
-  ggEngineGetPermissions: defineBridgeRequest<undefined, PermissionsResult, []>(() => undefined),
-  ggEngineAgentPreflight: defineBridgeRequest<
+  ggEnginePing: defineValidatedBridgeRequest<undefined, PingResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    pingResultSchema,
+  ),
+  ggEngineGetPermissions: defineValidatedBridgeRequest<undefined, PermissionsResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    permissionsResultSchema,
+  ),
+  ggEngineAgentPreflight: defineValidatedBridgeRequest<
     {
       runtimeBudgetMinutes?: number;
       transcriptionProvider?: "none" | "imported_transcript";
@@ -134,8 +260,8 @@ export const bridgeRequestDefinitions = {
         importedTranscriptPath?: string;
       },
     ]
-  >((params) => params ?? {}),
-  ggEngineAgentRun: defineBridgeRequest<
+  >((params) => params ?? {}, engineAgentPreflightBridgeParamsSchema, agentPreflightResultSchema),
+  ggEngineAgentRun: defineValidatedBridgeRequest<
     {
       preflightToken: string;
       runtimeBudgetMinutes?: number;
@@ -153,53 +279,99 @@ export const bridgeRequestDefinitions = {
         force?: boolean;
       },
     ]
-  >((params) => params),
-  ggEngineAgentStatus: defineBridgeRequest<{ jobId: string }, AgentStatusResult, [jobId: string]>(
-    (jobId) => ({ jobId }),
-  ),
-  ggEngineAgentApply: defineBridgeRequest<
+  >((params) => params, engineAgentRunBridgeParamsSchema, agentRunResultSchema),
+  ggEngineAgentStatus: defineValidatedBridgeRequest<
+    { jobId: string },
+    AgentStatusResult,
+    [jobId: string]
+  >((jobId) => ({ jobId }), engineAgentStatusBridgeParamsSchema, agentStatusResultSchema),
+  ggEngineAgentApply: defineValidatedBridgeRequest<
     { jobId: string; destructiveIntent?: boolean },
     ActionResult,
     [params: { jobId: string; destructiveIntent?: boolean }]
-  >((params) => params),
-  ggEngineRequestScreenRecordingPermission: defineBridgeRequest<undefined, ActionResult, []>(
+  >((params) => params, engineAgentApplyBridgeParamsSchema, actionResultSchema),
+  ggEngineRequestScreenRecordingPermission: defineValidatedBridgeRequest<
+    undefined,
+    ActionResult,
+    []
+  >(() => undefined, undefinedBridgeParamsSchema, actionResultSchema),
+  ggEngineRequestMicrophonePermission: defineValidatedBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
+    undefinedBridgeParamsSchema,
+    actionResultSchema,
   ),
-  ggEngineRequestMicrophonePermission: defineBridgeRequest<undefined, ActionResult, []>(
+  ggEngineRequestInputMonitoringPermission: defineValidatedBridgeRequest<
+    undefined,
+    ActionResult,
+    []
+  >(() => undefined, undefinedBridgeParamsSchema, actionResultSchema),
+  ggEngineOpenInputMonitoringSettings: defineValidatedBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
+    undefinedBridgeParamsSchema,
+    actionResultSchema,
   ),
-  ggEngineRequestInputMonitoringPermission: defineBridgeRequest<undefined, ActionResult, []>(
+  ggEngineListSources: defineValidatedBridgeRequest<undefined, SourcesResult, []>(
     () => undefined,
+    undefinedBridgeParamsSchema,
+    sourcesResultSchema,
   ),
-  ggEngineOpenInputMonitoringSettings: defineBridgeRequest<undefined, ActionResult, []>(
-    () => undefined,
-  ),
-  ggEngineListSources: defineBridgeRequest<undefined, SourcesResult, []>(() => undefined),
-  ggEngineStartDisplayCapture: defineBridgeRequest<
+  ggEngineStartDisplayCapture: defineValidatedBridgeRequest<
     { enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
     [enableMic: boolean, captureFps: CaptureFrameRate]
-  >((enableMic, captureFps) => ({ enableMic, captureFps })),
-  ggEngineStartCurrentWindowCapture: defineBridgeRequest<
+  >(
+    (enableMic, captureFps) => ({ enableMic, captureFps }),
+    engineCaptureStartBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineStartCurrentWindowCapture: defineValidatedBridgeRequest<
     { enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
     [enableMic: boolean, captureFps: CaptureFrameRate]
-  >((enableMic, captureFps) => ({ enableMic, captureFps })),
-  ggEngineStartWindowCapture: defineBridgeRequest<
+  >(
+    (enableMic, captureFps) => ({ enableMic, captureFps }),
+    engineCaptureStartBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineStartWindowCapture: defineValidatedBridgeRequest<
     { windowId: number; enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
     [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate]
-  >((windowId, enableMic, captureFps) => ({ windowId, enableMic, captureFps })),
-  ggEngineStopCapture: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
-  ggEngineStartRecording: defineBridgeRequest<
+  >(
+    (windowId, enableMic, captureFps) => ({ windowId, enableMic, captureFps }),
+    engineCaptureStartWindowBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineStopCapture: defineValidatedBridgeRequest<undefined, CaptureStatusResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineStartRecording: defineValidatedBridgeRequest<
     { trackInputEvents: boolean },
     CaptureStatusResult,
     [trackInputEvents: boolean]
-  >((trackInputEvents) => ({ trackInputEvents })),
-  ggEngineStopRecording: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
-  ggEngineCaptureStatus: defineBridgeRequest<undefined, CaptureStatusResult, []>(() => undefined),
-  ggEngineExportInfo: defineBridgeRequest<undefined, ExportInfoResult, []>(() => undefined),
-  ggEngineRunExport: defineBridgeRequest<
+  >(
+    (trackInputEvents) => ({ trackInputEvents }),
+    engineStartRecordingBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineStopRecording: defineValidatedBridgeRequest<undefined, CaptureStatusResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineCaptureStatus: defineValidatedBridgeRequest<undefined, CaptureStatusResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    captureStatusResultSchema,
+  ),
+  ggEngineExportInfo: defineValidatedBridgeRequest<undefined, ExportInfoResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    exportInfoResultSchema,
+  ),
+  ggEngineRunExport: defineValidatedBridgeRequest<
     {
       outputURL: string;
       presetId: string;
@@ -215,8 +387,8 @@ export const bridgeRequestDefinitions = {
         trimEndSeconds?: number;
       },
     ]
-  >((params) => params),
-  ggEngineRunCutPlanExport: defineBridgeRequest<
+  >((params) => params, engineRunExportBridgeParamsSchema, exportRunResultSchema),
+  ggEngineRunCutPlanExport: defineValidatedBridgeRequest<
     {
       outputURL: string;
       presetId: string;
@@ -224,63 +396,68 @@ export const bridgeRequestDefinitions = {
     },
     ExportRunCutPlanResult,
     [params: { outputURL: string; presetId: string; jobId: string }]
-  >((params) => params),
-  ggEngineProjectCurrent: defineBridgeRequest<undefined, ProjectState, []>(() => undefined),
-  ggEngineProjectOpen: defineBridgeRequest<
+  >((params) => params, engineRunCutPlanExportBridgeParamsSchema, exportRunCutPlanResultSchema),
+  ggEngineProjectCurrent: defineValidatedBridgeRequest<undefined, ProjectState, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    projectStateSchema,
+  ),
+  ggEngineProjectOpen: defineValidatedBridgeRequest<
     { projectPath: string },
     ProjectState,
     [projectPath: string]
-  >((projectPath) => ({ projectPath })),
-  ggEngineProjectSave: defineBridgeRequest<
+  >((projectPath) => ({ projectPath }), engineProjectOpenBridgeParamsSchema, projectStateSchema),
+  ggEngineProjectSave: defineValidatedBridgeRequest<
     { projectPath?: string; autoZoom?: AutoZoomSettings },
     ProjectState,
     [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
-  >((params) => params),
-  ggEngineProjectRecents: defineBridgeRequest<
+  >((params) => params, engineProjectSaveBridgeParamsSchema, projectStateSchema),
+  ggEngineProjectRecents: defineValidatedBridgeRequest<
     { limit?: number },
     ProjectRecentsResult,
     [limit?: number]
-  >((limit) => ({ limit })),
-  ggReviewSessionSnapshot: defineBridgeRequest<
+  >((limit) => ({ limit }), engineProjectRecentsBridgeParamsSchema, projectRecentsResultSchema),
+  ggReviewSessionSnapshot: defineValidatedBridgeRequest<
     ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>,
     ReviewSessionSnapshot,
     [params: ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>]
-  >((params) => params),
-  ggReviewCreateComment: defineBridgeRequest<
+  >((params) => params, reviewSessionSnapshotBridgeParamsSchema, reviewSessionSnapshotSchema),
+  ggReviewCreateComment: defineValidatedBridgeRequest<
     ReviewBridgeRequestWithAuth<ReviewCreateCommentRequest>,
     ReviewComment,
     [params: ReviewBridgeRequestWithAuth<ReviewCreateCommentRequest>]
-  >((params) => params),
-  ggReviewSetWorkflowStatus: defineBridgeRequest<
+  >((params) => params, reviewCreateCommentBridgeParamsSchema, reviewCommentSchema),
+  ggReviewSetWorkflowStatus: defineValidatedBridgeRequest<
     ReviewBridgeRequestWithAuth<ReviewSetWorkflowStatusRequest>,
     ReviewSetWorkflowStatusResponse,
     [params: ReviewBridgeRequestWithAuth<ReviewSetWorkflowStatusRequest>]
-  >((params) => params),
-  ggPickPath: defineBridgeRequest<
+  >(
+    (params) => params,
+    reviewSetWorkflowStatusBridgeParamsSchema,
+    reviewSetWorkflowStatusResponseSchema,
+  ),
+  ggPickPath: defineValidatedBridgeRequest<
     { mode: HostPathPickerMode; startingFolder?: string },
     string | null,
     [params: { mode: HostPathPickerMode; startingFolder?: string }]
-  >((params) => params, {
-    paramsSchema: pickPathRequestSchema,
-    responseSchema: pickPathResponseSchema,
-  }),
-  ggReadTextFile: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
+  >((params) => params, pickPathRequestSchema, pickPathResponseSchema),
+  ggReadTextFile: defineValidatedBridgeRequest<{ filePath: string }, string, [filePath: string]>(
     (filePath) => ({
       filePath,
     }),
-    {
-      paramsSchema: readTextFileRequestSchema,
-      responseSchema: readTextFileResponseSchema,
-    },
+    readTextFileRequestSchema,
+    readTextFileResponseSchema,
   ),
-  ggResolveMediaSourceURL: defineBridgeRequest<{ filePath: string }, string, [filePath: string]>(
+  ggResolveMediaSourceURL: defineValidatedBridgeRequest<
+    { filePath: string },
+    string,
+    [filePath: string]
+  >(
     (filePath) => ({
       filePath,
     }),
-    {
-      paramsSchema: resolveMediaSourceURLRequestSchema,
-      responseSchema: resolveMediaSourceURLResponseSchema,
-    },
+    resolveMediaSourceURLRequestSchema,
+    resolveMediaSourceURLResponseSchema,
   ),
 } as const;
 

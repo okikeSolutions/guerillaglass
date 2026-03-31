@@ -1,10 +1,15 @@
-import { Cause, Effect, Either, Exit, ParseResult, Schema } from "effect";
+import { Effect, ParseResult, Schema } from "effect";
 import {
   ContractDecodeError,
   JsonParseError,
   type MutableDeep,
   type ValidationIssue,
 } from "./domain";
+import { runEffectPromise, runEffectSync } from "./effectRuntime";
+
+const decodeAllIssuesOptions = {
+  errors: "all",
+} as const;
 
 export function isValidationIssue(value: unknown): value is ValidationIssue {
   if (!value || typeof value !== "object") {
@@ -48,30 +53,6 @@ export function parseJsonString(
   });
 }
 
-function runEffectSync<A, E>(effect: Effect.Effect<A, E>): A {
-  const exit = Effect.runSyncExit(effect);
-  if (Exit.isSuccess(exit)) {
-    return exit.value;
-  }
-  const failure = Cause.failureOrCause(exit.cause);
-  if (Either.isLeft(failure)) {
-    throw failure.left;
-  }
-  throw Cause.squash(exit.cause);
-}
-
-async function runEffectPromise<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
-  const exit = await Effect.runPromiseExit(effect);
-  if (Exit.isSuccess(exit)) {
-    return exit.value;
-  }
-  const failure = Cause.failureOrCause(exit.cause);
-  if (Either.isLeft(failure)) {
-    throw failure.left;
-  }
-  throw Cause.squash(exit.cause);
-}
-
 export function parseJsonStringSync(raw: string, source: string): unknown {
   return runEffectSync(parseJsonString(raw, source));
 }
@@ -82,7 +63,7 @@ export function decodeUnknownWithSchema<S extends Schema.Schema.AnyNoContext>(
   contract: string,
 ): Effect.Effect<MutableDeep<Schema.Schema.Type<S>>, ContractDecodeError> {
   return Effect.mapError(
-    Schema.decodeUnknown(schema as never)(raw),
+    Schema.decodeUnknown(schema as never, decodeAllIssuesOptions)(raw),
     (error) =>
       new ContractDecodeError({
         contract,

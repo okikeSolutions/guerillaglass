@@ -13,6 +13,7 @@ import {
   JsonParseError,
   MediaServerError,
   PathPickerError,
+  ReviewBridgeError,
   StudioActionError,
   StudioContextUnavailableError,
   messageFromUnknownError,
@@ -21,6 +22,7 @@ import {
   type FileAccessPolicyErrorCode,
   type MediaServerErrorCode,
   type PathPickerErrorCode,
+  type ReviewBridgeErrorCode,
   type SerializedBridgeError,
   type StudioActionReason,
   type ValidationIssue,
@@ -157,6 +159,19 @@ function serializeBridgeErrorInternal(error: unknown, depth: number): Serialized
   if (error instanceof BrowserStorageError) {
     return {
       tag: "BrowserStorageError",
+      data: {
+        code: error.code,
+        description: error.description,
+      },
+      cause:
+        error.cause === undefined
+          ? undefined
+          : serializeBridgeErrorInternal(error.cause, depth + 1),
+    };
+  }
+  if (error instanceof ReviewBridgeError) {
+    return {
+      tag: "ReviewBridgeError",
       data: {
         code: error.code,
         description: error.description,
@@ -360,6 +375,20 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
           serialized,
           "description",
           "Unknown browser storage error.",
+        ),
+        cause,
+      });
+    case "ReviewBridgeError":
+      return new ReviewBridgeError({
+        code: readSerializedBridgeString(
+          serialized,
+          "code",
+          "REVIEW_REQUEST_FAILED",
+        ) as ReviewBridgeErrorCode,
+        description: readSerializedBridgeString(
+          serialized,
+          "description",
+          "Unknown review bridge error.",
         ),
         cause,
       });

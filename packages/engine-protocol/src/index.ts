@@ -5,7 +5,7 @@
  * shared value objects first, then capture/export payloads, Agent Mode payloads,
  * project persistence models, request envelopes, and finally response helpers.
  */
-import { Schema } from "effect";
+import { Schema, type Types } from "effect";
 import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
 import { engineMethods } from "./methods.js";
 
@@ -17,16 +17,22 @@ const NonNegativeNumber = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));
 const PositiveNumber = Schema.Number.pipe(Schema.greaterThan(0));
 const RuntimeBudgetMinutesSchema = PositiveInt.pipe(Schema.lessThanOrEqualTo(60));
 const ProjectRecentsLimitSchema = PositiveInt.pipe(Schema.lessThanOrEqualTo(100));
+const decodeAllIssuesOptions = {
+  errors: "all",
+} as const;
 
-function withDefault<A, I, R>(
-  schema: Schema.Schema<A, I, R>,
-  defaultValue: () => Exclude<A, undefined>,
-) {
-  return Schema.optional(schema).pipe(Schema.withDecodingDefault(defaultValue));
-}
+type MutableSchemaType<S extends Schema.Schema.Any> = Types.DeepMutable<
+  Schema.Schema.Type<Schema.mutable<S>>
+>;
+type MutableEncodedSchemaType<S extends Schema.Schema.Any> = Types.DeepMutable<
+  Schema.Schema.Encoded<Schema.mutable<S>>
+>;
 
-function decodeSchemaSync<A, I>(schema: Schema.Schema<A, I, never>, raw: unknown): A {
-  return Schema.decodeUnknownSync(schema)(raw);
+function decodeSchemaSync<S extends Schema.Schema.AnyNoContext>(
+  schema: S,
+  raw: unknown,
+): MutableSchemaType<S> {
+  return Schema.decodeUnknownSync(schema, decodeAllIssuesOptions)(raw) as MutableSchemaType<S>;
 }
 
 /** Shared value objects reused across capture, project, and permission payloads. */
@@ -56,7 +62,7 @@ const captureContentRectSchema = Schema.Struct({
 /** Optional capture metadata embedded in capture status and project state. */
 export const captureMetadataSchema = Schema.NullOr(
   Schema.Struct({
-    window: withDefault(Schema.NullOr(captureWindowSchema), () => null),
+    window: Schema.optionalWith(Schema.NullOr(captureWindowSchema), { default: () => null }),
     source: Schema.Literal("display", "window"),
     contentRect: captureContentRectSchema,
     pixelScale: PositiveNumber,
@@ -94,8 +100,8 @@ const capabilitiesAgentSchema = Schema.Struct({
   run: Schema.Boolean,
   status: Schema.Boolean,
   apply: Schema.Boolean,
-  localOnly: withDefault(Schema.Boolean, () => true),
-  runtimeBudgetMinutes: withDefault(PositiveInt, () => 10),
+  localOnly: Schema.optionalWith(Schema.Boolean, { default: () => true }),
+  runtimeBudgetMinutes: Schema.optionalWith(PositiveInt, { default: () => 10 }),
 });
 
 /** Result payload for `engine.capabilities`. */
@@ -114,19 +120,21 @@ export const capabilitiesResultSchema = Schema.Struct({
   }),
   export: Schema.Struct({
     presets: Schema.Boolean,
-    cutPlan: withDefault(Schema.Boolean, () => false),
+    cutPlan: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   }),
   project: Schema.Struct({
     openSave: Schema.Boolean,
   }),
-  agent: withDefault(capabilitiesAgentSchema, () => ({
-    preflight: false,
-    run: false,
-    status: false,
-    apply: false,
-    localOnly: true,
-    runtimeBudgetMinutes: 10,
-  })),
+  agent: Schema.optionalWith(capabilitiesAgentSchema, {
+    default: () => ({
+      preflight: false,
+      run: false,
+      status: false,
+      apply: false,
+      localOnly: true,
+      runtimeBudgetMinutes: 10,
+    }),
+  }),
 });
 
 /** Result payload for `permissions.get`. */
@@ -194,16 +202,18 @@ const createDefaultCaptureTelemetry = () => ({
 /** Capture and export lifecycle payloads returned directly from the engine. */
 /** Capture telemetry payload returned by `capture.status`. */
 export const captureTelemetrySchema = Schema.Struct({
-  sourceDroppedFrames: withDefault(NonNegativeInt, () => 0),
-  writerDroppedFrames: withDefault(NonNegativeInt, () => 0),
-  writerBackpressureDrops: withDefault(NonNegativeInt, () => 0),
-  achievedFps: withDefault(NonNegativeNumber, () => 0),
-  cpuPercent: withDefault(Schema.NullOr(NonNegativeNumber), () => null),
-  memoryBytes: withDefault(Schema.NullOr(NonNegativeNumber), () => null),
-  recordingBitrateMbps: withDefault(Schema.NullOr(NonNegativeNumber), () => null),
-  captureCallbackMs: withDefault(NonNegativeNumber, () => 0),
-  recordQueueLagMs: withDefault(NonNegativeNumber, () => 0),
-  writerAppendMs: withDefault(NonNegativeNumber, () => 0),
+  sourceDroppedFrames: Schema.optionalWith(NonNegativeInt, { default: () => 0 }),
+  writerDroppedFrames: Schema.optionalWith(NonNegativeInt, { default: () => 0 }),
+  writerBackpressureDrops: Schema.optionalWith(NonNegativeInt, { default: () => 0 }),
+  achievedFps: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
+  cpuPercent: Schema.optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
+  memoryBytes: Schema.optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
+  recordingBitrateMbps: Schema.optionalWith(Schema.NullOr(NonNegativeNumber), {
+    default: () => null,
+  }),
+  captureCallbackMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
+  recordQueueLagMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
+  writerAppendMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
 });
 
 /** Result payload for capture and recording lifecycle methods. */
@@ -212,10 +222,12 @@ export const captureStatusResultSchema = Schema.Struct({
   isRecording: Schema.Boolean,
   recordingDurationSeconds: NonNegativeNumber,
   recordingURL: Schema.NullOr(Schema.String),
-  captureMetadata: withDefault(captureMetadataSchema, () => null),
+  captureMetadata: Schema.optionalWith(captureMetadataSchema, { default: () => null }),
   lastError: Schema.NullOr(Schema.String),
   eventsURL: Schema.NullOr(Schema.String),
-  telemetry: withDefault(captureTelemetrySchema, createDefaultCaptureTelemetry),
+  telemetry: Schema.optionalWith(captureTelemetrySchema, {
+    default: createDefaultCaptureTelemetry,
+  }),
 });
 
 /** Export preset descriptor returned by `export.info`. */
@@ -292,8 +304,12 @@ export const importedTranscriptWordSchema = Schema.Struct({
 
 /** Canonical imported transcript payload accepted by Agent Mode v1. */
 export const importedTranscriptSchema = Schema.Struct({
-  segments: withDefault(Schema.Array(importedTranscriptSegmentSchema), () => []),
-  words: withDefault(Schema.Array(importedTranscriptWordSchema), () => []),
+  segments: Schema.optionalWith(Schema.Array(importedTranscriptSegmentSchema), {
+    default: () => [],
+  }),
+  words: Schema.optionalWith(Schema.Array(importedTranscriptWordSchema), {
+    default: () => [],
+  }),
 }).pipe(
   Schema.filter((transcript) => transcript.segments.length > 0 || transcript.words.length > 0, {
     message: () => "Imported transcript must contain at least one segment or one word entry.",
@@ -342,7 +358,7 @@ export const agentQAReportSchema = Schema.Struct({
     payoff: Schema.Boolean,
     takeaway: Schema.Boolean,
   }),
-  missingBeats: withDefault(Schema.Array(agentBeatSchema), () => []),
+  missingBeats: Schema.optionalWith(Schema.Array(agentBeatSchema), { default: () => [] }),
 });
 
 /** Summary payload for agent pipeline execution. */
@@ -394,12 +410,14 @@ export const projectStateSchema = Schema.Struct({
   eventsURL: Schema.NullOr(Schema.String),
   autoZoom: autoZoomSettingsSchema,
   captureMetadata: captureMetadataSchema,
-  agentAnalysis: withDefault(projectAgentAnalysisSummarySchema, () => ({
-    latestJobId: null,
-    latestStatus: null,
-    qaPassed: null,
-    updatedAt: null,
-  })),
+  agentAnalysis: Schema.optionalWith(projectAgentAnalysisSummarySchema, {
+    default: () => ({
+      latestJobId: null,
+      latestStatus: null,
+      qaPassed: null,
+      updatedAt: null,
+    }),
+  }),
 });
 
 /** Engine protocol schema for projectRecentItemSchema. */
@@ -420,16 +438,19 @@ const requestBaseFields = {
 } as const;
 
 const emptyParamsSchema = Schema.Struct({});
-const emptyParamsProperty = withDefault(emptyParamsSchema, () => ({}));
-const runtimeBudgetMinutesProperty = withDefault(RuntimeBudgetMinutesSchema, () => 10);
-const transcriptionProviderProperty = withDefault(
-  transcriptionProviderSchema,
-  () => "none" as const,
-);
-const destructiveIntentProperty = withDefault(Schema.Boolean, () => false);
-const enableMicProperty = withDefault(Schema.Boolean, () => false);
-const captureFrameRateProperty = withDefault(captureFrameRateSchema, () => defaultCaptureFrameRate);
-const trackInputEventsProperty = withDefault(Schema.Boolean, () => false);
+const emptyParamsProperty = Schema.optionalWith(emptyParamsSchema, { default: () => ({}) });
+const runtimeBudgetMinutesProperty = Schema.optionalWith(RuntimeBudgetMinutesSchema, {
+  default: () => 10,
+});
+const transcriptionProviderProperty = Schema.optionalWith(transcriptionProviderSchema, {
+  default: () => "none" as const,
+});
+const destructiveIntentProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
+const enableMicProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
+const captureFrameRateProperty = Schema.optionalWith(captureFrameRateSchema, {
+  default: () => defaultCaptureFrameRate,
+});
+const trackInputEventsProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
 
 /** Request envelopes ordered by the shell lifecycle they participate in. */
 /** Engine protocol schema for systemPingRequestSchema. */
@@ -466,7 +487,7 @@ export const agentRunRequestSchema = Schema.Struct({
     runtimeBudgetMinutes: runtimeBudgetMinutesProperty,
     transcriptionProvider: transcriptionProviderProperty,
     importedTranscriptPath: Schema.optional(NonEmptyString),
-    force: withDefault(Schema.Boolean, () => false),
+    force: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   }),
 });
 
@@ -652,11 +673,11 @@ export const projectSaveRequestSchema = Schema.Struct({
 export const projectRecentsRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.ProjectRecents),
-  params: withDefault(
+  params: Schema.optionalWith(
     Schema.Struct({
       limit: Schema.optional(ProjectRecentsLimitSchema),
     }),
-    () => ({}),
+    { default: () => ({}) },
   ),
 });
 
@@ -729,92 +750,85 @@ export const engineResponseSchema = Schema.Union(
   engineErrorResponseSchema,
 );
 
-type MutableDeep<T> =
-  T extends ReadonlyArray<infer U>
-    ? MutableDeep<U>[]
-    : T extends object
-      ? { -readonly [K in keyof T]: MutableDeep<T[K]> }
-      : T;
-
 /** Inferred TypeScript aliases for consumers that only need static typing. */
 /** Type alias for EngineRequest. */
-export type EngineRequest = MutableDeep<typeof engineRequestSchema.Type>;
+export type EngineRequest = MutableSchemaType<typeof engineRequestSchema>;
 /** Type alias for EngineRequestEncoded. */
-export type EngineRequestEncoded = typeof engineRequestSchema.Encoded;
+export type EngineRequestEncoded = MutableEncodedSchemaType<typeof engineRequestSchema>;
 /** Type alias for EngineResponse. */
-export type EngineResponse = MutableDeep<typeof engineResponseSchema.Type>;
+export type EngineResponse = MutableSchemaType<typeof engineResponseSchema>;
 /** Type alias for EngineErrorCode. */
-export type EngineErrorCode = MutableDeep<typeof engineErrorCodeSchema.Type>;
+export type EngineErrorCode = MutableSchemaType<typeof engineErrorCodeSchema>;
 /** Type alias for PingResult. */
-export type PingResult = MutableDeep<typeof pingResultSchema.Type>;
+export type PingResult = MutableSchemaType<typeof pingResultSchema>;
 /** Type alias for CapabilitiesResult. */
-export type CapabilitiesResult = MutableDeep<typeof capabilitiesResultSchema.Type>;
+export type CapabilitiesResult = MutableSchemaType<typeof capabilitiesResultSchema>;
 /** Type alias for PermissionsResult. */
-export type PermissionsResult = MutableDeep<typeof permissionsResultSchema.Type>;
+export type PermissionsResult = MutableSchemaType<typeof permissionsResultSchema>;
 /** Type alias for ActionResult. */
-export type ActionResult = MutableDeep<typeof actionResultSchema.Type>;
+export type ActionResult = MutableSchemaType<typeof actionResultSchema>;
 /** Type alias for SourcesResult. */
-export type SourcesResult = MutableDeep<typeof sourcesResultSchema.Type>;
+export type SourcesResult = MutableSchemaType<typeof sourcesResultSchema>;
 /** Type alias for CaptureFrameRate. */
-export type CaptureFrameRate = MutableDeep<typeof captureFrameRateSchema.Type>;
+export type CaptureFrameRate = MutableSchemaType<typeof captureFrameRateSchema>;
 /** Type alias for CaptureTelemetry. */
-export type CaptureTelemetry = MutableDeep<typeof captureTelemetrySchema.Type>;
+export type CaptureTelemetry = MutableSchemaType<typeof captureTelemetrySchema>;
 /** Type alias for CaptureStatusResult. */
-export type CaptureStatusResult = MutableDeep<typeof captureStatusResultSchema.Type>;
+export type CaptureStatusResult = MutableSchemaType<typeof captureStatusResultSchema>;
 /** Type alias for ExportPreset. */
-export type ExportPreset = MutableDeep<typeof exportPresetSchema.Type>;
+export type ExportPreset = MutableSchemaType<typeof exportPresetSchema>;
 /** Type alias for ExportInfoResult. */
-export type ExportInfoResult = MutableDeep<typeof exportInfoResultSchema.Type>;
+export type ExportInfoResult = MutableSchemaType<typeof exportInfoResultSchema>;
 /** Type alias for ExportRunResult. */
-export type ExportRunResult = MutableDeep<typeof exportRunResultSchema.Type>;
+export type ExportRunResult = MutableSchemaType<typeof exportRunResultSchema>;
 /** Type alias for AgentJobStatus. */
-export type AgentJobStatus = MutableDeep<typeof agentJobStatusSchema.Type>;
+export type AgentJobStatus = MutableSchemaType<typeof agentJobStatusSchema>;
 /** Type alias for AgentArtifactKind. */
-export type AgentArtifactKind = MutableDeep<typeof agentArtifactKindSchema.Type>;
+export type AgentArtifactKind = MutableSchemaType<typeof agentArtifactKindSchema>;
 /** Type alias for AgentArtifact. */
-export type AgentArtifact = MutableDeep<typeof agentArtifactSchema.Type>;
+export type AgentArtifact = MutableSchemaType<typeof agentArtifactSchema>;
 /** Type alias for TranscriptionProvider. */
-export type TranscriptionProvider = MutableDeep<typeof transcriptionProviderSchema.Type>;
+export type TranscriptionProvider = MutableSchemaType<typeof transcriptionProviderSchema>;
 /** Type alias for ImportedTranscriptSegment. */
-export type ImportedTranscriptSegment = MutableDeep<typeof importedTranscriptSegmentSchema.Type>;
+export type ImportedTranscriptSegment = MutableSchemaType<typeof importedTranscriptSegmentSchema>;
 /** Type alias for ImportedTranscriptWord. */
-export type ImportedTranscriptWord = MutableDeep<typeof importedTranscriptWordSchema.Type>;
+export type ImportedTranscriptWord = MutableSchemaType<typeof importedTranscriptWordSchema>;
 /** Type alias for ImportedTranscript. */
-export type ImportedTranscript = MutableDeep<typeof importedTranscriptSchema.Type>;
+export type ImportedTranscript = MutableSchemaType<typeof importedTranscriptSchema>;
 /** Type alias for AgentPreflightBlockingReason. */
-export type AgentPreflightBlockingReason = MutableDeep<
-  typeof agentPreflightBlockingReasonSchema.Type
+export type AgentPreflightBlockingReason = MutableSchemaType<
+  typeof agentPreflightBlockingReasonSchema
 >;
 /** Type alias for AgentRunBlockingReason. */
-export type AgentRunBlockingReason = MutableDeep<typeof agentRunBlockingReasonSchema.Type>;
+export type AgentRunBlockingReason = MutableSchemaType<typeof agentRunBlockingReasonSchema>;
 /** Type alias for AgentQAReport. */
-export type AgentQAReport = MutableDeep<typeof agentQAReportSchema.Type>;
+export type AgentQAReport = MutableSchemaType<typeof agentQAReportSchema>;
 /** Type alias for AgentRunSummary. */
-export type AgentRunSummary = MutableDeep<typeof agentRunSummarySchema.Type>;
+export type AgentRunSummary = MutableSchemaType<typeof agentRunSummarySchema>;
 /** Type alias for AgentPreflightResult. */
-export type AgentPreflightResult = MutableDeep<typeof agentPreflightResultSchema.Type>;
+export type AgentPreflightResult = MutableSchemaType<typeof agentPreflightResultSchema>;
 /** Type alias for AgentRunResult. */
-export type AgentRunResult = MutableDeep<typeof agentRunResultSchema.Type>;
+export type AgentRunResult = MutableSchemaType<typeof agentRunResultSchema>;
 /** Type alias for AgentStatusResult. */
-export type AgentStatusResult = MutableDeep<typeof agentStatusResultSchema.Type>;
+export type AgentStatusResult = MutableSchemaType<typeof agentStatusResultSchema>;
 /** Type alias for ExportRunCutPlanResult. */
-export type ExportRunCutPlanResult = MutableDeep<typeof exportRunCutPlanResultSchema.Type>;
+export type ExportRunCutPlanResult = MutableSchemaType<typeof exportRunCutPlanResultSchema>;
 /** Type alias for ProjectAgentAnalysisSummary. */
-export type ProjectAgentAnalysisSummary = MutableDeep<
-  typeof projectAgentAnalysisSummarySchema.Type
+export type ProjectAgentAnalysisSummary = MutableSchemaType<
+  typeof projectAgentAnalysisSummarySchema
 >;
 /** Type alias for ProjectState. */
-export type ProjectState = MutableDeep<typeof projectStateSchema.Type>;
+export type ProjectState = MutableSchemaType<typeof projectStateSchema>;
 /** Type alias for ProjectRecentItem. */
-export type ProjectRecentItem = MutableDeep<typeof projectRecentItemSchema.Type>;
+export type ProjectRecentItem = MutableSchemaType<typeof projectRecentItemSchema>;
 /** Type alias for ProjectRecentsResult. */
-export type ProjectRecentsResult = MutableDeep<typeof projectRecentsResultSchema.Type>;
+export type ProjectRecentsResult = MutableSchemaType<typeof projectRecentsResultSchema>;
 /** Type alias for AutoZoomSettings. */
-export type AutoZoomSettings = MutableDeep<typeof autoZoomSettingsSchema.Type>;
+export type AutoZoomSettings = MutableSchemaType<typeof autoZoomSettingsSchema>;
 /** Type alias for InputEvent. */
-export type InputEvent = MutableDeep<typeof inputEventSchema.Type>;
+export type InputEvent = MutableSchemaType<typeof inputEventSchema>;
 /** Type alias for InputEventLog. */
-export type InputEventLog = MutableDeep<typeof inputEventLogSchema.Type>;
+export type InputEventLog = MutableSchemaType<typeof inputEventLogSchema>;
 
 /**
  * Builds and validates a method-specific engine request envelope.

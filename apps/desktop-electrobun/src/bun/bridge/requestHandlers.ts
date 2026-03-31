@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
+import { Effect } from "effect";
 import type {
   ReviewBridgeEvent,
   ReviewComment,
@@ -9,6 +10,7 @@ import type {
 } from "@guerillaglass/review-protocol";
 import { createBunBridgeHandlers } from "@shared/bridge";
 import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "@shared/bridge";
+import { ReviewBridgeError, messageFromUnknownError, runEffectPromise } from "@shared/errors";
 import type { EngineClient } from "../engine/client";
 
 type BridgeHandlerDependencies = {
@@ -68,9 +70,11 @@ type ReviewGateway = {
 function resolveReviewConvexUrl(): string {
   const reviewConvexUrl = process.env.GG_REVIEW_CONVEX_URL ?? process.env.VITE_CONVEX_URL;
   if (!reviewConvexUrl) {
-    throw new Error(
-      "Missing GG_REVIEW_CONVEX_URL (or VITE_CONVEX_URL). Review bridge now requires Convex.",
-    );
+    throw new ReviewBridgeError({
+      code: "REVIEW_BRIDGE_URL_MISSING",
+      description:
+        "Missing GG_REVIEW_CONVEX_URL (or VITE_CONVEX_URL). Review bridge now requires Convex.",
+    });
   }
   return reviewConvexUrl;
 }
@@ -78,38 +82,70 @@ function resolveReviewConvexUrl(): string {
 function requireReviewAuthToken(authToken: string): string {
   const normalizedToken = authToken.trim();
   if (!normalizedToken) {
-    throw new Error("Missing authToken. Review bridge requires a user-scoped Convex JWT.");
+    throw new ReviewBridgeError({
+      code: "REVIEW_AUTH_TOKEN_MISSING",
+      description: "Missing authToken. Review bridge requires a user-scoped Convex JWT.",
+    });
   }
   return normalizedToken;
+}
+
+function reviewRequestEffect<A>(
+  operation: string,
+  authToken: string,
+  run: (client: ConvexHttpClient) => Promise<A>,
+): Effect.Effect<A, ReviewBridgeError> {
+  return Effect.gen(function* () {
+    const client = yield* Effect.sync(() => {
+      const nextClient = new ConvexHttpClient(resolveReviewConvexUrl());
+      nextClient.setAuth(requireReviewAuthToken(authToken));
+      return nextClient;
+    });
+    return yield* Effect.tryPromise({
+      try: () => run(client),
+      catch: (cause) =>
+        new ReviewBridgeError({
+          code: "REVIEW_REQUEST_FAILED",
+          description: messageFromUnknownError(cause, `Review ${operation} failed.`),
+          cause,
+        }),
+    });
+  });
 }
 
 function createReviewGateway(): ReviewGateway {
   return {
     sessionSnapshot: async ({ authToken, reviewId }) => {
-      const client = new ConvexHttpClient(resolveReviewConvexUrl());
-      client.setAuth(requireReviewAuthToken(authToken));
-      return await client.query(reviewSessionSnapshotQuery, {
-        reviewId,
-      });
+      return await runEffectPromise(
+        reviewRequestEffect("session snapshot", authToken, (client) =>
+          client.query(reviewSessionSnapshotQuery, {
+            reviewId,
+          }),
+        ),
+      );
     },
     createComment: async (params) => {
-      const client = new ConvexHttpClient(resolveReviewConvexUrl());
-      client.setAuth(requireReviewAuthToken(params.authToken));
-      return await client.mutation(reviewCreateCommentMutation, {
-        reviewId: params.reviewId,
-        body: params.body,
-        frameNumber: params.frameNumber,
-        timestampSeconds: params.timestampSeconds,
-        parentCommentId: params.parentCommentId,
-      });
+      return await runEffectPromise(
+        reviewRequestEffect("create comment", params.authToken, (client) =>
+          client.mutation(reviewCreateCommentMutation, {
+            reviewId: params.reviewId,
+            body: params.body,
+            frameNumber: params.frameNumber,
+            timestampSeconds: params.timestampSeconds,
+            parentCommentId: params.parentCommentId,
+          }),
+        ),
+      );
     },
     setWorkflowStatus: async ({ authToken, reviewId, status }) => {
-      const client = new ConvexHttpClient(resolveReviewConvexUrl());
-      client.setAuth(requireReviewAuthToken(authToken));
-      return await client.mutation(reviewSetWorkflowStatusMutation, {
-        reviewId,
-        status,
-      });
+      return await runEffectPromise(
+        reviewRequestEffect("set workflow status", authToken, (client) =>
+          client.mutation(reviewSetWorkflowStatusMutation, {
+            reviewId,
+            status,
+          }),
+        ),
+      );
     },
   };
 }

@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import path from "node:path";
-import { Cause, Effect, Either, Exit } from "effect";
-import { MediaServerError, messageFromUnknownError } from "@shared/errors";
+import { Effect } from "effect";
+import {
+  MediaServerError,
+  messageFromUnknownError,
+  runEffectPromise,
+  runEffectSync,
+} from "@shared/errors";
 import { isSupportedMediaPath, mediaTypeForPath } from "./policy";
 
 const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;
@@ -114,30 +119,6 @@ function mediaSecurityHeaders(): Record<string, string> {
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
   };
-}
-
-function runMediaEffectSync<A, E>(effect: Effect.Effect<A, E>): A {
-  const exit = Effect.runSyncExit(effect);
-  if (Exit.isSuccess(exit)) {
-    return exit.value;
-  }
-  const failure = Cause.failureOrCause(exit.cause);
-  if (Either.isLeft(failure)) {
-    throw failure.left;
-  }
-  throw Cause.squash(exit.cause);
-}
-
-async function runMediaEffectPromise<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
-  const exit = await Effect.runPromiseExit(effect);
-  if (Exit.isSuccess(exit)) {
-    return exit.value;
-  }
-  const failure = Cause.failureOrCause(exit.cause);
-  if (Either.isLeft(failure)) {
-    throw failure.left;
-  }
-  throw Cause.squash(exit.cause);
 }
 
 function normalizeMediaBindError(error: unknown): MediaServerError {
@@ -528,7 +509,7 @@ export class MediaServer {
   }
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
-    return await runMediaEffectPromise(this.resolveMediaSourceURLEffect(filePath));
+    return await runEffectPromise(this.resolveMediaSourceURLEffect(filePath));
   }
 
   private stopEffect(): Effect.Effect<void> {
@@ -541,6 +522,6 @@ export class MediaServer {
   }
 
   stop(): void {
-    runMediaEffectSync(this.stopEffect());
+    runEffectSync(this.stopEffect());
   }
 }
