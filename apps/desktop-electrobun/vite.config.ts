@@ -1,7 +1,10 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+
+const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -35,10 +38,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src/mainview"),
-      "@lib": path.resolve(__dirname, "src/mainview/lib"),
-      "@shared": path.resolve(__dirname, "src/shared"),
-      "@studio": path.resolve(__dirname, "src/mainview/app/studio"),
+      "@": path.resolve(rootDirectory, "src/mainview"),
+      "@lib": path.resolve(rootDirectory, "src/mainview/lib"),
+      "@shared": path.resolve(rootDirectory, "src/shared"),
+      "@studio": path.resolve(rootDirectory, "src/mainview/app/studio"),
     },
   },
 });

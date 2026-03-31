@@ -18,62 +18,21 @@ describe("host path picker", () => {
     expect(secondResult).toBe("/Users/demo/Projects/alpha.gglassproj");
   });
 
-  test("saveProjectAs uses save dialog when available and enforces extension", async () => {
+  test("saveProjectAs uses open picker and enforces extension", async () => {
     const result = await pickPathForMode("saveProjectAs", {
       currentProjectPath: "/Users/demo/Projects/alpha.gglassproj",
       defaultFolder: "/Users/demo/Documents",
-      openFileDialog: async () => {
-        throw new Error("fallback not expected");
-      },
-      saveFileDialog: async () => "/Users/demo/Projects/beta",
+      openFileDialog: async () => ["/Users/demo/Projects/beta"],
     });
 
-    expect(result).toBe("/Users/demo/Projects/beta.gglassproj");
+    expect(result).toBe("/Users/demo/Projects/beta/alpha.gglassproj");
   });
 
-  test("saveProjectAs returns null when save dialog is canceled", async () => {
-    let fallbackCalls = 0;
-    const result = await pickPathForMode("saveProjectAs", {
-      currentProjectPath: "/Users/demo/Projects/alpha.gglassproj",
-      defaultFolder: "/Users/demo/Documents",
-      openFileDialog: async () => {
-        fallbackCalls += 1;
-        return ["/Users/demo/Projects"];
-      },
-      saveFileDialog: async () => null,
-    });
-
-    expect(result).toBeNull();
-    expect(fallbackCalls).toBe(0);
-  });
-
-  test("saveProjectAs falls back to open picker when save dialog fails", async () => {
-    let openDialogCallCount = 0;
-
-    const result = await pickPathForMode("saveProjectAs", {
-      currentProjectPath: "/Users/demo/Projects/alpha.gglassproj",
-      defaultFolder: "/Users/demo/Documents",
-      openFileDialog: async () => {
-        openDialogCallCount += 1;
-        return ["/Users/demo/Projects"];
-      },
-      saveFileDialog: async () => {
-        throw new Error("save dialog unavailable");
-      },
-    });
-
-    expect(result).toBe("/Users/demo/Projects/alpha.gglassproj");
-    expect(openDialogCallCount).toBe(1);
-  });
-
-  test("saveProjectAs fallback keeps explicit .gglassproj file selection", async () => {
+  test("saveProjectAs keeps explicit .gglassproj file selection", async () => {
     const result = await pickPathForMode("saveProjectAs", {
       currentProjectPath: "/Users/demo/Projects/alpha.gglassproj",
       defaultFolder: "/Users/demo/Documents",
       openFileDialog: async () => ["/Users/demo/Projects/beta.gglassproj"],
-      saveFileDialog: async () => {
-        throw new Error("save dialog unavailable");
-      },
     });
 
     expect(result).toBe("/Users/demo/Projects/beta.gglassproj");

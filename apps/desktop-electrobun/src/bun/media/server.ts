@@ -7,7 +7,7 @@ import {
   messageFromUnknownError,
   runEffectPromise,
   runEffectSync,
-} from "@shared/errors";
+} from "../../shared/errors";
 import { isSupportedMediaPath, mediaTypeForPath } from "./policy";
 
 const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;

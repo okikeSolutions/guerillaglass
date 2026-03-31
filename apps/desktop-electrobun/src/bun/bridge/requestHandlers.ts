@@ -8,9 +8,9 @@ import type {
   ReviewSetWorkflowStatusResponse,
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
-import { createBunBridgeHandlers } from "@shared/bridge";
-import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "@shared/bridge";
-import { ReviewBridgeError, messageFromUnknownError, runEffectPromise } from "@shared/errors";
+import { createBunBridgeHandlers } from "../../shared/bridge";
+import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridge";
+import { ReviewBridgeError, messageFromUnknownError, runEffectPromise } from "../../shared/errors";
 import type { EngineClient } from "../engine/client";
 
 type BridgeHandlerDependencies = {

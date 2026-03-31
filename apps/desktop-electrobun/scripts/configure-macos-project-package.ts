@@ -7,8 +7,12 @@ const PACKAGE_EXTENSION = "gglassproj";
 const DOCUMENT_TYPE_NAME = "Guerilla Glass Project";
 const PROJECT_UTI = "com.okikeSolutions.guerillaglass.project";
 
-type PlistValue = string | number | boolean | null | PlistObject | PlistValue[];
-type PlistObject = Record<string, PlistValue>;
+type PlistPrimitive = string | number | boolean | null;
+interface PlistObject {
+  [key: string]: PlistValue;
+}
+interface PlistArray extends Array<PlistValue> {}
+type PlistValue = PlistPrimitive | PlistObject | PlistArray;
 
 const DESIRED_UT_TYPE_DECLARATION: PlistObject = {
   UTTypeIdentifier: PROJECT_UTI,
