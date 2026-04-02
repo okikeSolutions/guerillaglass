@@ -1,5 +1,5 @@
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import { EngineClient } from "../src/bun/engine/client";
 
 type EngineFixture = {
@@ -27,62 +27,69 @@ const fixtures: EngineFixture[] = [
   },
 ];
 
+// GitHub's Windows runners can take longer than Bun's 5s default for stub-backed integration flows.
+setDefaultTimeout(15_000);
+
 describe("phase-1 parity e2e", () => {
   for (const fixture of fixtures) {
-    test(`runs capture->record->export->project flow (${fixture.name})`, async () => {
-      const client = new EngineClient(fixture.path, 2000);
-      try {
-        const ping = await client.ping();
-        expect(ping.platform).toBe(fixture.expectedPlatform);
+    test(
+      `runs capture->record->export->project flow (${fixture.name})`,
+      async () => {
+        const client = new EngineClient(fixture.path, 2000);
+        try {
+          const ping = await client.ping();
+          expect(ping.platform).toBe(fixture.expectedPlatform);
 
-        const capabilities = await client.capabilities();
-        expect(capabilities.platform).toBe(fixture.expectedPlatform);
+          const capabilities = await client.capabilities();
+          expect(capabilities.platform).toBe(fixture.expectedPlatform);
 
-        const sources = await client.listSources();
-        expect(sources.displays.length).toBeGreaterThan(0);
-        expect(sources.displays[0]?.pixelScale).toBe(1);
-        expect(sources.windows[0]?.pixelScale).toBe(1);
+          const sources = await client.listSources();
+          expect(sources.displays.length).toBeGreaterThan(0);
+          expect(sources.displays[0]?.pixelScale).toBe(1);
+          expect(sources.windows[0]?.pixelScale).toBe(1);
 
-        await client.startDisplayCapture(true);
-        await client.startRecording(true);
-        const afterStart = await client.captureStatus();
-        expect(afterStart.isRunning).toBe(true);
-        expect(afterStart.isRecording).toBe(true);
+          await client.startDisplayCapture(true);
+          await client.startRecording(true);
+          const afterStart = await client.captureStatus();
+          expect(afterStart.isRunning).toBe(true);
+          expect(afterStart.isRecording).toBe(true);
 
-        const afterStop = await client.stopRecording();
-        expect(afterStop.isRecording).toBe(false);
+          const afterStop = await client.stopRecording();
+          expect(afterStop.isRecording).toBe(false);
 
-        const exportInfo = await client.exportInfo();
-        const exportPreset = exportInfo.presets[0]!;
-        const exportResult = await client.runExport({
-          outputURL: `/tmp/${fixture.name}-e2e.mp4`,
-          presetId: exportPreset.id,
-          trimStartSeconds: 0,
-          trimEndSeconds: 3,
-        });
-        expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
+          const exportInfo = await client.exportInfo();
+          const exportPreset = exportInfo.presets[0]!;
+          const exportResult = await client.runExport({
+            outputURL: `/tmp/${fixture.name}-e2e.mp4`,
+            presetId: exportPreset.id,
+            trimStartSeconds: 0,
+            trimEndSeconds: 3,
+          });
+          expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
 
-        const projectPath = `/tmp/${fixture.name}.gglassproj`;
-        const opened = await client.projectOpen(projectPath);
-        expect(opened.projectPath).toBe(projectPath);
+          const projectPath = `/tmp/${fixture.name}.gglassproj`;
+          const opened = await client.projectOpen(projectPath);
+          expect(opened.projectPath).toBe(projectPath);
 
-        const saved = await client.projectSave({
-          projectPath,
-          autoZoom: {
-            isEnabled: true,
-            intensity: 0.6,
-            minimumKeyframeInterval: 0.25,
-          },
-        });
-        expect(saved.autoZoom.intensity).toBe(0.6);
-        const recents = await client.projectRecents(5);
-        expect(recents.items[0]?.projectPath).toBe(projectPath);
+          const saved = await client.projectSave({
+            projectPath,
+            autoZoom: {
+              isEnabled: true,
+              intensity: 0.6,
+              minimumKeyframeInterval: 0.25,
+            },
+          });
+          expect(saved.autoZoom.intensity).toBe(0.6);
+          const recents = await client.projectRecents(5);
+          expect(recents.items[0]?.projectPath).toBe(projectPath);
 
-        const stopped = await client.stopCapture();
-        expect(stopped.isRunning).toBe(false);
-      } finally {
-        await client.stop();
-      }
-    });
+          const stopped = await client.stopCapture();
+          expect(stopped.isRunning).toBe(false);
+        } finally {
+          await client.stop();
+        }
+      },
+      { timeout: 15_000 },
+    );
   }
 });

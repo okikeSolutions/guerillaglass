@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import { EngineClient, resolveEnginePath } from "../src/bun/engine/client";
 import {
   ContractDecodeError,
@@ -65,6 +65,9 @@ const STUBBORN_SHUTDOWN_STATE_PATH = path.join(
   INTEGRATION_TEMP_DIRECTORY,
   "guerillaglass-stubborn-shutdown.state",
 );
+
+// GitHub's Windows runners can take longer than Bun's 5s default for stub-backed integration flows.
+setDefaultTimeout(15_000);
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
@@ -162,185 +165,193 @@ describe("engine client path resolution", () => {
 });
 
 describe("engine client integration", () => {
-  test.skip("executes a phase-1 parity flow against the stub engine", async () => {
-    // TODO: Re-enable once the generic stub flow stops timing out intermittently in CI.
-    const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
-    const exportPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-parity-out.mp4");
-    const projectPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-project.gglassproj");
-    try {
-      const ping = await client.ping();
-      expect(ping.platform).toBe(INTEGRATION_STUB_PLATFORM);
+  test.skip(
+    "executes a phase-1 parity flow against the stub engine",
+    async () => {
+      // TODO: Re-enable once the generic stub flow stops timing out intermittently in CI.
+      const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+      const exportPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-parity-out.mp4");
+      const projectPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-project.gglassproj");
+      try {
+        const ping = await client.ping();
+        expect(ping.platform).toBe(INTEGRATION_STUB_PLATFORM);
 
-      const capabilities = await client.capabilities();
-      expect(capabilities.phase).toBe("stub");
+        const capabilities = await client.capabilities();
+        expect(capabilities.phase).toBe("stub");
 
-      const permissions = await client.getPermissions();
-      expect(permissions.screenRecordingGranted).toBe(true);
+        const permissions = await client.getPermissions();
+        expect(permissions.screenRecordingGranted).toBe(true);
 
-      const sources = await client.listSources();
-      expect(sources.displays.length).toBeGreaterThan(0);
-      expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60]);
+        const sources = await client.listSources();
+        expect(sources.displays.length).toBeGreaterThan(0);
+        expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60]);
 
-      await expect(client.startDisplayCapture(false, 120)).rejects.toThrow(
-        "Supported values: 24, 30, 60",
+        await expect(client.startDisplayCapture(false, 120)).rejects.toThrow(
+          "Supported values: 24, 30, 60",
+        );
+        await expect(client.startCurrentWindowCapture(false)).resolves.toMatchObject({
+          isRunning: true,
+        });
+
+        const recording = await client.startRecording(true);
+        expect(recording.isRecording).toBe(true);
+
+        const stopped = await client.stopRecording();
+        expect(stopped.isRecording).toBe(false);
+
+        const exportInfo = await client.exportInfo();
+        expect(exportInfo.presets.length).toBeGreaterThan(0);
+
+        const exportResult = await client.runExport({
+          outputURL: exportPath,
+          presetId: exportInfo.presets[0]!.id,
+        });
+        expect(exportResult.outputURL).toContain("parity-out.mp4");
+
+        const opened = await client.projectOpen(projectPath);
+        expect(opened.projectPath).toContain("guerillaglass-project.gglassproj");
+
+        const saved = await client.projectSave({
+          projectPath,
+        });
+        expect(saved.projectPath).toContain("guerillaglass-project.gglassproj");
+        const recents = await client.projectRecents(5);
+        expect(recents.items[0]?.projectPath).toContain("guerillaglass-project.gglassproj");
+
+        const halted = await client.stopCapture();
+        expect(halted.isRunning).toBe(false);
+      } finally {
+        await client.stop();
+      }
+    },
+    { timeout: 15_000 },
+  );
+
+  test(
+    "exercises stub-backed agent, permission, export, and project wrappers",
+    async () => {
+      const workspaceDir = fs.mkdtempSync(
+        path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-engine-client-"),
       );
-      await expect(client.startCurrentWindowCapture(false)).resolves.toMatchObject({
-        isRunning: true,
-      });
+      const transcriptPath = path.join(workspaceDir, "imported-transcript.json");
+      const projectPath = path.join(workspaceDir, "guerillaglass-project.gglassproj");
+      const outputPath = path.join(workspaceDir, "guerillaglass-cut-plan.mp4");
+      const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
 
-      const recording = await client.startRecording(true);
-      expect(recording.isRecording).toBe(true);
+      fs.writeFileSync(
+        transcriptPath,
+        JSON.stringify({
+          segments: [
+            {
+              text: "hook action payoff takeaway",
+              startSeconds: 0,
+              endSeconds: 4,
+            },
+          ],
+          words: [],
+        }),
+        "utf8",
+      );
 
-      const stopped = await client.stopRecording();
-      expect(stopped.isRecording).toBe(false);
+      try {
+        await client.start();
 
-      const exportInfo = await client.exportInfo();
-      expect(exportInfo.presets.length).toBeGreaterThan(0);
+        await expect(client.requestScreenRecordingPermission()).resolves.toMatchObject({
+          success: true,
+        });
+        await expect(client.requestMicrophonePermission()).resolves.toMatchObject({
+          success: true,
+        });
+        await expect(client.requestInputMonitoringPermission()).resolves.toMatchObject({
+          success: true,
+        });
+        await expect(client.openInputMonitoringSettings()).resolves.toMatchObject({
+          success: true,
+        });
 
-      const exportResult = await client.runExport({
-        outputURL: exportPath,
-        presetId: exportInfo.presets[0]!.id,
-      });
-      expect(exportResult.outputURL).toContain("parity-out.mp4");
+        const opened = await client.projectOpen(projectPath);
+        expect(opened.projectPath).toBe(projectPath);
 
-      const opened = await client.projectOpen(projectPath);
-      expect(opened.projectPath).toContain("guerillaglass-project.gglassproj");
+        const started = await client.startCurrentWindowCapture(false);
+        expect(started.isRunning).toBe(true);
 
-      const saved = await client.projectSave({
-        projectPath,
-      });
-      expect(saved.projectPath).toContain("guerillaglass-project.gglassproj");
-      const recents = await client.projectRecents(5);
-      expect(recents.items[0]?.projectPath).toContain("guerillaglass-project.gglassproj");
+        const recording = await client.startRecording(false);
+        expect(recording.isRecording).toBe(true);
 
-      const halted = await client.stopCapture();
-      expect(halted.isRunning).toBe(false);
-    } finally {
-      await client.stop();
-    }
-  }, 15_000);
+        const stoppedRecording = await client.stopRecording();
+        expect(stoppedRecording.isRecording).toBe(false);
 
-  test("exercises stub-backed agent, permission, export, and project wrappers", async () => {
-    const workspaceDir = fs.mkdtempSync(
-      path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-engine-client-"),
-    );
-    const transcriptPath = path.join(workspaceDir, "imported-transcript.json");
-    const projectPath = path.join(workspaceDir, "guerillaglass-project.gglassproj");
-    const outputPath = path.join(workspaceDir, "guerillaglass-cut-plan.mp4");
-    const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+        const current = await client.projectCurrent();
+        expect(current.projectPath).toBe(projectPath);
+        expect(current.recordingURL).toBe("stub://recordings/session.mp4");
 
-    fs.writeFileSync(
-      transcriptPath,
-      JSON.stringify({
-        segments: [
-          {
-            text: "hook action payoff takeaway",
-            startSeconds: 0,
-            endSeconds: 4,
+        const saved = await client.projectSave({
+          projectPath,
+          autoZoom: {
+            isEnabled: true,
+            intensity: 0.7,
+            minimumKeyframeInterval: 0.25,
           },
-        ],
-        words: [],
-      }),
-      "utf8",
-    );
-
-    try {
-      await client.start();
-
-      await expect(client.requestScreenRecordingPermission()).resolves.toMatchObject({
-        success: true,
-      });
-      await expect(client.requestMicrophonePermission()).resolves.toMatchObject({
-        success: true,
-      });
-      await expect(client.requestInputMonitoringPermission()).resolves.toMatchObject({
-        success: true,
-      });
-      await expect(client.openInputMonitoringSettings()).resolves.toMatchObject({
-        success: true,
-      });
-
-      const opened = await client.projectOpen(projectPath);
-      expect(opened.projectPath).toBe(projectPath);
-
-      const started = await client.startCurrentWindowCapture(false);
-      expect(started.isRunning).toBe(true);
-
-      const recording = await client.startRecording(false);
-      expect(recording.isRecording).toBe(true);
-
-      const stoppedRecording = await client.stopRecording();
-      expect(stoppedRecording.isRecording).toBe(false);
-
-      const current = await client.projectCurrent();
-      expect(current.projectPath).toBe(projectPath);
-      expect(current.recordingURL).toBe("stub://recordings/session.mp4");
-
-      const saved = await client.projectSave({
-        projectPath,
-        autoZoom: {
+        });
+        expect(saved.autoZoom).toMatchObject({
           isEnabled: true,
           intensity: 0.7,
           minimumKeyframeInterval: 0.25,
-        },
-      });
-      expect(saved.autoZoom).toMatchObject({
-        isEnabled: true,
-        intensity: 0.7,
-        minimumKeyframeInterval: 0.25,
-      });
+        });
 
-      const recents = await client.projectRecents(1);
-      expect(recents.items).toHaveLength(1);
-      expect(recents.items[0]?.projectPath).toBe(projectPath);
+        const recents = await client.projectRecents(1);
+        expect(recents.items).toHaveLength(1);
+        expect(recents.items[0]?.projectPath).toBe(projectPath);
 
-      const preflight = await client.agentPreflight({
-        runtimeBudgetMinutes: 10,
-        transcriptionProvider: "imported_transcript",
-        importedTranscriptPath: transcriptPath,
-      });
-      expect(preflight.ready).toBe(true);
-      expect(preflight.preflightToken).toBeTruthy();
+        const preflight = await client.agentPreflight({
+          runtimeBudgetMinutes: 10,
+          transcriptionProvider: "imported_transcript",
+          importedTranscriptPath: transcriptPath,
+        });
+        expect(preflight.ready).toBe(true);
+        expect(preflight.preflightToken).toBeTruthy();
 
-      const run = await client.agentRun({
-        preflightToken: preflight.preflightToken!,
-        runtimeBudgetMinutes: 10,
-        transcriptionProvider: "imported_transcript",
-        importedTranscriptPath: transcriptPath,
-      });
-      expect(run.status).toBe("completed");
+        const run = await client.agentRun({
+          preflightToken: preflight.preflightToken!,
+          runtimeBudgetMinutes: 10,
+          transcriptionProvider: "imported_transcript",
+          importedTranscriptPath: transcriptPath,
+        });
+        expect(run.status).toBe("completed");
 
-      const status = await client.agentStatus(run.jobId);
-      expect(status.status).toBe("completed");
-      expect(status.qaReport?.passed).toBe(true);
+        const status = await client.agentStatus(run.jobId);
+        expect(status.status).toBe("completed");
+        expect(status.qaReport?.passed).toBe(true);
 
-      await expect(client.agentApply({ jobId: run.jobId })).rejects.toThrow("needs_confirmation");
+        await expect(client.agentApply({ jobId: run.jobId })).rejects.toThrow("needs_confirmation");
 
-      const applied = await client.agentApply({
-        jobId: run.jobId,
-        destructiveIntent: true,
-      });
-      expect(applied).toMatchObject({
-        success: true,
-      });
+        const applied = await client.agentApply({
+          jobId: run.jobId,
+          destructiveIntent: true,
+        });
+        expect(applied).toMatchObject({
+          success: true,
+        });
 
-      const exportResult = await client.runCutPlanExport({
-        outputURL: outputPath,
-        presetId: "stub-1080p30",
-        jobId: run.jobId,
-      });
-      expect(exportResult).toMatchObject({
-        outputURL: outputPath,
-        appliedSegments: 4,
-      });
+        const exportResult = await client.runCutPlanExport({
+          outputURL: outputPath,
+          presetId: "stub-1080p30",
+          jobId: run.jobId,
+        });
+        expect(exportResult).toMatchObject({
+          outputURL: outputPath,
+          appliedSegments: 4,
+        });
 
-      const stoppedCapture = await client.stopCapture();
-      expect(stoppedCapture.isRunning).toBe(false);
-    } finally {
-      await client.stop();
-      fs.rmSync(workspaceDir, { recursive: true, force: true });
-    }
-  }, 15_000);
+        const stoppedCapture = await client.stopCapture();
+        expect(stoppedCapture.isRunning).toBe(false);
+      } finally {
+        await client.stop();
+        fs.rmSync(workspaceDir, { recursive: true, force: true });
+      }
+    },
+    { timeout: 15_000 },
+  );
 });
 
 describe("engine client resilience", () => {
@@ -601,7 +612,7 @@ describe("engine client resilience", () => {
         const startedAt = Date.now();
         const client = new EngineClient(STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
           requestTimeoutByMethod: {
-            "system.ping": 50,
+            "system.ping": 150,
           },
           restartBackoffMs: 0,
           restartJitterMs: 0,
