@@ -1,214 +1,130 @@
-import { ConvexHttpClient } from "convex/browser";
-import { makeFunctionReference } from "convex/server";
 import { Effect } from "effect";
-import type {
-  ReviewBridgeEvent,
-  ReviewComment,
-  ReviewSessionSnapshot,
-  ReviewSetWorkflowStatusResponse,
-  ReviewWorkflowStatus,
-} from "@guerillaglass/review-protocol";
+import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createBunBridgeHandlers } from "../../shared/bridge";
 import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridge";
-import { ReviewBridgeError, messageFromUnknownError, runEffectPromise } from "../../shared/errors";
-import type { EngineClient } from "../engine/client";
+import { EngineTransport } from "../engine/service";
+import { MediaSourceService } from "../media/service";
+import { ReviewGateway } from "../review/service";
+import type { HostRuntime, HostRuntimeServices } from "../runtime/hostRuntime";
+import { resolveAllowedMediaFilePath } from "../security/fileAccess";
 
 type BridgeHandlerDependencies = {
-  engineClient: EngineClient;
+  runtime: HostRuntime;
   pickPath: (params: {
     mode: HostPathPickerMode;
     startingFolder?: string;
   }) => Promise<string | null>;
   readTextFile: (filePath: string) => Promise<string>;
-  resolveMediaSourceURL: (filePath: string) => Promise<string>;
+  getCurrentProjectPath: () => string | null;
   setCurrentProjectPath: (projectPath: string | null) => void;
   emitReviewEvent: (event: ReviewBridgeEvent) => void;
 };
 
-const reviewSessionSnapshotQuery = makeFunctionReference<
-  "query",
-  { reviewId: string },
-  ReviewSessionSnapshot
->("review:sessionSnapshot");
-const reviewCreateCommentMutation = makeFunctionReference<
-  "mutation",
-  {
-    reviewId: string;
-    body: string;
-    frameNumber?: number;
-    timestampSeconds?: number;
-    parentCommentId?: string;
-  },
-  ReviewComment
->("review:createComment");
-const reviewSetWorkflowStatusMutation = makeFunctionReference<
-  "mutation",
-  { reviewId: string; status: ReviewWorkflowStatus },
-  ReviewSetWorkflowStatusResponse
->("review:setWorkflowStatus");
-
-type ReviewGateway = {
-  sessionSnapshot: (params: {
-    authToken: string;
-    reviewId: string;
-  }) => Promise<ReviewSessionSnapshot>;
-  createComment: (params: {
-    authToken: string;
-    reviewId: string;
-    body: string;
-    frameNumber?: number;
-    timestampSeconds?: number;
-    parentCommentId?: string;
-  }) => Promise<ReviewComment>;
-  setWorkflowStatus: (params: {
-    authToken: string;
-    reviewId: string;
-    status: ReviewWorkflowStatus;
-  }) => Promise<ReviewSetWorkflowStatusResponse>;
-};
-
-function resolveReviewConvexUrl(): string {
-  const reviewConvexUrl = process.env.GG_REVIEW_CONVEX_URL ?? process.env.VITE_CONVEX_URL;
-  if (!reviewConvexUrl) {
-    throw new ReviewBridgeError({
-      code: "REVIEW_BRIDGE_URL_MISSING",
-      description:
-        "Missing GG_REVIEW_CONVEX_URL (or VITE_CONVEX_URL). Review bridge now requires Convex.",
-    });
-  }
-  return reviewConvexUrl;
-}
-
-function requireReviewAuthToken(authToken: string): string {
-  const normalizedToken = authToken.trim();
-  if (!normalizedToken) {
-    throw new ReviewBridgeError({
-      code: "REVIEW_AUTH_TOKEN_MISSING",
-      description: "Missing authToken. Review bridge requires a user-scoped Convex JWT.",
-    });
-  }
-  return normalizedToken;
-}
-
-function reviewRequestEffect<A>(
-  operation: string,
-  authToken: string,
-  run: (client: ConvexHttpClient) => Promise<A>,
-): Effect.Effect<A, ReviewBridgeError> {
-  return Effect.gen(function* () {
-    const client = yield* Effect.sync(() => {
-      const nextClient = new ConvexHttpClient(resolveReviewConvexUrl());
-      nextClient.setAuth(requireReviewAuthToken(authToken));
-      return nextClient;
-    });
-    return yield* Effect.tryPromise({
-      try: () => run(client),
-      catch: (cause) =>
-        new ReviewBridgeError({
-          code: "REVIEW_REQUEST_FAILED",
-          description: messageFromUnknownError(cause, `Review ${operation} failed.`),
-          cause,
-        }),
-    });
-  });
-}
-
-function createReviewGateway(): ReviewGateway {
-  return {
-    sessionSnapshot: async ({ authToken, reviewId }) => {
-      return await runEffectPromise(
-        reviewRequestEffect("session snapshot", authToken, (client) =>
-          client.query(reviewSessionSnapshotQuery, {
-            reviewId,
-          }),
-        ),
-      );
-    },
-    createComment: async (params) => {
-      return await runEffectPromise(
-        reviewRequestEffect("create comment", params.authToken, (client) =>
-          client.mutation(reviewCreateCommentMutation, {
-            reviewId: params.reviewId,
-            body: params.body,
-            frameNumber: params.frameNumber,
-            timestampSeconds: params.timestampSeconds,
-            parentCommentId: params.parentCommentId,
-          }),
-        ),
-      );
-    },
-    setWorkflowStatus: async ({ authToken, reviewId, status }) => {
-      return await runEffectPromise(
-        reviewRequestEffect("set workflow status", authToken, (client) =>
-          client.mutation(reviewSetWorkflowStatusMutation, {
-            reviewId,
-            status,
-          }),
-        ),
-      );
-    },
-  };
-}
-
-/** Creates bridge RPC handlers backed by the desktop engine client. */
+/** Creates bridge RPC handlers backed by the scoped host runtime. */
 export function createEngineBridgeHandlers({
-  engineClient,
+  runtime,
   pickPath,
   readTextFile,
-  resolveMediaSourceURL,
+  getCurrentProjectPath,
   setCurrentProjectPath,
   emitReviewEvent,
 }: BridgeHandlerDependencies): BunBridgeRequestHandlerMap {
-  const reviewGateway = createReviewGateway();
+  const run = <A, E, R extends HostRuntimeServices>(effect: Effect.Effect<A, E, R>) =>
+    runtime.runPromise(effect);
 
   return createBunBridgeHandlers({
-    ggEnginePing: async () => engineClient.ping(),
-    ggEngineGetPermissions: async () => engineClient.getPermissions(),
-    ggEngineAgentPreflight: async (params) => engineClient.agentPreflight(params),
-    ggEngineAgentRun: async (params) => engineClient.agentRun(params),
-    ggEngineAgentStatus: async ({ jobId }) => engineClient.agentStatus(jobId),
-    ggEngineAgentApply: async (params) => engineClient.agentApply(params),
+    ggEnginePing: async () => run(Effect.flatMap(EngineTransport, (transport) => transport.ping)),
+    ggEngineGetPermissions: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.getPermissions)),
+    ggEngineAgentPreflight: async (params) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.agentPreflight(params))),
+    ggEngineAgentRun: async (params) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.agentRun(params))),
+    ggEngineAgentStatus: async ({ jobId }) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.agentStatus(jobId))),
+    ggEngineAgentApply: async (params) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.agentApply(params))),
     ggEngineRequestScreenRecordingPermission: async () =>
-      engineClient.requestScreenRecordingPermission(),
-    ggEngineRequestMicrophonePermission: async () => engineClient.requestMicrophonePermission(),
+      run(
+        Effect.flatMap(EngineTransport, (transport) => transport.requestScreenRecordingPermission),
+      ),
+    ggEngineRequestMicrophonePermission: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.requestMicrophonePermission)),
     ggEngineRequestInputMonitoringPermission: async () =>
-      engineClient.requestInputMonitoringPermission(),
-    ggEngineOpenInputMonitoringSettings: async () => engineClient.openInputMonitoringSettings(),
-    ggEngineListSources: async () => engineClient.listSources(),
+      run(
+        Effect.flatMap(EngineTransport, (transport) => transport.requestInputMonitoringPermission),
+      ),
+    ggEngineOpenInputMonitoringSettings: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.openInputMonitoringSettings)),
+    ggEngineListSources: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.listSources)),
     ggEngineStartDisplayCapture: async ({ enableMic, captureFps }) =>
-      engineClient.startDisplayCapture(enableMic, captureFps),
+      run(
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport.startDisplayCapture(enableMic, captureFps),
+        ),
+      ),
     ggEngineStartCurrentWindowCapture: async ({ enableMic, captureFps }) =>
-      engineClient.startCurrentWindowCapture(enableMic, captureFps),
+      run(
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport.startCurrentWindowCapture(enableMic, captureFps),
+        ),
+      ),
     ggEngineStartWindowCapture: async ({ windowId, enableMic, captureFps }) =>
-      engineClient.startWindowCapture(windowId, enableMic, captureFps),
-    ggEngineStopCapture: async () => engineClient.stopCapture(),
+      run(
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport.startWindowCapture(windowId, enableMic, captureFps),
+        ),
+      ),
+    ggEngineStopCapture: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.stopCapture)),
     ggEngineStartRecording: async ({ trackInputEvents }) =>
-      engineClient.startRecording(trackInputEvents),
-    ggEngineStopRecording: async () => engineClient.stopRecording(),
-    ggEngineCaptureStatus: async () => engineClient.captureStatus(),
-    ggEngineExportInfo: async () => engineClient.exportInfo(),
-    ggEngineRunExport: async (params) => engineClient.runExport(params),
-    ggEngineRunCutPlanExport: async (params) => engineClient.runCutPlanExport(params),
+      run(
+        Effect.flatMap(EngineTransport, (transport) => transport.startRecording(trackInputEvents)),
+      ),
+    ggEngineStopRecording: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.stopRecording)),
+    ggEngineCaptureStatus: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.captureStatus)),
+    ggEngineExportInfo: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.exportInfo)),
+    ggEngineRunExport: async (params) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.runExport(params))),
+    ggEngineRunCutPlanExport: async (params) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.runCutPlanExport(params))),
     ggEngineProjectCurrent: async () => {
-      const projectState = await engineClient.projectCurrent();
+      const projectState = await run(
+        Effect.flatMap(EngineTransport, (transport) => transport.projectCurrent),
+      );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectOpen: async ({ projectPath }) => {
-      const projectState = await engineClient.projectOpen(projectPath);
+      const projectState = await run(
+        Effect.flatMap(EngineTransport, (transport) => transport.projectOpen(projectPath)),
+      );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectSave: async (params) => {
-      const projectState = await engineClient.projectSave(params);
+      const projectState = await run(
+        Effect.flatMap(EngineTransport, (transport) => transport.projectSave(params)),
+      );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
-    ggEngineProjectRecents: async ({ limit }) => engineClient.projectRecents(limit),
+    ggEngineProjectRecents: async ({ limit }) =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.projectRecents(limit))),
     ggReviewSessionSnapshot: async ({ authToken, reviewId }) =>
-      reviewGateway.sessionSnapshot({ authToken, reviewId }),
+      run(
+        Effect.flatMap(ReviewGateway, (reviewGateway) =>
+          reviewGateway.sessionSnapshot({ authToken, reviewId }),
+        ),
+      ),
     ggReviewCreateComment: async (params) => {
-      const comment = await reviewGateway.createComment(params);
+      const comment = await run(
+        Effect.flatMap(ReviewGateway, (reviewGateway) => reviewGateway.createComment(params)),
+      );
       emitReviewEvent({
         type: "comment.created",
         reviewId: comment.reviewId,
@@ -218,7 +134,9 @@ export function createEngineBridgeHandlers({
       return comment;
     },
     ggReviewSetWorkflowStatus: async (params) => {
-      const response = await reviewGateway.setWorkflowStatus(params);
+      const response = await run(
+        Effect.flatMap(ReviewGateway, (reviewGateway) => reviewGateway.setWorkflowStatus(params)),
+      );
       emitReviewEvent({
         type: "workflow.statusChanged",
         reviewId: response.reviewId,
@@ -231,7 +149,15 @@ export function createEngineBridgeHandlers({
     ggReadTextFile: async ({ filePath }) => readTextFile(filePath),
     ggResolveMediaSourceURL: async ({ filePath }) => {
       try {
-        return await resolveMediaSourceURL(filePath);
+        const allowedMediaPath = resolveAllowedMediaFilePath(filePath, {
+          currentProjectPath: getCurrentProjectPath(),
+          tempDirectory: process.env.TMPDIR,
+        });
+        return await run(
+          Effect.flatMap(MediaSourceService, (mediaSourceService) =>
+            mediaSourceService.resolveMediaSourceURL(allowedMediaPath),
+          ),
+        );
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         console.warn(`ggResolveMediaSourceURL failed for "${filePath}": ${reason}`);

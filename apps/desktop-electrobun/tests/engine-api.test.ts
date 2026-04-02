@@ -1,3 +1,4 @@
+import { Layer } from "effect";
 import { beforeEach, describe, expect, test } from "bun:test";
 import { desktopApi, engineApi, parseInputEventLog, sendHostMenuState } from "@lib/engine";
 import { createBunBridgeHandlers, createWindowBridgeBindings } from "@shared/bridge";
@@ -10,6 +11,9 @@ import {
   MediaServerError,
 } from "@shared/errors";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
+import { EngineTransport } from "../src/bun/engine/service";
+import { MediaSourceService } from "../src/bun/media/service";
+import { createHostRuntime } from "../src/bun/runtime/hostRuntime";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -401,12 +405,19 @@ describe("renderer engine bridge", () => {
     delete process.env.GG_REVIEW_CONVEX_URL;
     delete process.env.VITE_CONVEX_URL;
 
+    const runtime = await createHostRuntime({
+      sendCaptureStatus: () => {},
+      enableCaptureStatusStream: false,
+      engineTransportLayer: Layer.succeed(EngineTransport, {} as never),
+      mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
+    });
+
     try {
       const handlers = createEngineBridgeHandlers({
-        engineClient: {} as never,
+        runtime,
         pickPath: async () => null,
         readTextFile: async () => "",
-        resolveMediaSourceURL: async () => "media://token",
+        getCurrentProjectPath: () => null,
         setCurrentProjectPath: () => {},
         emitReviewEvent: () => {},
       });
@@ -433,6 +444,7 @@ describe("renderer engine bridge", () => {
       } else {
         process.env.VITE_CONVEX_URL = originalViteConvexUrl;
       }
+      await runtime.dispose();
     }
   });
 
