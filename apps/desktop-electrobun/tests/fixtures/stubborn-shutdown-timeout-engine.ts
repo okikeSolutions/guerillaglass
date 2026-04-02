@@ -5,7 +5,9 @@ import path from "node:path";
 const statePath = path.join(os.tmpdir(), "guerillaglass-stubborn-shutdown.state");
 
 process.on("SIGTERM", () => {
+  fs.appendFileSync(statePath, "\nsigterm");
   setTimeout(() => {
+    fs.appendFileSync(statePath, "\nexit");
     process.exit(0);
   }, 1_500);
 });
