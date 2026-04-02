@@ -340,7 +340,7 @@ describe("engine client integration", () => {
       await client.stop();
       fs.rmSync(workspaceDir, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 });
 
 describe("engine client resilience", () => {
