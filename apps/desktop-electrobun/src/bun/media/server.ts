@@ -209,24 +209,25 @@ export class MediaServer {
     );
   }
 
-  private handleServerError(error: Error): Response {
-    console.warn(`Media server request failed (${error.name})`);
-    return this.response(500, "Internal server error");
+  private handleServerErrorEffect(error: Error): Effect.Effect<Response, never> {
+    return Effect.logWarning("Media server request failed", error).pipe(
+      Effect.zipRight(Effect.succeed(this.response(500, "Internal server error"))),
+    );
   }
 
   private startServer(host: string, port: number): ReturnType<typeof Bun.serve> {
     return Bun.serve({
       hostname: host,
       port,
-      fetch: (request) => this.handleRequest(request),
-      error: (error) => this.handleServerError(error),
+      fetch: (request) => runEffectPromise(this.handleRequestEffect(request)),
+      error: (error) => runEffectSync(this.handleServerErrorEffect(error)),
     });
   }
 
   private startServerEffect(
     host: string,
     port: number,
-  ): Effect.Effect<StartedMediaServer, unknown> {
+  ): Effect.Effect<StartedMediaServer, MediaServerError> {
     return Effect.try({
       try: () => {
         const server = this.startServer(host, port);
@@ -235,11 +236,13 @@ export class MediaServer {
           origin: `http://${host}:${server.port}`,
         };
       },
-      catch: (cause) => cause,
+      catch: (cause) => normalizeMediaBindError(cause),
     });
   }
 
-  private bindReservedServerEffect(host: string): Effect.Effect<StartedMediaServer, unknown> {
+  private bindReservedServerEffect(
+    host: string,
+  ): Effect.Effect<StartedMediaServer, MediaServerError> {
     return Effect.catchAll(reserveLoopbackPortEffect(host), () => Effect.sync(randomLoopbackPort))
       .pipe(Effect.flatMap((port) => this.startServerEffect(host, port)))
       .pipe(
@@ -323,101 +326,115 @@ export class MediaServer {
     };
   }
 
-  private async handleRequest(request: Request): Promise<Response> {
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return this.response(405, "Method not allowed", { allow: "GET, HEAD" });
-    }
-
-    const url = new URL(request.url);
-    if (!isLoopbackHost(url.hostname)) {
-      return this.response(403, "Forbidden");
-    }
-
-    const { token, response: tokenResponse } = this.tokenFromPath(url.pathname);
-    if (tokenResponse) {
-      if (mediaServerDebugLoggingEnabled) {
-        console.info(`Media server rejected path: ${request.method} ${url.pathname}`);
+  private handleRequestEffect(request: Request): Effect.Effect<Response, never> {
+    return Effect.gen(this, function* () {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return this.response(405, "Method not allowed", { allow: "GET, HEAD" });
       }
-      return tokenResponse;
-    }
-    if (!token) {
-      return this.response(400, "Bad request");
-    }
 
-    this.pruneTokens();
-    const entry = this.tokens.get(token);
-    if (!entry) {
-      if (mediaServerDebugLoggingEnabled) {
-        console.warn(`Media token not found (${token.slice(0, 8)}...)`);
+      const url = new URL(request.url);
+      if (!isLoopbackHost(url.hostname)) {
+        return this.response(403, "Forbidden");
       }
-      return this.response(404, "Not found");
-    }
 
-    const now = Date.now();
-    if (this.isTokenExpired(entry, now)) {
-      this.tokens.delete(token);
-      if (mediaServerDebugLoggingEnabled) {
-        console.warn(`Media token expired (${token.slice(0, 8)}...)`);
+      const { token, response: tokenResponse } = this.tokenFromPath(url.pathname);
+      if (tokenResponse) {
+        yield* this.logDebugEffect(`Media server rejected path: ${request.method} ${url.pathname}`);
+        return tokenResponse;
       }
-      return this.response(404, "Not found");
-    }
-
-    const file = Bun.file(entry.filePath);
-    if (!(await file.exists())) {
-      if (mediaServerDebugLoggingEnabled) {
-        console.warn(`Media file missing: ${entry.filePath}`);
+      if (!token) {
+        return this.response(400, "Bad request");
       }
-      return this.response(404, "Not found");
-    }
 
-    entry.lastAccessedAt = now;
-    const size = file.size;
-    const commonHeaders = this.mediaHeaders(entry.filePath);
-
-    const rangeHeader = request.headers.get("range");
-    if (!rangeHeader) {
-      if (mediaServerDebugLoggingEnabled) {
-        console.info(`Media served 200 (${token.slice(0, 8)}...) full file`);
+      const entry = yield* Effect.sync(() => {
+        this.pruneTokens();
+        return this.tokens.get(token) ?? null;
+      });
+      if (!entry) {
+        yield* this.logDebugWarningEffect(`Media token not found (${token.slice(0, 8)}...)`);
+        return this.response(404, "Not found");
       }
-      return new Response(request.method === "HEAD" ? null : file, {
-        status: 200,
+
+      const now = Date.now();
+      if (this.isTokenExpired(entry, now)) {
+        yield* Effect.sync(() => {
+          this.tokens.delete(token);
+        });
+        yield* this.logDebugWarningEffect(`Media token expired (${token.slice(0, 8)}...)`);
+        return this.response(404, "Not found");
+      }
+
+      const file = Bun.file(entry.filePath);
+      const exists = yield* Effect.tryPromise({
+        try: () => file.exists(),
+        catch: (cause) =>
+          new MediaServerError({
+            code: "MEDIA_FILE_MISSING",
+            description: messageFromUnknownError(cause, "Media file not found."),
+            cause,
+          }),
+      });
+      if (!exists) {
+        yield* this.logDebugWarningEffect(`Media file missing: ${entry.filePath}`);
+        return this.response(404, "Not found");
+      }
+
+      yield* Effect.sync(() => {
+        entry.lastAccessedAt = now;
+      });
+
+      const size = file.size;
+      const commonHeaders = this.mediaHeaders(entry.filePath);
+      const rangeHeader = request.headers.get("range");
+
+      if (!rangeHeader) {
+        yield* this.logDebugEffect(`Media served 200 (${token.slice(0, 8)}...) full file`);
+        return new Response(request.method === "HEAD" ? null : file, {
+          status: 200,
+          headers: {
+            ...commonHeaders,
+            "content-length": String(size),
+          },
+        });
+      }
+
+      const isMultiRangeRequest = rangeHeader.includes(",");
+      const parsedRange = parseByteRange(rangeHeader, size);
+      if (!parsedRange) {
+        yield* this.logDebugWarningEffect(
+          `Media invalid range 416 (${token.slice(0, 8)}...) range="${rangeHeader}"`,
+        );
+        return this.response(416, "Requested Range Not Satisfiable", {
+          "accept-ranges": "bytes",
+          "content-range": `bytes */${size}`,
+        });
+      }
+
+      const { start, end } = parsedRange;
+      const chunkSize = end - start + 1;
+      const chunk = file.slice(start, end + 1);
+
+      if (isMultiRangeRequest) {
+        yield* this.logDebugEffect(
+          `Media multi-range served first segment 206 (${token.slice(0, 8)}...) range="${rangeHeader}"`,
+        );
+      }
+
+      return new Response(request.method === "HEAD" ? null : chunk, {
+        status: 206,
         headers: {
           ...commonHeaders,
-          "content-length": String(size),
+          "content-length": String(chunkSize),
+          "content-range": `bytes ${start}-${end}/${size}`,
         },
       });
-    }
-
-    const isMultiRangeRequest = rangeHeader.includes(",");
-    const parsedRange = parseByteRange(rangeHeader, size);
-    if (!parsedRange) {
-      if (mediaServerDebugLoggingEnabled) {
-        console.warn(`Media invalid range 416 (${token.slice(0, 8)}...) range="${rangeHeader}"`);
-      }
-      return this.response(416, "Requested Range Not Satisfiable", {
-        "accept-ranges": "bytes",
-        "content-range": `bytes */${size}`,
-      });
-    }
-
-    const { start, end } = parsedRange;
-    const chunkSize = end - start + 1;
-    const chunk = file.slice(start, end + 1);
-
-    if (mediaServerDebugLoggingEnabled && isMultiRangeRequest) {
-      console.info(
-        `Media multi-range served first segment 206 (${token.slice(0, 8)}...) range="${rangeHeader}"`,
-      );
-    }
-
-    return new Response(request.method === "HEAD" ? null : chunk, {
-      status: 206,
-      headers: {
-        ...commonHeaders,
-        "content-length": String(chunkSize),
-        "content-range": `bytes ${start}-${end}/${size}`,
-      },
-    });
+    }).pipe(
+      Effect.catchAll((error) =>
+        Effect.logWarning("Media server request failed", error).pipe(
+          Effect.zipRight(Effect.succeed(this.response(500, "Internal server error"))),
+        ),
+      ),
+    );
   }
 
   private resolveMediaPathEffect(filePath: string): Effect.Effect<string, MediaServerError> {
@@ -474,7 +491,7 @@ export class MediaServer {
     });
   }
 
-  private resolveMediaSourceURLEffect(filePath: string): Effect.Effect<string, MediaServerError> {
+  resolveMediaSourceURLEffect(filePath: string): Effect.Effect<string, MediaServerError> {
     return this.resolveMediaPathEffect(filePath).pipe(
       Effect.flatMap((normalizedPath) =>
         this.ensureServerEffect().pipe(
@@ -512,16 +529,38 @@ export class MediaServer {
     return await runEffectPromise(this.resolveMediaSourceURLEffect(filePath));
   }
 
-  private stopEffect(): Effect.Effect<void> {
-    return Effect.sync(() => {
-      this.server?.stop();
-      this.server = null;
-      this.origin = null;
-      this.tokens.clear();
-    });
+  stopEffect(): Effect.Effect<void, MediaServerError> {
+    return Effect.try({
+      try: () => {
+        this.server?.stop();
+      },
+      catch: (cause) =>
+        new MediaServerError({
+          code: "MEDIA_SERVER_BIND_FAILED",
+          description: messageFromUnknownError(cause, "Unable to stop media playback server."),
+          cause,
+        }),
+    }).pipe(
+      Effect.asVoid,
+      Effect.ensuring(
+        Effect.sync(() => {
+          this.server = null;
+          this.origin = null;
+          this.tokens.clear();
+        }),
+      ),
+    );
   }
 
   stop(): void {
     runEffectSync(this.stopEffect());
+  }
+
+  private logDebugEffect(message: string): Effect.Effect<void, never> {
+    return mediaServerDebugLoggingEnabled ? Effect.logInfo(message) : Effect.void;
+  }
+
+  private logDebugWarningEffect(message: string): Effect.Effect<void, never> {
+    return mediaServerDebugLoggingEnabled ? Effect.logWarning(message) : Effect.void;
   }
 }
