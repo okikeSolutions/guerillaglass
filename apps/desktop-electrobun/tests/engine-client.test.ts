@@ -219,6 +219,128 @@ describe("engine client integration", () => {
       await client.stop();
     }
   }, 15_000);
+
+  test("exercises stub-backed agent, permission, export, and project wrappers", async () => {
+    const workspaceDir = fs.mkdtempSync(
+      path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-engine-client-"),
+    );
+    const transcriptPath = path.join(workspaceDir, "imported-transcript.json");
+    const projectPath = path.join(workspaceDir, "guerillaglass-project.gglassproj");
+    const outputPath = path.join(workspaceDir, "guerillaglass-cut-plan.mp4");
+    const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+
+    fs.writeFileSync(
+      transcriptPath,
+      JSON.stringify({
+        segments: [
+          {
+            text: "hook action payoff takeaway",
+            startSeconds: 0,
+            endSeconds: 4,
+          },
+        ],
+        words: [],
+      }),
+      "utf8",
+    );
+
+    try {
+      await client.start();
+
+      await expect(client.requestScreenRecordingPermission()).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(client.requestMicrophonePermission()).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(client.requestInputMonitoringPermission()).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(client.openInputMonitoringSettings()).resolves.toMatchObject({
+        success: true,
+      });
+
+      const opened = await client.projectOpen(projectPath);
+      expect(opened.projectPath).toBe(projectPath);
+
+      const started = await client.startCurrentWindowCapture(false);
+      expect(started.isRunning).toBe(true);
+
+      const recording = await client.startRecording(false);
+      expect(recording.isRecording).toBe(true);
+
+      const stoppedRecording = await client.stopRecording();
+      expect(stoppedRecording.isRecording).toBe(false);
+
+      const current = await client.projectCurrent();
+      expect(current.projectPath).toBe(projectPath);
+      expect(current.recordingURL).toBe("stub://recordings/session.mp4");
+
+      const saved = await client.projectSave({
+        projectPath,
+        autoZoom: {
+          isEnabled: true,
+          intensity: 0.7,
+          minimumKeyframeInterval: 0.25,
+        },
+      });
+      expect(saved.autoZoom).toMatchObject({
+        isEnabled: true,
+        intensity: 0.7,
+        minimumKeyframeInterval: 0.25,
+      });
+
+      const recents = await client.projectRecents(1);
+      expect(recents.items).toHaveLength(1);
+      expect(recents.items[0]?.projectPath).toBe(projectPath);
+
+      const preflight = await client.agentPreflight({
+        runtimeBudgetMinutes: 10,
+        transcriptionProvider: "imported_transcript",
+        importedTranscriptPath: transcriptPath,
+      });
+      expect(preflight.ready).toBe(true);
+      expect(preflight.preflightToken).toBeTruthy();
+
+      const run = await client.agentRun({
+        preflightToken: preflight.preflightToken!,
+        runtimeBudgetMinutes: 10,
+        transcriptionProvider: "imported_transcript",
+        importedTranscriptPath: transcriptPath,
+      });
+      expect(run.status).toBe("completed");
+
+      const status = await client.agentStatus(run.jobId);
+      expect(status.status).toBe("completed");
+      expect(status.qaReport?.passed).toBe(true);
+
+      await expect(client.agentApply({ jobId: run.jobId })).rejects.toThrow("needs_confirmation");
+
+      const applied = await client.agentApply({
+        jobId: run.jobId,
+        destructiveIntent: true,
+      });
+      expect(applied).toMatchObject({
+        success: true,
+      });
+
+      const exportResult = await client.runCutPlanExport({
+        outputURL: outputPath,
+        presetId: "stub-1080p30",
+        jobId: run.jobId,
+      });
+      expect(exportResult).toMatchObject({
+        outputURL: outputPath,
+        appliedSegments: 4,
+      });
+
+      const stoppedCapture = await client.stopCapture();
+      expect(stoppedCapture.isRunning).toBe(false);
+    } finally {
+      await client.stop();
+      fs.rmSync(workspaceDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("engine client resilience", () => {
@@ -488,7 +610,11 @@ describe("engine client resilience", () => {
         try {
           const ping = await client.ping();
           expect(ping.platform).toBe("linux");
-          expect(Date.now() - startedAt).toBeLessThan(1000);
+          expect(Date.now() - startedAt).toBeLessThan(3000);
+          const shutdownState = fs.readFileSync(STUBBORN_SHUTDOWN_STATE_PATH, "utf8");
+          expect(shutdownState).toContain("timed-out");
+          expect(shutdownState).toContain("sigterm");
+          expect(shutdownState).not.toContain("exit");
         } finally {
           await client.stop();
         }
