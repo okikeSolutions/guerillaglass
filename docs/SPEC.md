@@ -1,8 +1,8 @@
-# Spec.md — Guerilla Glass (Open-source Cross-Platform Creator Recorder & Editor)
+# Spec.md — Guerilla Glass (Open-source Local-First Creator Studio)
 
 ## 1) Goal
 
-Build an open-source, cross-platform creator recording studio that helps users move from capture to polished delivery quickly.
+Build an open-source, cross-platform, local-first creator studio that helps users move from capture to polished delivery quickly.
 
 Core product outcome:
 
@@ -21,10 +21,11 @@ Implementation strategy:
 
 Guerilla Glass should feel like a professional creator tool:
 
-- Fast record entry and reliable source/audio control (OBS-style operational capture discipline)
+- Fast record entry and reliable source/audio control
 - Viewer/timeline/inspector-first editing ergonomics (Final Cut/Resolve-style workstation flow)
 - Automatic polish with manual override (Screen Studio-style cinematic defaults)
-- Async review workflow in `Deliver` (frame-accurate comments, link sharing, presence) without moving capture/edit off native-local execution.
+- A local-first `record -> shape -> export` workflow where the recorder is useful on its own and the editor is the product’s center of gravity
+- A hosted review/collaboration workflow in `Deliver` that extends the local product for teams without gating local capture, edit, or export
 
 ---
 
@@ -61,8 +62,9 @@ Guerilla Glass should feel like a professional creator tool:
 
 - Live streaming (RTMP)
 - Cloud-first capture/edit dependency (capture/edit/export must not require network services)
-- Full cloud timeline collaboration suite
-- Anonymous cloud review/collaboration access
+- Full cloud review/collaboration suite
+- Subscription-gated local recording/editing core
+- Generic team workspace before the local editor is compelling
 - Full NLE feature set
 
 ---
@@ -70,7 +72,7 @@ Guerilla Glass should feel like a professional creator tool:
 ## 4) Platform & stack
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
-- **Web app/auth shell:** TanStack Start + Convex (`apps/web`)
+- **Web app shell:** TanStack Start + Convex (`apps/web`) for marketing/auth/review/billing surfaces; sequenced behind the editor-core work
 - **Protocol contract:** Effect Schema (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
   - `capture.status` telemetry is performance-first and includes `sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`, `cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `captureCallbackMs`, `recordQueueLagMs`, and `writerAppendMs`.
   - Runtime telemetry diagnostics are engine-owned and sampled from monotonic process/runtime counters (no renderer-side metric synthesis).
@@ -79,17 +81,17 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.startCurrentWindow` resolves the active frontmost shareable window in the engine, so renderer menu actions do not have to infer "current" from cached source ordering.
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 60 and 120 fps and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
-- **Review control plane (Phase 2.5+):** Convex query/mutation/action layer for review workflows (`shareLinks`, `comments`, `presence`, review statuses) and webhook-driven media state reconciliation.
-- **Contract split:** local media RPC stays in `packages/engine-protocol`; cloud review surfaces use a separate contract package (`packages/review-protocol`) so capture/edit/export methods remain clean and deterministic.
 - **Shared contract primitives:** reusable Effect Schema helpers that must stay aligned across protocol packages live in `packages/schema-primitives`.
-- **Authentication stack (Phase 2.5+):**
-  - Better Auth is the canonical identity/session provider for product access.
-  - Convex auth configuration validates Better Auth-issued identity tokens for cloud review/collaboration functions.
-  - Clerk is not part of the Guerilla Glass authentication architecture.
-- **Billing and entitlement stack (Phase 2.6+):**
-  - Convex Stripe component (`@convex-dev/stripe`) is the billing backbone for checkout, subscriptions, customer portal, and billing webhooks.
-  - Billing entitlements are server-enforced and map directly to paid cloud collaboration capabilities.
-  - Local capture/edit/export remains available regardless of billing state.
+- **Hosted delivery plane (deferred until editor core is strong):**
+  - Hosted review/collaboration lives in web/Convex surfaces and must remain downstream of the local editor.
+  - The hosted plane can own share links, comments, presence, workflow state, analytics, and billing without polluting the local media contract.
+- **Contract split:** local media RPC stays focused on capture/edit/export determinism; hosted review/collaboration uses separate contracts and backend surfaces.
+- **Authentication stack (for hosted surfaces):**
+  - Better Auth + Convex is the intended identity stack when hosted review/collaboration becomes a release-defining milestone.
+  - Authentication must not be required for local capture, edit, or export.
+- **Billing and entitlement stack (for hosted surfaces):**
+  - Billing applies only to hosted review/collaboration capabilities, not the local recorder/editor core.
+  - The local creator core remains available regardless of billing state.
 - **Native engines (per platform):**
   - macOS: Swift sidecar (`engines/macos-swift`) as current production capture/export path
   - Shared Rust native foundation: `engines/native-foundation` (runtime + protocol parity handlers reused by Windows/Linux sidecars)
@@ -152,13 +154,14 @@ Notes:
 - Project-based workflow (record once -> export many)
 - Fast time-to-first-recording
 - Automatic polish with manual override
+- Capture polish and editing depth before collaboration surfaces
 - Cross-platform parity via a shared protocol contract
 - Explicit determinism contract
 - Native-feeling UX per platform (HIG/OS conventions) and top-tier performance
-- Dual-plane architecture: local media plane (authoritative) + cloud review plane
-- Cloud review must fail open; local capture/edit/export remain available offline
-- Account-scoped collaboration: review/collab data must be tied to authenticated identities
-- Commercial model: open-source local creator core plus paid cloud collaboration tiers
+- Dual-plane architecture: local media plane (authoritative) + hosted delivery/review plane
+- Hosted review must fail open; local capture/edit/export remain available offline
+- Account-scoped collaboration for hosted workflows
+- Commercial model: local-first creator core plus paid hosted review/collaboration
 
 ---
 
@@ -187,14 +190,27 @@ Notes:
 - Aspect-ratio exports: 16:9, 9:16 (camera path re-planned per ratio)
 - Auto-zoom tuning: toggle, intensity, and minimum keyframe interval
 
-### 7.3 Basic editing (v1)
+### 7.3 Polished demo editing core
 
-- Trim in/out
+- Live preview during capture and edit; recording should not collapse to placeholder-only state while active.
 - Preview playback + scrubber + playback speed control
 - In `Edit`, the media element is the playback clock authority; transport/timeline state mirrors media play/pause/time events to avoid dual-clock drift.
 - Media source/waveform hydration should follow query-driven loading/caching flows instead of effect-chained state updates.
+- A true clip-based timeline model, not only global trim state:
+  - split/blade
+  - delete/lift
+  - reorder/move
+  - ripple-aware edits
 - Timeline tool discipline (`Select` / `Trim` / `Blade`) with snap/ripple toggles
 - Timeline zoom controls and per-lane lock/mute/solo controls
+- Editable polish controls:
+  - auto-zoom/camera keyframes with manual override
+  - cursor smoothing and click emphasis
+  - crop/reframe/redaction/highlight treatments for demos
+  - background framing and aspect-ratio-aware composition
+- Transcript/caption support:
+  - importable transcript baseline
+  - caption editing/export hooks as the editor matures
 
 ### 7.4 Export
 
@@ -379,125 +395,37 @@ Artifact contract (project-relative paths):
 - `analysis/cut-plan.v1.json`
 - `analysis/run-summary.v1.json`
 
-### 7.8 Deliver Review (cloud plane)
+### 7.8 Deliver, packaging, and hosted review
 
 Goal:
 
-- Add an async review layer in `Deliver` while preserving the existing local `Capture -> Edit -> Deliver (final export)` workflow as the default production path.
+- Make `Deliver` feel like the final polish/export surface for demos, and the eventual hosted review/collaboration surface for teams.
 
-Scope (Phase 2.5+):
+Scope:
 
-- Link-based review sharing with access controls (expiry, optional password, download policy).
-- Frame/time-accurate comments with threaded replies and resolved state.
-- Watcher presence and lightweight collaborator awareness for active review sessions.
-- Review workflow states (`review`, `rework`, `done`) separate from edit timeline state.
-- Async upload/transcode orchestration (direct upload + webhook status reconciliation) so UI stays responsive.
-- Playback source fallback policy (processed stream preferred when ready; original source fallback when unavailable).
-
-Performance patterns adapted from the Lawn reference implementation:
-
-- Intent-based route prewarm for likely next queries (`hover`/`focus`/`touch`) with debounce + dedupe + short-lived subscription extension.
-- Media network warmups (`preconnect`/`dns-prefetch`) for streaming origins.
-- Best-effort runtime and manifest prefetch for streamed playback paths.
-- Warmups must never block navigation or local editing actions.
+- Export presets and aspect-ratio-aware packaging remain first-class.
+- Delivery metadata can grow to include lightweight packaging features such as chapters, titles, and end-card treatments, but these must not displace the local editor core.
+- Hosted review/collaboration can grow to include link sharing, comments, presence, workflow state, and analytics for delivery workflows.
+- Hosted review/collaboration is explicitly secondary to the local `Capture -> Edit -> Deliver` workflow and must never gate local recording, editing, or deterministic export.
 
 Hard boundaries:
 
-- Convex/network paths are not allowed to gate `Capture`, `Edit`, or deterministic `Export`.
+- Network services are not allowed to gate `Capture`, `Edit`, or deterministic `Export`.
 - Native engine protocol remains focused on local media compute and project determinism.
-- Review data is additive metadata, not the source of truth for timeline edits or render determinism.
-- Review/collaboration mutations and protected reads require authenticated user identity.
+- Delivery metadata is additive metadata, not the source of truth for timeline edits or render determinism.
 
-### 7.9 Authentication & access control
+Sequencing:
 
-Identity and session policy:
+- The editor core is the immediate execution priority.
+- Hosted review/collaboration remains part of the product vision, but it should not outrun the local editor in roadmap priority.
 
-- Better Auth is the required authentication system for product access.
-- All cloud review and collaboration capabilities require logged-in users.
-- The Creator Studio workspace (`Capture`, `Edit`, `Deliver`) is account-gated in product mode; unauthenticated users are limited to auth/onboarding screens.
-- Existing authenticated sessions may continue local capture/edit/export during temporary network outages; new sign-in is required when session validity expires.
-- Implementation baseline follows the Convex Labs React integration guide for Better Auth (`framework-guides/react`) with these required constraints:
-  - `convex` version `>= 1.25.0`.
-  - `better-auth` pinned to `1.4.9` (`--save-exact`) until compatibility is revalidated and documented.
+### 7.9 Hosted account model and commercialization
 
-Authorization policy:
-
-- Convex public functions must validate identity on every protected request before data access.
-- Team/project/video resources enforce role-aware access (`owner`, `admin`, `member`, `viewer`) for reads and mutations.
-- Share links and access grants are secondary authorization layers and do not replace identity requirements for collaboration actions.
-- Audit attribution (actor identity + timestamp) is required for cloud review mutations (comments, review status changes, link administration).
-
-Required integration artifacts (Phase 2.5 baseline):
-
-- Dependency baseline:
-  - `@convex-dev/better-auth` installed in the web auth workspace (`apps/web`).
-  - `convex@latest` with runtime validation that installed version satisfies `>= 1.25.0`.
-  - `better-auth@1.4.9` pinned exactly.
-- Convex component registration:
-  - `apps/web/convex/convex.config.ts` uses `@convex-dev/better-auth/convex.config`.
-- Convex auth provider wiring:
-  - `apps/web/convex/auth.config.ts` provides `getAuthConfigProvider()` from `@convex-dev/better-auth/auth-config`.
-- Better Auth server instance:
-  - `apps/web/convex/auth.ts` initializes Better Auth with Convex adapter and plugins (`organization` with teams enabled, `convex`).
-  - Local Better Auth component install lives in `apps/web/convex/betterAuth/*` (component config, adapter, schema, generated schema/types).
-  - `trustedOrigins` must include product web origin(s) and local dev origin(s).
-- Better Auth HTTP handlers:
-  - `apps/web/convex/http.ts` mounts auth routes via `authComponent.registerRoutes(..., { cors: true })`.
-- Renderer auth client:
-  - `auth-client` uses `better-auth/react` with Convex client plugins (`convexClient`, `organizationClient`).
-- Renderer provider:
-  - App root wraps with `ConvexBetterAuthProvider`; Convex client should use `expectAuth: true` for account-gated product mode.
-- Environment baseline:
-  - Convex env: `BETTER_AUTH_SECRET`, `SITE_URL`.
-  - Renderer env: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL`, `VITE_SITE_URL`.
-  - For social auth providers, redirect/callback URLs must use the Convex site domain (`https://<deployment>.convex.site/api/auth/callback/<provider>`).
-
-### 7.10 Billing & entitlement model (Convex Stripe)
-
-Billing policy:
-
-- Paid cloud features are subscription-gated using Convex Stripe component data as the backend billing source of truth.
-- Local-first creator core (`Capture`, `Edit`, deterministic `Export`) remains available even if billing is inactive.
-- Collaboration/hosted review capabilities may be gated by active subscription entitlements.
-
-Billing integration baseline (Phase 2.6):
-
-- Component registration:
-  - `apps/web/convex/convex.config.ts` registers `@convex-dev/stripe/convex.config.js`.
-- Webhook routing:
-  - `apps/web/convex/http.ts` registers Stripe routes through `registerRoutes(...)` at `/stripe/webhook`.
-- Billing actions:
-  - `apps/web/convex/stripe.ts` defines authenticated actions for checkout and customer portal session creation.
-  - Billing actions must associate Stripe customers/subscriptions to authenticated app user/org identifiers.
-- Entitlement projection:
-  - Server-side projection derives capability flags from subscription status and seat quantity.
-  - Renderer consumes entitlement flags reactively and must not decide access from client-calculated billing logic.
-
-Required billing environment:
-
-- Convex env:
-  - `STRIPE_SECRET_KEY`
-  - `STRIPE_WEBHOOK_SECRET`
-- App env/config:
-  - Canonical Stripe price IDs for plan tiers (for example: `GG_STRIPE_PRICE_ID_PRO`, `GG_STRIPE_PRICE_ID_TEAM`).
-  - Success/cancel return URLs that map back to authenticated app routes.
-
-Webhook/event baseline:
-
-- Stripe webhook endpoint must target `https://<deployment>.convex.site/stripe/webhook`.
-- Required event coverage includes:
-  - `checkout.session.completed`
-  - `customer.created`, `customer.updated`
-  - `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
-  - `invoice.created`, `invoice.finalized`, `invoice.paid`, `invoice.payment_failed`
-  - `payment_intent.succeeded`, `payment_intent.payment_failed`
-
-Security and correctness constraints:
-
-- Checkout price selection must be server allowlisted (never trust client-submitted arbitrary price IDs).
-- Webhook signatures must be verified before mutating billing state.
-- Access control checks for paid cloud features must run server-side per request using entitlement projection.
-- Billing feature rollout must use `GG_BILLING_ENABLE_STRIPE`; if disabled or degraded, app falls back to non-billing local workflow.
+- Hosted review/collaboration must be tied to authenticated user or organization identity.
+- The intended commercial model is:
+  - local recorder/editor core that stands on its own
+  - paid recurring hosted review/collaboration features for teams
+- Billing, auth, and hosted permissions must apply only to the hosted plane and must never degrade the local core product promise.
 
 ---
 
@@ -551,7 +479,7 @@ Fallback behavior:
   - Same OS version
   - Same color space (SDR only in v1)
   - Same Metal feature set
-- Cloud review metadata does not participate in render determinism; determinism scope remains local pre-encode frame output.
+- Hosted review and delivery metadata do not participate in render determinism; determinism scope remains local pre-encode frame output.
 
 ---
 
@@ -562,11 +490,11 @@ Fallback behavior:
   - Avg CPU ≤ 20% (excluding encode spikes)
 - Export (1080p/60):
   - ≤ 1.5× realtime (target, not hard requirement)
-- Deliver review (target values):
-  - Review shell route transition remains interactive without blocking on media readiness.
-  - Intent prewarm defaults start at ~120ms debounce, ~3s dedupe, and ~8s subscription extension (tunable via instrumentation).
-  - Playback startup should fall back to the original source if processed stream readiness is delayed.
-  - Comment and presence updates should propagate in near-realtime (target p50 sub-second delivery).
+- Delivery workflow (target values):
+  - Route transitions between `Capture`, `Edit`, and `Deliver` remain interactive without blocking on media hydration.
+  - Export setup should stay responsive while preview/timeline state is active.
+  - Packaging metadata must never introduce drift between previewed and exported local output.
+  - Any hosted review surfaces must degrade without interrupting local export.
 
 ---
 
@@ -658,9 +586,7 @@ Versioning policy:
 6. Automation Planner (virtual camera)
 7. Renderer / Compositor
 8. Export Pipeline
-9. Review Control Plane (Convex domain model: teams/projects/videos/comments/share/presence)
-10. Upload & Transcode Orchestrator (signed uploads, processing state machine, webhook reconciliation)
-11. Review Contract Layer (`packages/review-protocol` for host/renderer/cloud payload schemas)
+9. Hosted delivery plane (review, comments, share, presence, analytics, auth, billing), sequenced behind the local editor core
 
 Desktop shell and sidecar reliability contract (current):
 
@@ -668,7 +594,7 @@ Desktop shell and sidecar reliability contract (current):
 - Request timeout policy is method-specific; `export.run` is non-timed by default to avoid aborting valid long exports.
 - Automatic retries are limited to read-only methods and transport failures.
 - Repeated crash loops open a restart circuit for a cooldown window before restart attempts resume.
-- Review-control failures must degrade to local-only workflow (no capture/edit/export interruption).
+- Any hosted delivery-plane failure must degrade to local-only workflow (no capture/edit/export interruption).
 
 ---
 
@@ -765,7 +691,7 @@ guerillaglass/
 - Typed protocol package shared across shell/runtime boundaries
 - Native Swift sidecar engine process for capture permissions/source discovery
 
-**Phase 1 — Recorder MVP**
+**Phase 1 — Capture/export baseline**
 
 - Production-grade macOS capture/export path
 - Display/window capture
@@ -776,38 +702,28 @@ guerillaglass/
 - Localization: keep desktop shell strings localizable
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
-**Phase 2 — Cinematic defaults**
+**Phase 2 — Polished demo editor core**
 
 - Input Monitoring-gated event tracking
 - Auto-zoom planning + constraints
 - Background framing
 - Vertical export with re-planned camera
-- Windows/Linux native engine parity expansion (capture/audio/export protocol coverage)
+- Live capture preview that remains useful while recording
+- True clip-based editing model (split/delete/reorder/ripple)
+- Crop/reframe/redaction/highlight treatments for demos
+- Transcript/caption editing baseline
 - Localization: add/refresh localized strings for all new UI and errors
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
-**Phase 2.5 — Deliver review acceleration (cloud plane)**
-
-- Convex-backed review control plane (`share`, `comments`, `presence`, review status metadata)
-- Contract split implementation (`packages/review-protocol`) without expanding native engine media scope
-- Async upload/transcode orchestration with webhook reconciliation for review playback readiness
-- Deliver-route intent prewarm and media warmup patterns for perceived-latency wins
-- Feature-flagged rollout with local-only fallback preserved
-
-**Phase 2.6 — Commercial access and billing (cloud plane)**
-
-- Convex Stripe component integration for checkout, subscriptions, invoices, and webhook sync
-- Entitlement projection service for paid cloud collaboration features
-- Team/seat billing support for organization collaboration flows
-- Hosted billing portal and subscription lifecycle controls
-- Feature-flagged rollout with local creator core unaffected by billing outages
-
-**Phase 3 — Polish**
+**Phase 3 — Packaging, hosted delivery, polish, and parity**
 
 - Motion blur controls
 - Per-segment overrides
 - Simulator auto-crop
 - Optional ProRes mezzanine
+- Delivery packaging improvements (chapters/titles/end-card style metadata where they fit)
+- Hosted sharing/review surfaces for teams
+- Account/auth/billing rollout for hosted features only
 - Cross-platform creator-workflow polish parity (menu, shortcuts, diagnostics, onboarding)
 - Localization: update strings for new controls, settings, and export options
 - Post‑localization polish audit (UI/UX, performance, accessibility)
@@ -945,12 +861,9 @@ License hygiene:
 - macOS Sequoia prompt details (reports) — https://9to5mac.com/2024/08/14/macos-sequoia-screen-recording-prompt-monthly/
 - Better Auth docs — https://www.better-auth.com/docs
 - Convex React docs — https://docs.convex.dev/client/react
-- Convex React quickstart — https://docs.convex.dev/quickstart/react
 - Convex TanStack Start quickstart — https://docs.convex.dev/quickstart/tanstack-start
 - Convex authentication docs — https://docs.convex.dev/auth
 - Convex Labs Better Auth React guide — https://labs.convex.dev/better-auth/framework-guides/react
-- Convex Stripe component — https://www.convex.dev/components/stripe
-- Convex Stripe README/API reference — https://github.com/get-convex/stripe
 - Screen Studio product site — https://screen.studio/
 - lawn pricing/product site — https://lawn.video/#pricing
 - DaVinci Resolve product page — https://www.blackmagicdesign.com/products/davinciresolve

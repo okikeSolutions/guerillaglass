@@ -139,88 +139,70 @@ Release workflow checklist:
 
 ---
 
-## 5) Deliver review acceleration track (Convex plane)
+## 5) Polished demo editor core track
 
-Reference requirements: `docs/SPEC.md` §7.8 and §16
+Reference requirements: `docs/SPEC.md` §7.3 and §7.8
 
-This track adds async review collaboration in `Deliver` while preserving local-first `Capture` and `Edit`.
+This track is the current product priority. It turns Creator Studio from a recorder/trimmer with polish settings into a real polished demo editor, which is the product wedge that should carry the broader vision.
 
-Contract and architecture checklist:
+Editing depth checklist:
 
-- [x] Add review contract package scaffold (`packages/review-protocol`) with Effect Schema models + fixtures for share/comment/presence payloads.
-- [x] Keep `packages/engine-protocol` focused on local native media operations (no review-specific method leakage).
-- [x] Add bridge request/message schema for review RPC and review realtime events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
-- [x] Add web app/auth scaffold (`apps/web`) using TanStack Start + Convex baseline wiring.
-- [ ] Define feature flag gate (`GG_REVIEW_ENABLE_CONVEX`) and fail-open behavior to local-only workflow.
+- [ ] Add true live preview during active recording instead of placeholder-only recording state.
+- [ ] Elevate display capture to a first-class primary record affordance alongside current-window capture.
+- [ ] Replace the synthetic single-clip timeline model with a real clip/segment data model.
+- [ ] Implement clip split/delete/lift/move operations and make the ripple toggle behavior real.
+- [ ] Add per-segment camera/zoom editing with manual keyframe override.
+- [ ] Add crop/reframe/redaction/highlight tools for demo-focused editing.
+- [ ] Add transcript import plus caption editing/export baseline.
+- [ ] Keep Agent Mode supportive of preview/timeline/inspector workflows rather than phase-defining.
 
-Authentication and access-control checklist:
+Delivery packaging checklist:
 
-- [ ] Integrate Better Auth as the canonical authentication layer for desktop product access.
-- [x] Implement Convex auth configuration and identity validation for protected review/collaboration functions.
-- [x] Enforce account-gated Creator Studio routes in product mode (`Capture`, `Edit`, `Deliver`).
-- [x] Enforce role-aware authorization (`owner`, `admin`, `member`, `viewer`) across review domains.
-- [x] Remove/avoid Clerk dependencies in cloud review/collab surfaces.
-- [x] Add audit attribution for review mutations (actor identity + timestamp).
-- [x] Implement against Convex Labs Better Auth React guide (`framework-guides/react`) as canonical wiring baseline.
-- [x] Add `@convex-dev/better-auth` component wiring (`convex.config.ts`, `auth.config.ts`, `auth.ts`, `http.ts`).
-- [x] Enforce dependency baseline: `convex >= 1.25.0` and `better-auth@1.4.9` pinned exactly until compatibility matrix update.
-- [x] Add renderer auth client wiring (`better-auth/react` + Convex client plugins + `ConvexBetterAuthProvider` with account-gated mode).
-- [ ] Validate required environment variables and startup errors for missing auth config.
-- [x] Configure Better Auth `trustedOrigins` and provider callbacks against Convex site auth routes.
+- [ ] Expand `Deliver` beyond preset selection into a real packaging surface.
+- [ ] Add lightweight packaging metadata such as chapters/titles/end-card treatments where they improve demo delivery.
+- [ ] Keep all packaging metadata local-first and deterministic with respect to exported media.
 
-Lawn-adapted performance checklist:
+Groundwork already present:
 
-- [ ] Implement intent-based review route prewarm (`hover`/`focus`/`touch`) with debounce/dedupe/subscription-extension defaults.
-- [ ] Add media-origin warmup strategy (`preconnect`, `dns-prefetch`, runtime prefetch, manifest prefetch) for review playback routes.
-- [ ] Ensure warmups remain best-effort and never block route transitions.
-- [ ] Add playback source fallback policy for review (`processed stream -> original source`).
+- [x] Editor-first shell baseline exists (`Capture` / `Edit` / `Deliver`).
+- [x] Timeline toolbar and lane surface exist.
+- [x] Auto-zoom and background-framing settings exist in the inspector.
+- [x] Deliver/export route exists as a local surface.
+- [x] Imported-transcript protocol groundwork exists for later caption/transcript editing.
 
-Review workflow checklist:
+Sequencing note:
 
-- [ ] Implement link sharing controls (expiry, optional password, download policy, access grants).
-- [ ] Implement frame/time-accurate threaded comments with resolved state.
-- [ ] Implement watcher presence heartbeats + disconnect handling.
-- [ ] Implement review workflow status model (`review`, `rework`, `done`) in Deliver surfaces.
-
-Upload/transcode and reliability checklist:
-
-- [ ] Implement signed upload flow + upload completion validation.
-- [ ] Implement transcode readiness reconciliation via verified webhooks.
-- [ ] Add idempotent error handling + retry-safe state transitions for upload/transcode lifecycle.
-- [ ] Instrument review perceived-latency SLOs and expose regression checks.
+- Existing web/auth/review scaffolding remains in the repo as groundwork for the hosted delivery/commercialization vision.
+- Hosted delivery remains part of the destination product, but it is not the current release-defining milestone while the editor core checklist above is still incomplete.
 
 ---
 
-## 6) Billing commercialization track (Convex Stripe plane)
+## 6) Hosted delivery and commercialization track
 
-Reference requirements: `docs/SPEC.md` §7.10 and §18
+Reference requirements: `docs/SPEC.md` §7.8–§7.9
 
-This track adds paid cloud collaboration billing without regressing local creator workflows.
+This track preserves the overarching product vision: Guerilla Glass should eventually extend the local creator studio with hosted review/collaboration for teams. It is intentionally sequenced after the editor core work, but it is not an abandoned or optional direction.
 
-Billing architecture checklist:
+Hosted delivery checklist:
 
-- [ ] Register `@convex-dev/stripe` component in `apps/web/convex/convex.config.ts`.
-- [ ] Register Stripe webhook HTTP routes in `apps/web/convex/http.ts` at `/stripe/webhook`.
-- [ ] Add billing integration module (`apps/web/convex/stripe.ts`) for checkout/portal actions.
-- [ ] Ensure billing actions require authenticated identity and map to user/org records.
-- [ ] Implement server-side entitlement projection from subscription status and seat quantity.
-- [ ] Add bridge request/message schema for billing RPC/events in `apps/desktop-electrobun/src/shared/bridgeRpc.ts`.
+- [ ] Add hosted share-link publishing from `Deliver`.
+- [ ] Add timestamp comments/replies and lightweight review workflow state.
+- [ ] Add presence, review status, and delivery analytics where they materially improve team collaboration.
+- [ ] Add authenticated user/org identity for hosted surfaces only.
+- [ ] Add hosted permissions and visibility controls without polluting the local media contract.
+- [ ] Add billing/entitlement for hosted collaboration features only.
+- [ ] Preserve fail-open local behavior when hosted services are unavailable or the user is not on a paid plan.
 
-Plan/pricing and product-gating checklist:
+Groundwork already present:
 
-- [ ] Define canonical Stripe products/prices for launch plans and map to app entitlement tiers.
-- [ ] Add server allowlist for accepted price IDs (reject arbitrary client-submitted prices).
-- [ ] Gate paid cloud review/collaboration features on entitlement flags.
-- [ ] Keep local `Capture`/`Edit`/deterministic `Export` available regardless of billing state.
-- [ ] Add org/seat update flows and role checks for team plan administration.
+- [x] Web shell exists under `apps/web`.
+- [x] Convex backend/auth scaffolding exists under `apps/web/convex`.
+- [x] `packages/review-protocol` exists for hosted review contract evolution.
 
-Reliability and compliance checklist:
+Sequencing note:
 
-- [ ] Configure required Convex env vars (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`).
-- [ ] Configure and validate required webhook events (`checkout`, `subscription`, `invoice`, `payment_intent` lifecycle).
-- [ ] Add webhook signature validation and idempotent event processing semantics.
-- [ ] Add billing outage/degraded-mode behavior with non-blocking local fallback.
-- [ ] Add billing observability: checkout conversion funnel, webhook failure alerts, entitlement mismatch alerts.
+- The editor core remains the immediate priority because it determines whether the local product is compelling on its own.
+- Hosted delivery work should advance enough to avoid contract drift and clarify the destination, but it must not outrun local capture/edit/export quality.
 
 ---
 
@@ -240,7 +222,7 @@ Progress (current repo)
 - [x] Effect Schema protocol package added
 - [x] Native Swift `guerillaglass-engine` target added
 
-**Phase 1 — Recorder MVP**
+**Phase 1 — Capture/export baseline**
 
 - Production-grade macOS capture/export path
 - Display/window capture
@@ -265,14 +247,16 @@ Progress (current repo)
 - [x] Post‑localization polish audit (UI/UX, performance, accessibility)
 - [x] Creator Studio shell alignment (tracked in `docs/ROADMAP.md` §2)
 
-**Phase 2 — Cinematic defaults**
+**Phase 2 — Polished demo editor core**
 
 - Input Monitoring-gated event tracking
 - Auto-zoom planning + constraints
 - Background framing
 - Vertical export with re-planned camera
-- Agent Mode v1 (Guerilla Glass-native, local-only rough-cut pipeline)
-- Windows/Linux native engine parity expansion (capture/audio/export protocol coverage)
+- Live capture preview that remains useful while recording
+- True clip-based editing model (split/delete/reorder/ripple)
+- Crop/reframe/redaction/highlight treatments for demos
+- Transcript/caption editing baseline
 - Localization: add/refresh localized strings for all new UI and errors
 - Post‑localization polish audit (UI/UX, performance, accessibility)
 
@@ -280,68 +264,26 @@ Progress (current repo)
 
 - [x] Input Monitoring permission flow + event tracking
 - [x] Auto-zoom planning + constraints (planner + renderer wiring + UI tuning)
-- [x] Agent Mode protocol surface (`agent.preflight`, `agent.run`, `agent.status`, `agent.apply`, `export.runCutPlan`) across TypeScript/Swift/Rust contracts
-- [x] Agent Mode v1 artifact contract persisted inside project packages (`analysis/*.v1.json`)
-- [x] Narrative QA hard gate enforced for apply/export cut-plan operations
-- [x] Project schema v4 migration path for agent-analysis metadata index
-- [x] Deterministic local agent pipeline service with frame-based cut plans and canonical `run-summary` manifest
-- [x] Agent preflight token handshake (`agent.run` requires `preflightToken`) and explicit imported transcript contract
-- [x] Imported-transcript runs use transcript-driven beat coverage (no duration-only QA gating for short clips)
-- [x] Agent status semantics refined: `weak_narrative_structure` vs `empty_transcript` for clearer automation branching
-- [x] Desktop engine client validation normalization + raw RPC diagnostic path (`sendRaw`) for deterministic agent-debug workflows
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
+- [ ] Live preview remains useful during recording
+- [ ] True clip-based editing model implemented
+- [ ] Crop/reframe/redaction/highlight tools implemented
+- [ ] Transcript/caption editing baseline implemented
 - [ ] Windows native capture/audio/export parity milestones
 - [ ] Linux native capture/audio/export parity milestones
 - [ ] Localization updated for Phase 2 UI
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
 
-**Phase 2.5 — Deliver review acceleration (cloud plane)**
-
-- Better Auth + Convex auth integration for account-gated product access
-- Convex-backed review control plane (`share`, `comments`, `presence`, review status metadata)
-- Contract split implementation (`packages/review-protocol`) without expanding native engine media scope
-- Async upload/transcode orchestration with webhook reconciliation for review playback readiness
-- Deliver-route intent prewarm and media warmup patterns for perceived-latency wins
-- Feature-flagged rollout with local-only fallback preserved
-
-Progress (current repo)
-
-- [x] Review contract package scaffolded with fixtures and validation
-- [x] Desktop bridge routes review snapshot/comment/status RPC to Convex and emits `hostReviewEvent` for mutation updates
-- [x] Web app/auth scaffolded in `apps/web` with TanStack Start + Convex dev wiring
-- [x] Better Auth session flows wired for account-gated workspace access
-- [x] Convex auth enforcement wired for protected review/collab functions
-- [ ] Share-link access controls + grants implemented
-- [ ] Threaded frame/time comments implemented in Deliver review UI
-- [ ] Presence heartbeat/watcher flow implemented
-- [ ] Upload/transcode webhook reconciliation wired for review readiness
-- [ ] Review-route warmup and playback fallback policy implemented
-- [ ] Review SLO instrumentation + regression checks added
-
-**Phase 2.6 — Commercial access and billing (cloud plane)**
-
-- Convex Stripe component integration for checkout, subscriptions, invoices, and webhook sync
-- Entitlement projection service for paid cloud collaboration features
-- Team/seat billing support for organization collaboration flows
-- Hosted billing portal and subscription lifecycle controls
-- Feature-flagged rollout with local creator core unaffected by billing outages
-
-Progress (current repo)
-
-- [ ] Stripe component registration and webhook route wiring complete
-- [ ] Checkout and customer-portal actions implemented with auth enforcement
-- [ ] Canonical price-tier mapping and server allowlist implemented
-- [ ] Entitlement projection and paid-cloud feature gating implemented
-- [ ] Team/seat billing lifecycle controls implemented
-- [ ] Billing observability and alerting implemented
-
-**Phase 3 — Polish**
+**Phase 3 — Packaging, hosted delivery, polish, and parity**
 
 - Motion blur controls
 - Per-segment overrides
 - Simulator auto-crop
 - Optional ProRes mezzanine
+- Delivery packaging improvements (chapters/titles/end-card style metadata where they fit)
+- Hosted sharing/review surfaces for teams
+- Account/auth/billing rollout for hosted features only
 - Cross-platform creator-workflow polish parity (menu, shortcuts, diagnostics, onboarding)
 - Localization: update strings for new controls, settings, and export options
 - Post‑localization polish audit (UI/UX, performance, accessibility)
@@ -352,6 +294,9 @@ Progress (current repo)
 - [ ] Per-segment overrides
 - [ ] Simulator auto-crop
 - [ ] Optional ProRes mezzanine
+- [ ] Delivery packaging improvements
+- [ ] Hosted sharing/review surfaces for teams
+- [ ] Account/auth/billing rollout for hosted features only
 - [ ] Cross-platform creator-workflow polish parity
 - [ ] Localization updated for Phase 3 UI
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
