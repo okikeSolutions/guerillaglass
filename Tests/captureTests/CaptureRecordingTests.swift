@@ -86,6 +86,37 @@ final class CaptureRecordingTests: XCTestCase {
         XCTAssertTrue(hasWriterTiming)
     }
 
+    func testStartRecordingUsesLatestCompleteFrameSeedWhenCaptureIsStatic() async throws {
+        let engine = CaptureEngine()
+        await MainActor.run {
+            engine.setRunning(true)
+        }
+
+        let seedSample = try makeVideoSampleBuffer(presentationTime: .zero)
+        engine.cacheLatestCompleteVideoSample(seedSample)
+
+        try await engine.startRecording()
+
+        let isRecording = await waitForCondition {
+            await MainActor.run { engine.isRecording }
+        }
+        XCTAssertTrue(isRecording)
+
+        await engine.stopRecording()
+
+        let stopped = await waitForCondition {
+            await MainActor.run { !engine.isRecording }
+        }
+        XCTAssertTrue(stopped)
+
+        let outputURL = await MainActor.run { engine.recordingURL }
+        XCTAssertNotNil(outputURL)
+        if let outputURL {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+    }
+
     func testStartRecordingFailsWhenPrimingDoesNotStabilizeInTime() async {
         let engine = CaptureEngine()
         await MainActor.run {
@@ -157,37 +188,6 @@ final class CaptureRecordingTests: XCTestCase {
         }
         XCTAssertTrue(cleared)
     }
-}
-
-private extension CaptureRecordingTests {
-    func waitForCondition(
-        timeoutNanoseconds: UInt64 = 1_500_000_000,
-        pollNanoseconds: UInt64 = 20_000_000,
-        condition: @escaping () async -> Bool
-    ) async -> Bool {
-        let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
-        while DispatchTime.now().uptimeNanoseconds < deadline {
-            if await condition() {
-                return true
-            }
-            try? await Task.sleep(nanoseconds: pollNanoseconds)
-        }
-        return await condition()
-    }
-
-    func makeVideoSampleBuffer(presentationTime: CMTime) throws -> CMSampleBuffer {
-        let width = 16
-        let height = 16
-        var pixelBuffer: CVPixelBuffer?
-        let attributes: CFDictionary = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
-            kCVPixelBufferCGBitmapContextCompatibilityKey: true
-        ] as CFDictionary
-        let pixelBufferStatus = CVPixelBufferCreate(
-            kCFAllocatorDefault,
-            width,
-            height,
-            kCVPixelFormatType_32BGRA,
 
     func testCachePreviewSampleProducesLivePreviewFrame() async throws {
         let engine = CaptureEngine()
@@ -221,6 +221,37 @@ private extension CaptureRecordingTests {
 
         XCTAssertNil(engine.latestPreviewFrame())
     }
+}
+
+private extension CaptureRecordingTests {
+    func waitForCondition(
+        timeoutNanoseconds: UInt64 = 1_500_000_000,
+        pollNanoseconds: UInt64 = 20_000_000,
+        condition: @escaping () async -> Bool
+    ) async -> Bool {
+        let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
+        while DispatchTime.now().uptimeNanoseconds < deadline {
+            if await condition() {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: pollNanoseconds)
+        }
+        return await condition()
+    }
+
+    func makeVideoSampleBuffer(presentationTime: CMTime) throws -> CMSampleBuffer {
+        let width = 16
+        let height = 16
+        var pixelBuffer: CVPixelBuffer?
+        let attributes: CFDictionary = [
+            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey: true
+        ] as CFDictionary
+        let pixelBufferStatus = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
             attributes,
             &pixelBuffer
         )

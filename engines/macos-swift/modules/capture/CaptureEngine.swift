@@ -26,6 +26,8 @@ public final class CaptureEngine: NSObject, ObservableObject {
     private var startupContinuation: CheckedContinuation<Void, Error>?
     private var startupResult: Result<Void, Error>?
     private var startupHandshakeNeedsSampleResolution = false
+    private let latestCompleteVideoSampleLock = NSLock()
+    private var latestCompleteVideoSample: CMSampleBuffer?
     private let recordingActivationStateLock = NSLock()
     private var recordingActivationContinuation: CheckedContinuation<Void, Error>?
     private var recordingActivationResult: Result<Void, Error>?
@@ -112,9 +114,10 @@ public final class CaptureEngine: NSObject, ObservableObject {
     public func startDisplayCapture(enableMic: Bool = false, targetFrameRate: Int = 30) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        clearPreviewFrame()
+        clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
-        clearPreviewFrame()
         debugLog("startDisplayCapture begin frameRate=\(frameRate) mic=\(enableMic)")
 
         try await ensureScreenCaptureAccess()
@@ -178,6 +181,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             }
             stream = nil
             isRunning = false
+            clearLatestCompleteVideoSample()
             clearStartupHandshake()
             audioCapture.stop()
             throw error
@@ -192,11 +196,12 @@ public final class CaptureEngine: NSObject, ObservableObject {
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        clearPreviewFrame()
+        clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
         debugLog("startWindowCapture begin windowID=\(windowID) frameRate=\(frameRate) mic=\(enableMic)")
 
-        clearPreviewFrame()
         try await ensureScreenCaptureAccess()
         if enableMic {
             try await audioCapture.start()
@@ -270,6 +275,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             }
             stream = nil
             isRunning = false
+            clearLatestCompleteVideoSample()
             clearStartupHandshake()
             audioCapture.stop()
             throw error
@@ -302,13 +308,14 @@ public final class CaptureEngine: NSObject, ObservableObject {
 
     @MainActor
     public func stopCapture() async {
+        clearPreviewFrame()
+        clearLatestCompleteVideoSample()
         guard let stream else { return }
         if isRecording {
             await stopRecording()
         }
         try? await stream.stopCapture()
         audioCapture.stop()
-        clearPreviewFrame()
         isRunning = false
         startCaptureTask?.cancel()
         startCaptureTask = nil
@@ -522,6 +529,26 @@ extension CaptureEngine {
         frameRate >= 120 ? 550_000_000 : 400_000_000
     }
 
+    func cacheLatestCompleteVideoSample(_ sampleBuffer: CMSampleBuffer) {
+        latestCompleteVideoSampleLock.lock()
+        latestCompleteVideoSample = sampleBuffer
+        latestCompleteVideoSampleLock.unlock()
+    }
+
+    func latestCompleteVideoSeedSample() -> CMSampleBuffer? {
+        latestCompleteVideoSampleLock.lock()
+        defer {
+            latestCompleteVideoSampleLock.unlock()
+        }
+        return latestCompleteVideoSample
+    }
+
+    func clearLatestCompleteVideoSample() {
+        latestCompleteVideoSampleLock.lock()
+        latestCompleteVideoSample = nil
+        latestCompleteVideoSampleLock.unlock()
+    }
+
     func recordActivationTimeoutIfNeeded(frameRate: Int) {
         let timeoutNanoseconds = primingTimeoutNanoseconds(for: frameRate)
         recordingActivationTask?.cancel()
@@ -594,6 +621,8 @@ extension CaptureEngine {
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        clearPreviewFrame()
+        clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
         debugLog("startCapture(using:) begin frameRate=\(frameRate) mic=\(enableMic)")
@@ -621,7 +650,6 @@ extension CaptureEngine {
             configuration.minimumFrameInterval = CaptureFrameIntervalStrategy.minimumFrameInterval(
                 for: frameRate
             )
-        clearPreviewFrame()
             configuration.showsCursor = true
             configuration.queueDepth = streamQueueDepth
 
@@ -659,6 +687,7 @@ extension CaptureEngine {
             }
             stream = nil
             isRunning = false
+            clearLatestCompleteVideoSample()
             clearStartupHandshake()
             audioCapture.stop()
             throw error

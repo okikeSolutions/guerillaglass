@@ -51,6 +51,9 @@ public extension CaptureEngine {
                 )
                 engine.resetRecordingActivation()
                 engine.recordActivationTimeoutIfNeeded(frameRate: expectedFrameRate)
+                if let seedSample = engine.latestCompleteVideoSeedSample() {
+                    engine.activateRecordingFromPrimedSamples([seedSample])
+                }
                 continuation.resume()
             }
         }
@@ -246,34 +249,7 @@ private extension CaptureEngine {
             return
         }
 
-        do {
-            let outputURL = recordingState.outputURL ?? makeRecordingURL()
-            let writer = try AssetWriter(
-                outputURL: outputURL,
-                configuration: AssetWriter.Configuration(
-                    fileType: .mov,
-                    codec: .h264,
-                    expectedFrameRate: recordingState.expectedFrameRate
-                )
-            )
-            guard let firstStableSample = nextPrimingState.bufferedFrames.first else {
-                throw CaptureError.captureStartUnstable(frameRate: recordingState.expectedFrameRate)
-            }
-
-            recordingState.outputURL = outputURL
-            recordingState.writer = writer
-            recordingState.videoBaseTime = CMSampleBufferGetPresentationTimeStamp(firstStableSample)
-            recordingState.lastDurationUpdate = 0
-            recordingState.phase = .recording
-
-            for primedSample in nextPrimingState.bufferedFrames {
-                appendActiveRecordingSample(primedSample)
-            }
-            resolveRecordingActivation(.success(()))
-        } catch {
-            recordingState = RecordingState()
-            resolveRecordingActivation(.failure(error))
-        }
+        activateRecordingFromPrimedSamples(nextPrimingState.bufferedFrames)
     }
 
     func appendActiveRecordingSample(_ sampleBuffer: CMSampleBuffer) {
@@ -298,6 +274,37 @@ private extension CaptureEngine {
 
         writer.appendVideo(sampleBuffer: sampleBuffer) { [weak self] sample in
             self?.recordWriterAppendSample(sample)
+        }
+    }
+
+    func activateRecordingFromPrimedSamples(_ primedSamples: [CMSampleBuffer]) {
+        do {
+            let outputURL = recordingState.outputURL ?? makeRecordingURL()
+            let writer = try AssetWriter(
+                outputURL: outputURL,
+                configuration: AssetWriter.Configuration(
+                    fileType: .mov,
+                    codec: .h264,
+                    expectedFrameRate: recordingState.expectedFrameRate
+                )
+            )
+            guard let firstPrimedSample = primedSamples.first else {
+                throw CaptureError.captureStartUnstable(frameRate: recordingState.expectedFrameRate)
+            }
+
+            recordingState.outputURL = outputURL
+            recordingState.writer = writer
+            recordingState.videoBaseTime = CMSampleBufferGetPresentationTimeStamp(firstPrimedSample)
+            recordingState.lastDurationUpdate = 0
+            recordingState.phase = .recording
+
+            for primedSample in primedSamples {
+                appendActiveRecordingSample(primedSample)
+            }
+            resolveRecordingActivation(.success(()))
+        } catch {
+            recordingState = RecordingState()
+            resolveRecordingActivation(.failure(error))
         }
     }
 }
