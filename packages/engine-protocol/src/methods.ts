@@ -24,6 +24,7 @@ export const engineMethods = {
   RecordingStart: "recording.start",
   RecordingStop: "recording.stop",
   CaptureStatus: "capture.status",
+  CapturePreviewFrame: "capture.previewFrame",
   ExportInfo: "export.info",
   ExportRun: "export.run",
   ExportRunCutPlan: "export.runCutPlan",

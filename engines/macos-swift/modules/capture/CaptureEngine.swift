@@ -18,6 +18,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
     private let sampleQueueKey = DispatchSpecificKey<Void>()
     let recordingQueue = DispatchQueue(label: "gg.capture.recording")
     let telemetryStore = CaptureTelemetryStore()
+    let livePreviewStore = CapturePreviewStore()
     private var stream: SCStream?
     private var startCaptureTask: Task<Void, Never>?
     var recordingActivationTask: Task<Void, Never>?
@@ -113,6 +114,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         resetTelemetry()
         hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
+        clearPreviewFrame()
         debugLog("startDisplayCapture begin frameRate=\(frameRate) mic=\(enableMic)")
 
         try await ensureScreenCaptureAccess()
@@ -194,6 +196,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
         debugLog("startWindowCapture begin windowID=\(windowID) frameRate=\(frameRate) mic=\(enableMic)")
 
+        clearPreviewFrame()
         try await ensureScreenCaptureAccess()
         if enableMic {
             try await audioCapture.start()
@@ -305,6 +308,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         }
         try? await stream.stopCapture()
         audioCapture.stop()
+        clearPreviewFrame()
         isRunning = false
         startCaptureTask?.cancel()
         startCaptureTask = nil
@@ -617,6 +621,7 @@ extension CaptureEngine {
             configuration.minimumFrameInterval = CaptureFrameIntervalStrategy.minimumFrameInterval(
                 for: frameRate
             )
+        clearPreviewFrame()
             configuration.showsCursor = true
             configuration.queueDepth = streamQueueDepth
 

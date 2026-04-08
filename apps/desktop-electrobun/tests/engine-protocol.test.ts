@@ -6,6 +6,7 @@ import {
   agentStatusResultSchema,
   buildRequest,
   capabilitiesResultSchema,
+  capturePreviewFrameResultSchema,
   captureStatusResultSchema,
   engineRequestSchema,
   exportInfoResultSchema,
@@ -82,6 +83,7 @@ describe("engine protocol", () => {
       captureFps: 120,
     });
     const startRecordingRequest = buildRequest("recording.start", { trackInputEvents: true });
+    const capturePreviewFrameRequest = buildRequest("capture.previewFrame", {});
     const agentPreflightRequest = buildRequest("agent.preflight", {
       runtimeBudgetMinutes: 10,
       transcriptionProvider: "none",
@@ -121,6 +123,9 @@ describe("engine protocol", () => {
     );
     expect(decodeSchemaSync(engineRequestSchema, startRecordingRequest).method).toBe(
       "recording.start",
+    );
+    expect(decodeSchemaSync(engineRequestSchema, capturePreviewFrameRequest).method).toBe(
+      "capture.previewFrame",
     );
     expect(decodeSchemaSync(engineRequestSchema, agentPreflightRequest).method).toBe(
       "agent.preflight",
@@ -222,6 +227,11 @@ describe("engine protocol", () => {
       telemetry: captureTelemetryFixture,
     });
 
+    const capturePreviewFrame = decodeSchemaSync(capturePreviewFrameResultSchema, {
+      frameId: 12,
+      bytesBase64: "ZmFrZS1wcmV2aWV3LWJ5dGVz",
+    });
+
     const exportInfo = decodeSchemaSync(exportInfoResultSchema, {
       presets: [
         {
@@ -290,6 +300,7 @@ describe("engine protocol", () => {
     expect(captureStatus.eventsURL).toBeNull();
     expect(captureStatus.captureMetadata?.source).toBe("window");
     expect(captureStatus.captureMetadata?.window?.id).toBe(42);
+    expect(capturePreviewFrame?.frameId).toBe(12);
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
     expect(projectState.agentAnalysis.latestJobId).toBe("job-123");

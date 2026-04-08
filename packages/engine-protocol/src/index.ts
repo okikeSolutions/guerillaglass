@@ -216,6 +216,12 @@ export const captureTelemetrySchema = Schema.Struct({
   writerAppendMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
 });
 
+/** Lightweight shell preview frame payload returned by `capture.previewFrame`. */
+export const capturePreviewFrameSchema = Schema.Struct({
+  frameId: NonNegativeInt,
+  bytesBase64: NonEmptyString,
+});
+
 /** Result payload for capture and recording lifecycle methods. */
 export const captureStatusResultSchema = Schema.Struct({
   isRunning: Schema.Boolean,
@@ -229,6 +235,9 @@ export const captureStatusResultSchema = Schema.Struct({
     default: createDefaultCaptureTelemetry,
   }),
 });
+
+/** Result payload for the latest cached live preview frame. */
+export const capturePreviewFrameResultSchema = Schema.NullOr(capturePreviewFrameSchema);
 
 /** Export preset descriptor returned by `export.info`. */
 export const exportPresetSchema = Schema.Struct({
@@ -613,6 +622,13 @@ export const captureStatusRequestSchema = Schema.Struct({
   params: emptyParamsProperty,
 });
 
+/** Engine protocol schema for capturePreviewFrameRequestSchema. */
+export const capturePreviewFrameRequestSchema = Schema.Struct({
+  ...requestBaseFields,
+  method: Schema.Literal(engineMethods.CapturePreviewFrame),
+  params: emptyParamsProperty,
+});
+
 /** Engine protocol schema for exportInfoRequestSchema. */
 export const exportInfoRequestSchema = Schema.Struct({
   ...requestBaseFields,
@@ -702,6 +718,7 @@ export const engineRequestSchema = Schema.Union(
   recordingStartRequestSchema,
   recordingStopRequestSchema,
   captureStatusRequestSchema,
+  capturePreviewFrameRequestSchema,
   exportInfoRequestSchema,
   exportRunRequestSchema,
   exportRunCutPlanRequestSchema,
@@ -773,8 +790,12 @@ export type SourcesResult = MutableSchemaType<typeof sourcesResultSchema>;
 export type CaptureFrameRate = MutableSchemaType<typeof captureFrameRateSchema>;
 /** Type alias for CaptureTelemetry. */
 export type CaptureTelemetry = MutableSchemaType<typeof captureTelemetrySchema>;
+/** Type alias for CapturePreviewFrame. */
+export type CapturePreviewFrame = MutableSchemaType<typeof capturePreviewFrameSchema>;
 /** Type alias for CaptureStatusResult. */
 export type CaptureStatusResult = MutableSchemaType<typeof captureStatusResultSchema>;
+/** Type alias for CapturePreviewFrameResult. */
+export type CapturePreviewFrameResult = MutableSchemaType<typeof capturePreviewFrameResultSchema>;
 /** Type alias for ExportPreset. */
 export type ExportPreset = MutableSchemaType<typeof exportPresetSchema>;
 /** Type alias for ExportInfoResult. */

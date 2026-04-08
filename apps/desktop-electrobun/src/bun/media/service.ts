@@ -1,13 +1,20 @@
 import { Context, Effect, Layer } from "effect";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-protocol";
 import { MediaServer } from "./server";
 
-type MediaServerLike = Pick<MediaServer, "resolveMediaSourceURLEffect" | "stopEffect">;
+type MediaServerLike = Pick<
+  MediaServer,
+  "resolveMediaSourceURLEffect" | "resolveCapturePreviewURLEffect" | "stopEffect"
+>;
 
 /** Effect service contract for resolving signed media source URLs. */
 export type MediaSourceServiceType = {
   resolveMediaSourceURL: (
     filePath: string,
   ) => ReturnType<MediaServerLike["resolveMediaSourceURLEffect"]>;
+  resolveCapturePreviewURL: (
+    loadPreviewFrame: () => Promise<CapturePreviewFrameResult>,
+  ) => ReturnType<MediaServerLike["resolveCapturePreviewURLEffect"]>;
 };
 
 /** Effect service tag for media URL resolution in the Bun host. */
@@ -20,6 +27,8 @@ export class MediaSourceService extends Context.Tag("@guerillaglass/desktop/Medi
 export function makeMediaSourceService(server: MediaServerLike): MediaSourceServiceType {
   return {
     resolveMediaSourceURL: (filePath) => server.resolveMediaSourceURLEffect(filePath),
+    resolveCapturePreviewURL: (loadPreviewFrame) =>
+      server.resolveCapturePreviewURLEffect(loadPreviewFrame),
   };
 }
 

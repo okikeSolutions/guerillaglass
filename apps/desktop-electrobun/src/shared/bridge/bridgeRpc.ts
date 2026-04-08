@@ -5,6 +5,7 @@ import {
   agentStatusResultSchema,
   autoZoomSettingsSchema,
   captureFrameRateSchema,
+  capturePreviewFrameResultSchema,
   captureStatusResultSchema,
   exportInfoResultSchema,
   exportRunCutPlanResultSchema,
@@ -20,6 +21,7 @@ import {
   type ActionResult,
   type AutoZoomSettings,
   type CaptureFrameRate,
+  type CapturePreviewFrameResult,
   type CaptureStatusResult,
   type ExportInfoResult,
   type ExportRunCutPlanResult,
@@ -104,6 +106,10 @@ export const resolveMediaSourceURLRequestSchema = Schema.Struct({
   filePath: Schema.NonEmptyString,
 });
 export const resolveMediaSourceURLResponseSchema = Schema.NonEmptyString;
+/** Host bridge schema for resolving the loopback live-preview URL. */
+export const resolveCapturePreviewURLRequestSchema = Schema.Undefined;
+/** Tokenized loopback preview URL served by the Bun media server. */
+export const resolveCapturePreviewURLResponseSchema = Schema.NonEmptyString;
 export const hostReviewEventMessageSchema = Schema.Struct({
   event: reviewBridgeEventSchema,
 });
@@ -366,6 +372,11 @@ export const bridgeRequestDefinitions = {
     undefinedBridgeParamsSchema,
     captureStatusResultSchema,
   ),
+  ggEngineCapturePreviewFrame: defineValidatedBridgeRequest<
+    undefined,
+    CapturePreviewFrameResult,
+    []
+  >(() => undefined, undefinedBridgeParamsSchema, capturePreviewFrameResultSchema),
   ggEngineExportInfo: defineValidatedBridgeRequest<undefined, ExportInfoResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
@@ -458,6 +469,11 @@ export const bridgeRequestDefinitions = {
     }),
     resolveMediaSourceURLRequestSchema,
     resolveMediaSourceURLResponseSchema,
+  ),
+  ggResolveCapturePreviewURL: defineValidatedBridgeRequest<undefined, string, []>(
+    () => undefined,
+    resolveCapturePreviewURLRequestSchema,
+    resolveCapturePreviewURLResponseSchema,
   ),
 } as const;
 

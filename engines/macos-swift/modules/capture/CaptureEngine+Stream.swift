@@ -25,6 +25,7 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
 
         guard status == nil || status == .complete else { return }
 
+        cachePreviewSample(sampleBuffer)
         appendVideoSample(sampleBuffer)
     }
 
@@ -33,6 +34,7 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
         resolveStartupHandshakeIfNeeded(.failure(error))
         audioCapture.stop()
         Task { @MainActor in
+        clearPreviewFrame()
             self.setRunning(false)
             self.lastError = error.localizedDescription
         }

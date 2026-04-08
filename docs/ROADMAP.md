@@ -147,7 +147,7 @@ This track is the current product priority. It turns Creator Studio from a recor
 
 Editing depth checklist:
 
-- [ ] Add true live preview during active recording instead of placeholder-only recording state.
+- [x] Add true live preview during active recording instead of placeholder-only recording state.
 - [ ] Elevate display capture to a first-class primary record affordance alongside current-window capture.
 - [ ] Replace the synthetic single-clip timeline model with a real clip/segment data model.
 - [ ] Implement clip split/delete/lift/move operations and make the ripple toggle behavior real.

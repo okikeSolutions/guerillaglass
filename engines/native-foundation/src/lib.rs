@@ -931,6 +931,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
             success(&request.id, state.capture_status())
         }
         EngineMethod::CaptureStatus => success(&request.id, state.capture_status()),
+        EngineMethod::CapturePreviewFrame => success(&request.id, json!(null)),
         EngineMethod::ExportInfo => success(
             &request.id,
             json!({

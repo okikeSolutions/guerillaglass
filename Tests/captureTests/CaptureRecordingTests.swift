@@ -188,6 +188,39 @@ private extension CaptureRecordingTests {
             width,
             height,
             kCVPixelFormatType_32BGRA,
+
+    func testCachePreviewSampleProducesLivePreviewFrame() async throws {
+        let engine = CaptureEngine()
+
+        try engine.cachePreviewSample(makeVideoSampleBuffer(presentationTime: .zero))
+
+        let previewAvailable = await waitForCondition {
+            engine.latestPreviewFrame() != nil
+        }
+        XCTAssertTrue(previewAvailable)
+
+        let previewFrame = engine.latestPreviewFrame()
+        XCTAssertNotNil(previewFrame)
+        XCTAssertEqual(previewFrame?.frameId, 1)
+        XCTAssertFalse(previewFrame?.bytesBase64.isEmpty ?? true)
+    }
+
+    func testStopCaptureClearsCachedLivePreviewFrame() async throws {
+        let engine = CaptureEngine()
+
+        try engine.cachePreviewSample(makeVideoSampleBuffer(presentationTime: .zero))
+        let previewAvailable = await waitForCondition {
+            engine.latestPreviewFrame() != nil
+        }
+        XCTAssertTrue(previewAvailable)
+
+        await MainActor.run {
+            engine.setRunning(true)
+        }
+        await engine.stopCapture()
+
+        XCTAssertNil(engine.latestPreviewFrame())
+    }
             attributes,
             &pixelBuffer
         )

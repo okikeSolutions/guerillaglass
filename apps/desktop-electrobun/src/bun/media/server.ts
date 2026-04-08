@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import path from "node:path";
 import { Effect } from "effect";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-protocol";
 import {
   MediaServerError,
   messageFromUnknownError,
@@ -28,16 +29,30 @@ type ByteRange = {
 };
 
 type MediaTokenEntry = {
+  kind: "file";
   filePath: string;
   createdAt: number;
   lastAccessedAt: number;
 };
+
+type PreviewTokenEntry = {
+  kind: "capturePreview";
+  createdAt: number;
+  lastAccessedAt: number;
+  loadPreviewFrame: () => Promise<CapturePreviewFrameResult>;
+  cachedFrameId: number | null;
+  cachedJPEGBytes: Uint8Array | null;
+};
+
+type TokenEntry = MediaTokenEntry | PreviewTokenEntry;
 
 type TokenPathResult = { token: string; response: null } | { token: null; response: Response };
 type StartedMediaServer = {
   server: ReturnType<typeof Bun.serve>;
   origin: string;
 };
+
+const livePreviewMimeType = "image/jpeg";
 
 function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   const trimmedRangeHeader = rangeHeader.trim();
@@ -186,11 +201,11 @@ function reserveLoopbackPortEffect(host: string): Effect.Effect<number, MediaSer
   });
 }
 
-/** Loopback-only media server that mints temporary file-backed playback URLs. */
+/** Loopback-only media server that mints temporary media and live-preview URLs. */
 export class MediaServer {
   private server: ReturnType<typeof Bun.serve> | null = null;
   private origin: string | null = null;
-  private readonly tokens = new Map<string, MediaTokenEntry>();
+  private readonly tokens = new Map<string, TokenEntry>();
 
   private response(status: number, body: string, headers: Record<string, string> = {}): Response {
     return new Response(body, {
@@ -202,7 +217,10 @@ export class MediaServer {
     });
   }
 
-  private isTokenExpired(entry: MediaTokenEntry, now: number): boolean {
+  private isTokenExpired(entry: TokenEntry, now: number): boolean {
+    if (entry.kind === "capturePreview") {
+      return now - entry.lastAccessedAt > mediaTokenIdleTtlMs;
+    }
     return (
       now - entry.createdAt > mediaTokenAbsoluteTtlMs ||
       now - entry.lastAccessedAt > mediaTokenIdleTtlMs
@@ -326,44 +344,82 @@ export class MediaServer {
     };
   }
 
-  private handleRequestEffect(request: Request): Effect.Effect<Response, never> {
+  private previewHeaders(contentLength: number): Record<string, string> {
+    return {
+      ...mediaSecurityHeaders(),
+      "content-type": livePreviewMimeType,
+      "content-length": String(contentLength),
+    };
+  }
+
+  private decodePreviewFrame(
+    entry: PreviewTokenEntry,
+    frame: NonNullable<CapturePreviewFrameResult>,
+  ): Uint8Array {
+    if (entry.cachedFrameId === frame.frameId && entry.cachedJPEGBytes) {
+      return entry.cachedJPEGBytes;
+    }
+
+    const nextBytes = Uint8Array.from(Buffer.from(frame.bytesBase64, "base64"));
+    entry.cachedFrameId = frame.frameId;
+    entry.cachedJPEGBytes = nextBytes;
+    return nextBytes;
+  }
+
+  private handlePreviewRequestEffect(
+    request: Request,
+    token: string,
+    entry: PreviewTokenEntry,
+  ): Effect.Effect<Response, MediaServerError> {
     return Effect.gen(this, function* () {
-      if (request.method !== "GET" && request.method !== "HEAD") {
-        return this.response(405, "Method not allowed", { allow: "GET, HEAD" });
-      }
-
-      const url = new URL(request.url);
-      if (!isLoopbackHost(url.hostname)) {
-        return this.response(403, "Forbidden");
-      }
-
-      const { token, response: tokenResponse } = this.tokenFromPath(url.pathname);
-      if (tokenResponse) {
-        yield* this.logDebugEffect(`Media server rejected path: ${request.method} ${url.pathname}`);
-        return tokenResponse;
-      }
-      if (!token) {
-        return this.response(400, "Bad request");
-      }
-
-      const entry = yield* Effect.sync(() => {
-        this.pruneTokens();
-        return this.tokens.get(token) ?? null;
+      const frame = yield* Effect.tryPromise({
+        try: () => entry.loadPreviewFrame(),
+        catch: (cause) =>
+          new MediaServerError({
+            code: "MEDIA_SERVER_BIND_FAILED",
+            description: messageFromUnknownError(cause, "Unable to read live capture preview."),
+            cause,
+          }),
       });
-      if (!entry) {
-        yield* this.logDebugWarningEffect(`Media token not found (${token.slice(0, 8)}...)`);
+
+      if (!frame) {
+        if (entry.cachedJPEGBytes) {
+          yield* this.logDebugEffect(
+            `Live preview served cached frame (${token.slice(0, 8)}...) frame=${entry.cachedFrameId ?? 0}`,
+          );
+          return new Response(
+            request.method === "HEAD" ? null : Buffer.from(entry.cachedJPEGBytes),
+            {
+              status: 200,
+              headers: this.previewHeaders(entry.cachedJPEGBytes.byteLength),
+            },
+          );
+        }
+
+        yield* this.logDebugWarningEffect(
+          `Live preview frame unavailable (${token.slice(0, 8)}...)`,
+        );
         return this.response(404, "Not found");
       }
 
-      const now = Date.now();
-      if (this.isTokenExpired(entry, now)) {
-        yield* Effect.sync(() => {
-          this.tokens.delete(token);
-        });
-        yield* this.logDebugWarningEffect(`Media token expired (${token.slice(0, 8)}...)`);
-        return this.response(404, "Not found");
-      }
+      const jpegBytes = this.decodePreviewFrame(entry, frame);
+      yield* this.logDebugEffect(
+        `Live preview served 200 (${token.slice(0, 8)}...) frame=${frame.frameId}`,
+      );
 
+      return new Response(request.method === "HEAD" ? null : Buffer.from(jpegBytes), {
+        status: 200,
+        headers: this.previewHeaders(jpegBytes.byteLength),
+      });
+    });
+  }
+
+  private handleFileRequestEffect(
+    request: Request,
+    token: string,
+    entry: MediaTokenEntry,
+  ): Effect.Effect<Response, MediaServerError> {
+    return Effect.gen(this, function* () {
       const file = Bun.file(entry.filePath);
       const exists = yield* Effect.tryPromise({
         try: () => file.exists(),
@@ -378,10 +434,6 @@ export class MediaServer {
         yield* this.logDebugWarningEffect(`Media file missing: ${entry.filePath}`);
         return this.response(404, "Not found");
       }
-
-      yield* Effect.sync(() => {
-        entry.lastAccessedAt = now;
-      });
 
       const size = file.size;
       const commonHeaders = this.mediaHeaders(entry.filePath);
@@ -428,6 +480,56 @@ export class MediaServer {
           "content-range": `bytes ${start}-${end}/${size}`,
         },
       });
+    });
+  }
+
+  private handleRequestEffect(request: Request): Effect.Effect<Response, never> {
+    return Effect.gen(this, function* () {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return this.response(405, "Method not allowed", { allow: "GET, HEAD" });
+      }
+
+      const url = new URL(request.url);
+      if (!isLoopbackHost(url.hostname)) {
+        return this.response(403, "Forbidden");
+      }
+
+      const { token, response: tokenResponse } = this.tokenFromPath(url.pathname);
+      if (tokenResponse) {
+        yield* this.logDebugEffect(`Media server rejected path: ${request.method} ${url.pathname}`);
+        return tokenResponse;
+      }
+      if (!token) {
+        return this.response(400, "Bad request");
+      }
+
+      const entry = yield* Effect.sync(() => {
+        this.pruneTokens();
+        return this.tokens.get(token) ?? null;
+      });
+      if (!entry) {
+        yield* this.logDebugWarningEffect(`Media token not found (${token.slice(0, 8)}...)`);
+        return this.response(404, "Not found");
+      }
+
+      const now = Date.now();
+      if (this.isTokenExpired(entry, now)) {
+        yield* Effect.sync(() => {
+          this.tokens.delete(token);
+        });
+        yield* this.logDebugWarningEffect(`Media token expired (${token.slice(0, 8)}...)`);
+        return this.response(404, "Not found");
+      }
+
+      yield* Effect.sync(() => {
+        entry.lastAccessedAt = now;
+      });
+
+      if (entry.kind === "capturePreview") {
+        return yield* this.handlePreviewRequestEffect(request, token, entry);
+      }
+
+      return yield* this.handleFileRequestEffect(request, token, entry);
     }).pipe(
       Effect.catchAll((error) =>
         Effect.logWarning("Media server request failed", error).pipe(
@@ -510,6 +612,7 @@ export class MediaServer {
                 const token = randomUUID();
                 const now = Date.now();
                 this.tokens.set(token, {
+                  kind: "file",
                   filePath: normalizedPath,
                   createdAt: now,
                   lastAccessedAt: now,
@@ -525,8 +628,49 @@ export class MediaServer {
     );
   }
 
+  resolveCapturePreviewURLEffect(
+    loadPreviewFrame: () => Promise<CapturePreviewFrameResult>,
+  ): Effect.Effect<string, MediaServerError> {
+    return this.ensureServerEffect().pipe(
+      Effect.flatMap(() =>
+        Effect.try({
+          try: () => {
+            this.pruneTokens();
+            const origin = this.origin;
+            if (!origin) {
+              throw new MediaServerError({
+                code: "MEDIA_SERVER_BIND_FAILED",
+                description: "Unable to bind media playback server.",
+              });
+            }
+
+            const token = randomUUID();
+            const now = Date.now();
+            this.tokens.set(token, {
+              kind: "capturePreview",
+              createdAt: now,
+              lastAccessedAt: now,
+              loadPreviewFrame,
+              cachedFrameId: null,
+              cachedJPEGBytes: null,
+            });
+
+            return `${origin}/media/${encodeURIComponent(token)}`;
+          },
+          catch: (cause) => normalizeMediaBindError(cause),
+        }),
+      ),
+    );
+  }
+
   async resolveMediaSourceURL(filePath: string): Promise<string> {
     return await runEffectPromise(this.resolveMediaSourceURLEffect(filePath));
+  }
+
+  async resolveCapturePreviewURL(
+    loadPreviewFrame: () => Promise<CapturePreviewFrameResult>,
+  ): Promise<string> {
+    return await runEffectPromise(this.resolveCapturePreviewURLEffect(loadPreviewFrame));
   }
 
   stopEffect(): Effect.Effect<void, MediaServerError> {

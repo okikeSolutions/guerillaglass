@@ -225,6 +225,7 @@ describe("renderer engine bridge", () => {
           ],
         }),
       ggResolveMediaSourceURL: async () => "media://token",
+      ggResolveCapturePreviewURL: async () => "http://127.0.0.1:42424/media/preview-token",
       ggHostSendMenuState: (state: unknown) => {
         lastMenuState = state;
       },
@@ -258,6 +259,7 @@ describe("renderer engine bridge", () => {
     const picked = await desktopApi.pickPath({ mode: "export" });
     const eventsRaw = await desktopApi.readTextFile("/tmp/events.json");
     const mediaSourceURL = await desktopApi.resolveMediaSourceURL("/tmp/out.mp4");
+    const capturePreviewURL = await desktopApi.resolveCapturePreviewURL();
     sendHostMenuState({
       canSave: true,
       canExport: true,
@@ -293,6 +295,7 @@ describe("renderer engine bridge", () => {
     expect(recentProjects.items).toHaveLength(1);
     expect(picked).toBe("/tmp");
     expect(mediaSourceURL).toBe("media://token");
+    expect(capturePreviewURL).toBe("http://127.0.0.1:42424/media/preview-token");
     expect(lastMenuState).toEqual({
       canSave: true,
       canExport: true,
@@ -337,6 +340,14 @@ describe("renderer engine bridge", () => {
       expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
       expect((error as Error).message).toBe("Media file could not be found.");
     }
+  });
+
+  test("rejects invalid capture preview URL payloads at the bridge contract boundary", async () => {
+    installWindowBridge({
+      ggResolveCapturePreviewURL: async () => "",
+    });
+
+    await expect(desktopApi.resolveCapturePreviewURL()).rejects.toBeInstanceOf(ContractDecodeError);
   });
 
   test("rejects invalid host path picker payloads at the bridge contract boundary", async () => {

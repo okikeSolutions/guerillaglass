@@ -3,6 +3,7 @@ import {
   agentRunResultSchema,
   agentStatusResultSchema,
   actionResultSchema,
+  capturePreviewFrameResultSchema,
   captureStatusResultSchema,
   defaultCaptureFrameRate,
   exportInfoResultSchema,
@@ -16,6 +17,7 @@ import {
   sourcesResultSchema,
   type AutoZoomSettings,
   type CaptureFrameRate,
+  type CapturePreviewFrameResult,
   type CaptureStatusResult,
   type InputEvent,
   type PermissionsResult,
@@ -27,6 +29,7 @@ import {
 import type { HostMenuState, HostPathPickerMode, WindowBridgeBindings } from "@shared/bridge";
 import {
   pickPathResponseSchema,
+  resolveCapturePreviewURLResponseSchema,
   readTextFileResponseSchema,
   resolveMediaSourceURLResponseSchema,
 } from "@shared/bridge";
@@ -272,6 +275,14 @@ export const engineApi = {
     );
   },
 
+  async capturePreviewFrame(): Promise<CapturePreviewFrameResult> {
+    return await invokeBridgeDecoded(
+      "ggEngineCapturePreviewFrame",
+      capturePreviewFrameResultSchema,
+      "capture preview frame result",
+    );
+  },
+
   async exportInfo() {
     return await invokeBridgeDecoded(
       "ggEngineExportInfo",
@@ -377,6 +388,14 @@ export const desktopApi = {
       resolveMediaSourceURLResponseSchema,
       "media source URL result",
       filePath,
+    );
+  },
+
+  async resolveCapturePreviewURL(): Promise<string> {
+    return await invokeBridgeDecoded(
+      "ggResolveCapturePreviewURL",
+      resolveCapturePreviewURLResponseSchema,
+      "capture preview URL result",
     );
   },
 };

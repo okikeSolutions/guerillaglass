@@ -5,6 +5,9 @@ import { describe, expect, test } from "bun:test";
 import { MediaServer } from "../src/bun/media/server";
 import { MediaServerError } from "@shared/errors";
 
+const livePreviewBytes = Buffer.from("preview-frame", "utf8");
+const livePreviewBase64 = livePreviewBytes.toString("base64");
+
 async function createTempFile(
   fileName: string,
   contents: string,
@@ -333,6 +336,83 @@ describe("media server", () => {
       serve.restore();
       server.stop();
       await fixture.cleanup();
+    }
+  });
+
+  test("serves loopback live preview tokens from the latest cached frame", async () => {
+    const server = new MediaServer();
+    const serve = mockBunServe();
+    let previewCalls = 0;
+
+    try {
+      const resolved = await server.resolveCapturePreviewURL(async () => {
+        previewCalls += 1;
+        return {
+          frameId: 7,
+          bytesBase64: livePreviewBase64,
+        };
+      });
+
+      const response = await serve.dispatch(resolved);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/jpeg");
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      expect(Buffer.from(await response.arrayBuffer())).toEqual(livePreviewBytes);
+      expect(previewCalls).toBe(1);
+
+      const secondResponse = await serve.dispatch(resolved, { method: "HEAD" });
+      expect(secondResponse.status).toBe(200);
+      expect(secondResponse.headers.get("content-length")).toBe(String(livePreviewBytes.length));
+      expect(await secondResponse.text()).toBe("");
+      expect(previewCalls).toBe(2);
+    } finally {
+      serve.restore();
+      server.stop();
+    }
+  });
+
+  test("returns 404 when the live preview token has no frame yet", async () => {
+    const server = new MediaServer();
+    const serve = mockBunServe();
+
+    try {
+      const resolved = await server.resolveCapturePreviewURL(async () => null);
+      const response = await serve.dispatch(resolved);
+      expect(response.status).toBe(404);
+    } finally {
+      serve.restore();
+      server.stop();
+    }
+  });
+
+  test("does not expire active live preview tokens based on absolute age alone", async () => {
+    const server = new MediaServer();
+    const serve = mockBunServe();
+
+    try {
+      const resolved = await server.resolveCapturePreviewURL(async () => ({
+        frameId: 3,
+        bytesBase64: livePreviewBase64,
+      }));
+      const token = tokenFromResolvedURL(resolved);
+      const tokenEntry = (
+        server as unknown as {
+          tokens: Map<string, { createdAt: number; lastAccessedAt: number }>;
+        }
+      ).tokens.get(token);
+      expect(tokenEntry).toBeTruthy();
+      if (!tokenEntry) {
+        throw new Error("Expected preview token entry.");
+      }
+      tokenEntry.createdAt = 0;
+      tokenEntry.lastAccessedAt = Date.now();
+
+      const response = await serve.dispatch(resolved);
+      expect(response.status).toBe(200);
+      expect(Buffer.from(await response.arrayBuffer())).toEqual(livePreviewBytes);
+    } finally {
+      serve.restore();
+      server.stop();
     }
   });
 

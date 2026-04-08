@@ -45,6 +45,15 @@ extension EngineService {
         ])
     }
 
+    private func capturePreviewFramePayload(
+        from previewFrame: CapturePreviewFrameSnapshot
+    ) -> JSONValue {
+        .object([
+            "frameId": .number(Double(previewFrame.frameId)),
+            "bytesBase64": .string(previewFrame.bytesBase64)
+        ])
+    }
+
     func startDisplayResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
         let enableMic = params["enableMic"]?.boolValue ?? false
         guard let captureFps = resolveCaptureFrameRate(from: params) else {
@@ -222,5 +231,11 @@ extension EngineService {
                 "telemetry": telemetryPayload(from: telemetry)
             ])
         )
+    }
+
+    func capturePreviewFrameResponse(id: String) -> EngineResponse {
+        let previewFramePayload = captureEngine.latestPreviewFrame().map(capturePreviewFramePayload)
+            ?? .null
+        return .success(id: id, result: previewFramePayload)
     }
 }

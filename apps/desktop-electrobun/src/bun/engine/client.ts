@@ -8,6 +8,7 @@ import {
   actionResultSchema,
   capabilitiesResultSchema,
   buildRequest,
+  capturePreviewFrameResultSchema,
   captureStatusResultSchema,
   defaultCaptureFrameRate,
   engineResponseSchema,
@@ -21,6 +22,7 @@ import {
   sourcesResultSchema,
   type AgentRunResult,
   type AutoZoomSettings,
+  type CapturePreviewFrameResult,
   type CaptureStatusResult,
   type CaptureFrameRate,
   type EngineRequest,
@@ -276,6 +278,13 @@ const engineMethodDefinitions = {
     timeoutMs: 5000,
     retryableRead: true,
   } satisfies EngineMethodDefinition<typeof captureStatusResultSchema, []>,
+  capturePreviewFrame: {
+    method: "capture.previewFrame",
+    toParams: emptyParams,
+    schema: capturePreviewFrameResultSchema,
+    timeoutMs: 5000,
+    retryableRead: true,
+  } satisfies EngineMethodDefinition<typeof capturePreviewFrameResultSchema, []>,
   exportInfo: {
     method: "export.info",
     toParams: emptyParams,
@@ -934,6 +943,15 @@ export class EngineClient {
 
   async captureStatus() {
     return await runEffectPromise(this.captureStatusEffect());
+  }
+
+  capturePreviewFrameEffect() {
+    const definition = engineMethodDefinitions.capturePreviewFrame;
+    return this.methodEffect(definition);
+  }
+
+  async capturePreviewFrame(): Promise<CapturePreviewFrameResult> {
+    return await runEffectPromise(this.capturePreviewFrameEffect());
   }
 
   exportInfoEffect() {

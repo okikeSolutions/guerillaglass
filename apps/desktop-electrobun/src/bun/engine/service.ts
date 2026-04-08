@@ -5,6 +5,7 @@ import {
   type AgentStatusResult,
   type AutoZoomSettings,
   type CaptureFrameRate,
+  type CapturePreviewFrameResult,
   type CaptureStatusResult,
   type ExportInfoResult,
   type ExportRunCutPlanResult,
@@ -82,6 +83,7 @@ export type EngineTransportService = {
   ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
   stopRecording: Effect.Effect<CaptureStatusResult, EngineTransportError>;
   captureStatus: Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  capturePreviewFrame: Effect.Effect<CapturePreviewFrameResult, EngineTransportError>;
   exportInfo: Effect.Effect<ExportInfoResult, EngineTransportError>;
   runExport: (params: {
     outputURL: string;
@@ -125,6 +127,7 @@ type EngineClientLike = Pick<
   | "startRecording"
   | "stopRecording"
   | "captureStatus"
+  | "capturePreviewFrame"
   | "exportInfo"
   | "runExport"
   | "runCutPlanExport"
@@ -250,6 +253,9 @@ export function makeEngineTransport(client: EngineClientLike): EngineTransportSe
       wrapClientEffect("recording.start", () => client.startRecording(trackInputEvents)),
     stopRecording: wrapClientEffect("recording.stop", () => client.stopRecording()),
     captureStatus: wrapClientEffect("capture.status", () => client.captureStatus()),
+    capturePreviewFrame: wrapClientEffect("capture.previewFrame", () =>
+      client.capturePreviewFrame(),
+    ),
     exportInfo: wrapClientEffect("export.info", () => client.exportInfo()),
     runExport: (params) => wrapClientEffect("export.run", () => client.runExport(params)),
     runCutPlanExport: (params) =>

@@ -86,6 +86,8 @@ export function createEngineBridgeHandlers({
       run(Effect.flatMap(EngineTransport, (transport) => transport.stopRecording)),
     ggEngineCaptureStatus: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport.captureStatus)),
+    ggEngineCapturePreviewFrame: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport.capturePreviewFrame)),
     ggEngineExportInfo: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport.exportInfo)),
     ggEngineRunExport: async (params) =>
@@ -164,5 +166,13 @@ export function createEngineBridgeHandlers({
         throw error;
       }
     },
+    ggResolveCapturePreviewURL: async () =>
+      run(
+        Effect.flatMap(MediaSourceService, (mediaSourceService) =>
+          mediaSourceService.resolveCapturePreviewURL(() =>
+            run(Effect.flatMap(EngineTransport, (transport) => transport.capturePreviewFrame)),
+          ),
+        ),
+      ),
   });
 }

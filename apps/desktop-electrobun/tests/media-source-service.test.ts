@@ -11,6 +11,7 @@ describe("media source service", () => {
           ({
             resolveMediaSourceURLEffect: (filePath: string) =>
               Effect.succeed(`media://${filePath}`),
+            resolveCapturePreviewURLEffect: () => Effect.succeed("media://capture-preview"),
             stopEffect: () =>
               Effect.sync(() => {
                 stopped += 1;
@@ -25,8 +26,14 @@ describe("media source service", () => {
           mediaSourceService.resolveMediaSourceURL("/tmp/capture.mov"),
         ),
       );
+      const previewURL = await runtime.runPromise(
+        Effect.flatMap(MediaSourceService, (mediaSourceService) =>
+          mediaSourceService.resolveCapturePreviewURL(async () => null),
+        ),
+      );
 
       expect(resolved).toBe("media:///tmp/capture.mov");
+      expect(previewURL).toBe("media://capture-preview");
     } finally {
       await runtime.dispose();
       expect(stopped).toBe(1);
