@@ -23,6 +23,8 @@ export const enUS = {
     captureStopped: "Capture stopped.",
     recordingStarted: "Recording started.",
     recordingFinished: "Recording finished.",
+    recordingStartNotReady:
+      "Recording could not start yet because capture had not settled. Wait for the live preview, then try again.",
     exportMissingRecording: "No recording available to export.",
     exportMissingPreset: "No export preset selected.",
     exportComplete: (outputURL: string) => `Export complete: ${outputURL}`,

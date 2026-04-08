@@ -7,7 +7,7 @@ import {
   type CaptureFrameRate,
   type ExportPreset,
 } from "@guerillaglass/engine-protocol";
-import { getStudioMessages } from "@guerillaglass/localization";
+import { getStudioMessages, type StudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
 import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge";
 import { hostBridgeEventNames } from "@shared/bridge";
@@ -81,6 +81,44 @@ export function formatAspectRatio(width: number, height: number): string {
     return "9:16";
   }
   return `${width}:${height}`;
+}
+
+export function mapStudioActionErrorMessage(ui: StudioMessages, error: unknown): string {
+  if (error instanceof StudioActionError) {
+    switch (error.reason) {
+      case "screen_permission_required":
+        return ui.notices.screenPermissionRequired;
+      case "window_selection_required":
+        return ui.notices.selectWindowFirst;
+      case "export_missing_recording":
+        return ui.notices.exportMissingRecording;
+      case "export_missing_preset":
+        return ui.notices.exportMissingPreset;
+    }
+  }
+  if (error instanceof EngineClientError && error.code === "ENGINE_REQUEST_TIMEOUT") {
+    return ui.notices.rpcTimedOut;
+  }
+  if (error instanceof EngineResponseError) {
+    if (
+      error.code === "runtime_error" &&
+      /capture did not stabilize quickly enough/i.test(error.description)
+    ) {
+      return ui.notices.recordingStartNotReady;
+    }
+    return error.message;
+  }
+  if (
+    error instanceof BridgeUnavailableError ||
+    error instanceof BridgeInvocationError ||
+    error instanceof ContractDecodeError ||
+    error instanceof EngineClientError ||
+    error instanceof JsonParseError ||
+    error instanceof PathPickerError
+  ) {
+    return error.message;
+  }
+  return messageFromUnknownError(error, ui.notices.actionFailed);
 }
 
 export function useStudioController() {
@@ -157,39 +195,12 @@ export function useStudioController() {
     [dateTimeFormatter],
   );
   const mapActionErrorMessage = useCallback(
-    (error: unknown): string => {
-      if (error instanceof StudioActionError) {
-        switch (error.reason) {
-          case "screen_permission_required":
-            return ui.notices.screenPermissionRequired;
-          case "window_selection_required":
-            return ui.notices.selectWindowFirst;
-          case "export_missing_recording":
-            return ui.notices.exportMissingRecording;
-          case "export_missing_preset":
-            return ui.notices.exportMissingPreset;
-        }
-      }
-      if (error instanceof EngineClientError && error.code === "ENGINE_REQUEST_TIMEOUT") {
-        return ui.notices.rpcTimedOut;
-      }
-      if (
-        error instanceof BridgeUnavailableError ||
-        error instanceof BridgeInvocationError ||
-        error instanceof ContractDecodeError ||
-        error instanceof EngineClientError ||
-        error instanceof EngineResponseError ||
-        error instanceof JsonParseError ||
-        error instanceof PathPickerError
-      ) {
-        return error.message;
-      }
-      return messageFromUnknownError(error, ui.notices.actionFailed);
-    },
+    (error: unknown): string => mapStudioActionErrorMessage(ui, error),
     [
       ui.notices.actionFailed,
       ui.notices.exportMissingPreset,
       ui.notices.exportMissingRecording,
+      ui.notices.recordingStartNotReady,
       ui.notices.rpcTimedOut,
       ui.notices.screenPermissionRequired,
       ui.notices.selectWindowFirst,

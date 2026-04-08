@@ -21,6 +21,8 @@ export const deDE: StudioMessages = {
     captureStopped: "Aufnahme gestoppt.",
     recordingStarted: "Aufzeichnung gestartet.",
     recordingFinished: "Aufzeichnung beendet.",
+    recordingStartNotReady:
+      "Die Aufzeichnung konnte noch nicht starten, weil die Aufnahme noch nicht stabil war. Warte auf die Live-Vorschau und versuche es dann erneut.",
     exportMissingRecording: "Keine Aufzeichnung für den Export verfügbar.",
     exportMissingPreset: "Kein Export-Preset ausgewählt.",
     exportComplete: (outputURL: string) => `Export abgeschlossen: ${outputURL}`,
