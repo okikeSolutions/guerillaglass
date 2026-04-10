@@ -13,6 +13,7 @@ import {
   type StudioShortcutId,
 } from "@shared/shortcuts";
 import { useStudio } from "../../state/StudioProvider";
+import { InspectorOptionCard } from "./InspectorPrimitives";
 
 function shortcutLabelFor(
   shortcutId: StudioShortcutId,
@@ -95,7 +96,7 @@ function ShortcutOverrideRow({ shortcutId }: { shortcutId: StudioShortcutId }) {
       });
 
   return (
-    <div className="space-y-2 rounded-md border border-border/70 bg-background/35 px-3 py-3">
+    <InspectorOptionCard className="space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
@@ -162,7 +163,7 @@ function ShortcutOverrideRow({ shortcutId }: { shortcutId: StudioShortcutId }) {
             ? studio.ui.helper.shortcutRecording
             : studio.ui.helper.shortcutCustomization)}
       </p>
-    </div>
+    </InspectorOptionCard>
   );
 }
 

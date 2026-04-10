@@ -1,18 +1,18 @@
 import { Keyboard, Mic, MousePointer, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
-import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/components/field";
-import { Slider } from "@guerillaglass/ui/components/slider";
 import { buildCaptureTelemetryPresentation } from "../../view-model/captureTelemetryViewModel";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
   AudioMixerChannel,
   InspectorDetailRows,
   InspectorNumericField,
+  InspectorOptionCard,
+  InspectorOptionHeader,
   InspectorSection,
   InspectorSelectField,
+  InspectorSliderField,
   InspectorToggleField,
   parseCaptureFrameRate,
-  readSliderValue,
 } from "./InspectorPrimitives";
 import { ShortcutOverridesSection } from "./ShortcutOverridesSection";
 
@@ -74,26 +74,24 @@ function AutoZoomSection({
             }
           />
 
-          <Field>
-            <FieldLabel>
-              {studio.ui.labels.autoZoomIntensity(Math.round(field.state.value.intensity * 100))}
-            </FieldLabel>
-            <FieldContent>
-              <Slider
-                className={sliderClassName}
-                min={0}
-                max={1}
-                step={0.05}
-                value={[field.state.value.intensity]}
-                onValueChange={(nextValue) =>
-                  field.handleChange({
-                    ...field.state.value,
-                    intensity: readSliderValue(nextValue),
-                  })
-                }
-              />
-            </FieldContent>
-          </Field>
+          <InspectorSliderField
+            icon={headingIcon}
+            label={studio.ui.labels.autoZoomIntensity(
+              Math.round(field.state.value.intensity * 100),
+            )}
+            value={field.state.value.intensity}
+            displayValue={`${Math.round(field.state.value.intensity * 100)}%`}
+            min={0}
+            max={1}
+            step={0.05}
+            className={sliderClassName}
+            onValueChange={(value) =>
+              field.handleChange({
+                ...field.state.value,
+                intensity: value,
+              })
+            }
+          />
 
           {showMinimumKeyframeInterval ? (
             <InspectorNumericField
@@ -195,43 +193,53 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
 
         <div className="space-y-1 px-0.5">
           <p className="gg-utility-label">{studio.ui.labels.sourceMonitor}</p>
-          <div className="gg-copy-meta">
-            <InspectorDetailRows
-              rows={[
-                {
-                  value: `${studio.ui.labels.display}: ${captureSource === "display" ? studio.ui.values.on : studio.ui.values.off}`,
-                },
-                {
-                  value: `${studio.ui.labels.window}: ${captureSource === "window" ? studio.ui.values.on : studio.ui.values.off}`,
-                },
-                {
-                  value: `${studio.ui.labels.microphone}: ${studio.settingsForm.state.values.micEnabled ? studio.ui.values.on : studio.ui.values.off}`,
-                },
-                {
-                  value: `${studio.ui.labels.captureFrameRate}: ${studio.settingsForm.state.values.captureFps} fps`,
-                },
-                { value: `${studio.ui.labels.achievedFps}: ${telemetryPresentation.achievedFps}` },
-                {
-                  value: `${studio.ui.labels.sourceDroppedFrames}: ${telemetryPresentation.sourceDroppedFrames}`,
-                },
-                {
-                  value: `${studio.ui.labels.writerDroppedFrames}: ${telemetryPresentation.writerDroppedFrames}`,
-                },
-                {
-                  value: `${studio.ui.labels.writerBackpressureDrops}: ${telemetryPresentation.writerBackpressureDrops}`,
-                },
-                {
-                  value: `${studio.ui.labels.captureCallback}: ${telemetryPresentation.captureCallback}`,
-                },
-                {
-                  value: `${studio.ui.labels.recordQueueLag}: ${telemetryPresentation.recordQueueLag}`,
-                },
-                {
-                  value: `${studio.ui.labels.writerAppend}: ${telemetryPresentation.writerAppend}`,
-                },
-              ]}
-            />
-          </div>
+          <InspectorDetailRows
+            rows={[
+              {
+                label: studio.ui.labels.display,
+                value: captureSource === "display" ? studio.ui.values.on : studio.ui.values.off,
+              },
+              {
+                label: studio.ui.labels.window,
+                value: captureSource === "window" ? studio.ui.values.on : studio.ui.values.off,
+              },
+              {
+                label: studio.ui.labels.microphone,
+                value: studio.settingsForm.state.values.micEnabled
+                  ? studio.ui.values.on
+                  : studio.ui.values.off,
+              },
+              {
+                label: studio.ui.labels.captureFrameRate,
+                value: `${studio.settingsForm.state.values.captureFps} fps`,
+              },
+              { label: studio.ui.labels.achievedFps, value: telemetryPresentation.achievedFps },
+              {
+                label: studio.ui.labels.sourceDroppedFrames,
+                value: telemetryPresentation.sourceDroppedFrames,
+              },
+              {
+                label: studio.ui.labels.writerDroppedFrames,
+                value: telemetryPresentation.writerDroppedFrames,
+              },
+              {
+                label: studio.ui.labels.writerBackpressureDrops,
+                value: telemetryPresentation.writerBackpressureDrops,
+              },
+              {
+                label: studio.ui.labels.captureCallback,
+                value: telemetryPresentation.captureCallback,
+              },
+              {
+                label: studio.ui.labels.recordQueueLag,
+                value: telemetryPresentation.recordQueueLag,
+              },
+              {
+                label: studio.ui.labels.writerAppend,
+                value: telemetryPresentation.writerAppend,
+              },
+            ]}
+          />
         </div>
       </InspectorSection>
 
@@ -268,7 +276,12 @@ export function EditInspectorContent({ studio }: { studio: InspectorModeStudio }
   return (
     <>
       <InspectorSection title={studio.ui.inspectorTabs.project.toUpperCase()}>
-        <p className="gg-copy-meta">{studio.ui.helper.activePreviewBody}</p>
+        <InspectorOptionCard>
+          <InspectorOptionHeader
+            title={studio.ui.helper.activePreviewTitle}
+            description={studio.ui.helper.activePreviewBody}
+          />
+        </InspectorOptionCard>
       </InspectorSection>
 
       <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
@@ -284,15 +297,16 @@ export function DeliverInspectorContent({ studio }: { studio: InspectorModeStudi
       <InspectorSection title={studio.ui.inspector.cards.activePreset}>
         <InspectorDetailRows
           rows={[
-            { value: studio.selectedPreset?.name ?? "-" },
+            { label: studio.ui.labels.preset, value: studio.selectedPreset?.name ?? "-" },
             ...(studio.selectedPreset
               ? [
                   {
+                    label: studio.ui.labels.captureResolution,
                     value: studio.formatAspectRatio(
                       studio.selectedPreset.width,
                       studio.selectedPreset.height,
                     ),
-                    className: "text-muted-foreground",
+                    valueClassName: "text-muted-foreground",
                   },
                 ]
               : []),
@@ -304,14 +318,12 @@ export function DeliverInspectorContent({ studio }: { studio: InspectorModeStudi
         <InspectorDetailRows
           rows={[
             {
-              value: `${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(
-                studio.exportForm.state.values.trimStartSeconds,
-              )}`,
+              label: studio.ui.labels.trimInSeconds,
+              value: studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds),
             },
             {
-              value: `${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(
-                studio.exportForm.state.values.trimEndSeconds,
-              )}`,
+              label: studio.ui.labels.trimOutSeconds,
+              value: studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds),
             },
           ]}
         />

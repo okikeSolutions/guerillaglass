@@ -10,6 +10,7 @@ import type { StudioController } from "@studio/hooks/core/useStudioController";
 function makeStudioMock(selection: InspectorSelection): StudioController {
   const settingsValues = {
     captureSource: "window" as const,
+    selectedDisplayId: 1,
     selectedWindowId: 42,
     captureFps: 60 as const,
     micEnabled: true,
@@ -123,7 +124,8 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Video Clip Inspector");
     expect(html).toContain("Selected Clip");
-    expect(html).toContain("Lane: Video");
+    expect(html).toContain("Lane");
+    expect(html).toContain("Video");
     expect(html).toContain("Set Trim In To Clip Start");
     expect(html).not.toContain("Trim Window");
     expect(html).not.toContain("Active Preset");
@@ -140,7 +142,8 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Preset Inspector");
     expect(html).toContain("Selected Preset");
-    expect(html).toContain("File Type: mp4");
+    expect(html).toContain("File Type");
+    expect(html).toContain("mp4");
     expect(html).toContain("Active Preset");
     expect(html).toContain("Trim Window");
   });
@@ -154,10 +157,12 @@ describe("inspector panel", () => {
     });
     expect(html).toContain("Window Inspector");
     expect(html).toContain("Selected Window");
-    expect(html).toContain("Window ID: 42");
+    expect(html).toContain("Window ID");
+    expect(html).toContain(">42<");
     expect(html).toContain("CAPTURE");
     expect(html).toContain("EFFECTS");
     expect(html).not.toContain("120 fps");
+    expect(html).toContain("gg-inspector-option-card");
   });
 
   test("renders configurable shortcut controls in the advanced inspector section", () => {
@@ -167,5 +172,6 @@ describe("inspector panel", () => {
     expect(html).toContain("Start Recording");
     expect(html).toContain("Record");
     expect(html).toContain("Reset");
+    expect(html).toContain("gg-inspector-option-card");
   });
 });

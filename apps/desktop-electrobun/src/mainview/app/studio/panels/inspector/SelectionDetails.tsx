@@ -46,18 +46,20 @@ export function SelectionDetailsTimelineClip({
         <InspectorDetailRows
           rows={[
             {
-              value: `${studio.ui.inspector.fields.lane}: ${localizeTimelineLaneId(selection.laneId, studio)}`,
+              label: studio.ui.inspector.fields.lane,
+              value: localizeTimelineLaneId(selection.laneId, studio),
             },
             {
-              value: `${studio.ui.inspector.fields.start}: ${studio.formatDecimal(selection.startSeconds)}s`,
+              label: studio.ui.inspector.fields.start,
+              value: `${studio.formatDecimal(selection.startSeconds)}s`,
             },
             {
-              value: `${studio.ui.inspector.fields.end}: ${studio.formatDecimal(selection.endSeconds)}s`,
+              label: studio.ui.inspector.fields.end,
+              value: `${studio.formatDecimal(selection.endSeconds)}s`,
             },
             {
-              value: `${studio.ui.inspector.fields.duration}: ${studio.formatDecimal(
-                Math.max(0, selection.endSeconds - selection.startSeconds),
-              )}s`,
+              label: studio.ui.inspector.fields.duration,
+              value: `${studio.formatDecimal(Math.max(0, selection.endSeconds - selection.startSeconds))}s`,
             },
           ]}
         />
@@ -95,12 +97,14 @@ export function SelectionDetailsTimelineMarker({
         <InspectorDetailRows
           rows={[
             {
-              value: `${studio.ui.inspector.fields.type}: ${localizeTimelineMarkerKind(selection.markerKind, studio)}`,
+              label: studio.ui.inspector.fields.type,
+              value: localizeTimelineMarkerKind(selection.markerKind, studio),
             },
             {
-              value: `${studio.ui.inspector.fields.time}: ${studio.formatDecimal(selection.timestampSeconds)}s`,
+              label: studio.ui.inspector.fields.time,
+              value: `${studio.formatDecimal(selection.timestampSeconds)}s`,
             },
-            { value: `${studio.ui.inspector.fields.density}: ${selection.density}` },
+            { label: studio.ui.inspector.fields.density, value: String(selection.density) },
           ]}
         />
         <div className="flex flex-wrap gap-1.5">
@@ -128,12 +132,13 @@ export function SelectionDetailsCaptureWindow({
     <InspectorSection title={studio.ui.inspector.cards.selectedWindow} defaultOpen>
       <InspectorDetailRows
         rows={[
-          { value: `${studio.ui.inspector.fields.app}: ${selection.appName}` },
+          { label: studio.ui.inspector.fields.app, value: selection.appName },
           {
-            value: `${studio.ui.inspector.fields.title}: ${selection.title || studio.ui.values.untitled}`,
-            className: "truncate",
+            label: studio.ui.inspector.fields.title,
+            value: selection.title || studio.ui.values.untitled,
+            valueClassName: "truncate",
           },
-          { value: `${studio.ui.inspector.fields.windowId}: ${selection.windowId}` },
+          { label: studio.ui.inspector.fields.windowId, value: String(selection.windowId) },
         ]}
       />
     </InspectorSection>
@@ -151,9 +156,13 @@ export function SelectionDetailsExportPreset({
     <InspectorSection title={studio.ui.inspector.cards.selectedPreset} defaultOpen>
       <InspectorDetailRows
         rows={[
-          { value: selection.name },
-          { value: `${selection.width}:${selection.height}`, className: "text-muted-foreground" },
-          { value: `${studio.ui.inspector.fields.fileType}: ${selection.fileType}` },
+          { label: studio.ui.labels.preset, value: selection.name },
+          {
+            label: studio.ui.labels.captureResolution,
+            value: `${selection.width}:${selection.height}`,
+            valueClassName: "text-muted-foreground",
+          },
+          { label: studio.ui.inspector.fields.fileType, value: selection.fileType },
         ]}
       />
     </InspectorSection>
