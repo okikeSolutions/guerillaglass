@@ -58,10 +58,10 @@ export function createEngineBridgeHandlers({
       run(Effect.flatMap(EngineTransport, (transport) => transport.openInputMonitoringSettings)),
     ggEngineListSources: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport.listSources)),
-    ggEngineStartDisplayCapture: async ({ enableMic, captureFps }) =>
+    ggEngineStartDisplayCapture: async ({ displayId, enableMic, captureFps }) =>
       run(
         Effect.flatMap(EngineTransport, (transport) =>
-          transport.startDisplayCapture(enableMic, captureFps),
+          transport.startDisplayCapture(enableMic, captureFps, displayId),
         ),
       ),
     ggEngineStartCurrentWindowCapture: async ({ enableMic, captureFps }) =>

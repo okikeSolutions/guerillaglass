@@ -16,6 +16,7 @@ import type { StudioMessages } from "@guerillaglass/localization";
 import { engineApi } from "@lib/engine";
 import type { HostPathPickerMode } from "@shared/bridge";
 import { CaptureWindowPickerUnsupportedError, StudioActionError } from "@shared/errors";
+import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
 
@@ -41,6 +42,7 @@ export type SettingsFormApi = {
   state: {
     values: {
       captureSource: CaptureSourceMode;
+      selectedDisplayId: number;
       selectedWindowId: number;
       captureFps: CaptureFrameRate;
       micEnabled: boolean;
@@ -74,6 +76,7 @@ type UseStudioActionsOptions = {
     mode: HostPathPickerMode;
     startingFolder?: string;
   }) => Promise<string | null>;
+  selectedDisplayId: number;
   selectedWindowId: number;
   inputMonitoringDenied: boolean;
   recordingURL: string | null;
@@ -105,6 +108,7 @@ export function useStudioMutations({
   setTimelinePlayback,
   resetPlayhead,
   pickPathSafely,
+  selectedDisplayId,
   selectedWindowId,
   inputMonitoringDenied,
   recordingURL,
@@ -121,9 +125,20 @@ export function useStudioMutations({
   projectRecentsQuery,
   eventsQuery,
 }: UseStudioActionsOptions) {
-  const reconcileSourcesAndSelectedWindow = useCallback(
-    (nextSources: SourcesResult, baselineSelectedWindowId = selectedWindowId): number => {
+  const reconcileSourcesAndSelection = useCallback(
+    (
+      nextSources: SourcesResult,
+      baselineSelectedDisplayId = selectedDisplayId,
+      baselineSelectedWindowId = selectedWindowId,
+    ) => {
       queryClient.setQueryData(studioQueryKeys.sources(), nextSources);
+      const nextSelectedDisplayId = resolveSelectedDisplayId(
+        nextSources.displays,
+        baselineSelectedDisplayId,
+      );
+      if (nextSelectedDisplayId !== baselineSelectedDisplayId) {
+        settingsForm.setFieldValue("selectedDisplayId", nextSelectedDisplayId);
+      }
       const nextSelectedWindowId = resolveSelectedWindowId(
         nextSources.windows,
         baselineSelectedWindowId,
@@ -131,9 +146,20 @@ export function useStudioMutations({
       if (nextSelectedWindowId !== baselineSelectedWindowId) {
         settingsForm.setFieldValue("selectedWindowId", nextSelectedWindowId);
       }
-      return nextSelectedWindowId;
+      return {
+        selectedDisplayId: nextSelectedDisplayId,
+        selectedWindowId: nextSelectedWindowId,
+      };
     },
-    [queryClient, selectedWindowId, settingsForm],
+    [queryClient, selectedDisplayId, selectedWindowId, settingsForm],
+  );
+
+  const reconcileSourcesAndSelectedWindow = useCallback(
+    (nextSources: SourcesResult, baselineSelectedWindowId = selectedWindowId): number => {
+      return reconcileSourcesAndSelection(nextSources, selectedDisplayId, baselineSelectedWindowId)
+        .selectedWindowId;
+    },
+    [reconcileSourcesAndSelection, selectedDisplayId, selectedWindowId],
   );
 
   const ensureScreenRecordingPermission = useCallback(async (): Promise<void> => {
@@ -152,9 +178,9 @@ export function useStudioMutations({
 
     const nextSources = await engineApi.listSources().catch(() => null);
     if (nextSources) {
-      reconcileSourcesAndSelectedWindow(nextSources);
+      reconcileSourcesAndSelection(nextSources);
     }
-  }, [queryClient, reconcileSourcesAndSelectedWindow]);
+  }, [queryClient, reconcileSourcesAndSelection]);
 
   const syncCaptureStatus = useCallback(
     async (options?: { expectRunning?: boolean }): Promise<CaptureStatusResult | null> => {
@@ -188,6 +214,7 @@ export function useStudioMutations({
 
       const {
         captureSource: configuredCaptureSource,
+        selectedDisplayId: configuredDisplayId,
         micEnabled,
         captureFps,
       } = settingsForm.state.values;
@@ -228,11 +255,28 @@ export function useStudioMutations({
           return await engineApi.startWindowCapture(resolvedWindowId, micEnabled, captureFps);
         }
       }
-      return await engineApi.startDisplayCapture(micEnabled, captureFps);
+      let resolvedDisplayId = configuredDisplayId || selectedDisplayId;
+      if (resolvedDisplayId === 0) {
+        const refreshedSources = await engineApi.listSources().catch(() => null);
+        if (refreshedSources) {
+          resolvedDisplayId = reconcileSourcesAndSelection(
+            refreshedSources,
+            resolvedDisplayId,
+            selectedWindowId,
+          ).selectedDisplayId;
+        }
+      }
+      return await engineApi.startDisplayCapture(
+        micEnabled,
+        captureFps,
+        resolvedDisplayId === 0 ? undefined : resolvedDisplayId,
+      );
     },
     [
       ensureScreenRecordingPermission,
+      reconcileSourcesAndSelection,
       reconcileSourcesAndSelectedWindow,
+      selectedDisplayId,
       selectedWindowId,
       settingsForm,
     ],

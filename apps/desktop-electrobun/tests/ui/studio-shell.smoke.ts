@@ -87,6 +87,8 @@ function installMockBridge() {
     displays: [
       {
         id: 1,
+        displayName: "Built-in Display",
+        isPrimary: true,
         width: 1920,
         height: 1080,
         pixelScale: 1,
@@ -327,12 +329,14 @@ test("starts preview and recording through the shell controls", async ({ page })
   await page.goto("/");
 
   await expect(page.getByText("No active preview")).toBeVisible();
+  await expect(page.getByText("Built-in Display (Primary) - 1920x1080")).toBeVisible();
 
   await page.getByRole("button", { name: "Start Preview" }).click();
   await expect(page.getByAltText("Live preview active")).toBeVisible();
 
-  await page.getByRole("button", { name: "Start Recording" }).click();
-  await page.getByRole("menuitem", { name: "Current Window" }).click();
+  await page
+    .getByRole("button", { name: /Display.*Start Recording|Start Recording.*Display/ })
+    .click();
   await expect(page.getByRole("button", { name: "Stop Recording" })).toBeVisible();
   await expect(page.getByText("Status: recording")).toBeVisible();
   await expect(page.getByAltText("Live preview active")).toBeVisible();
@@ -495,7 +499,9 @@ test("applies single-key shortcuts only when enabled and outside interactive con
 }) => {
   await page.goto("/");
 
-  const startRecordingButton = page.getByRole("button", { name: "Start Recording" });
+  const startRecordingButton = page.getByRole("button", {
+    name: /Display.*Start Recording|Start Recording.*Display/,
+  });
   await expect(startRecordingButton).toBeVisible();
 
   await page.locator("body").click();
@@ -520,9 +526,10 @@ test("applies single-key shortcuts only when enabled and outside interactive con
 
 test("keeps timeline playhead stable on pointer cancel", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Start Recording" }).click();
-  await page.getByRole("menuitem", { name: "Current Window" }).click();
-
+  await page
+    .getByRole("button", { name: /Display.*Start Recording|Start Recording.*Display/ })
+    .click();
+  await page.getByRole("link", { name: "Edit" }).click();
   const timelineSurface = page.locator(".gg-timeline-surface");
   const surfaceBox = await timelineSurface.boundingBox();
   expect(surfaceBox).not.toBeNull();

@@ -217,13 +217,17 @@ const engineMethodDefinitions = {
   } satisfies EngineMethodDefinition<typeof sourcesResultSchema, []>,
   startDisplayCapture: {
     method: "capture.startDisplay",
-    toParams: (enableMic: boolean, captureFps: CaptureFrameRate) => ({ enableMic, captureFps }),
+    toParams: (enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number) => ({
+      displayId,
+      enableMic,
+      captureFps,
+    }),
     schema: captureStatusResultSchema,
     timeoutMs: 15_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     typeof captureStatusResultSchema,
-    [enableMic: boolean, captureFps: CaptureFrameRate]
+    [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number]
   >,
   startCurrentWindowCapture: {
     method: "capture.startCurrentWindow",
@@ -800,16 +804,18 @@ export class EngineClient {
   startDisplayCaptureEffect(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    displayId?: number,
   ) {
     const definition = engineMethodDefinitions.startDisplayCapture;
-    return this.captureMethodEffect(definition, enableMic, captureFps);
+    return this.captureMethodEffect(definition, enableMic, captureFps, displayId);
   }
 
   async startDisplayCapture(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    displayId?: number,
   ) {
-    return await runEffectPromise(this.startDisplayCaptureEffect(enableMic, captureFps));
+    return await runEffectPromise(this.startDisplayCaptureEffect(enableMic, captureFps, displayId));
   }
 
   startCurrentWindowCaptureEffect(

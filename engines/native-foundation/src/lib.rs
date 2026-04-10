@@ -795,6 +795,8 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                 "displays": [
                     {
                         "id": 1,
+                        "displayName": "Primary Display",
+                        "isPrimary": true,
                         "width": 1920,
                         "height": 1080,
                         "pixelScale": 1.0,

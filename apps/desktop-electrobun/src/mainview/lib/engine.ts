@@ -197,6 +197,7 @@ export const engineApi = {
   async startDisplayCapture(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    displayId?: number,
   ): Promise<CaptureStatusResult> {
     return await invokeBridgeDecoded(
       "ggEngineStartDisplayCapture",
@@ -204,6 +205,7 @@ export const engineApi = {
       "capture status result",
       enableMic,
       captureFps,
+      displayId,
     );
   },
 

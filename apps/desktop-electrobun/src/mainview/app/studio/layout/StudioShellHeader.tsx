@@ -146,12 +146,13 @@ export function buildModeItems(
 export function buildUtilityActions(
   studio: ReturnType<typeof useStudio>,
   shortcutPlatform: ShortcutDisplayPlatform | undefined,
+  activeRoute: StudioLayoutRoute,
 ): HeaderIconButtonModel[] {
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
 
-  return [
+  const actions: HeaderIconButtonModel[] = [
     {
       id: "refresh",
       onClick: () => void studio.refreshAll(),
@@ -209,13 +210,6 @@ export function buildUtilityActions(
       icon: <PanelRightClose className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
     },
     {
-      id: "toggle-timeline",
-      onClick: studio.toggleTimelineCollapsed,
-      srLabel: studio.ui.actions.toggleTimeline,
-      tooltip: studio.ui.actions.toggleTimeline,
-      icon: <SplitSquareVertical className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
-    },
-    {
       id: "reset-layout",
       onClick: studio.resetLayout,
       srLabel: studio.ui.actions.resetLayout,
@@ -223,6 +217,18 @@ export function buildUtilityActions(
       icon: <LayoutPanelTop className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
     },
   ];
+
+  if (activeRoute !== "/capture") {
+    actions.splice(5, 0, {
+      id: "toggle-timeline",
+      onClick: studio.toggleTimelineCollapsed,
+      srLabel: studio.ui.actions.toggleTimeline,
+      tooltip: studio.ui.actions.toggleTimeline,
+      icon: <SplitSquareVertical className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
+    });
+  }
+
+  return actions;
 }
 
 export function StudioShellHeader({
@@ -235,10 +241,24 @@ export function StudioShellHeader({
   const studio = useStudio();
   const shortcutPlatform = resolveShortcutPlatform();
   const modeItems = buildModeItems(studio, activeRoute);
-  const utilityActions = buildUtilityActions(studio, shortcutPlatform);
+  const utilityActions = buildUtilityActions(studio, shortcutPlatform, activeRoute);
   const isRecording = Boolean(studio.captureStatusQuery.data?.isRecording);
   const permissionTone = studio.permissionsQuery.data?.screenRecordingGranted ? "live" : "error";
   const isCaptureActionDisabled = studio.isRunningAction;
+  const activeCaptureSourceLabel =
+    studio.settingsForm.state.values.captureSource === "display"
+      ? studio.ui.labels.display
+      : studio.ui.labels.window;
+  const startConfiguredRecording = () => {
+    void studio.toggleRecordingMutation.mutateAsync(undefined);
+  };
+
+  const startDisplayRecording = () => {
+    studio.settingsForm.setFieldValue("captureSource", "display");
+    void studio.toggleRecordingMutation.mutateAsync({
+      captureSourceOverride: "display",
+    });
+  };
 
   const startCurrentWindowRecording = () => {
     studio.settingsForm.setFieldValue("captureSource", "window");
@@ -351,25 +371,23 @@ export function StudioShellHeader({
                   <Tooltip>
                     <TooltipTrigger
                       render={
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              size="icon-sm"
-                              variant="outline"
-                              className={`${studioButtonToneClass("neutral")} w-10`}
-                              disabled={isCaptureActionDisabled}
-                            />
-                          }
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={studioButtonToneClass("neutral")}
+                          onClick={startConfiguredRecording}
+                          disabled={isCaptureActionDisabled}
+                          aria-label={`${studio.ui.actions.startRecording} ${activeCaptureSourceLabel}`}
                         />
                       }
                     >
                       <Video className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                      <ChevronDown className={`h-3 w-3 ${studioIconToneClass("neutral")}`} />
+                      <span>{activeCaptureSourceLabel}</span>
                       <span className="sr-only">{studio.ui.actions.startRecording}</span>
                     </TooltipTrigger>
                     <TooltipContent>
                       <ShortcutHint
-                        label={studio.ui.actions.startRecording}
+                        label={`${studio.ui.actions.startRecording} (${activeCaptureSourceLabel})`}
                         keys={studioShortcutDisplayTokens("record", {
                           platform: shortcutPlatform,
                           overrides: studio.shortcutOverrides,
@@ -378,7 +396,28 @@ export function StudioShellHeader({
                     </TooltipContent>
                   </Tooltip>
 
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="outline"
+                        className={studioButtonToneClass("neutral")}
+                        disabled={isCaptureActionDisabled}
+                        aria-label={studio.ui.actions.startRecording}
+                      />
+                    }
+                  >
+                    <ChevronDown className={`h-3 w-3 ${studioIconToneClass("neutral")}`} />
+                    <span className="sr-only">{studio.ui.actions.startRecording}</span>
+                  </DropdownMenuTrigger>
+
                   <DropdownMenuContent align="center" sideOffset={6} className="w-auto min-w-30">
+                    <DropdownMenuItem
+                      onClick={startDisplayRecording}
+                      disabled={isCaptureActionDisabled}
+                    >
+                      {studio.ui.actions.recordDisplay}
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={startCurrentWindowRecording}
                       disabled={isCaptureActionDisabled}

@@ -86,6 +86,12 @@ describe("renderer engine bridge", () => {
 
   test("parses parity command payloads", async () => {
     let lastMenuState: unknown;
+    const lastStartDisplayCaptureCall = {
+      called: false,
+      enableMic: false,
+      captureFps: 0,
+      displayId: undefined as number | undefined,
+    };
     (globalThis as unknown as { window: Record<string, unknown> }).window = {
       ggEnginePing: async () => ({
         app: "guerillaglass",
@@ -114,6 +120,8 @@ describe("renderer engine bridge", () => {
         displays: [
           {
             id: 1,
+            displayName: "Built-in Display",
+            isPrimary: true,
             width: 3024,
             height: 1964,
             pixelScale: 1,
@@ -161,9 +169,19 @@ describe("renderer engine bridge", () => {
         },
         captureMetadata: null,
       }),
-      ggEngineStartDisplayCapture: async () => ({
-        ...makeCaptureStatus({ isRunning: true }),
-      }),
+      ggEngineStartDisplayCapture: async (
+        enableMic: boolean,
+        captureFps: number,
+        displayId?: number,
+      ) => {
+        lastStartDisplayCaptureCall.called = true;
+        lastStartDisplayCaptureCall.enableMic = enableMic;
+        lastStartDisplayCaptureCall.captureFps = captureFps;
+        lastStartDisplayCaptureCall.displayId = displayId;
+        return {
+          ...makeCaptureStatus({ isRunning: true }),
+        };
+      },
       ggEngineStartCurrentWindowCapture: async () => ({
         ...makeCaptureStatus({ isRunning: true }),
       }),
@@ -241,7 +259,7 @@ describe("renderer engine bridge", () => {
     const capture = await engineApi.captureStatus();
     const exportInfo = await engineApi.exportInfo();
     const project = await engineApi.projectCurrent();
-    const started = await engineApi.startDisplayCapture(true);
+    const started = await engineApi.startDisplayCapture(true, 30, 1);
     const startedCurrentWindow = await engineApi.startCurrentWindowCapture(true);
     const startedWindow = await engineApi.startWindowCapture(12, true);
     const recording = await engineApi.startRecording(true);
@@ -263,6 +281,7 @@ describe("renderer engine bridge", () => {
     sendHostMenuState({
       canSave: true,
       canExport: true,
+      canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
       densityMode: "comfortable",
@@ -276,6 +295,8 @@ describe("renderer engine bridge", () => {
     expect(requestedInputPermission.success).toBe(true);
     expect(openedInputMonitoringSettings.success).toBe(true);
     expect(sources.displays.length).toBe(1);
+    expect(sources.displays[0]?.displayName).toBe("Built-in Display");
+    expect(sources.displays[0]?.isPrimary).toBe(true);
     expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60, 120]);
     expect(sources.displays[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.refreshHz).toBe(60);
@@ -284,6 +305,10 @@ describe("renderer engine bridge", () => {
     expect(exportInfo.presets[0]?.id).toBe("h264-1080p-30");
     expect(project.autoZoom.isEnabled).toBe(true);
     expect(started.isRunning).toBe(true);
+    expect(lastStartDisplayCaptureCall.called).toBe(true);
+    expect(lastStartDisplayCaptureCall.enableMic).toBe(true);
+    expect(lastStartDisplayCaptureCall.captureFps).toBe(30);
+    expect(lastStartDisplayCaptureCall.displayId).toBe(1);
     expect(startedCurrentWindow.isRunning).toBe(true);
     expect(startedWindow.isRunning).toBe(true);
     expect(recording.isRecording).toBe(true);
@@ -299,6 +324,7 @@ describe("renderer engine bridge", () => {
     expect(lastMenuState).toEqual({
       canSave: true,
       canExport: true,
+      canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
       densityMode: "comfortable",
@@ -465,6 +491,7 @@ describe("renderer engine bridge", () => {
       sendHostMenuState({
         canSave: false,
         canExport: false,
+        canToggleTimeline: false,
         isRecording: false,
       }),
     ).not.toThrow();

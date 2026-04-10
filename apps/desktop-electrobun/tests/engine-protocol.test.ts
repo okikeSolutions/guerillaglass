@@ -78,6 +78,11 @@ describe("engine protocol", () => {
 
   test("builds and validates parity method requests", () => {
     const capabilitiesRequest = buildRequest("engine.capabilities", {});
+    const startDisplayRequest = buildRequest("capture.startDisplay", {
+      displayId: 1,
+      enableMic: false,
+      captureFps: 60,
+    });
     const startCurrentWindowRequest = buildRequest("capture.startCurrentWindow", {
       enableMic: false,
       captureFps: 120,
@@ -117,6 +122,9 @@ describe("engine protocol", () => {
 
     expect(decodeSchemaSync(engineRequestSchema, capabilitiesRequest).method).toBe(
       "engine.capabilities",
+    );
+    expect(decodeSchemaSync(engineRequestSchema, startDisplayRequest).method).toBe(
+      "capture.startDisplay",
     );
     expect(decodeSchemaSync(engineRequestSchema, startCurrentWindowRequest).method).toBe(
       "capture.startCurrentWindow",
@@ -180,6 +188,8 @@ describe("engine protocol", () => {
       displays: [
         {
           id: 1,
+          displayName: "Built-in Display",
+          isPrimary: true,
           width: 3024,
           height: 1964,
           pixelScale: 1,
@@ -294,6 +304,8 @@ describe("engine protocol", () => {
     expect(capabilities.capture.display).toBe(true);
     expect(permissions.inputMonitoring).toBe("notDetermined");
     expect(sources.displays[0]?.supportedCaptureFrameRates).toEqual([24, 30, 60, 120]);
+    expect(sources.displays[0]?.displayName).toBe("Built-in Display");
+    expect(sources.displays[0]?.isPrimary).toBe(true);
     expect(sources.displays[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.appName).toBe("Xcode");

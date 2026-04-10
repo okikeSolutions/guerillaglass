@@ -75,6 +75,8 @@ function handleRequest(request: Request): Response | null {
           displays: [
             {
               id: 1,
+              displayName: "Primary Display",
+              isPrimary: true,
               width: 1920,
               height: 1080,
               refreshHz: 60,

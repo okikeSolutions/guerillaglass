@@ -160,6 +160,8 @@ export const captureFrameRateSchema = Schema.Literal(...captureFrameRates);
 /** Display capture source descriptor. */
 export const displaySourceSchema = Schema.Struct({
   id: NonNegativeInt,
+  displayName: NonEmptyString,
+  isPrimary: Schema.Boolean,
   width: PositiveInt,
   height: PositiveInt,
   pixelScale: Schema.optional(PositiveNumber),
@@ -566,6 +568,7 @@ export const captureStartDisplayRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.CaptureStartDisplay),
   params: Schema.Struct({
+    displayId: Schema.optional(NonNegativeInt),
     enableMic: enableMicProperty,
     captureFps: captureFrameRateProperty,
   }),

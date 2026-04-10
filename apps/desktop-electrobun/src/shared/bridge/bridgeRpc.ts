@@ -82,6 +82,7 @@ export const hostMenuCommandList = Object.values(hostMenuCommands) as HostMenuCo
 export type HostMenuState = {
   canSave: boolean;
   canExport: boolean;
+  canToggleTimeline: boolean;
   isRecording: boolean;
   recordingURL?: string | null;
   locale?: string;
@@ -148,6 +149,11 @@ const engineAgentApplyBridgeParamsSchema = Schema.Struct({
   destructiveIntent: Schema.optional(Schema.Boolean),
 });
 const engineCaptureStartBridgeParamsSchema = Schema.Struct({
+  enableMic: Schema.optional(Schema.Boolean),
+  captureFps: Schema.optional(captureFrameRateSchema),
+});
+const engineCaptureStartDisplayBridgeParamsSchema = Schema.Struct({
+  displayId: Schema.optional(nonNegativeIntSchema),
   enableMic: Schema.optional(Schema.Boolean),
   captureFps: Schema.optional(captureFrameRateSchema),
 });
@@ -322,12 +328,12 @@ export const bridgeRequestDefinitions = {
     sourcesResultSchema,
   ),
   ggEngineStartDisplayCapture: defineValidatedBridgeRequest<
-    { enableMic: boolean; captureFps: CaptureFrameRate },
+    { displayId?: number; enableMic: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
-    [enableMic: boolean, captureFps: CaptureFrameRate]
+    [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number]
   >(
-    (enableMic, captureFps) => ({ enableMic, captureFps }),
-    engineCaptureStartBridgeParamsSchema,
+    (enableMic, captureFps, displayId) => ({ displayId, enableMic, captureFps }),
+    engineCaptureStartDisplayBridgeParamsSchema,
     captureStatusResultSchema,
   ),
   ggEngineStartCurrentWindowCapture: defineValidatedBridgeRequest<

@@ -55,6 +55,7 @@ extension EngineService {
     }
 
     func startDisplayResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
+        let displayID = params["displayId"]?.intValue.map { CGDirectDisplayID($0) }
         let enableMic = params["enableMic"]?.boolValue ?? false
         guard let captureFps = resolveCaptureFrameRate(from: params) else {
             return .failure(
@@ -64,7 +65,11 @@ extension EngineService {
             )
         }
         do {
-            try await captureEngine.startDisplayCapture(enableMic: enableMic, targetFrameRate: captureFps)
+            try await captureEngine.startDisplayCapture(
+                displayID: displayID,
+                enableMic: enableMic,
+                targetFrameRate: captureFps
+            )
             return captureStatusResponse(id: id)
         } catch {
             return captureStartFailureResponse(id: id, error: error)

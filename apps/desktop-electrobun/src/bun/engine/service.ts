@@ -67,6 +67,7 @@ export type EngineTransportService = {
   startDisplayCapture: (
     enableMic: boolean,
     captureFps: CaptureFrameRate,
+    displayId?: number,
   ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
   startCurrentWindowCapture: (
     enableMic: boolean,
@@ -236,9 +237,9 @@ export function makeEngineTransport(client: EngineClientLike): EngineTransportSe
       client.openInputMonitoringSettings(),
     ),
     listSources: wrapClientEffect("sources.list", () => client.listSources()),
-    startDisplayCapture: (enableMic, captureFps) =>
+    startDisplayCapture: (enableMic, captureFps, displayId) =>
       wrapClientEffect("capture.startDisplay", () =>
-        client.startDisplayCapture(enableMic, captureFps),
+        client.startDisplayCapture(enableMic, captureFps, displayId),
       ),
     startCurrentWindowCapture: (enableMic, captureFps) =>
       wrapClientEffect("capture.startCurrentWindow", () =>

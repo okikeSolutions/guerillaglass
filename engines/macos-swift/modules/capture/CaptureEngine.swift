@@ -111,14 +111,20 @@ public final class CaptureEngine: NSObject, ObservableObject {
     }
 
     @MainActor
-    public func startDisplayCapture(enableMic: Bool = false, targetFrameRate: Int = 30) async throws {
+    public func startDisplayCapture(
+        displayID: CGDirectDisplayID? = nil,
+        enableMic: Bool = false,
+        targetFrameRate: Int = 30
+    ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
         clearPreviewFrame()
         clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
         let frameRate = CaptureFrameRatePolicy.sanitize(targetFrameRate)
-        debugLog("startDisplayCapture begin frameRate=\(frameRate) mic=\(enableMic)")
+        debugLog(
+            "startDisplayCapture begin frameRate=\(frameRate) mic=\(enableMic) displayID=\(String(describing: displayID))"
+        )
 
         try await ensureScreenCaptureAccess()
         if enableMic {
@@ -129,14 +135,22 @@ public final class CaptureEngine: NSObject, ObservableObject {
             debugLog("startDisplayCapture fetching shareable content")
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             debugLog("startDisplayCapture shareable content displays=\(content.displays.count)")
-            guard let display = content.displays.first else {
+            let display: SCDisplay? = if let displayID {
+                content.displays.first(where: { $0.displayID == displayID })
+            } else {
+                content.displays.first
+            }
+            guard let display else {
                 throw CaptureError.noDisplayAvailable
             }
 
             let filter = SCContentFilter(display: display, excludingWindows: [])
             let configuration = SCStreamConfiguration()
-            let refreshHz = await MainActor.run {
-                CaptureSourceCapability.refreshRate(for: display.displayID)
+            let (refreshHz, pixelScale) = await MainActor.run {
+                (
+                    CaptureSourceCapability.refreshRate(for: display.displayID),
+                    CaptureSourceCapability.pixelScale(for: display.displayID) ?? 1
+                )
             }
             debugLog("startDisplayCapture displayID=\(display.displayID) refreshHz=\(String(describing: refreshHz))")
             try CaptureSourceCapability.validate(
@@ -144,7 +158,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
                 refreshHz: refreshHz,
                 width: Double(display.width),
                 height: Double(display.height),
-                pixelScale: 1
+                pixelScale: pixelScale
             )
             configuration.width = display.width
             configuration.height = display.height

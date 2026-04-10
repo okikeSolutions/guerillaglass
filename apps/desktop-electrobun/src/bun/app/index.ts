@@ -37,6 +37,7 @@ let linuxTray: Tray | null = null;
 let hostMenuState: HostMenuState = {
   canSave: false,
   canExport: false,
+  canToggleTimeline: true,
   isRecording: false,
   recordingURL: null,
   locale: "en-US",
@@ -140,6 +141,7 @@ function updateHostMenuState(nextState: HostMenuState) {
   const hasChange =
     hostMenuState.canSave !== nextState.canSave ||
     hostMenuState.canExport !== nextState.canExport ||
+    hostMenuState.canToggleTimeline !== nextState.canToggleTimeline ||
     hostMenuState.isRecording !== nextState.isRecording ||
     hostMenuState.recordingURL !== nextState.recordingURL ||
     hostMenuState.locale !== nextState.locale ||
@@ -149,7 +151,7 @@ function updateHostMenuState(nextState: HostMenuState) {
     return;
   }
   console.info(
-    `[host-menu] state changed canSave=${nextState.canSave} canExport=${nextState.canExport} isRecording=${nextState.isRecording} recordingURL=${nextState.recordingURL ?? "null"} locale=${nextState.locale ?? "en-US"} density=${nextState.densityMode ?? "comfortable"}`,
+    `[host-menu] state changed canSave=${nextState.canSave} canExport=${nextState.canExport} canToggleTimeline=${nextState.canToggleTimeline} isRecording=${nextState.isRecording} recordingURL=${nextState.recordingURL ?? "null"} locale=${nextState.locale ?? "en-US"} density=${nextState.densityMode ?? "comfortable"}`,
   );
   hostMenuState = nextState;
   applyShellMenus();

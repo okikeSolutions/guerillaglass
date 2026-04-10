@@ -37,6 +37,7 @@ import {
   normalizeInspectorSelection,
   selectionFromPreset,
 } from "../../domain/inspectorSelectionModel";
+import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import {
   loadStudioShortcutOverrides,
@@ -209,7 +210,8 @@ export function useStudioController() {
 
   const settingsForm = useForm({
     defaultValues: {
-      captureSource: "window" as CaptureSourceMode,
+      captureSource: "display" as CaptureSourceMode,
+      selectedDisplayId: 0,
       selectedWindowId: 0,
       captureFps: defaultCaptureFrameRate,
       micEnabled: false,
@@ -240,6 +242,7 @@ export function useStudioController() {
     recordingURL,
     sourcesQuery,
     timelineEvents,
+    displayChoices,
     windowChoices,
   } = useStudioDataQueries(studioRecentsLimit);
   const recentsLimit = studioRecentsLimit;
@@ -263,12 +266,15 @@ export function useStudioController() {
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
+  const selectedDisplayId = useMemo(() => {
+    return resolveSelectedDisplayId(displayChoices, settingsForm.state.values.selectedDisplayId);
+  }, [displayChoices, settingsForm.state.values.selectedDisplayId]);
   const selectedWindowId = useMemo(() => {
     return resolveSelectedWindowId(windowChoices, settingsForm.state.values.selectedWindowId);
   }, [settingsForm.state.values.selectedWindowId, windowChoices]);
   const selectedDisplaySource = useMemo(
-    () => sourcesQuery.data?.displays[0] ?? null,
-    [sourcesQuery.data?.displays],
+    () => displayChoices.find((displayItem) => displayItem.id === selectedDisplayId) ?? null,
+    [displayChoices, selectedDisplayId],
   );
   const selectedWindowSource = useMemo(() => {
     return windowChoices.find((windowItem) => windowItem.id === selectedWindowId) ?? null;
@@ -415,6 +421,7 @@ export function useStudioController() {
     setTimelinePlayback: setIsTimelinePlaying,
     resetPlayhead: () => setPlayheadSeconds(0),
     pickPathSafely,
+    selectedDisplayId,
     selectedWindowId,
     inputMonitoringDenied,
     recordingURL,
@@ -531,6 +538,9 @@ export function useStudioController() {
           setTrimOutFromPlayhead();
         },
         timelineTogglePanel: () => {
+          if (activeMode === "capture") {
+            return;
+          }
           toggleTimelineCollapsed();
         },
         viewDensityComfortable: () => {
@@ -626,6 +636,7 @@ export function useStudioController() {
     sendHostMenuState({
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
+      canToggleTimeline: activeMode !== "capture",
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
       recordingURL,
       locale,
@@ -634,6 +645,7 @@ export function useStudioController() {
     });
   }, [
     captureStatusQuery.data?.isRecording,
+    activeMode,
     isRunningAction,
     layout.densityMode,
     locale,
@@ -708,6 +720,7 @@ export function useStudioController() {
     saveProjectMutation,
     selectedPreset,
     selectedPresetId,
+    selectedDisplayId,
     selectedWindowId,
     setNotice,
     setAudioMixerGain,
@@ -764,6 +777,7 @@ export function useStudioController() {
     toggleTimelineCollapsed,
     toggleTimelinePlayback,
     ui,
+    displayChoices,
     windowChoices,
     setLeftPaneCollapsed,
   };

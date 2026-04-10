@@ -79,14 +79,27 @@ describe("studio shell header builders", () => {
 
   it("builds utility actions with disabled states based on recording availability", () => {
     const studio = createStudioStub();
-    const actions = buildUtilityActions(studio, "mac" satisfies ShortcutDisplayPlatform);
+    const actions = buildUtilityActions(studio, "mac" satisfies ShortcutDisplayPlatform, "/edit");
 
     const saveAction = actions.find((action) => action.id === "save");
     const exportAction = actions.find((action) => action.id === "export");
+    const timelineAction = actions.find((action) => action.id === "toggle-timeline");
 
     expect(saveAction?.disabled).toBe(true);
     expect(exportAction?.disabled).toBe(true);
+    expect(timelineAction).toBeDefined();
     expect(saveAction?.title).toBe("Recording required");
     expect(exportAction?.title).toBe("Recording required");
+  });
+
+  it("omits the timeline action on capture route", () => {
+    const studio = createStudioStub();
+    const actions = buildUtilityActions(
+      studio,
+      "mac" satisfies ShortcutDisplayPlatform,
+      "/capture",
+    );
+
+    expect(actions.find((action) => action.id === "toggle-timeline")).toBeUndefined();
   });
 });

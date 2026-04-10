@@ -68,6 +68,19 @@ public enum CaptureSourceCapability {
         return nil
     }
 
+    public static func pixelScale(for displayID: CGDirectDisplayID) -> Double? {
+        for screen in NSScreen.screens {
+            guard
+                let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+                CGDirectDisplayID(screenNumber.uint32Value) == displayID
+            else {
+                continue
+            }
+            return Double(screen.backingScaleFactor)
+        }
+        return nil
+    }
+
     public static func refreshRate(forWindowFrame frame: CGRect) -> Double? {
         bestDisplayCandidate(for: frame, candidates: availableDisplayCandidates())?.refreshHz
     }

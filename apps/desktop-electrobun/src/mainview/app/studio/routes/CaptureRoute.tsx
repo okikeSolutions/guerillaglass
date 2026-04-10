@@ -22,7 +22,6 @@ import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
-import { TimelineDock } from "../panels/TimelineDock";
 import { useLiveCapturePreview } from "../hooks/useLiveCapturePreview";
 import { useRecordingMediaSource } from "../hooks/useRecordingMediaSource";
 import {
@@ -32,6 +31,14 @@ import {
   StudioPaneSubtitle,
   StudioPaneTitle,
 } from "../layout/StudioPanePrimitives";
+
+function displayOptionLabel(
+  displayItem: ReturnType<typeof useStudio>["displayChoices"][number],
+  ui: ReturnType<typeof useStudio>["ui"],
+): string {
+  const primarySuffix = displayItem.isPrimary ? ` (${ui.values.primary})` : "";
+  return `${displayItem.displayName}${primarySuffix} - ${displayItem.width}x${displayItem.height}`;
+}
 
 export function CaptureRoute() {
   const studio = useStudio();
@@ -183,6 +190,36 @@ export function CaptureRoute() {
                   )}
                 </studio.settingsForm.Field>
               ) : null}
+
+              {settingsValues.captureSource === "display" ? (
+                <studio.settingsForm.Field name="selectedDisplayId">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel>{studio.ui.labels.display}</FieldLabel>
+                      <FieldContent>
+                        <NativeSelect
+                          value={String(studio.selectedDisplayId)}
+                          disabled={studio.displayChoices.length <= 1}
+                          onChange={(event) => {
+                            field.handleChange(Number(event.target.value));
+                          }}
+                        >
+                          {studio.displayChoices.length === 0 ? (
+                            <NativeSelectOption value="0">
+                              {studio.ui.labels.noDisplays}
+                            </NativeSelectOption>
+                          ) : null}
+                          {studio.displayChoices.map((displayItem) => (
+                            <NativeSelectOption key={displayItem.id} value={String(displayItem.id)}>
+                              {displayOptionLabel(displayItem, studio.ui)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </FieldContent>
+                    </Field>
+                  )}
+                </studio.settingsForm.Field>
+              ) : null}
             </CaptureLeftSection>
           </StudioPaneBody>
         </StudioPane>
@@ -257,7 +294,7 @@ export function CaptureRoute() {
         </StudioPane>
       }
       rightPane={<InspectorPanel mode="capture" />}
-      bottomPane={<TimelineDock />}
+      bottomPane={null}
     />
   );
 }

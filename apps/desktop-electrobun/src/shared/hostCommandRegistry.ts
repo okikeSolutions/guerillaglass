@@ -8,7 +8,7 @@ import {
 } from "./shortcuts";
 
 type HostCommandLabelKey = keyof DesktopMenuMessages | "recordingToggle";
-type HostCommandEnablement = "canSave" | "canExport";
+type HostCommandEnablement = "canSave" | "canExport" | "canToggleTimeline";
 type HostCommandCheckedState =
   | "locale.en-US"
   | "locale.de-DE"
@@ -153,6 +153,7 @@ export const hostCommandDefinitions: HostCommandDefinition[] = [
       appSection: "timeline",
       appGroup: 1,
       labelKey: "toggleTimeline",
+      enableWhen: "canToggleTimeline",
     },
   },
   {

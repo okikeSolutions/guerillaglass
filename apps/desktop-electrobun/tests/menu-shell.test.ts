@@ -33,6 +33,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: false,
+        canToggleTimeline: true,
         isRecording: true,
         locale: "en-US",
         densityMode: "compact",
@@ -43,6 +44,7 @@ describe("shell menu helpers", () => {
       {
         canSave: false,
         canExport: true,
+        canToggleTimeline: false,
         isRecording: false,
         locale: "en-US",
         densityMode: "comfortable",
@@ -84,7 +86,19 @@ describe("shell menu helpers", () => {
       (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
         isNormalApplicationItem(item) && item.label === "View",
     );
+    const timelineMenu = windowsMenu.find(
+      (item): item is Exclude<ApplicationMenuItemConfig, { type: "divider" | "separator" }> =>
+        isNormalApplicationItem(item) && item.label === "Timeline",
+    );
     expect(viewMenu).toBeDefined();
+    expect(timelineMenu).toBeDefined();
+
+    const timelineSubmenu: ApplicationMenuItemConfig[] = timelineMenu?.submenu ?? [];
+    const toggleTimelineItem = timelineSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Toggle Timeline",
+    );
+    expect(toggleTimelineItem).toEqual(expect.objectContaining({ enabled: false }));
+
     const viewSubmenu: ApplicationMenuItemConfig[] = viewMenu?.submenu ?? [];
     const languageMenu = viewSubmenu.find(
       (item) => isNormalApplicationItem(item) && item.label === "Language",
@@ -100,6 +114,7 @@ describe("shell menu helpers", () => {
     const trayMenu = buildLinuxTrayMenu({
       canSave: true,
       canExport: true,
+      canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
       densityMode: "comfortable",
@@ -127,6 +142,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: true,
+        canToggleTimeline: true,
         isRecording: false,
         locale: "en-US",
         densityMode: "comfortable",
@@ -156,6 +172,7 @@ describe("shell menu helpers", () => {
     const trayMenu = buildLinuxTrayMenu({
       canSave: true,
       canExport: true,
+      canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
       densityMode: "comfortable",
@@ -176,6 +193,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: true,
+        canToggleTimeline: true,
         isRecording: false,
         locale: "de-DE",
         densityMode: "compact",
@@ -188,6 +206,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: true,
+        canToggleTimeline: true,
         isRecording: false,
         locale: "de-DE",
         densityMode: "compact",

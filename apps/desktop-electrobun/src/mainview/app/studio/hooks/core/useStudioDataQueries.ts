@@ -17,6 +17,7 @@ import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
 const emptyExportPresets: ExportPreset[] = [];
+const emptySourceDisplays: SourcesResult["displays"] = [];
 const emptySourceWindows: SourcesResult["windows"] = [];
 
 export const studioQueryKeys = {
@@ -145,6 +146,7 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
 
   const timelineEvents = eventsQuery.isSuccess ? eventsQuery.data : [];
   const presets = exportInfoQuery.data?.presets ?? emptyExportPresets;
+  const displayChoices = sourcesQuery.data?.displays ?? emptySourceDisplays;
   const windowChoices = sourcesQuery.data?.windows ?? emptySourceWindows;
 
   return {
@@ -159,6 +161,7 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
     projectRecentsQuery,
     recordingURL,
     sourcesQuery,
+    displayChoices,
     timelineEvents,
     windowChoices,
   };
