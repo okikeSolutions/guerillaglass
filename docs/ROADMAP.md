@@ -89,7 +89,8 @@ Creator Studio pro-UI parity backlog (next pass):
   - Implementation notes:
     - Runtime diagnostics (`cpuPercent`, `memoryBytes`, `recordingBitrateMbps`) are sampled in the native capture engine telemetry store and emitted through `capture.status`.
     - Desktop shell streams `capture.status` updates from Bun host to renderer (`hostCaptureStatus` / `gg-host-capture-status`) with adaptive cadence; renderer cache is stream-fed instead of 250ms query polling.
-    - Native capture benchmarking now runs through `bun run capture:benchmark`, which writes repeatable JSON/Markdown reports for the 60 and 120 fps display/window scenarios under `.tmp/capture-benchmarks/`.
+    - Native capture benchmarking now runs through `bun run capture:benchmark`, which opens an animated benchmark scene and writes repeatable JSON/Markdown reports for the 30, 60, and 120 fps display/window scenarios under `.tmp/capture-benchmarks/`.
+    - `bun run capture:benchmark:check` now fails locally when a scenario misses its native telemetry thresholds; pass `--baseline-report=.tmp/capture-benchmarks/latest/report.json` to compare against the previous run on the same machine.
 
 ---
 
@@ -149,7 +150,7 @@ Editing depth checklist:
 
 - [x] Add true live preview during active recording instead of placeholder-only recording state.
 - [x] Elevate display capture to a first-class primary record affordance alongside current-window capture.
-- [ ] Replace the synthetic single-clip timeline model with a real clip/segment data model.
+- [x] Replace the synthetic single-clip timeline model with a real clip/segment data model.
 - [ ] Implement clip split/delete/lift/move operations and make the ripple toggle behavior real.
 - [ ] Add per-segment camera/zoom editing with manual keyframe override.
 - [ ] Add crop/reframe/redaction/highlight tools for demo-focused editing.

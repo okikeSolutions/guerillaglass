@@ -80,7 +80,8 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.startDisplay`, `capture.startCurrentWindow`, and `capture.startWindow` accept `captureFps` (`24 | 30 | 60 | 120`, default `30`) and this is decoupled from export preset FPS.
   - `capture.startCurrentWindow` resolves the active frontmost shareable window in the engine, so renderer menu actions do not have to infer "current" from cached source ordering.
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
-  - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 60 and 120 fps and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
+  - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 30, 60, and 120 fps against an animated benchmark scene and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
+  - `bun run capture:benchmark:check` is the local regression command for native capture changes; it can compare against the previous machine-local run via `--baseline-report=.tmp/capture-benchmarks/latest/report.json`.
 - **Shared contract primitives:** reusable Effect Schema helpers that must stay aligned across protocol packages live in `packages/schema-primitives`.
 - **Hosted delivery plane (deferred until editor core is strong):**
   - Hosted review/collaboration lives in web/Convex surfaces and must remain downstream of the local editor.

@@ -241,8 +241,9 @@ Telemetry delivery model for desktop shell:
 
 Hardware verification:
 
-- `bun run capture:benchmark` drives the native engine directly through `EngineClient` and runs the 60 and 120 fps benchmark scenarios used for capture acceptance checks.
-- Reports are written to `.tmp/capture-benchmarks/<timestamp>/report.json` and `.tmp/capture-benchmarks/<timestamp>/report.md`.
+- `bun run capture:benchmark` drives the native engine directly through `EngineClient`, opens an animated benchmark scene on macOS, and runs the 30, 60, and 120 fps benchmark scenarios used for capture acceptance checks.
+- Reports are written to `.tmp/capture-benchmarks/<timestamp>/report.json` and `.tmp/capture-benchmarks/<timestamp>/report.md`, and mirrored to `.tmp/capture-benchmarks/latest/`.
+- `bun run capture:benchmark:check` exits non-zero when a scenario misses threshold, and it can compare against the previous local run via `--baseline-report=.tmp/capture-benchmarks/latest/report.json`.
 
 Capture start requests support runtime capture cadence selection:
 
