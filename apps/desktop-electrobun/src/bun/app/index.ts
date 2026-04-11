@@ -16,7 +16,14 @@ import {
   type DesktopBridgeRPC,
   type HostMenuCommand,
   type HostMenuState,
+  type HostRuntimeFlags,
+  type StudioDiagnosticsEntry,
 } from "../../shared/bridge";
+import {
+  appendCaptureBenchmarkQuery,
+  captureBenchmarkWindowTitle,
+} from "../../shared/captureBenchmark";
+import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
 import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
@@ -30,6 +37,8 @@ import { createHostRuntime, type HostRuntime } from "../runtime/hostRuntime";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
+const captureBenchmarkEnabled = process.env.GG_CAPTURE_BENCHMARK === "1";
+const studioDiagnosticsEnabled = process.env.GG_STUDIO_DIAGNOSTICS === "1";
 type BunRPC = ReturnType<typeof BrowserView.defineRPC<DesktopBridgeRPC>>;
 
 let mainWindow: BrowserWindow<BunRPC> | null = null;
@@ -37,6 +46,7 @@ let linuxTray: Tray | null = null;
 let hostMenuState: HostMenuState = {
   canSave: false,
   canExport: false,
+  canTrimTimeline: false,
   canToggleTimeline: true,
   isRecording: false,
   recordingURL: null,
@@ -46,6 +56,10 @@ let hostMenuState: HostMenuState = {
 };
 let currentProjectPath: string | null = null;
 let hostRuntime: HostRuntime | null = null;
+const hostRuntimeFlags: HostRuntimeFlags = {
+  captureBenchmarkEnabled,
+  studioDiagnosticsEnabled,
+};
 
 async function disposeHostShell() {
   const runtime = hostRuntime;
@@ -57,17 +71,35 @@ async function disposeHostShell() {
 }
 
 async function getMainViewURL(): Promise<string> {
+  if (captureBenchmarkEnabled) {
+    return "views://mainview/index.html";
+  }
+
   const channel = await Updater.localInfo.channel();
   if (channel === "dev") {
     try {
       await fetch(DEV_SERVER_URL, { method: "HEAD" });
       console.log(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`);
-      return DEV_SERVER_URL;
+      return appendCaptureBenchmarkQuery(
+        appendStudioDiagnosticsQuery(DEV_SERVER_URL, studioDiagnosticsEnabled),
+        captureBenchmarkEnabled,
+      );
     } catch {
       console.log("Vite dev server not running. Run 'bun run dev:hmr' for HMR support.");
     }
   }
-  return "views://mainview/index.html";
+  return appendCaptureBenchmarkQuery(
+    appendStudioDiagnosticsQuery("views://mainview/index.html", studioDiagnosticsEnabled),
+    captureBenchmarkEnabled,
+  );
+}
+
+function logStudioDiagnostics(entry: StudioDiagnosticsEntry) {
+  const annotations = entry.annotations ? ` annotations=${JSON.stringify(entry.annotations)}` : "";
+  const spans = entry.spans ? ` spans=${JSON.stringify(entry.spans)}` : "";
+  console.info(
+    `[studio-diagnostics] ${entry.level} ${entry.message} timestamp=${entry.timestamp}${annotations}${spans}`,
+  );
 }
 
 async function pickPath(params: {
@@ -141,6 +173,7 @@ function updateHostMenuState(nextState: HostMenuState) {
   const hasChange =
     hostMenuState.canSave !== nextState.canSave ||
     hostMenuState.canExport !== nextState.canExport ||
+    hostMenuState.canTrimTimeline !== nextState.canTrimTimeline ||
     hostMenuState.canToggleTimeline !== nextState.canToggleTimeline ||
     hostMenuState.isRecording !== nextState.isRecording ||
     hostMenuState.recordingURL !== nextState.recordingURL ||
@@ -151,7 +184,7 @@ function updateHostMenuState(nextState: HostMenuState) {
     return;
   }
   console.info(
-    `[host-menu] state changed canSave=${nextState.canSave} canExport=${nextState.canExport} canToggleTimeline=${nextState.canToggleTimeline} isRecording=${nextState.isRecording} recordingURL=${nextState.recordingURL ?? "null"} locale=${nextState.locale ?? "en-US"} density=${nextState.densityMode ?? "comfortable"}`,
+    `[host-menu] state changed canSave=${nextState.canSave} canExport=${nextState.canExport} canTrimTimeline=${nextState.canTrimTimeline} canToggleTimeline=${nextState.canToggleTimeline} isRecording=${nextState.isRecording} recordingURL=${nextState.recordingURL ?? "null"} locale=${nextState.locale ?? "en-US"} density=${nextState.densityMode ?? "comfortable"}`,
   );
   hostMenuState = nextState;
   applyShellMenus();
@@ -187,6 +220,18 @@ function dispatchReviewEvent(event: ReviewBridgeEvent) {
   }
 }
 
+function dispatchHostRuntimeFlags() {
+  if (!mainWindow) {
+    return;
+  }
+
+  try {
+    mainWindow.webview.rpc?.send.hostRuntimeFlags(hostRuntimeFlags);
+  } catch (error) {
+    console.warn("Failed to dispatch host runtime flags:", error);
+  }
+}
+
 function handleShellAction(action: string) {
   routeMenuAction(action, {
     dispatchHostCommand,
@@ -203,16 +248,19 @@ async function bootstrapApp() {
     sendCaptureStatus: (captureStatus) => {
       mainWindow?.webview.rpc?.send.hostCaptureStatus({ captureStatus });
     },
+    enableCaptureStatusStream: !captureBenchmarkEnabled,
   });
 
   try {
-    try {
-      const initialProject = await hostRuntime.runPromise(
-        Effect.flatMap(EngineTransport, (transport) => transport.projectCurrent),
-      );
-      currentProjectPath = initialProject.projectPath;
-    } catch (error) {
-      console.warn("Failed to load initial project state for file-access policy", error);
+    if (!captureBenchmarkEnabled) {
+      try {
+        const initialProject = await hostRuntime.runPromise(
+          Effect.flatMap(EngineTransport, (transport) => transport.projectCurrent),
+        );
+        currentProjectPath = initialProject.projectPath;
+      } catch (error) {
+        console.warn("Failed to load initial project state for file-access policy", error);
+      }
     }
 
     const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
@@ -232,6 +280,9 @@ async function bootstrapApp() {
           hostMenuState: (nextState: HostMenuState) => {
             updateHostMenuState({ ...hostMenuState, ...nextState });
           },
+          studioDiagnostics: (entry: StudioDiagnosticsEntry) => {
+            logStudioDiagnostics(entry);
+          },
         },
       },
     });
@@ -239,8 +290,9 @@ async function bootstrapApp() {
     applyShellMenus();
 
     mainWindow = new BrowserWindow({
-      title: "Guerillaglass",
+      title: captureBenchmarkEnabled ? captureBenchmarkWindowTitle : "Guerillaglass",
       url: await getMainViewURL(),
+      preload: `window.__ggHostRuntimeFlags = ${JSON.stringify(hostRuntimeFlags)};`,
       rpc,
       frame: {
         width: 1320,
@@ -253,6 +305,15 @@ async function bootstrapApp() {
     setTimeout(() => {
       applyShellMenus();
     }, 500);
+    setTimeout(() => {
+      dispatchHostRuntimeFlags();
+    }, 50);
+    setTimeout(() => {
+      dispatchHostRuntimeFlags();
+    }, 250);
+    setTimeout(() => {
+      dispatchHostRuntimeFlags();
+    }, 1000);
 
     Electrobun.events.on("application-menu-clicked", (event: unknown) => {
       const action = extractMenuAction(event);
@@ -272,6 +333,7 @@ async function bootstrapApp() {
 
     mainWindow.on("focus", () => {
       applyShellMenus();
+      dispatchHostRuntimeFlags();
     });
   } catch (error) {
     try {
