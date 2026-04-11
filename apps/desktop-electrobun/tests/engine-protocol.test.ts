@@ -354,7 +354,7 @@ describe("engine protocol", () => {
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
     expect(projectState.timeline.segments).toEqual([]);
-    expect(projectState.agentAnalysis.latestJobId).toBe("job-123");
+    expect(String(projectState.agentAnalysis.latestJobId)).toBe("job-123");
     expect(blockedAgentStatus.blockingReason).toBe("weak_narrative_structure");
     expect(recents.items[0]?.displayName).toBe("project");
   });

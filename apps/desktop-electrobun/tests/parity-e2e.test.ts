@@ -1,6 +1,6 @@
 import path from "node:path";
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
-import { EngineClient } from "../src/bun/engine/client";
+import { createEngineClientPromiseFacade, EngineClient } from "../src/bun/engine/client";
 
 type EngineFixture = {
   name: string;
@@ -35,7 +35,7 @@ describe("phase-1 parity e2e", () => {
     test(
       `runs capture->record->export->project flow (${fixture.name})`,
       async () => {
-        const client = new EngineClient(fixture.path, 2000);
+        const client = createEngineClientPromiseFacade(new EngineClient(fixture.path, 2000));
         try {
           const ping = await client.ping();
           expect(ping.platform).toBe(fixture.expectedPlatform);

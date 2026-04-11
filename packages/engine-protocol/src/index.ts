@@ -6,7 +6,18 @@
  * project persistence models, request envelopes, and finally response helpers.
  */
 import { Schema, type Types } from "effect";
-import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
+import {
+  agentJobIdSchema,
+  agentPreflightTokenSchema,
+  artifactPathSchema,
+  captureSessionIdSchema,
+  engineRpcIdSchema,
+  exportPresetIdSchema,
+  isoDateTimeSchema,
+  outputUrlSchema,
+  projectPathSchema,
+  timelineSegmentIdSchema,
+} from "@guerillaglass/schema-primitives";
 import { engineMethods } from "./methods.js";
 
 const NonEmptyString = Schema.NonEmptyString;
@@ -89,7 +100,7 @@ export const inputEventLogSchema = Schema.Struct({
 
 /** Linked A/V segment persisted in project timeline state. */
 export const timelineSegmentSchema = Schema.Struct({
-  id: NonEmptyString,
+  id: timelineSegmentIdSchema,
   sourceAssetId: Schema.Literal("recording"),
   sourceStartSeconds: NonNegativeNumber,
   sourceEndSeconds: NonNegativeNumber,
@@ -244,7 +255,9 @@ export const capturePreviewFrameSchema = Schema.Struct({
 export const captureStatusResultSchema = Schema.Struct({
   isRunning: Schema.Boolean,
   isRecording: Schema.Boolean,
-  captureSessionId: Schema.optionalWith(Schema.NullOr(NonEmptyString), { default: () => null }),
+  captureSessionId: Schema.optionalWith(Schema.NullOr(captureSessionIdSchema), {
+    default: () => null,
+  }),
   recordingDurationSeconds: NonNegativeNumber,
   recordingURL: Schema.NullOr(Schema.String),
   captureMetadata: Schema.optionalWith(captureMetadataSchema, { default: () => null }),
@@ -263,7 +276,7 @@ export const capturePreviewFrameResultSchema = Schema.NullOr(capturePreviewFrame
 
 /** Export preset descriptor returned by `export.info`. */
 export const exportPresetSchema = Schema.Struct({
-  id: NonEmptyString,
+  id: exportPresetIdSchema,
   name: NonEmptyString,
   width: PositiveInt,
   height: PositiveInt,
@@ -278,7 +291,7 @@ export const exportInfoResultSchema = Schema.Struct({
 
 /** Result payload for `export.run`. */
 export const exportRunResultSchema = Schema.Struct({
-  outputURL: NonEmptyString,
+  outputURL: outputUrlSchema,
 });
 
 /** Agent Mode payloads covering preflight, execution, and persisted artifacts. */
@@ -305,7 +318,7 @@ export const agentArtifactKindSchema = Schema.Literal(
 /** Single persisted agent artifact descriptor. */
 export const agentArtifactSchema = Schema.Struct({
   kind: agentArtifactKindSchema,
-  path: NonEmptyString,
+  path: artifactPathSchema,
 });
 
 /** Supported transcription providers for Agent Mode v1. */
@@ -394,7 +407,7 @@ export const agentQAReportSchema = Schema.Struct({
 
 /** Summary payload for agent pipeline execution. */
 export const agentRunSummarySchema = Schema.Struct({
-  jobId: NonEmptyString,
+  jobId: agentJobIdSchema,
   status: agentJobStatusSchema,
   runtimeBudgetMinutes: PositiveInt,
   qaReport: Schema.NullOr(agentQAReportSchema),
@@ -408,12 +421,12 @@ export const agentPreflightResultSchema = Schema.Struct({
   blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema),
   canApplyDestructive: Schema.Boolean,
   transcriptionProvider: transcriptionProviderSchema,
-  preflightToken: Schema.NullOr(NonEmptyString),
+  preflightToken: Schema.NullOr(agentPreflightTokenSchema),
 });
 
 /** Result payload for `agent.run`. */
 export const agentRunResultSchema = Schema.Struct({
-  jobId: NonEmptyString,
+  jobId: agentJobIdSchema,
   status: agentJobStatusSchema,
 });
 
@@ -422,13 +435,13 @@ export const agentStatusResultSchema = agentRunSummarySchema;
 
 /** Result payload for `export.runCutPlan`. */
 export const exportRunCutPlanResultSchema = Schema.Struct({
-  outputURL: NonEmptyString,
+  outputURL: outputUrlSchema,
   appliedSegments: NonNegativeInt,
 });
 
 /** Project-level summary for the latest agent run metadata. */
 export const projectAgentAnalysisSummarySchema = Schema.Struct({
-  latestJobId: Schema.NullOr(Schema.String),
+  latestJobId: Schema.NullOr(agentJobIdSchema),
   latestStatus: Schema.NullOr(agentJobStatusSchema),
   qaPassed: Schema.NullOr(Schema.Boolean),
   updatedAt: Schema.NullOr(IsoDateTime),
@@ -436,7 +449,7 @@ export const projectAgentAnalysisSummarySchema = Schema.Struct({
 
 /** Engine protocol schema for projectStateSchema. */
 export const projectStateSchema = Schema.Struct({
-  projectPath: Schema.NullOr(Schema.String),
+  projectPath: Schema.NullOr(projectPathSchema),
   recordingURL: Schema.NullOr(Schema.String),
   eventsURL: Schema.NullOr(Schema.String),
   lastRecordingTelemetry: Schema.optionalWith(Schema.NullOr(captureTelemetrySchema), {
@@ -462,7 +475,7 @@ export const projectStateSchema = Schema.Struct({
 
 /** Engine protocol schema for projectRecentItemSchema. */
 export const projectRecentItemSchema = Schema.Struct({
-  projectPath: NonEmptyString,
+  projectPath: projectPathSchema,
   displayName: NonEmptyString,
   lastOpenedAt: IsoDateTime,
 });
@@ -474,7 +487,7 @@ export const projectRecentsResultSchema = Schema.Struct({
 
 /** Base request envelope fragments reused by all engine JSON-RPC methods. */
 const requestBaseFields = {
-  id: NonEmptyString,
+  id: engineRpcIdSchema,
 } as const;
 
 const emptyParamsSchema = Schema.Struct({});
@@ -515,7 +528,7 @@ export const agentPreflightRequestSchema = Schema.Struct({
   params: Schema.Struct({
     runtimeBudgetMinutes: runtimeBudgetMinutesProperty,
     transcriptionProvider: transcriptionProviderProperty,
-    importedTranscriptPath: Schema.optional(NonEmptyString),
+    importedTranscriptPath: Schema.optional(projectPathSchema),
   }),
 });
 
@@ -524,10 +537,10 @@ export const agentRunRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.AgentRun),
   params: Schema.Struct({
-    preflightToken: NonEmptyString,
+    preflightToken: agentPreflightTokenSchema,
     runtimeBudgetMinutes: runtimeBudgetMinutesProperty,
     transcriptionProvider: transcriptionProviderProperty,
-    importedTranscriptPath: Schema.optional(NonEmptyString),
+    importedTranscriptPath: Schema.optional(projectPathSchema),
     force: Schema.optionalWith(Schema.Boolean, { default: () => false }),
   }),
 });
@@ -537,7 +550,7 @@ export const agentStatusRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.AgentStatus),
   params: Schema.Struct({
-    jobId: NonEmptyString,
+    jobId: agentJobIdSchema,
   }),
 });
 
@@ -546,7 +559,7 @@ export const agentApplyRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.AgentApply),
   params: Schema.Struct({
-    jobId: NonEmptyString,
+    jobId: agentJobIdSchema,
     destructiveIntent: destructiveIntentProperty,
   }),
 });
@@ -677,8 +690,8 @@ export const exportRunRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.ExportRun),
   params: Schema.Struct({
-    outputURL: NonEmptyString,
-    presetId: NonEmptyString,
+    outputURL: outputUrlSchema,
+    presetId: exportPresetIdSchema,
     trimStartSeconds: Schema.optional(NonNegativeNumber),
     trimEndSeconds: Schema.optional(NonNegativeNumber),
     timeline: Schema.optional(timelineDocumentSchema),
@@ -690,9 +703,9 @@ export const exportRunCutPlanRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.ExportRunCutPlan),
   params: Schema.Struct({
-    outputURL: NonEmptyString,
-    presetId: NonEmptyString,
-    jobId: NonEmptyString,
+    outputURL: outputUrlSchema,
+    presetId: exportPresetIdSchema,
+    jobId: agentJobIdSchema,
   }),
 });
 
@@ -708,7 +721,7 @@ export const projectOpenRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.ProjectOpen),
   params: Schema.Struct({
-    projectPath: NonEmptyString,
+    projectPath: projectPathSchema,
   }),
 });
 
@@ -717,7 +730,7 @@ export const projectSaveRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.ProjectSave),
   params: Schema.Struct({
-    projectPath: Schema.optional(NonEmptyString),
+    projectPath: Schema.optional(projectPathSchema),
     autoZoom: Schema.optional(autoZoomSettingsSchema),
     timeline: Schema.optional(timelineDocumentSchema),
   }),

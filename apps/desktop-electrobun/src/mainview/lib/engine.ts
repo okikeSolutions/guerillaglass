@@ -45,10 +45,11 @@ import {
   CaptureWindowPickerUnsupportedError,
   EngineResponseError,
   PathPickerError,
-  decodeUnknownWithSchemaPromise,
+  decodeUnknownWithSchema,
   decodeUnknownWithSchemaSync,
   isKnownTaggedError,
   parseJsonStringSync,
+  runEffectPromise,
   type MutableDeep,
 } from "@shared/errors";
 
@@ -91,7 +92,7 @@ async function invokeBridgeDecoded<
   ...args: unknown[]
 ): Promise<MutableDeep<import("effect").Schema.Schema.Type<S>>> {
   const raw = await invokeBridge(name, ...args);
-  return await decodeUnknownWithSchemaPromise(schema, raw, contract);
+  return await runEffectPromise(decodeUnknownWithSchema(schema, raw, contract));
 }
 
 function isMacOS13WindowPickerUnsupported(error: unknown): boolean {

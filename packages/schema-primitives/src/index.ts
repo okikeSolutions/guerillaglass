@@ -66,10 +66,51 @@ function isValidIsoDateTime(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
 }
 
+function brandedNonEmptyString<const B extends string>(brand: B) {
+  return Schema.NonEmptyString.pipe(Schema.brand(brand));
+}
+
+/** Shared helper for nominally distinct non-empty string protocol values. */
+export const nonEmptyStringBrand = brandedNonEmptyString;
+/** Review identifier crossing the review bridge boundary. */
+export const reviewIdSchema = brandedNonEmptyString("ReviewId");
+/** Review comment identifier used in nested thread payloads. */
+export const reviewCommentIdSchema = brandedNonEmptyString("ReviewCommentId");
+/** Review user identifier carried in presence and comment payloads. */
+export const reviewUserIdSchema = brandedNonEmptyString("ReviewUserId");
+/** Review auth token required by Bun review bridge requests. */
+export const reviewAuthTokenSchema = Schema.String.pipe(
+  Schema.filter((value) => value.trim().length > 0, {
+    message: () => "Expected a non-empty review auth token.",
+  }),
+  Schema.brand("ReviewAuthToken"),
+);
+/** JSON-RPC request id used by native engine envelopes. */
+export const engineRpcIdSchema = brandedNonEmptyString("EngineRpcId");
+/** Agent job identifier returned by Agent Mode responses. */
+export const agentJobIdSchema = brandedNonEmptyString("AgentJobId");
+/** Agent preflight token returned by successful preflight checks. */
+export const agentPreflightTokenSchema = brandedNonEmptyString("AgentPreflightToken");
+/** Timeline segment identifier persisted in project documents. */
+export const timelineSegmentIdSchema = Schema.NonEmptyString;
+/** Capture session identifier returned while preview/capture is active. */
+export const captureSessionIdSchema = Schema.NonEmptyString;
+/** Export preset identifier accepted by export requests. */
+export const exportPresetIdSchema = Schema.NonEmptyString;
+/** Absolute project path used by project open/save surfaces. */
+export const projectPathSchema = Schema.NonEmptyString;
+/** Generic absolute file path used by desktop bridge file APIs. */
+export const filePathSchema = Schema.NonEmptyString;
+/** Output URL/path returned or accepted by export/media bridge surfaces. */
+export const outputUrlSchema = Schema.NonEmptyString;
+/** Persisted artifact path emitted by Agent Mode artifacts. */
+export const artifactPathSchema = Schema.NonEmptyString;
+
 /** Effect Schema primitive for canonical ISO 8601 datetime strings. */
 export const isoDateTimeSchema = Schema.String.pipe(
   Schema.pattern(isoDateTimePattern),
   Schema.filter((value) => isValidIsoDateTime(value), {
     message: () => "Expected an ISO 8601 datetime string.",
   }),
+  Schema.brand("IsoDateTime"),
 );

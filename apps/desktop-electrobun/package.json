@@ -24,6 +24,7 @@
     "@guerillaglass/engine-protocol": "workspace:*",
     "@guerillaglass/localization": "workspace:*",
     "@guerillaglass/review-protocol": "workspace:*",
+    "@guerillaglass/schema-primitives": "workspace:*",
     "@guerillaglass/ui": "workspace:*",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-form": "^1.28.6",

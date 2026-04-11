@@ -112,39 +112,146 @@ export type EngineTransportService = {
   projectRecents: (limit?: number) => Effect.Effect<ProjectRecentsResult, EngineTransportError>;
 };
 
-type EngineClientLike = Pick<
-  EngineClient,
-  | "start"
-  | "stop"
-  | "ping"
-  | "getPermissions"
-  | "agentPreflight"
-  | "agentRun"
-  | "agentStatus"
-  | "agentApply"
-  | "requestScreenRecordingPermission"
-  | "requestMicrophonePermission"
-  | "requestInputMonitoringPermission"
-  | "openInputMonitoringSettings"
-  | "listSources"
-  | "startDisplayCapture"
-  | "startCurrentWindowCapture"
-  | "startWindowCapture"
-  | "stopCapture"
-  | "startRecording"
-  | "stopRecording"
-  | "captureStatus"
-  | "capturePreviewFrame"
-  | "exportInfo"
-  | "runExport"
-  | "runCutPlanExport"
-  | "projectCurrent"
-  | "projectOpen"
-  | "projectSave"
-  | "projectRecents"
-> & {
+type EngineClientLike = {
   startEffect?: () => Effect.Effect<void, Error>;
+  start?: () => Promise<void>;
   stopEffect?: () => Effect.Effect<void, never>;
+  stop?: () => Promise<void>;
+  pingEffect?: () => Effect.Effect<PingResult, EngineTransportError>;
+  ping?: () => Promise<PingResult>;
+  getPermissionsEffect?: () => Effect.Effect<PermissionsResult, EngineTransportError>;
+  getPermissions?: () => Promise<PermissionsResult>;
+  agentPreflightEffect?: (params?: {
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: TranscriptionProvider;
+    importedTranscriptPath?: string;
+  }) => Effect.Effect<AgentPreflightResult, EngineTransportError>;
+  agentPreflight?: (params?: {
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: TranscriptionProvider;
+    importedTranscriptPath?: string;
+  }) => Promise<AgentPreflightResult>;
+  agentRunEffect?: (params: {
+    preflightToken: string;
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: TranscriptionProvider;
+    importedTranscriptPath?: string;
+    force?: boolean;
+  }) => Effect.Effect<AgentRunResult, EngineTransportError>;
+  agentRun?: (params: {
+    preflightToken: string;
+    runtimeBudgetMinutes?: number;
+    transcriptionProvider?: TranscriptionProvider;
+    importedTranscriptPath?: string;
+    force?: boolean;
+  }) => Promise<AgentRunResult>;
+  agentStatusEffect?: (jobId: string) => Effect.Effect<AgentStatusResult, EngineTransportError>;
+  agentStatus?: (jobId: string) => Promise<AgentStatusResult>;
+  agentApplyEffect?: (params: {
+    jobId: string;
+    destructiveIntent?: boolean;
+  }) => Effect.Effect<ActionResult, EngineTransportError>;
+  agentApply?: (params: { jobId: string; destructiveIntent?: boolean }) => Promise<ActionResult>;
+  requestScreenRecordingPermissionEffect?: () => Effect.Effect<ActionResult, EngineTransportError>;
+  requestScreenRecordingPermission?: () => Promise<ActionResult>;
+  requestMicrophonePermissionEffect?: () => Effect.Effect<ActionResult, EngineTransportError>;
+  requestMicrophonePermission?: () => Promise<ActionResult>;
+  requestInputMonitoringPermissionEffect?: () => Effect.Effect<ActionResult, EngineTransportError>;
+  requestInputMonitoringPermission?: () => Promise<ActionResult>;
+  openInputMonitoringSettingsEffect?: () => Effect.Effect<ActionResult, EngineTransportError>;
+  openInputMonitoringSettings?: () => Promise<ActionResult>;
+  listSourcesEffect?: () => Effect.Effect<SourcesResult, EngineTransportError>;
+  listSources?: () => Promise<SourcesResult>;
+  startDisplayCaptureEffect?: (
+    enableMic: boolean,
+    captureFps: CaptureFrameRate,
+    displayId?: number,
+    enablePreview?: boolean,
+  ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  startDisplayCapture?: (
+    enableMic: boolean,
+    captureFps: CaptureFrameRate,
+    displayId?: number,
+    enablePreview?: boolean,
+  ) => Promise<CaptureStatusResult>;
+  startCurrentWindowCaptureEffect?: (
+    enableMic: boolean,
+    captureFps: CaptureFrameRate,
+    enablePreview?: boolean,
+  ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  startCurrentWindowCapture?: (
+    enableMic: boolean,
+    captureFps: CaptureFrameRate,
+    enablePreview?: boolean,
+  ) => Promise<CaptureStatusResult>;
+  startWindowCaptureEffect?: (
+    windowId: number,
+    enableMic: boolean,
+    captureFps: CaptureFrameRate,
+    enablePreview?: boolean,
+  ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  startWindowCapture?: (
+    windowId: number,
+    enableMic: boolean,
+    captureFps: CaptureFrameRate,
+    enablePreview?: boolean,
+  ) => Promise<CaptureStatusResult>;
+  stopCaptureEffect?: () => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  stopCapture?: () => Promise<CaptureStatusResult>;
+  startRecordingEffect?: (
+    trackInputEvents: boolean,
+  ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  startRecording?: (trackInputEvents: boolean) => Promise<CaptureStatusResult>;
+  stopRecordingEffect?: () => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  stopRecording?: () => Promise<CaptureStatusResult>;
+  captureStatusEffect?: () => Effect.Effect<CaptureStatusResult, EngineTransportError>;
+  captureStatus?: () => Promise<CaptureStatusResult>;
+  capturePreviewFrameEffect?: () => Effect.Effect<CapturePreviewFrameResult, EngineTransportError>;
+  capturePreviewFrame?: () => Promise<CapturePreviewFrameResult>;
+  exportInfoEffect?: () => Effect.Effect<ExportInfoResult, EngineTransportError>;
+  exportInfo?: () => Promise<ExportInfoResult>;
+  runExportEffect?: (params: {
+    outputURL: string;
+    presetId: string;
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+    timeline?: TimelineDocument;
+  }) => Effect.Effect<ExportRunResult, EngineTransportError>;
+  runExport?: (params: {
+    outputURL: string;
+    presetId: string;
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+    timeline?: TimelineDocument;
+  }) => Promise<ExportRunResult>;
+  runCutPlanExportEffect?: (params: {
+    outputURL: string;
+    presetId: string;
+    jobId: string;
+  }) => Effect.Effect<ExportRunCutPlanResult, EngineTransportError>;
+  runCutPlanExport?: (params: {
+    outputURL: string;
+    presetId: string;
+    jobId: string;
+  }) => Promise<ExportRunCutPlanResult>;
+  projectCurrentEffect?: () => Effect.Effect<ProjectState, EngineTransportError>;
+  projectCurrent?: () => Promise<ProjectState>;
+  projectOpenEffect?: (projectPath: string) => Effect.Effect<ProjectState, EngineTransportError>;
+  projectOpen?: (projectPath: string) => Promise<ProjectState>;
+  projectSaveEffect?: (params: {
+    projectPath?: string;
+    autoZoom?: AutoZoomSettings;
+    timeline?: TimelineDocument;
+  }) => Effect.Effect<ProjectState, EngineTransportError>;
+  projectSave?: (params: {
+    projectPath?: string;
+    autoZoom?: AutoZoomSettings;
+    timeline?: TimelineDocument;
+  }) => Promise<ProjectState>;
+  projectRecentsEffect?: (
+    limit?: number,
+  ) => Effect.Effect<ProjectRecentsResult, EngineTransportError>;
+  projectRecents?: (limit?: number) => Promise<ProjectRecentsResult>;
 };
 
 /** Effect service tag for engine operations used by the Bun host. */
@@ -191,8 +298,17 @@ function startClientEffect(client: EngineClientLike): Effect.Effect<void, Engine
       .startEffect()
       .pipe(Effect.mapError((error) => normalizeEngineLifecycleError("start", error)));
   }
+  if (!client.start) {
+    return Effect.fail(
+      new EngineClientError({
+        code: "ENGINE_PROCESS_FAILED",
+        description: "Engine client start is not implemented.",
+      }),
+    );
+  }
+  const start = client.start;
   return Effect.tryPromise({
-    try: () => client.start(),
+    try: () => start(),
     catch: (error) => normalizeEngineLifecycleError("start", error),
   });
 }
@@ -201,19 +317,38 @@ function stopClientEffect(client: EngineClientLike): Effect.Effect<void, never> 
   if (client.stopEffect) {
     return client.stopEffect();
   }
+  if (!client.stop) {
+    return Effect.void;
+  }
+  const stop = client.stop;
   return Effect.catchAll(
     Effect.tryPromise({
-      try: () => client.stop(),
+      try: () => stop(),
       catch: (error) => normalizeEngineLifecycleError("stop", error),
     }),
     (error) => Effect.logWarning("Engine transport shutdown failed", error),
   );
 }
 
-function wrapClientEffect<A>(
+function wrapClientOperationEffect<A>(
   operation: string,
-  run: () => Promise<A>,
+  effect: (() => Effect.Effect<A, unknown> | undefined) | undefined,
+  run: (() => Promise<A>) | undefined,
 ): Effect.Effect<A, EngineTransportError> {
+  const effectProgram = effect?.();
+  if (effectProgram) {
+    return effectProgram.pipe(
+      Effect.mapError((error) => normalizeEngineOperationError(operation, error)),
+    );
+  }
+  if (!run) {
+    return Effect.fail(
+      new EngineOperationError({
+        operation,
+        description: `Engine ${operation} is not implemented.`,
+      }),
+    );
+  }
   return Effect.tryPromise({
     try: run,
     catch: (error) => normalizeEngineOperationError(operation, error),
@@ -222,57 +357,179 @@ function wrapClientEffect<A>(
 
 /** Wraps an imperative `EngineClient` in the Effect transport interface. */
 export function makeEngineTransport(client: EngineClientLike): EngineTransportService {
+  const ping = client.ping?.bind(client);
+  const getPermissions = client.getPermissions?.bind(client);
+  const agentPreflight = client.agentPreflight?.bind(client);
+  const agentRun = client.agentRun?.bind(client);
+  const agentStatus = client.agentStatus?.bind(client);
+  const agentApply = client.agentApply?.bind(client);
+  const requestScreenRecordingPermission = client.requestScreenRecordingPermission?.bind(client);
+  const requestMicrophonePermission = client.requestMicrophonePermission?.bind(client);
+  const requestInputMonitoringPermission = client.requestInputMonitoringPermission?.bind(client);
+  const openInputMonitoringSettings = client.openInputMonitoringSettings?.bind(client);
+  const listSources = client.listSources?.bind(client);
+  const startDisplayCapture = client.startDisplayCapture?.bind(client);
+  const startCurrentWindowCapture = client.startCurrentWindowCapture?.bind(client);
+  const startWindowCapture = client.startWindowCapture?.bind(client);
+  const stopCapture = client.stopCapture?.bind(client);
+  const startRecording = client.startRecording?.bind(client);
+  const stopRecording = client.stopRecording?.bind(client);
+  const captureStatus = client.captureStatus?.bind(client);
+  const capturePreviewFrame = client.capturePreviewFrame?.bind(client);
+  const exportInfo = client.exportInfo?.bind(client);
+  const runExport = client.runExport?.bind(client);
+  const runCutPlanExport = client.runCutPlanExport?.bind(client);
+  const projectCurrent = client.projectCurrent?.bind(client);
+  const projectOpen = client.projectOpen?.bind(client);
+  const projectSave = client.projectSave?.bind(client);
+  const projectRecents = client.projectRecents?.bind(client);
+
   return {
-    ping: wrapClientEffect("system.ping", () => client.ping()),
-    getPermissions: wrapClientEffect("permissions.get", () => client.getPermissions()),
+    ping: wrapClientOperationEffect("system.ping", client.pingEffect?.bind(client), ping),
+    getPermissions: wrapClientOperationEffect(
+      "permissions.get",
+      client.getPermissionsEffect?.bind(client),
+      getPermissions,
+    ),
     agentPreflight: (params) =>
-      wrapClientEffect("agent.preflight", () => client.agentPreflight(params)),
-    agentRun: (params) => wrapClientEffect("agent.run", () => client.agentRun(params)),
-    agentStatus: (jobId) => wrapClientEffect("agent.status", () => client.agentStatus(jobId)),
-    agentApply: (params) => wrapClientEffect("agent.apply", () => client.agentApply(params)),
-    requestScreenRecordingPermission: wrapClientEffect("permissions.requestScreenRecording", () =>
-      client.requestScreenRecordingPermission(),
+      wrapClientOperationEffect(
+        "agent.preflight",
+        () => client.agentPreflightEffect?.(params),
+        agentPreflight ? () => agentPreflight(params) : undefined,
+      ),
+    agentRun: (params) =>
+      wrapClientOperationEffect(
+        "agent.run",
+        () => client.agentRunEffect?.(params),
+        agentRun ? () => agentRun(params) : undefined,
+      ),
+    agentStatus: (jobId) =>
+      wrapClientOperationEffect(
+        "agent.status",
+        () => client.agentStatusEffect?.(jobId),
+        agentStatus ? () => agentStatus(jobId) : undefined,
+      ),
+    agentApply: (params) =>
+      wrapClientOperationEffect(
+        "agent.apply",
+        () => client.agentApplyEffect?.(params),
+        agentApply ? () => agentApply(params) : undefined,
+      ),
+    requestScreenRecordingPermission: wrapClientOperationEffect(
+      "permissions.requestScreenRecording",
+      client.requestScreenRecordingPermissionEffect?.bind(client),
+      requestScreenRecordingPermission,
     ),
-    requestMicrophonePermission: wrapClientEffect("permissions.requestMicrophone", () =>
-      client.requestMicrophonePermission(),
+    requestMicrophonePermission: wrapClientOperationEffect(
+      "permissions.requestMicrophone",
+      client.requestMicrophonePermissionEffect?.bind(client),
+      requestMicrophonePermission,
     ),
-    requestInputMonitoringPermission: wrapClientEffect("permissions.requestInputMonitoring", () =>
-      client.requestInputMonitoringPermission(),
+    requestInputMonitoringPermission: wrapClientOperationEffect(
+      "permissions.requestInputMonitoring",
+      client.requestInputMonitoringPermissionEffect?.bind(client),
+      requestInputMonitoringPermission,
     ),
-    openInputMonitoringSettings: wrapClientEffect("permissions.openInputMonitoringSettings", () =>
-      client.openInputMonitoringSettings(),
+    openInputMonitoringSettings: wrapClientOperationEffect(
+      "permissions.openInputMonitoringSettings",
+      client.openInputMonitoringSettingsEffect?.bind(client),
+      openInputMonitoringSettings,
     ),
-    listSources: wrapClientEffect("sources.list", () => client.listSources()),
+    listSources: wrapClientOperationEffect(
+      "sources.list",
+      client.listSourcesEffect?.bind(client),
+      listSources,
+    ),
     startDisplayCapture: (enableMic, captureFps, displayId, enablePreview) =>
-      wrapClientEffect("capture.startDisplay", () =>
-        client.startDisplayCapture(enableMic, captureFps, displayId, enablePreview),
+      wrapClientOperationEffect(
+        "capture.startDisplay",
+        () => client.startDisplayCaptureEffect?.(enableMic, captureFps, displayId, enablePreview),
+        startDisplayCapture
+          ? () => startDisplayCapture(enableMic, captureFps, displayId, enablePreview)
+          : undefined,
       ),
     startCurrentWindowCapture: (enableMic, captureFps, enablePreview) =>
-      wrapClientEffect("capture.startCurrentWindow", () =>
-        client.startCurrentWindowCapture(enableMic, captureFps, enablePreview),
+      wrapClientOperationEffect(
+        "capture.startCurrentWindow",
+        () => client.startCurrentWindowCaptureEffect?.(enableMic, captureFps, enablePreview),
+        startCurrentWindowCapture
+          ? () => startCurrentWindowCapture(enableMic, captureFps, enablePreview)
+          : undefined,
       ),
     startWindowCapture: (windowId, enableMic, captureFps, enablePreview) =>
-      wrapClientEffect("capture.startWindow", () =>
-        client.startWindowCapture(windowId, enableMic, captureFps, enablePreview),
+      wrapClientOperationEffect(
+        "capture.startWindow",
+        () => client.startWindowCaptureEffect?.(windowId, enableMic, captureFps, enablePreview),
+        startWindowCapture
+          ? () => startWindowCapture(windowId, enableMic, captureFps, enablePreview)
+          : undefined,
       ),
-    stopCapture: wrapClientEffect("capture.stop", () => client.stopCapture()),
-    startRecording: (trackInputEvents) =>
-      wrapClientEffect("recording.start", () => client.startRecording(trackInputEvents)),
-    stopRecording: wrapClientEffect("recording.stop", () => client.stopRecording()),
-    captureStatus: wrapClientEffect("capture.status", () => client.captureStatus()),
-    capturePreviewFrame: wrapClientEffect("capture.previewFrame", () =>
-      client.capturePreviewFrame(),
+    stopCapture: wrapClientOperationEffect(
+      "capture.stop",
+      client.stopCaptureEffect?.bind(client),
+      stopCapture,
     ),
-    exportInfo: wrapClientEffect("export.info", () => client.exportInfo()),
-    runExport: (params) => wrapClientEffect("export.run", () => client.runExport(params)),
+    startRecording: (trackInputEvents) =>
+      wrapClientOperationEffect(
+        "recording.start",
+        () => client.startRecordingEffect?.(trackInputEvents),
+        startRecording ? () => startRecording(trackInputEvents) : undefined,
+      ),
+    stopRecording: wrapClientOperationEffect(
+      "recording.stop",
+      client.stopRecordingEffect?.bind(client),
+      stopRecording,
+    ),
+    captureStatus: wrapClientOperationEffect(
+      "capture.status",
+      client.captureStatusEffect?.bind(client),
+      captureStatus,
+    ),
+    capturePreviewFrame: wrapClientOperationEffect(
+      "capture.previewFrame",
+      client.capturePreviewFrameEffect?.bind(client),
+      capturePreviewFrame,
+    ),
+    exportInfo: wrapClientOperationEffect(
+      "export.info",
+      client.exportInfoEffect?.bind(client),
+      exportInfo,
+    ),
+    runExport: (params) =>
+      wrapClientOperationEffect(
+        "export.run",
+        () => client.runExportEffect?.(params),
+        runExport ? () => runExport(params) : undefined,
+      ),
     runCutPlanExport: (params) =>
-      wrapClientEffect("export.runCutPlan", () => client.runCutPlanExport(params)),
-    projectCurrent: wrapClientEffect("project.current", () => client.projectCurrent()),
+      wrapClientOperationEffect(
+        "export.runCutPlan",
+        () => client.runCutPlanExportEffect?.(params),
+        runCutPlanExport ? () => runCutPlanExport(params) : undefined,
+      ),
+    projectCurrent: wrapClientOperationEffect(
+      "project.current",
+      client.projectCurrentEffect?.bind(client),
+      projectCurrent,
+    ),
     projectOpen: (projectPath) =>
-      wrapClientEffect("project.open", () => client.projectOpen(projectPath)),
-    projectSave: (params) => wrapClientEffect("project.save", () => client.projectSave(params)),
+      wrapClientOperationEffect(
+        "project.open",
+        () => client.projectOpenEffect?.(projectPath),
+        projectOpen ? () => projectOpen(projectPath) : undefined,
+      ),
+    projectSave: (params) =>
+      wrapClientOperationEffect(
+        "project.save",
+        () => client.projectSaveEffect?.(params),
+        projectSave ? () => projectSave(params) : undefined,
+      ),
     projectRecents: (limit) =>
-      wrapClientEffect("project.recents", () => client.projectRecents(limit)),
+      wrapClientOperationEffect(
+        "project.recents",
+        () => client.projectRecentsEffect?.(limit),
+        projectRecents ? () => projectRecents(limit) : undefined,
+      ),
   };
 }
 

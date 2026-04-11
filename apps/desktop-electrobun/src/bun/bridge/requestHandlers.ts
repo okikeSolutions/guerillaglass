@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
+import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
 import { createBunBridgeHandlers } from "../../shared/bridge";
 import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridge";
 import { EngineTransport } from "../engine/service";
@@ -131,7 +132,7 @@ export function createEngineBridgeHandlers({
         type: "comment.created",
         reviewId: comment.reviewId,
         comment,
-        emittedAt: new Date().toISOString(),
+        emittedAt: isoDateTimeSchema.make(new Date().toISOString()),
       });
       return comment;
     },

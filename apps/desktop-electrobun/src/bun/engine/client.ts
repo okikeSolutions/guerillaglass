@@ -610,10 +610,6 @@ export class EngineClient {
     return Effect.asVoid(this.ensureSessionEffect());
   }
 
-  async start(): Promise<void> {
-    await runEffectPromise(this.startEffect());
-  }
-
   stopEffect(): Effect.Effect<void, never> {
     return Effect.gen(this, function* () {
       yield* Effect.sync(() => {
@@ -648,10 +644,6 @@ export class EngineClient {
     );
   }
 
-  async stop(): Promise<void> {
-    await runEffectPromise(this.stopEffect());
-  }
-
   private methodEffect<TSchema extends Schema.Schema.AnyNoContext, TArgs extends unknown[]>(
     definition: EngineMethodDefinition<TSchema, TArgs>,
     ...args: TArgs
@@ -681,17 +673,9 @@ export class EngineClient {
     return this.methodEffect(definition);
   }
 
-  async ping() {
-    return await runEffectPromise(this.pingEffect());
-  }
-
   capabilitiesEffect() {
     const definition = engineMethodDefinitions.capabilities;
     return this.methodEffect(definition);
-  }
-
-  async capabilities() {
-    return await runEffectPromise(this.capabilitiesEffect());
   }
 
   agentPreflightEffect(params?: {
@@ -701,14 +685,6 @@ export class EngineClient {
   }) {
     const definition = engineMethodDefinitions.agentPreflight;
     return this.methodEffect(definition, params);
-  }
-
-  async agentPreflight(params?: {
-    runtimeBudgetMinutes?: number;
-    transcriptionProvider?: TranscriptionProvider;
-    importedTranscriptPath?: string;
-  }) {
-    return await runEffectPromise(this.agentPreflightEffect(params));
   }
 
   agentRunEffect(params: {
@@ -722,40 +698,39 @@ export class EngineClient {
     return this.methodEffect(definition, params);
   }
 
-  async agentRun(params: {
-    preflightToken: string;
-    runtimeBudgetMinutes?: number;
-    transcriptionProvider?: TranscriptionProvider;
-    importedTranscriptPath?: string;
-    force?: boolean;
-  }): Promise<AgentRunResult> {
-    return await runEffectPromise(this.agentRunEffect(params));
-  }
-
   /**
    * Sends a raw request payload directly to the engine without protocol request-shape validation.
    *
-   * Intended for integration tests and diagnostics where callers need engine-originated errors.
+   * Intended for integration tests and diagnostics where callers need engine-originated errors while
+   * staying inside the typed `Effect` failure channel.
    */
-  async sendRaw(method: string, params: unknown, options?: { timeoutMs?: number }) {
-    const rawRpcAllowed =
-      process.env.NODE_ENV !== "production" || process.env.GG_ENGINE_ALLOW_RAW_RPC === "1";
-    if (!rawRpcAllowed) {
-      throw new EngineResponseError({
-        code: "permission_denied",
-        description:
-          "sendRaw is disabled in production. Set GG_ENGINE_ALLOW_RAW_RPC=1 for diagnostics.",
-      });
-    }
-    const trimmedMethod = method.trim();
-    if (!trimmedMethod) {
-      throw new EngineResponseError({
-        code: "invalid_params",
-        description: "method is required",
-      });
-    }
-    const timeoutMs = this.resolveRawRequestTimeoutMs(trimmedMethod, options?.timeoutMs);
-    return await runEffectPromise(this.requestRawEffect(trimmedMethod, params, timeoutMs));
+  sendRawEffect(method: string, params: unknown, options?: { timeoutMs?: number }) {
+    return Effect.gen(this, function* () {
+      const rawRpcAllowed =
+        process.env.NODE_ENV !== "production" || process.env.GG_ENGINE_ALLOW_RAW_RPC === "1";
+      if (!rawRpcAllowed) {
+        return yield* Effect.fail(
+          new EngineResponseError({
+            code: "permission_denied",
+            description:
+              "sendRaw is disabled in production. Set GG_ENGINE_ALLOW_RAW_RPC=1 for diagnostics.",
+          }),
+        );
+      }
+
+      const trimmedMethod = method.trim();
+      if (!trimmedMethod) {
+        return yield* Effect.fail(
+          new EngineResponseError({
+            code: "invalid_params",
+            description: "method is required",
+          }),
+        );
+      }
+
+      const timeoutMs = this.resolveRawRequestTimeoutMs(trimmedMethod, options?.timeoutMs);
+      return yield* this.requestRawEffect(trimmedMethod, params, timeoutMs);
+    });
   }
 
   agentStatusEffect(jobId: string) {
@@ -763,17 +738,9 @@ export class EngineClient {
     return this.methodEffect(definition, jobId);
   }
 
-  async agentStatus(jobId: string) {
-    return await runEffectPromise(this.agentStatusEffect(jobId));
-  }
-
   agentApplyEffect(params: { jobId: string; destructiveIntent?: boolean }) {
     const definition = engineMethodDefinitions.agentApply;
     return this.methodEffect(definition, params);
-  }
-
-  async agentApply(params: { jobId: string; destructiveIntent?: boolean }) {
-    return await runEffectPromise(this.agentApplyEffect(params));
   }
 
   getPermissionsEffect() {
@@ -781,17 +748,9 @@ export class EngineClient {
     return this.methodEffect(definition);
   }
 
-  async getPermissions() {
-    return await runEffectPromise(this.getPermissionsEffect());
-  }
-
   requestScreenRecordingPermissionEffect() {
     const definition = engineMethodDefinitions.requestScreenRecordingPermission;
     return this.methodEffect(definition);
-  }
-
-  async requestScreenRecordingPermission() {
-    return await runEffectPromise(this.requestScreenRecordingPermissionEffect());
   }
 
   requestMicrophonePermissionEffect() {
@@ -799,17 +758,9 @@ export class EngineClient {
     return this.methodEffect(definition);
   }
 
-  async requestMicrophonePermission() {
-    return await runEffectPromise(this.requestMicrophonePermissionEffect());
-  }
-
   requestInputMonitoringPermissionEffect() {
     const definition = engineMethodDefinitions.requestInputMonitoringPermission;
     return this.methodEffect(definition);
-  }
-
-  async requestInputMonitoringPermission() {
-    return await runEffectPromise(this.requestInputMonitoringPermissionEffect());
   }
 
   openInputMonitoringSettingsEffect() {
@@ -817,17 +768,9 @@ export class EngineClient {
     return this.methodEffect(definition);
   }
 
-  async openInputMonitoringSettings() {
-    return await runEffectPromise(this.openInputMonitoringSettingsEffect());
-  }
-
   listSourcesEffect() {
     const definition = engineMethodDefinitions.listSources;
     return this.methodEffect(definition);
-  }
-
-  async listSources() {
-    return await runEffectPromise(this.listSourcesEffect());
   }
 
   startDisplayCaptureEffect(
@@ -840,17 +783,6 @@ export class EngineClient {
     return this.captureMethodEffect(definition, enableMic, captureFps, displayId, enablePreview);
   }
 
-  async startDisplayCapture(
-    enableMic: boolean,
-    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
-    displayId?: number,
-    enablePreview = true,
-  ) {
-    return await runEffectPromise(
-      this.startDisplayCaptureEffect(enableMic, captureFps, displayId, enablePreview),
-    );
-  }
-
   startCurrentWindowCaptureEffect(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
@@ -858,16 +790,6 @@ export class EngineClient {
   ) {
     const definition = engineMethodDefinitions.startCurrentWindowCapture;
     return this.captureMethodEffect(definition, enableMic, captureFps, enablePreview);
-  }
-
-  async startCurrentWindowCapture(
-    enableMic: boolean,
-    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
-    enablePreview = true,
-  ) {
-    return await runEffectPromise(
-      this.startCurrentWindowCaptureEffect(enableMic, captureFps, enablePreview),
-    );
   }
 
   startWindowCaptureEffect(
@@ -878,17 +800,6 @@ export class EngineClient {
   ) {
     const definition = engineMethodDefinitions.startWindowCapture;
     return this.captureMethodEffect(definition, windowId, enableMic, captureFps, enablePreview);
-  }
-
-  async startWindowCapture(
-    windowId: number,
-    enableMic: boolean,
-    captureFps: CaptureFrameRate = defaultCaptureFrameRate,
-    enablePreview = true,
-  ) {
-    return await runEffectPromise(
-      this.startWindowCaptureEffect(windowId, enableMic, captureFps, enablePreview),
-    );
   }
 
   stopCaptureEffect() {
@@ -961,17 +872,9 @@ export class EngineClient {
     );
   }
 
-  async stopCapture() {
-    return await runEffectPromise(this.stopCaptureEffect());
-  }
-
   startRecordingEffect(trackInputEvents: boolean) {
     const definition = engineMethodDefinitions.startRecording;
     return this.captureMethodEffect(definition, trackInputEvents);
-  }
-
-  async startRecording(trackInputEvents: boolean) {
-    return await runEffectPromise(this.startRecordingEffect(trackInputEvents));
   }
 
   stopRecordingEffect() {
@@ -979,17 +882,9 @@ export class EngineClient {
     return this.captureMethodEffect(definition);
   }
 
-  async stopRecording() {
-    return await runEffectPromise(this.stopRecordingEffect());
-  }
-
   captureStatusEffect() {
     const definition = engineMethodDefinitions.captureStatus;
     return this.captureMethodEffect(definition);
-  }
-
-  async captureStatus() {
-    return await runEffectPromise(this.captureStatusEffect());
   }
 
   capturePreviewFrameEffect() {
@@ -997,17 +892,9 @@ export class EngineClient {
     return this.methodEffect(definition);
   }
 
-  async capturePreviewFrame(): Promise<CapturePreviewFrameResult> {
-    return await runEffectPromise(this.capturePreviewFrameEffect());
-  }
-
   exportInfoEffect() {
     const definition = engineMethodDefinitions.exportInfo;
     return this.methodEffect(definition);
-  }
-
-  async exportInfo() {
-    return await runEffectPromise(this.exportInfoEffect());
   }
 
   runExportEffect(params: {
@@ -1021,23 +908,9 @@ export class EngineClient {
     return this.methodEffect(definition, params);
   }
 
-  async runExport(params: {
-    outputURL: string;
-    presetId: string;
-    trimStartSeconds?: number;
-    trimEndSeconds?: number;
-    timeline?: TimelineDocument;
-  }) {
-    return await runEffectPromise(this.runExportEffect(params));
-  }
-
   runCutPlanExportEffect(params: { outputURL: string; presetId: string; jobId: string }) {
     const definition = engineMethodDefinitions.runCutPlanExport;
     return this.methodEffect(definition, params);
-  }
-
-  async runCutPlanExport(params: { outputURL: string; presetId: string; jobId: string }) {
-    return await runEffectPromise(this.runCutPlanExportEffect(params));
   }
 
   projectCurrentEffect() {
@@ -1045,17 +918,9 @@ export class EngineClient {
     return this.methodEffect(definition);
   }
 
-  async projectCurrent() {
-    return await runEffectPromise(this.projectCurrentEffect());
-  }
-
   projectOpenEffect(projectPath: string) {
     const definition = engineMethodDefinitions.projectOpen;
     return this.methodEffect(definition, projectPath);
-  }
-
-  async projectOpen(projectPath: string) {
-    return await runEffectPromise(this.projectOpenEffect(projectPath));
   }
 
   projectSaveEffect(params: {
@@ -1067,21 +932,9 @@ export class EngineClient {
     return this.methodEffect(definition, params);
   }
 
-  async projectSave(params: {
-    projectPath?: string;
-    autoZoom?: AutoZoomSettings;
-    timeline?: TimelineDocument;
-  }) {
-    return await runEffectPromise(this.projectSaveEffect(params));
-  }
-
   projectRecentsEffect(limit?: number) {
     const definition = engineMethodDefinitions.projectRecents;
     return this.methodEffect(definition, limit);
-  }
-
-  async projectRecents(limit?: number) {
-    return await runEffectPromise(this.projectRecentsEffect(limit));
   }
 
   private callAndParseEffect<TSchema extends Schema.Schema.AnyNoContext>(
@@ -1869,4 +1722,90 @@ export class EngineClient {
           : Effect.logWarning(message, error),
     );
   }
+}
+
+/** Builds an explicit Promise adapter for tests and other true interop boundaries. */
+export function createEngineClientPromiseFacade(client: EngineClient) {
+  return {
+    start: () => runEffectPromise(client.startEffect()),
+    stop: () => runEffectPromise(client.stopEffect()),
+    ping: () => runEffectPromise(client.pingEffect()),
+    capabilities: () => runEffectPromise(client.capabilitiesEffect()),
+    agentPreflight: (params?: {
+      runtimeBudgetMinutes?: number;
+      transcriptionProvider?: TranscriptionProvider;
+      importedTranscriptPath?: string;
+    }) => runEffectPromise(client.agentPreflightEffect(params)),
+    agentRun: (params: {
+      preflightToken: string;
+      runtimeBudgetMinutes?: number;
+      transcriptionProvider?: TranscriptionProvider;
+      importedTranscriptPath?: string;
+      force?: boolean;
+    }): Promise<AgentRunResult> => runEffectPromise(client.agentRunEffect(params)),
+    agentStatus: (jobId: string) => runEffectPromise(client.agentStatusEffect(jobId)),
+    agentApply: (params: { jobId: string; destructiveIntent?: boolean }) =>
+      runEffectPromise(client.agentApplyEffect(params)),
+    getPermissions: () => runEffectPromise(client.getPermissionsEffect()),
+    requestScreenRecordingPermission: () =>
+      runEffectPromise(client.requestScreenRecordingPermissionEffect()),
+    requestMicrophonePermission: () => runEffectPromise(client.requestMicrophonePermissionEffect()),
+    requestInputMonitoringPermission: () =>
+      runEffectPromise(client.requestInputMonitoringPermissionEffect()),
+    openInputMonitoringSettings: () => runEffectPromise(client.openInputMonitoringSettingsEffect()),
+    listSources: () => runEffectPromise(client.listSourcesEffect()),
+    startDisplayCapture: (
+      enableMic: boolean,
+      captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+      displayId?: number,
+      enablePreview = true,
+    ) =>
+      runEffectPromise(
+        client.startDisplayCaptureEffect(enableMic, captureFps, displayId, enablePreview),
+      ),
+    startCurrentWindowCapture: (
+      enableMic: boolean,
+      captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+      enablePreview = true,
+    ) =>
+      runEffectPromise(
+        client.startCurrentWindowCaptureEffect(enableMic, captureFps, enablePreview),
+      ),
+    startWindowCapture: (
+      windowId: number,
+      enableMic: boolean,
+      captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+      enablePreview = true,
+    ) =>
+      runEffectPromise(
+        client.startWindowCaptureEffect(windowId, enableMic, captureFps, enablePreview),
+      ),
+    stopCapture: () => runEffectPromise(client.stopCaptureEffect()),
+    startRecording: (trackInputEvents: boolean) =>
+      runEffectPromise(client.startRecordingEffect(trackInputEvents)),
+    stopRecording: () => runEffectPromise(client.stopRecordingEffect()),
+    captureStatus: () => runEffectPromise(client.captureStatusEffect()),
+    capturePreviewFrame: (): Promise<CapturePreviewFrameResult> =>
+      runEffectPromise(client.capturePreviewFrameEffect()),
+    exportInfo: () => runEffectPromise(client.exportInfoEffect()),
+    runExport: (params: {
+      outputURL: string;
+      presetId: string;
+      trimStartSeconds?: number;
+      trimEndSeconds?: number;
+      timeline?: TimelineDocument;
+    }) => runEffectPromise(client.runExportEffect(params)),
+    runCutPlanExport: (params: { outputURL: string; presetId: string; jobId: string }) =>
+      runEffectPromise(client.runCutPlanExportEffect(params)),
+    projectCurrent: () => runEffectPromise(client.projectCurrentEffect()),
+    projectOpen: (projectPath: string) => runEffectPromise(client.projectOpenEffect(projectPath)),
+    projectSave: (params: {
+      projectPath?: string;
+      autoZoom?: AutoZoomSettings;
+      timeline?: TimelineDocument;
+    }) => runEffectPromise(client.projectSaveEffect(params)),
+    projectRecents: (limit?: number) => runEffectPromise(client.projectRecentsEffect(limit)),
+    sendRaw: (method: string, params: unknown, options?: { timeoutMs?: number }) =>
+      runEffectPromise(client.sendRawEffect(method, params, options)),
+  };
 }

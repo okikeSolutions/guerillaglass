@@ -24,7 +24,7 @@ describe("review protocol", () => {
       fs.readFileSync(path.join(fixtureDir, "review-bridge.comment-created.event.json"), "utf8"),
     );
 
-    expect(decodeSchemaSync(reviewSessionSnapshotSchema, snapshot).reviewId).toBe(
+    expect(String(decodeSchemaSync(reviewSessionSnapshotSchema, snapshot).reviewId)).toBe(
       "review_5d4d3f1f",
     );
     expect(decodeSchemaSync(reviewBridgeEventSchema, commentCreatedEvent).type).toBe(

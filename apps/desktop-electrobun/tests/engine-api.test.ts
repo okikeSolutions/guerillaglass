@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 import { beforeEach, describe, expect, test } from "bun:test";
+import { reviewIdSchema } from "@guerillaglass/schema-primitives";
 import {
   desktopApi,
   engineApi,
@@ -509,7 +510,7 @@ describe("renderer engine bridge", () => {
 
       const response = await handlers.ggReviewSessionSnapshot({
         authToken: "token",
-        reviewId: "review-123",
+        reviewId: reviewIdSchema.make("review-123"),
       });
 
       expect(response.ok).toBe(false);

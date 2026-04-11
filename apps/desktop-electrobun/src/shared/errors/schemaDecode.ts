@@ -5,7 +5,7 @@ import {
   type MutableDeep,
   type ValidationIssue,
 } from "./domain";
-import { runEffectPromise, runEffectSync } from "./effectRuntime";
+import { runEffectSync } from "./effectRuntime";
 
 const decodeAllIssuesOptions = {
   errors: "all",
@@ -71,14 +71,6 @@ export function decodeUnknownWithSchema<S extends Schema.Schema.AnyNoContext>(
         cause: error,
       }),
   ) as Effect.Effect<MutableDeep<Schema.Schema.Type<S>>, ContractDecodeError>;
-}
-
-export function decodeUnknownWithSchemaPromise<S extends Schema.Schema.AnyNoContext>(
-  schema: S,
-  raw: unknown,
-  contract: string,
-): Promise<MutableDeep<Schema.Schema.Type<S>>> {
-  return runEffectPromise(decodeUnknownWithSchema(schema, raw, contract));
 }
 
 export function decodeUnknownWithSchemaSync<S extends Schema.Schema.AnyNoContext>(

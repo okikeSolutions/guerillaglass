@@ -47,6 +47,18 @@ import {
   type ReviewSetWorkflowStatusRequest,
   type ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
+import {
+  agentJobIdSchema,
+  agentPreflightTokenSchema,
+  exportPresetIdSchema,
+  filePathSchema,
+  isoDateTimeSchema,
+  outputUrlSchema,
+  projectPathSchema,
+  reviewAuthTokenSchema,
+  reviewCommentIdSchema,
+  reviewIdSchema,
+} from "@guerillaglass/schema-primitives";
 import { Schema } from "effect";
 import type { RPCSchema } from "electrobun/bun";
 import type { SerializedBridgeError } from "../errors";
@@ -118,17 +130,17 @@ export const pickPathRequestSchema = Schema.Struct({
 });
 export const pickPathResponseSchema = Schema.NullOr(Schema.String);
 export const readTextFileRequestSchema = Schema.Struct({
-  filePath: Schema.NonEmptyString,
+  filePath: filePathSchema,
 });
 export const readTextFileResponseSchema = Schema.String;
 export const resolveMediaSourceURLRequestSchema = Schema.Struct({
-  filePath: Schema.NonEmptyString,
+  filePath: filePathSchema,
 });
-export const resolveMediaSourceURLResponseSchema = Schema.NonEmptyString;
+export const resolveMediaSourceURLResponseSchema = outputUrlSchema;
 /** Host bridge schema for resolving the loopback live-preview URL. */
 export const resolveCapturePreviewURLRequestSchema = Schema.Undefined;
 /** Tokenized loopback preview URL served by the Bun media server. */
-export const resolveCapturePreviewURLResponseSchema = Schema.NonEmptyString;
+export const resolveCapturePreviewURLResponseSchema = outputUrlSchema;
 export const hostReviewEventMessageSchema = Schema.Struct({
   event: reviewBridgeEventSchema,
 });
@@ -142,7 +154,7 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
   source: Schema.Literal("renderer"),
   level: Schema.NonEmptyString,
   message: Schema.NonEmptyString,
-  timestamp: Schema.NonEmptyString,
+  timestamp: isoDateTimeSchema,
   annotations: Schema.optional(
     Schema.Record({
       key: Schema.String,
@@ -165,29 +177,24 @@ const runtimeBudgetMinutesSchema = Schema.optional(
 const projectRecentsLimitSchema = Schema.optional(
   positiveIntSchema.pipe(Schema.lessThanOrEqualTo(100)),
 );
-const reviewAuthTokenSchema = Schema.String.pipe(
-  Schema.filter((value) => value.trim().length > 0, {
-    message: () => "Expected a non-empty review auth token.",
-  }),
-);
 const undefinedBridgeParamsSchema = Schema.Undefined;
 const engineAgentPreflightBridgeParamsSchema = Schema.Struct({
   runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
   transcriptionProvider: Schema.optional(Schema.Literal("none", "imported_transcript")),
-  importedTranscriptPath: Schema.optional(Schema.NonEmptyString),
+  importedTranscriptPath: Schema.optional(filePathSchema),
 });
 const engineAgentRunBridgeParamsSchema = Schema.Struct({
-  preflightToken: Schema.NonEmptyString,
+  preflightToken: agentPreflightTokenSchema,
   runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
   transcriptionProvider: Schema.optional(Schema.Literal("none", "imported_transcript")),
-  importedTranscriptPath: Schema.optional(Schema.NonEmptyString),
+  importedTranscriptPath: Schema.optional(filePathSchema),
   force: Schema.optional(Schema.Boolean),
 });
 const engineAgentStatusBridgeParamsSchema = Schema.Struct({
-  jobId: Schema.NonEmptyString,
+  jobId: agentJobIdSchema,
 });
 const engineAgentApplyBridgeParamsSchema = Schema.Struct({
-  jobId: Schema.NonEmptyString,
+  jobId: agentJobIdSchema,
   destructiveIntent: Schema.optional(Schema.Boolean),
 });
 const engineCaptureStartBridgeParamsSchema = Schema.Struct({
@@ -211,22 +218,22 @@ const engineStartRecordingBridgeParamsSchema = Schema.Struct({
   trackInputEvents: Schema.optional(Schema.Boolean),
 });
 const engineRunExportBridgeParamsSchema = Schema.Struct({
-  outputURL: Schema.NonEmptyString,
-  presetId: Schema.NonEmptyString,
+  outputURL: outputUrlSchema,
+  presetId: exportPresetIdSchema,
   trimStartSeconds: Schema.optional(nonNegativeNumberSchema),
   trimEndSeconds: Schema.optional(nonNegativeNumberSchema),
   timeline: Schema.optional(timelineDocumentSchema),
 });
 const engineRunCutPlanExportBridgeParamsSchema = Schema.Struct({
-  outputURL: Schema.NonEmptyString,
-  presetId: Schema.NonEmptyString,
-  jobId: Schema.NonEmptyString,
+  outputURL: outputUrlSchema,
+  presetId: exportPresetIdSchema,
+  jobId: agentJobIdSchema,
 });
 const engineProjectOpenBridgeParamsSchema = Schema.Struct({
-  projectPath: Schema.NonEmptyString,
+  projectPath: projectPathSchema,
 });
 const engineProjectSaveBridgeParamsSchema = Schema.Struct({
-  projectPath: Schema.optional(Schema.NonEmptyString),
+  projectPath: Schema.optional(projectPathSchema),
   autoZoom: Schema.optional(autoZoomSettingsSchema),
   timeline: Schema.optional(timelineDocumentSchema),
 });
@@ -235,19 +242,19 @@ const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
 });
 const reviewSessionSnapshotBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
 });
 const reviewCreateCommentBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   body: Schema.NonEmptyString,
   frameNumber: Schema.optional(nonNegativeIntSchema),
   timestampSeconds: Schema.optional(nonNegativeNumberSchema),
-  parentCommentId: Schema.optional(Schema.NonEmptyString),
+  parentCommentId: Schema.optional(reviewCommentIdSchema),
 });
 const reviewSetWorkflowStatusBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   status: reviewWorkflowStatusSchema,
 });
 

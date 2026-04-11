@@ -4,7 +4,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { EngineClient, resolveEnginePath } from "../apps/desktop-electrobun/src/bun/engine/client.ts";
+import {
+  createEngineClientPromiseFacade,
+  EngineClient,
+  resolveEnginePath,
+} from "../apps/desktop-electrobun/src/bun/engine/client.ts";
 import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark.ts";
 import type { CaptureFrameRate } from "../packages/engine-protocol/src/index.ts";
 
@@ -56,9 +60,10 @@ export type ScenarioConfig = {
   displaySelection?: DisplaySelectionStrategy;
 };
 
-type CaptureTelemetry = Awaited<ReturnType<EngineClient["captureStatus"]>>["telemetry"];
-type CaptureStatus = Awaited<ReturnType<EngineClient["captureStatus"]>>;
-type SourceListing = Awaited<ReturnType<EngineClient["listSources"]>>;
+type EngineClientPromise = ReturnType<typeof createEngineClientPromiseFacade>;
+type CaptureTelemetry = Awaited<ReturnType<EngineClientPromise["captureStatus"]>>["telemetry"];
+type CaptureStatus = Awaited<ReturnType<EngineClientPromise["captureStatus"]>>;
+type SourceListing = Awaited<ReturnType<EngineClientPromise["listSources"]>>;
 type WindowSource = SourceListing["windows"][number];
 type DisplaySource = SourceListing["displays"][number];
 
@@ -550,7 +555,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
-async function stopCaptureSession(engine: EngineClient) {
+async function stopCaptureSession(engine: EngineClientPromise) {
   try {
     await withTimeout(engine.stopRecording(), 5000, "stopRecording cleanup");
   } catch {
@@ -619,7 +624,7 @@ function formatBytes(value: number | null) {
 }
 
 async function waitForBenchmarkWindow(
-  engine: EngineClient,
+  engine: EngineClientPromise,
   sceneWindow: BenchmarkSceneWindow,
   timeoutMs: number,
 ): Promise<WindowSource> {
@@ -791,7 +796,7 @@ async function activateBenchmarkApp(sceneWindow: BenchmarkSceneWindow) {
   }
 }
 
-async function openBenchmarkScene(engine: EngineClient): Promise<BenchmarkSceneHandle | null> {
+async function openBenchmarkScene(engine: EngineClientPromise): Promise<BenchmarkSceneHandle | null> {
   if (process.platform !== "darwin") {
     return null;
   }
@@ -885,7 +890,7 @@ async function loadInputTrackingDiagnostics(eventsURL: string | null): Promise<I
   };
 }
 
-async function ensurePermissions(engine: EngineClient, scenario: ScenarioConfig) {
+async function ensurePermissions(engine: EngineClientPromise, scenario: ScenarioConfig) {
   let permissions = await engine.getPermissions();
 
   if (!permissions.screenRecordingGranted) {
@@ -1028,7 +1033,7 @@ function selectFallbackWindowSource(sources: SourceListing): WindowSource | null
 }
 
 async function waitForPreferredWindowSource(
-  engine: EngineClient,
+  engine: EngineClientPromise,
   preferredSceneWindow: BenchmarkSceneWindow,
   timeoutMs: number,
 ): Promise<WindowSource> {
@@ -1068,7 +1073,7 @@ function buildSourceDetails(
 }
 
 async function runScenarioRun(
-  engine: EngineClient,
+  engine: EngineClientPromise,
   scenario: ScenarioConfig,
   options: { durationSeconds: number; pollIntervalMs: number; warmupMs: number },
   runIndex: number,
@@ -1582,7 +1587,7 @@ async function runScenarioRun(
 }
 
 async function runScenarioSeries(
-  engine: EngineClient,
+  engine: EngineClientPromise,
   scenario: ScenarioConfig,
   options: { durationSeconds: number; pollIntervalMs: number; warmupMs: number },
   benchmarkScene?: BenchmarkSceneHandle | null,
@@ -1965,7 +1970,7 @@ export function compareBenchmarkReports(
 async function main() {
   const config = parseArgs(process.argv.slice(2));
   const enginePath = resolveEnginePath();
-  const engine = new EngineClient(enginePath);
+  const engine = createEngineClientPromiseFacade(new EngineClient(enginePath));
   const scenarioReports: ScenarioSeriesReport[] = [];
   const baselineReport =
     config.baselineReportPath === null ? null : await readBenchmarkReport(config.baselineReportPath);

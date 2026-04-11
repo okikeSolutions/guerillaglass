@@ -5,7 +5,12 @@
  * desktop Deliver route in sync with collaboration state, playback readiness, and comments.
  */
 import { Schema } from "effect";
-import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
+import {
+  isoDateTimeSchema,
+  reviewCommentIdSchema,
+  reviewIdSchema,
+  reviewUserIdSchema,
+} from "@guerillaglass/schema-primitives";
 
 /** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */
@@ -46,7 +51,7 @@ export const reviewSharePolicySchema = Schema.Struct({
 
 /** Presence signal for a watcher in an active review session. */
 export const reviewPresenceSchema = Schema.Struct({
-  userId: Schema.NonEmptyString,
+  userId: reviewUserIdSchema,
   displayName: Schema.NonEmptyString,
   role: reviewRoleSchema,
   lastActiveAt: isoDateTimeSchema,
@@ -54,9 +59,9 @@ export const reviewPresenceSchema = Schema.Struct({
 
 /** Frame/time-accurate review comment model. */
 export const reviewCommentSchema = Schema.Struct({
-  id: Schema.NonEmptyString,
-  reviewId: Schema.NonEmptyString,
-  authorId: Schema.NonEmptyString,
+  id: reviewCommentIdSchema,
+  reviewId: reviewIdSchema,
+  authorId: reviewUserIdSchema,
   authorName: Schema.NonEmptyString,
   body: Schema.NonEmptyString,
   frameNumber: Schema.NullOr(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))),
@@ -64,12 +69,12 @@ export const reviewCommentSchema = Schema.Struct({
   resolved: Schema.Boolean,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
-  parentCommentId: Schema.NullOr(Schema.NonEmptyString),
+  parentCommentId: Schema.NullOr(reviewCommentIdSchema),
 });
 
 /** Full review-session snapshot payload consumed by the desktop Deliver route. */
 export const reviewSessionSnapshotSchema = Schema.Struct({
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   status: reviewWorkflowStatusSchema,
   processingState: reviewProcessingStateSchema,
   preferredPlaybackSource: reviewPlaybackSourceSchema,
@@ -82,27 +87,27 @@ export const reviewSessionSnapshotSchema = Schema.Struct({
 /** Request and response payloads used by the review bridge command surface. */
 /** Request payload for reading a review session snapshot. */
 export const reviewSessionSnapshotRequestSchema = Schema.Struct({
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
 });
 
 /** Request payload for creating a new review comment. */
 export const reviewCreateCommentRequestSchema = Schema.Struct({
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   body: Schema.NonEmptyString,
   frameNumber: Schema.optional(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))),
   timestampSeconds: Schema.optional(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0))),
-  parentCommentId: Schema.optional(Schema.NonEmptyString),
+  parentCommentId: Schema.optional(reviewCommentIdSchema),
 });
 
 /** Request payload for updating review workflow status. */
 export const reviewSetWorkflowStatusRequestSchema = Schema.Struct({
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   status: reviewWorkflowStatusSchema,
 });
 
 /** Response payload for workflow status updates. */
 export const reviewSetWorkflowStatusResponseSchema = Schema.Struct({
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   status: reviewWorkflowStatusSchema,
   updatedAt: isoDateTimeSchema,
 });
@@ -111,7 +116,7 @@ export const reviewSetWorkflowStatusResponseSchema = Schema.Struct({
 /** Event emitted when review presence changes for the active session. */
 export const reviewPresenceUpdatedEventSchema = Schema.Struct({
   type: Schema.Literal("presence.updated"),
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   presence: Schema.Array(reviewPresenceSchema),
   emittedAt: isoDateTimeSchema,
 });
@@ -119,7 +124,7 @@ export const reviewPresenceUpdatedEventSchema = Schema.Struct({
 /** Event emitted when a new comment is created in the active session. */
 export const reviewCommentCreatedEventSchema = Schema.Struct({
   type: Schema.Literal("comment.created"),
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   comment: reviewCommentSchema,
   emittedAt: isoDateTimeSchema,
 });
@@ -127,7 +132,7 @@ export const reviewCommentCreatedEventSchema = Schema.Struct({
 /** Event emitted when review workflow status changes. */
 export const reviewStatusChangedEventSchema = Schema.Struct({
   type: Schema.Literal("workflow.statusChanged"),
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   status: reviewWorkflowStatusSchema,
   emittedAt: isoDateTimeSchema,
 });
@@ -135,7 +140,7 @@ export const reviewStatusChangedEventSchema = Schema.Struct({
 /** Event emitted when playback readiness changes in review delivery flows. */
 export const reviewPlaybackStateChangedEventSchema = Schema.Struct({
   type: Schema.Literal("playback.stateChanged"),
-  reviewId: Schema.NonEmptyString,
+  reviewId: reviewIdSchema,
   processingState: reviewProcessingStateSchema,
   preferredPlaybackSource: reviewPlaybackSourceSchema,
   emittedAt: isoDateTimeSchema,

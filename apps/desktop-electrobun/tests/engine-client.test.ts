@@ -2,7 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
-import { EngineClient, resolveEnginePath } from "../src/bun/engine/client";
+import {
+  createEngineClientPromiseFacade,
+  EngineClient,
+  resolveEnginePath,
+} from "../src/bun/engine/client";
 import {
   ContractDecodeError,
   EngineRequestValidationError,
@@ -79,6 +83,10 @@ function endsWithPathSegments(value: string, segments: string[]): boolean {
   const normalizedValue = path.normalize(value);
   const normalizedSuffix = path.normalize(path.join(...segments));
   return normalizedValue.endsWith(normalizedSuffix);
+}
+
+function createPromiseClient(...args: ConstructorParameters<typeof EngineClient>) {
+  return createEngineClientPromiseFacade(new EngineClient(...args));
 }
 
 describe("engine client path resolution", () => {
@@ -169,7 +177,7 @@ describe("engine client integration", () => {
     "executes a phase-1 parity flow against the stub engine",
     async () => {
       // TODO: Re-enable once the generic stub flow stops timing out intermittently in CI.
-      const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+      const client = createPromiseClient(INTEGRATION_STUB_PATH, 2000);
       const exportPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-parity-out.mp4");
       const projectPath = path.join(INTEGRATION_TEMP_DIRECTORY, "guerillaglass-project.gglassproj");
       try {
@@ -236,7 +244,7 @@ describe("engine client integration", () => {
       const transcriptPath = path.join(workspaceDir, "imported-transcript.json");
       const projectPath = path.join(workspaceDir, "guerillaglass-project.gglassproj");
       const outputPath = path.join(workspaceDir, "guerillaglass-cut-plan.mp4");
-      const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+      const client = createPromiseClient(INTEGRATION_STUB_PATH, 2000);
 
       fs.writeFileSync(
         transcriptPath,
@@ -366,7 +374,7 @@ describe("engine client resilience", () => {
   }
 
   test("recovers stopCapture when a stop response is dropped", async () => {
-    const client = new EngineClient(DROPPED_STOP_RESPONSE_ENGINE_PATH, 5000, {
+    const client = createPromiseClient(DROPPED_STOP_RESPONSE_ENGINE_PATH, 5000, {
       requestTimeoutByMethod: {
         "capture.stop": 100,
       },
@@ -388,7 +396,7 @@ describe("engine client resilience", () => {
   });
 
   test("surfaces recording_abandoned when stopCapture times out during active recording", async () => {
-    const client = new EngineClient(ACTIVE_RECORDING_STOP_TIMEOUT_ENGINE_PATH, 5000, {
+    const client = createPromiseClient(ACTIVE_RECORDING_STOP_TIMEOUT_ENGINE_PATH, 5000, {
       requestTimeoutByMethod: {
         "capture.stop": 100,
       },
@@ -412,7 +420,7 @@ describe("engine client resilience", () => {
   });
 
   test("does not restart the engine when stopCapture timeout leaves recording state unknown", async () => {
-    const client = new EngineClient(UNKNOWN_STOP_STATE_TIMEOUT_ENGINE_PATH, 5000, {
+    const client = createPromiseClient(UNKNOWN_STOP_STATE_TIMEOUT_ENGINE_PATH, 5000, {
       requestTimeoutByMethod: {
         "capture.stop": 100,
         "capture.status": 100,
@@ -432,7 +440,7 @@ describe("engine client resilience", () => {
   });
 
   test("applies method-specific timeout overrides", async () => {
-    const client = new EngineClient(HANGING_ENGINE_PATH, 5000, {
+    const client = createPromiseClient(HANGING_ENGINE_PATH, 5000, {
       requestTimeoutByMethod: {
         "system.ping": 75,
       },
@@ -451,7 +459,7 @@ describe("engine client resilience", () => {
   });
 
   test("uses per-method timeout policy for long-running export.run", async () => {
-    const client = new EngineClient(HANGING_ENGINE_PATH, 50, {
+    const client = createPromiseClient(HANGING_ENGINE_PATH, 50, {
       requestTimeoutByMethod: {
         "export.run": 225,
       },
@@ -475,7 +483,7 @@ describe("engine client resilience", () => {
   });
 
   test("does not apply a default timeout to export.run", async () => {
-    const client = new EngineClient(HANGING_ENGINE_PATH, 50);
+    const client = createPromiseClient(HANGING_ENGINE_PATH, 50);
 
     try {
       const exportOutcome = await Promise.race([
@@ -495,7 +503,7 @@ describe("engine client resilience", () => {
   });
 
   test("does not apply a default timeout to capture.startWindow", async () => {
-    const client = new EngineClient(HANGING_ENGINE_PATH, 50);
+    const client = createPromiseClient(HANGING_ENGINE_PATH, 50);
 
     try {
       const captureOutcome = await Promise.race([
@@ -512,7 +520,7 @@ describe("engine client resilience", () => {
   });
 
   test("fails pending requests quickly when engine exits", async () => {
-    const client = new EngineClient(CRASHING_ENGINE_PATH, 5000);
+    const client = createPromiseClient(CRASHING_ENGINE_PATH, 5000);
     const startedAt = Date.now();
 
     try {
@@ -526,7 +534,7 @@ describe("engine client resilience", () => {
   });
 
   test("fails pending requests immediately when engine emits invalid JSON on stdout", async () => {
-    const client = new EngineClient(INVALID_JSON_RESPONSE_ENGINE_PATH, 5000);
+    const client = createPromiseClient(INVALID_JSON_RESPONSE_ENGINE_PATH, 5000);
     const startedAt = Date.now();
 
     try {
@@ -540,7 +548,7 @@ describe("engine client resilience", () => {
   });
 
   test("fails the matching pending request when engine emits an invalid response envelope", async () => {
-    const client = new EngineClient(INVALID_ENVELOPE_RESPONSE_ENGINE_PATH, 5000);
+    const client = createPromiseClient(INVALID_ENVELOPE_RESPONSE_ENGINE_PATH, 5000);
     const startedAt = Date.now();
 
     try {
@@ -554,7 +562,7 @@ describe("engine client resilience", () => {
   });
 
   test("opens restart circuit after repeated crash loops", async () => {
-    const client = new EngineClient(CRASHING_ENGINE_PATH, 5000, {
+    const client = createPromiseClient(CRASHING_ENGINE_PATH, 5000, {
       maxRetryAttempts: 1,
       restartBackoffMs: 0,
       restartJitterMs: 0,
@@ -579,7 +587,7 @@ describe("engine client resilience", () => {
         fs.rmSync(SLOW_SHUTDOWN_STATE_PATH, { force: true });
 
         const startedAt = Date.now();
-        const client = new EngineClient(SLOW_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
+        const client = createPromiseClient(SLOW_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
           requestTimeoutByMethod: {
             "system.ping": 50,
           },
@@ -610,7 +618,7 @@ describe("engine client resilience", () => {
         fs.rmSync(STUBBORN_SHUTDOWN_STATE_PATH, { force: true });
 
         const startedAt = Date.now();
-        const client = new EngineClient(STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
+        const client = createPromiseClient(STUBBORN_SHUTDOWN_TIMEOUT_ENGINE_PATH, 5000, {
           requestTimeoutByMethod: {
             "system.ping": 150,
           },
@@ -636,7 +644,7 @@ describe("engine client resilience", () => {
   );
 
   test("reacquires a scoped engine session after explicit stop", async () => {
-    const client = new EngineClient(INTEGRATION_STUB_PATH, 2000);
+    const client = createPromiseClient(INTEGRATION_STUB_PATH, 2000);
 
     try {
       const first = await client.ping();
@@ -664,7 +672,7 @@ describe("engine client validation", () => {
   }
 
   test("normalizes typed request validation errors to invalid_params", async () => {
-    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    const client = createPromiseClient(LINUX_STUB_PATH, 2000);
     try {
       const error = await captureError(
         client.agentRun({
@@ -684,7 +692,7 @@ describe("engine client validation", () => {
   });
 
   test("sendRaw surfaces engine-originated invalid_params responses", async () => {
-    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    const client = createPromiseClient(LINUX_STUB_PATH, 2000);
     try {
       const error = await captureError(client.sendRaw("agent.run", {}));
       expect(error).toBeInstanceOf(EngineResponseError);
@@ -701,7 +709,7 @@ describe("engine client validation", () => {
     const previousRawAllow = process.env.GG_ENGINE_ALLOW_RAW_RPC;
     process.env.NODE_ENV = "production";
     delete process.env.GG_ENGINE_ALLOW_RAW_RPC;
-    const client = new EngineClient(LINUX_STUB_PATH, 2000);
+    const client = createPromiseClient(LINUX_STUB_PATH, 2000);
     try {
       const error = await captureError(client.sendRaw("system.ping", {}));
       expect(error).toBeInstanceOf(EngineResponseError);
