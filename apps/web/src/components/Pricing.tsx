@@ -19,34 +19,34 @@ const PRICING_PLANS: PricingPlan[] = [
     name: "Creator Pro",
     price: "$24",
     period: "/month",
-    summary: "For solo creators shipping tutorials, demos, and launch videos every week.",
+    summary: "For solo makers who need faster recording, editing, and client-ready delivery.",
     features: [
       "Unlimited local projects and exports",
       "Cloud review links with timestamped comments",
       "Up to 5 active review links",
       "Standard support",
     ],
-    ctaLabel: "Start Creator Pro",
+    ctaLabel: "Choose Creator Pro",
   },
   {
     name: "Studio",
     price: "$59",
     period: "/month",
-    summary: "For freelancers and small production teams managing review-heavy workflows.",
+    summary: "For small teams that need one review process instead of endless file handoffs.",
     features: [
       "Everything in Creator Pro",
       "Unlimited review links and collaborator presence",
       "Shared templates and team presets",
       "Priority support",
     ],
-    ctaLabel: "Start Studio",
+    ctaLabel: "Choose Studio",
     featured: true,
   },
   {
     name: "Team",
     price: "$149",
     period: "/month",
-    summary: "For growing media and product teams that need governance and scale.",
+    summary: "For larger teams that need seats, governance, and a repeatable delivery workflow.",
     features: [
       "Everything in Studio",
       "Up to 10 seats included",
@@ -59,6 +59,7 @@ const PRICING_PLANS: PricingPlan[] = [
 
 export const ProductPacks = () => {
   const timelineRef = useRef<HTMLDivElement>(null);
+  const githubUrl = "https://github.com/okikeSolutions/guerillaglass";
 
   return (
     <section ref={timelineRef} className="py-24 px-6 bg-black/45 text-white min-h-screen">
@@ -70,7 +71,7 @@ export const ProductPacks = () => {
             as="h1"
             className="text-4xl md:text-5xl font-semibold tracking-tight mb-4 text-white"
           >
-            Paid Plans for Creator Teams
+            Start with the desktop app. Buy the collaboration layer when you need it.
           </TimelineAnimation>
           <TimelineAnimation
             animationNum={3}
@@ -79,13 +80,23 @@ export const ProductPacks = () => {
             className="text-white/90 text-pretty max-w-2xl leading-relaxed mx-auto space-y-3"
           >
             <p>
-              Placeholder pricing positioned for professional screen recording and review tools.
-              There is no free tier.
+              The open-source macOS app covers local capture, editing, and export. Paid plans add
+              review links, comments, presence, and team workflows.
             </p>
             <p className="text-sm text-white/70">
-              Local capture/edit/export remains available in the open-source desktop core. Billing
-              unlocks cloud review and collaboration capabilities.
+              If you just want to record and edit, download the app. If you need approvals and
+              collaboration, pick the plan that matches your review volume.
             </p>
+            <div className="pt-3">
+              <a
+                href={githubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+              >
+                Download the open-source app
+              </a>
+            </div>
           </TimelineAnimation>
         </TimelineAnimation>
         <TimelineAnimation
@@ -153,8 +164,8 @@ export const ProductPacks = () => {
           as="p"
           className="text-center text-xs text-white/60 mt-8"
         >
-          Placeholder pricing for go-to-market validation. Final packaging and billing limits may
-          adjust before launch.
+          Need a simple rule? Download the app for local work. Buy a paid plan when your workflow
+          includes review links, comments, or team collaboration.
         </TimelineAnimation>
       </div>
     </section>
