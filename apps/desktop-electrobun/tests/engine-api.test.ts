@@ -1,6 +1,12 @@
 import { Layer } from "effect";
 import { beforeEach, describe, expect, test } from "bun:test";
-import { desktopApi, engineApi, parseInputEventLog, sendHostMenuState } from "@lib/engine";
+import {
+  desktopApi,
+  engineApi,
+  parseInputEventLog,
+  sendHostMenuState,
+  sendHostStudioDiagnostics,
+} from "@lib/engine";
 import { createBunBridgeHandlers, createWindowBridgeBindings } from "@shared/bridge";
 import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "@shared/bridge";
 import {
@@ -26,16 +32,21 @@ const captureTelemetryFixture = {
   captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
+  previewEncodeMs: 0,
 };
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
+  const isRunning = overrides.isRunning === true;
   return {
-    isRunning: false,
+    isRunning,
     isRecording: false,
+    captureSessionId: isRunning ? "capture-session-1" : null,
     recordingDurationSeconds: 0,
     recordingURL: null,
+    captureMetadata: null,
     lastError: null,
     eventsURL: null,
+    lastRecordingTelemetry: null,
     telemetry: { ...captureTelemetryFixture },
     ...overrides,
   };
@@ -61,7 +72,11 @@ function installWindowBridge(
   const bunHandlers = createBunBridgeHandlers(rawHandlers);
   const invoke: BridgeRequestInvoker = (name, params) =>
     (bunHandlers[name] as (value: unknown) => Promise<unknown>)(params) as Promise<never>;
-  const bindings = createWindowBridgeBindings(invoke, () => {});
+  const bindings = createWindowBridgeBindings(
+    invoke,
+    () => {},
+    () => {},
+  );
   (globalThis as unknown as { window: Record<string, unknown> }).window = {
     ...bindings,
   };
@@ -86,11 +101,13 @@ describe("renderer engine bridge", () => {
 
   test("parses parity command payloads", async () => {
     let lastMenuState: unknown;
+    let lastStudioDiagnostics: unknown;
     const lastStartDisplayCaptureCall = {
       called: false,
       enableMic: false,
       captureFps: 0,
       displayId: undefined as number | undefined,
+      enablePreview: true,
     };
     (globalThis as unknown as { window: Record<string, unknown> }).window = {
       ggEnginePing: async () => ({
@@ -173,11 +190,13 @@ describe("renderer engine bridge", () => {
         enableMic: boolean,
         captureFps: number,
         displayId?: number,
+        enablePreview = true,
       ) => {
         lastStartDisplayCaptureCall.called = true;
         lastStartDisplayCaptureCall.enableMic = enableMic;
         lastStartDisplayCaptureCall.captureFps = captureFps;
         lastStartDisplayCaptureCall.displayId = displayId;
+        lastStartDisplayCaptureCall.enablePreview = enablePreview;
         return {
           ...makeCaptureStatus({ isRunning: true }),
         };
@@ -247,6 +266,9 @@ describe("renderer engine bridge", () => {
       ggHostSendMenuState: (state: unknown) => {
         lastMenuState = state;
       },
+      ggHostSendStudioDiagnostics: (entry: unknown) => {
+        lastStudioDiagnostics = entry;
+      },
     };
 
     const ping = await engineApi.ping();
@@ -260,6 +282,7 @@ describe("renderer engine bridge", () => {
     const exportInfo = await engineApi.exportInfo();
     const project = await engineApi.projectCurrent();
     const started = await engineApi.startDisplayCapture(true, 30, 1);
+    const startedWithoutPreview = await engineApi.startDisplayCapture(false, 30, 1, false);
     const startedCurrentWindow = await engineApi.startCurrentWindowCapture(true);
     const startedWindow = await engineApi.startWindowCapture(12, true);
     const recording = await engineApi.startRecording(true);
@@ -281,10 +304,20 @@ describe("renderer engine bridge", () => {
     sendHostMenuState({
       canSave: true,
       canExport: true,
+      canTrimTimeline: true,
       canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
       densityMode: "comfortable",
+    });
+    sendHostStudioDiagnostics({
+      source: "renderer",
+      level: "INFO",
+      message: "renderer diagnostics enabled",
+      timestamp: "2026-04-10T15:00:00.000Z",
+      annotations: {
+        route: "/edit",
+      },
     });
     const events = parseInputEventLog(eventsRaw);
 
@@ -301,19 +334,24 @@ describe("renderer engine bridge", () => {
     expect(sources.displays[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.refreshHz).toBe(60);
     expect(sources.windows[0]?.pixelScale).toBe(1);
+    expect(capture.captureSessionId).toBeNull();
     expect(capture.eventsURL).toBeNull();
     expect(exportInfo.presets[0]?.id).toBe("h264-1080p-30");
     expect(project.autoZoom.isEnabled).toBe(true);
     expect(started.isRunning).toBe(true);
+    expect(startedWithoutPreview.isRunning).toBe(true);
     expect(lastStartDisplayCaptureCall.called).toBe(true);
-    expect(lastStartDisplayCaptureCall.enableMic).toBe(true);
+    expect(lastStartDisplayCaptureCall.enableMic).toBe(false);
     expect(lastStartDisplayCaptureCall.captureFps).toBe(30);
     expect(lastStartDisplayCaptureCall.displayId).toBe(1);
+    expect(lastStartDisplayCaptureCall.enablePreview).toBe(false);
+    expect(started.captureSessionId).toBe("capture-session-1");
     expect(startedCurrentWindow.isRunning).toBe(true);
     expect(startedWindow.isRunning).toBe(true);
     expect(recording.isRecording).toBe(true);
     expect(stoppedRecording.isRecording).toBe(false);
     expect(stoppedCapture.isRunning).toBe(false);
+    expect(stoppedCapture.captureSessionId).toBeNull();
     expect(exportResult.outputURL).toContain("out.mp4");
     expect(openedProject.projectPath).toContain("project.gglassproj");
     expect(savedProject.projectPath).toContain("project.gglassproj");
@@ -324,10 +362,20 @@ describe("renderer engine bridge", () => {
     expect(lastMenuState).toEqual({
       canSave: true,
       canExport: true,
+      canTrimTimeline: true,
       canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
       densityMode: "comfortable",
+    });
+    expect(lastStudioDiagnostics).toEqual({
+      source: "renderer",
+      level: "INFO",
+      message: "renderer diagnostics enabled",
+      timestamp: "2026-04-10T15:00:00.000Z",
+      annotations: {
+        route: "/edit",
+      },
     });
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("cursorMoved");
@@ -491,6 +539,7 @@ describe("renderer engine bridge", () => {
       sendHostMenuState({
         canSave: false,
         canExport: false,
+        canTrimTimeline: false,
         canToggleTimeline: false,
         isRecording: false,
       }),

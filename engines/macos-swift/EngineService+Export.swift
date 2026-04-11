@@ -2,6 +2,7 @@ import AVFoundation
 import EngineProtocol
 import Export
 import Foundation
+import Project
 
 extension EngineService {
     func exportInfoResponse(id: String) -> EngineResponse {
@@ -34,7 +35,12 @@ extension EngineService {
         }
 
         do {
-            let duration = try await recordingDuration(for: recordingURL)
+            let timeline = parseTimelineDocument(from: params["timeline"])
+            let exportAsset = try await makeExportAsset(
+                recordingURL: recordingURL,
+                timeline: timeline
+            )
+            let duration = try await assetDuration(for: exportAsset)
             let trimRange = TrimRangeCalculator.timeRange(
                 start: params["trimStartSeconds"]?.doubleValue ?? 0,
                 end: params["trimEndSeconds"]?.doubleValue ?? duration,
@@ -43,7 +49,7 @@ extension EngineService {
 
             let outputURL = URL(fileURLWithPath: outputPath)
             _ = try await exportPipeline.export(
-                recordingURL: recordingURL,
+                asset: exportAsset,
                 preset: preset,
                 trimRange: trimRange,
                 outputURL: outputURL,
@@ -84,7 +90,11 @@ extension EngineService {
                 duration: duration
             )
             guard trimRange != nil else {
-                return .failure(id: id, code: "invalid_cut_plan", message: "Unable to derive a valid trim range from cut plan.")
+                return .failure(
+                    id: id,
+                    code: "invalid_cut_plan",
+                    message: "Unable to derive a valid trim range from cut plan."
+                )
             }
 
             let outputURL = URL(fileURLWithPath: outputPath)
@@ -113,17 +123,87 @@ extension EngineService {
         if captureEngine.recordingDuration > 0 {
             return captureEngine.recordingDuration
         }
-        let asset = AVAsset(url: recordingURL)
+        return try await assetDuration(for: AVAsset(url: recordingURL))
+    }
+
+    func assetDuration(for asset: AVAsset) async throws -> TimeInterval {
         let duration = try await asset.load(.duration)
         let seconds = duration.seconds
         if seconds > 0 {
             return seconds
         }
 
-        if let audioDuration = try? fallbackAudioDuration(for: recordingURL), audioDuration > 0 {
+        if let urlAsset = asset as? AVURLAsset,
+           let audioDuration = try? fallbackAudioDuration(for: urlAsset.url),
+           audioDuration > 0
+        {
             return audioDuration
         }
         return seconds
+    }
+
+    func makeExportAsset(
+        recordingURL: URL,
+        timeline: TimelineDocument?
+    ) async throws -> AVAsset {
+        guard let timeline, !timeline.segments.isEmpty else {
+            return AVAsset(url: recordingURL)
+        }
+
+        let sourceAsset = AVAsset(url: recordingURL)
+        let videoTracks = try await sourceAsset.loadTracks(withMediaType: .video)
+        guard let sourceVideoTrack = videoTracks.first else {
+            return sourceAsset
+        }
+
+        let audioTracks = try await sourceAsset.loadTracks(withMediaType: .audio)
+        let sourceAudioTrack = audioTracks.first
+        let composition = AVMutableComposition()
+        guard let compositionVideoTrack = composition.addMutableTrack(
+            withMediaType: .video,
+            preferredTrackID: kCMPersistentTrackID_Invalid
+        ) else {
+            return sourceAsset
+        }
+        compositionVideoTrack.preferredTransform =
+            try await sourceVideoTrack.load(.preferredTransform)
+
+        let compositionAudioTrack = sourceAudioTrack.flatMap { _ in
+            composition.addMutableTrack(
+                withMediaType: .audio,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+            )
+        }
+
+        var insertTime = CMTime.zero
+        for segment in timeline.segments {
+            let start = segment.sourceStartSeconds
+            let end = segment.sourceEndSeconds
+            guard end > start else {
+                continue
+            }
+            let timeRange = CMTimeRange(
+                start: CMTime(seconds: start, preferredTimescale: 600),
+                duration: CMTime(seconds: end - start, preferredTimescale: 600)
+            )
+            try compositionVideoTrack.insertTimeRange(
+                timeRange,
+                of: sourceVideoTrack,
+                at: insertTime
+            )
+            if let sourceAudioTrack,
+               let compositionAudioTrack
+            {
+                try compositionAudioTrack.insertTimeRange(
+                    timeRange,
+                    of: sourceAudioTrack,
+                    at: insertTime
+                )
+            }
+            insertTime = CMTimeAdd(insertTime, timeRange.duration)
+        }
+
+        return composition
     }
 
     private func fallbackAudioDuration(for recordingURL: URL) throws -> TimeInterval {

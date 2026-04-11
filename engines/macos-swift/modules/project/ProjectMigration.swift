@@ -34,12 +34,17 @@ public enum ProjectMigration {
         switch probe.projectVersion {
         case 1:
             let v3Data = try migrateV1ToV3(data, decoder: decoder)
-            return try migrateV3ToV4(v3Data, decoder: decoder)
+            let v4Data = try migrateV3ToV4(v3Data, decoder: decoder)
+            return try migrateV4ToV5(v4Data, decoder: decoder)
         case 2:
             let v3Data = try migrateV2ToV3(data, decoder: decoder)
-            return try migrateV3ToV4(v3Data, decoder: decoder)
+            let v4Data = try migrateV3ToV4(v3Data, decoder: decoder)
+            return try migrateV4ToV5(v4Data, decoder: decoder)
         case 3:
-            return try migrateV3ToV4(data, decoder: decoder)
+            let v4Data = try migrateV3ToV4(data, decoder: decoder)
+            return try migrateV4ToV5(v4Data, decoder: decoder)
+        case 4:
+            return try migrateV4ToV5(data, decoder: decoder)
         case ProjectSchemaVersion.current:
             return data
         default:
@@ -53,6 +58,7 @@ public enum ProjectMigration {
             id: documentV1.project.id,
             createdAt: documentV1.project.createdAt,
             autoZoom: AutoZoomSettings(),
+            timeline: TimelineDocument(),
             captureMetadata: nil
         )
         let document = ProjectDocument(
@@ -76,9 +82,19 @@ public enum ProjectMigration {
 
     private static func migrateV3ToV4(_ data: Data, decoder: JSONDecoder) throws -> Data {
         var document = try decoder.decode(ProjectDocument.self, from: data)
-        document.projectVersion = ProjectSchemaVersion.current
+        document.projectVersion = 4
         if document.project.agentAnalysis == nil {
             document.project.agentAnalysis = AgentAnalysisMetadata()
+        }
+        let encoder = ProjectStore.makeDefaultEncoder()
+        return try encoder.encode(document)
+    }
+
+    private static func migrateV4ToV5(_ data: Data, decoder: JSONDecoder) throws -> Data {
+        var document = try decoder.decode(ProjectDocument.self, from: data)
+        document.projectVersion = ProjectSchemaVersion.current
+        if document.project.timeline.segments.isEmpty {
+            document.project.timeline = TimelineDocument()
         }
         let encoder = ProjectStore.makeDefaultEncoder()
         return try encoder.encode(document)

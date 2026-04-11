@@ -15,6 +15,7 @@ import {
   projectRecentsResultSchema,
   projectStateSchema,
   sourcesResultSchema,
+  type TimelineDocument,
   type AutoZoomSettings,
   type CaptureFrameRate,
   type CapturePreviewFrameResult,
@@ -26,7 +27,12 @@ import {
   type ProjectState,
   type SourcesResult,
 } from "@guerillaglass/engine-protocol";
-import type { HostMenuState, HostPathPickerMode, WindowBridgeBindings } from "@shared/bridge";
+import type {
+  HostMenuState,
+  HostPathPickerMode,
+  StudioDiagnosticsEntry,
+  WindowBridgeBindings,
+} from "@shared/bridge";
 import {
   pickPathResponseSchema,
   resolveCapturePreviewURLResponseSchema,
@@ -198,6 +204,7 @@ export const engineApi = {
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
     displayId?: number,
+    enablePreview = true,
   ): Promise<CaptureStatusResult> {
     return await invokeBridgeDecoded(
       "ggEngineStartDisplayCapture",
@@ -206,12 +213,14 @@ export const engineApi = {
       enableMic,
       captureFps,
       displayId,
+      enablePreview,
     );
   },
 
   async startCurrentWindowCapture(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    enablePreview = true,
   ): Promise<CaptureStatusResult> {
     return await invokeBridgeDecoded(
       "ggEngineStartCurrentWindowCapture",
@@ -219,6 +228,7 @@ export const engineApi = {
       "capture status result",
       enableMic,
       captureFps,
+      enablePreview,
     );
   },
 
@@ -226,6 +236,7 @@ export const engineApi = {
     windowId: number,
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    enablePreview = true,
   ): Promise<CaptureStatusResult> {
     try {
       return await invokeBridgeDecoded(
@@ -235,6 +246,7 @@ export const engineApi = {
         windowId,
         enableMic,
         captureFps,
+        enablePreview,
       );
     } catch (error) {
       if (windowId === 0 && isMacOS13WindowPickerUnsupported(error)) {
@@ -298,6 +310,7 @@ export const engineApi = {
     presetId: string;
     trimStartSeconds?: number;
     trimEndSeconds?: number;
+    timeline?: TimelineDocument;
   }) {
     return await invokeBridgeDecoded(
       "ggEngineRunExport",
@@ -332,6 +345,7 @@ export const engineApi = {
   async projectSave(params: {
     projectPath?: string;
     autoZoom?: AutoZoomSettings;
+    timeline?: TimelineDocument;
   }): Promise<ProjectState> {
     return await invokeBridgeDecoded(
       "ggEngineProjectSave",
@@ -408,6 +422,14 @@ export function sendHostMenuState(state: HostMenuState): void {
     return;
   }
   sender(state);
+}
+
+export function sendHostStudioDiagnostics(entry: StudioDiagnosticsEntry): void {
+  const sender = (window as Window & WindowBridgeBindings).ggHostSendStudioDiagnostics;
+  if (!sender) {
+    return;
+  }
+  sender(entry);
 }
 
 export function parseInputEventLog(raw: string): InputEvent[] {

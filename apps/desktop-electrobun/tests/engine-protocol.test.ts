@@ -6,6 +6,8 @@ import {
   agentStatusResultSchema,
   buildRequest,
   capabilitiesResultSchema,
+  captureStartCurrentWindowRequestSchema,
+  captureStartDisplayRequestSchema,
   capturePreviewFrameResultSchema,
   captureStatusResultSchema,
   engineRequestSchema,
@@ -29,6 +31,7 @@ const captureTelemetryFixture = {
   captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
+  previewEncodeMs: 0,
 };
 
 function decodeSchemaSync<S extends Schema.Schema.Any>(
@@ -81,10 +84,12 @@ describe("engine protocol", () => {
     const startDisplayRequest = buildRequest("capture.startDisplay", {
       displayId: 1,
       enableMic: false,
+      enablePreview: false,
       captureFps: 60,
     });
     const startCurrentWindowRequest = buildRequest("capture.startCurrentWindow", {
       enableMic: false,
+      enablePreview: true,
       captureFps: 120,
     });
     const startRecordingRequest = buildRequest("recording.start", { trackInputEvents: true });
@@ -115,20 +120,37 @@ describe("engine protocol", () => {
         intensity: 0.8,
         minimumKeyframeInterval: 1 / 30,
       },
+      timeline: {
+        version: 1,
+        segments: [
+          {
+            id: "segment-0",
+            sourceAssetId: "recording",
+            sourceStartSeconds: 0,
+            sourceEndSeconds: 3,
+          },
+        ],
+      },
     });
     const recentsRequest = buildRequest("project.recents", {
       limit: 5,
     });
+    const decodedStartDisplayRequest = decodeSchemaSync(
+      captureStartDisplayRequestSchema,
+      startDisplayRequest,
+    );
+    const decodedStartCurrentWindowRequest = decodeSchemaSync(
+      captureStartCurrentWindowRequestSchema,
+      startCurrentWindowRequest,
+    );
 
     expect(decodeSchemaSync(engineRequestSchema, capabilitiesRequest).method).toBe(
       "engine.capabilities",
     );
-    expect(decodeSchemaSync(engineRequestSchema, startDisplayRequest).method).toBe(
-      "capture.startDisplay",
-    );
-    expect(decodeSchemaSync(engineRequestSchema, startCurrentWindowRequest).method).toBe(
-      "capture.startCurrentWindow",
-    );
+    expect(decodedStartDisplayRequest.method).toBe("capture.startDisplay");
+    expect(decodedStartDisplayRequest.params.enablePreview).toBe(false);
+    expect(decodedStartCurrentWindowRequest.params.enablePreview).toBe(true);
+    expect(decodedStartCurrentWindowRequest.method).toBe("capture.startCurrentWindow");
     expect(decodeSchemaSync(engineRequestSchema, startRecordingRequest).method).toBe(
       "recording.start",
     );
@@ -215,6 +237,7 @@ describe("engine protocol", () => {
     const captureStatus = decodeSchemaSync(captureStatusResultSchema, {
       isRunning: false,
       isRecording: false,
+      captureSessionId: null,
       recordingDurationSeconds: 0,
       recordingURL: null,
       captureMetadata: {
@@ -234,6 +257,7 @@ describe("engine protocol", () => {
       },
       lastError: null,
       eventsURL: null,
+      lastRecordingTelemetry: null,
       telemetry: captureTelemetryFixture,
     });
 
@@ -259,6 +283,18 @@ describe("engine protocol", () => {
       projectPath: "/tmp/project.gglassproj",
       recordingURL: "/tmp/project.gglassproj/recording.mov",
       eventsURL: null,
+      lastRecordingTelemetry: {
+        sourceDroppedFrames: 1,
+        writerDroppedFrames: 0,
+        writerBackpressureDrops: 0,
+        achievedFps: 28.7,
+        cpuPercent: 9.8,
+        memoryBytes: 300_000_000,
+        recordingBitrateMbps: 8.1,
+        captureCallbackMs: 0.35,
+        recordQueueLagMs: 0.12,
+        writerAppendMs: 0.81,
+      },
       autoZoom: {
         isEnabled: true,
         intensity: 1,
@@ -310,11 +346,14 @@ describe("engine protocol", () => {
     expect(sources.windows[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.appName).toBe("Xcode");
     expect(captureStatus.eventsURL).toBeNull();
+    expect(captureStatus.captureSessionId).toBeNull();
     expect(captureStatus.captureMetadata?.source).toBe("window");
     expect(captureStatus.captureMetadata?.window?.id).toBe(42);
     expect(capturePreviewFrame?.frameId).toBe(12);
+    expect(projectState.lastRecordingTelemetry?.achievedFps).toBe(28.7);
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
+    expect(projectState.timeline.segments).toEqual([]);
     expect(projectState.agentAnalysis.latestJobId).toBe("job-123");
     expect(blockedAgentStatus.blockingReason).toBe("weak_narrative_structure");
     expect(recents.items[0]?.displayName).toBe("project");
@@ -328,6 +367,9 @@ describe("engine protocol", () => {
       recordingURL: null,
       lastError: null,
       eventsURL: null,
+      lastRecordingTelemetry: {
+        achievedFps: 29.2,
+      },
     });
 
     expect(captureStatus.telemetry).toEqual({
@@ -341,25 +383,62 @@ describe("engine protocol", () => {
       captureCallbackMs: 0,
       recordQueueLagMs: 0,
       writerAppendMs: 0,
+      previewEncodeMs: 0,
     });
+    expect(captureStatus.captureSessionId).toBeNull();
+  });
+
+  test("accepts timeline-backed export payloads", () => {
+    const exportRequest = buildRequest("export.run", {
+      outputURL: "/tmp/out.mp4",
+      presetId: "h264-1080p-30",
+      timeline: {
+        version: 1,
+        segments: [
+          {
+            id: "segment-a",
+            sourceAssetId: "recording",
+            sourceStartSeconds: 1,
+            sourceEndSeconds: 4,
+          },
+        ],
+      },
+    });
+
+    expect(decodeSchemaSync(engineRequestSchema, exportRequest).method).toBe("export.run");
   });
 
   test("fills telemetry defaults when payload is partial", () => {
     const captureStatus = decodeSchemaSync(captureStatusResultSchema, {
       isRunning: true,
       isRecording: false,
+      captureSessionId: "capture-session-1",
       recordingDurationSeconds: 0.5,
       recordingURL: null,
       lastError: null,
       eventsURL: null,
+      lastRecordingTelemetry: {
+        sourceDroppedFrames: 2,
+        writerDroppedFrames: 0,
+        writerBackpressureDrops: 0,
+        achievedFps: 29.2,
+        cpuPercent: null,
+        memoryBytes: null,
+        recordingBitrateMbps: null,
+        captureCallbackMs: 0,
+        recordQueueLagMs: 0,
+        writerAppendMs: 0,
+      },
       telemetry: {
         achievedFps: 59.2,
       },
     });
 
     expect(captureStatus.telemetry.achievedFps).toBe(59.2);
+    expect(captureStatus.captureSessionId).toBe("capture-session-1");
     expect(captureStatus.telemetry.writerDroppedFrames).toBe(0);
     expect(captureStatus.telemetry.cpuPercent).toBeNull();
+    expect(captureStatus.lastRecordingTelemetry?.achievedFps).toBe(29.2);
   });
 
   test("rejects invalid ISO datetime fields in engine payloads", () => {

@@ -34,6 +34,7 @@ extension CaptureEngine {
 }
 
 final class CapturePreviewStore {
+    private let recordEncodeDuration: @Sendable (Double) -> Void
     private let queue = DispatchQueue(label: "gg.capture.preview")
     private let stateLock = NSLock()
     private let context = CIContext()
@@ -44,9 +45,14 @@ final class CapturePreviewStore {
     private var latestFrameSnapshot: CapturePreviewFrameSnapshot?
     private var pendingSampleBuffer: CMSampleBuffer?
     private var isEncoding = false
+    private var isEnabled = true
     private var lastScheduledPresentationSeconds = -Double.infinity
     private var nextFrameId = 1
     private var generation = 0
+
+    init(recordEncodeDuration: @escaping @Sendable (Double) -> Void = { _ in }) {
+        self.recordEncodeDuration = recordEncodeDuration
+    }
 
     func latestFrame() -> CapturePreviewFrameSnapshot? {
         stateLock.lock()
@@ -61,6 +67,10 @@ final class CapturePreviewStore {
         let presentationSeconds = presentationTime.isNumeric ? presentationTime.seconds : nil
 
         stateLock.lock()
+        guard isEnabled else {
+            stateLock.unlock()
+            return
+        }
         let shouldSkipFrame = if let presentationSeconds {
             presentationSeconds - lastScheduledPresentationSeconds < minimumFrameIntervalSeconds
         } else {
@@ -92,6 +102,18 @@ final class CapturePreviewStore {
 
     func reset() {
         stateLock.lock()
+        generation += 1
+        latestFrameSnapshot = nil
+        pendingSampleBuffer = nil
+        isEncoding = false
+        lastScheduledPresentationSeconds = -Double.infinity
+        nextFrameId = 1
+        stateLock.unlock()
+    }
+
+    func setEnabled(_ enabled: Bool) {
+        stateLock.lock()
+        isEnabled = enabled
         generation += 1
         latestFrameSnapshot = nil
         pendingSampleBuffer = nil
@@ -134,6 +156,11 @@ final class CapturePreviewStore {
         sampleBuffer: CMSampleBuffer,
         frameId: Int
     ) -> CapturePreviewFrameSnapshot? {
+        let startedAt = DispatchTime.now().uptimeNanoseconds
+        defer {
+            let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - startedAt) / 1_000_000
+            recordEncodeDuration(elapsedMs)
+        }
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return nil
         }

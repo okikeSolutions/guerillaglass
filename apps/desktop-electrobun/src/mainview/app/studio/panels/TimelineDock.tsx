@@ -25,8 +25,9 @@ import {
   TooltipTrigger,
 } from "@guerillaglass/ui/components/tooltip";
 import { cn } from "@lib/utils";
+import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
 import { normalizeShortcutDisplayPlatform, studioShortcutDisplayTokens } from "@shared/shortcuts";
-import { useStudio } from "../state/StudioProvider";
+import { useStudio, useStudioPlaybackValue } from "../state/StudioProvider";
 import { studioToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 import { TimelineSurface } from "./TimelineSurface";
 
@@ -78,6 +79,10 @@ function TimelineToolbarDivider() {
 
 export function TimelineDock() {
   const studio = useStudio();
+  const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
+  const playbackRate = useStudioPlaybackValue((snapshot) => snapshot.playbackRate);
+  useStudioRenderDiagnostics("TimelineDock");
+  const trimEnabled = studio.activeMode === "deliver";
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
@@ -95,29 +100,33 @@ export function TimelineDock() {
         <div className="flex h-full min-h-0 flex-col px-4 py-3">
           <div className="gg-timeline-toolbar-row gg-toolbar-group mb-2 flex h-10 min-w-0 items-center gap-1 whitespace-nowrap rounded-md border px-2 py-1">
             <span className="gg-utility-label shrink-0">{studio.ui.sections.timeline}</span>
-            <ButtonGroup className="shrink-0 gap-1">
-              <TimelineIconAction
-                label={studio.ui.actions.setTrimIn}
-                shortcutKeys={studioShortcutDisplayTokens("trimIn", {
-                  platform: shortcutPlatform,
-                  overrides: studio.shortcutOverrides,
-                })}
-                onClick={studio.setTrimInFromPlayhead}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </TimelineIconAction>
-              <TimelineIconAction
-                label={studio.ui.actions.setTrimOut}
-                shortcutKeys={studioShortcutDisplayTokens("trimOut", {
-                  platform: shortcutPlatform,
-                  overrides: studio.shortcutOverrides,
-                })}
-                onClick={studio.setTrimOutFromPlayhead}
-              >
-                <ArrowRight className="h-4 w-4" />
-              </TimelineIconAction>
-            </ButtonGroup>
-            <TimelineToolbarDivider />
+            {trimEnabled ? (
+              <>
+                <ButtonGroup className="shrink-0 gap-1">
+                  <TimelineIconAction
+                    label={studio.ui.actions.setTrimIn}
+                    shortcutKeys={studioShortcutDisplayTokens("trimIn", {
+                      platform: shortcutPlatform,
+                      overrides: studio.shortcutOverrides,
+                    })}
+                    onClick={studio.setTrimInFromPlayhead}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </TimelineIconAction>
+                  <TimelineIconAction
+                    label={studio.ui.actions.setTrimOut}
+                    shortcutKeys={studioShortcutDisplayTokens("trimOut", {
+                      platform: shortcutPlatform,
+                      overrides: studio.shortcutOverrides,
+                    })}
+                    onClick={studio.setTrimOutFromPlayhead}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </TimelineIconAction>
+                </ButtonGroup>
+                <TimelineToolbarDivider />
+              </>
+            ) : null}
             <ButtonGroup className="shrink-0 gap-1">
               <TimelineIconAction
                 label={studio.ui.actions.timelineToolSelect}
@@ -126,13 +135,15 @@ export function TimelineDock() {
               >
                 <MousePointer className="h-4 w-4" />
               </TimelineIconAction>
-              <TimelineIconAction
-                label={studio.ui.actions.timelineToolTrim}
-                tone={studio.timelineTool === "trim" ? "selected" : "neutral"}
-                onClick={() => studio.setTimelineTool("trim")}
-              >
-                <Scissors className="h-4 w-4" />
-              </TimelineIconAction>
+              {trimEnabled ? (
+                <TimelineIconAction
+                  label={studio.ui.actions.timelineToolTrim}
+                  tone={studio.timelineTool === "trim" ? "selected" : "neutral"}
+                  onClick={() => studio.setTimelineTool("trim")}
+                >
+                  <Scissors className="h-4 w-4" />
+                </TimelineIconAction>
+              ) : null}
               <TimelineIconAction
                 label={studio.ui.actions.timelineToolBlade}
                 shortcutKeys={studioShortcutDisplayTokens("timelineBlade", {
@@ -213,7 +224,7 @@ export function TimelineDock() {
               id="timeline-playback-rate-select"
               size="sm"
               className="h-8 w-20 shrink-0"
-              value={String(studio.playbackRate)}
+              value={String(playbackRate)}
               onChange={(event) =>
                 studio.setPlaybackRate(
                   Number(event.target.value) as (typeof studio.playbackRates)[number],
@@ -230,9 +241,14 @@ export function TimelineDock() {
           <div className="min-h-0 flex-1 overflow-hidden">
             <TimelineSurface
               durationSeconds={studio.timelineDuration}
-              playheadSeconds={studio.playheadSeconds}
-              trimStartSeconds={studio.exportForm.state.values.trimStartSeconds}
-              trimEndSeconds={studio.exportForm.state.values.trimEndSeconds}
+              playheadSeconds={playheadSeconds}
+              trimEnabled={trimEnabled}
+              trimStartSeconds={
+                trimEnabled ? studio.exportForm.state.values.trimStartSeconds : undefined
+              }
+              trimEndSeconds={
+                trimEnabled ? studio.exportForm.state.values.trimEndSeconds : undefined
+              }
               lanes={studio.timelineLanes}
               laneControls={studio.timelineLaneControlState}
               labels={studio.ui.labels}
@@ -240,8 +256,8 @@ export function TimelineDock() {
               timelineSnapEnabled={studio.timelineSnapEnabled}
               zoomPercent={studio.timelineZoomPercent}
               onSetPlayheadSeconds={studio.setPlayheadSeconds}
-              onSetTrimStartSeconds={studio.setTrimStartSeconds}
-              onSetTrimEndSeconds={studio.setTrimEndSeconds}
+              onSetTrimStartSeconds={trimEnabled ? studio.setTrimStartSeconds : undefined}
+              onSetTrimEndSeconds={trimEnabled ? studio.setTrimEndSeconds : undefined}
               onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
               onToggleLaneLocked={(laneId) => studio.toggleLaneControl(laneId, "locked")}
               onToggleLaneMuted={(laneId) => studio.toggleLaneControl(laneId, "muted")}
@@ -259,11 +275,17 @@ export function TimelineDock() {
               onSelectMarker={studio.selectTimelineMarker}
             />
           </div>
-          <div className="gg-copy-meta gg-numeric mt-2 grid shrink-0 grid-cols-3">
-            <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
-            <span className="text-center">{`${studio.ui.labels.playhead}: ${studio.playheadSeconds.toFixed(2)}`}</span>
-            <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
-          </div>
+          {trimEnabled ? (
+            <div className="gg-copy-meta gg-numeric mt-2 grid shrink-0 grid-cols-3">
+              <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
+              <span className="text-center">{`${studio.ui.labels.playhead}: ${playheadSeconds.toFixed(2)}`}</span>
+              <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
+            </div>
+          ) : (
+            <div className="gg-copy-meta gg-numeric mt-2 shrink-0 text-center">
+              {`${studio.ui.labels.playhead}: ${playheadSeconds.toFixed(2)}`}
+            </div>
+          )}
         </div>
       </TooltipProvider>
     </footer>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { desktopApi } from "@lib/engine";
 
 const liveCapturePreviewPollMs = 125;
@@ -19,36 +20,20 @@ function hasDesktopPreviewResolver(): boolean {
   return typeof bridgeWindow.ggResolveCapturePreviewURL === "function";
 }
 
-export function useLiveCapturePreview(isCaptureRunning: boolean): LiveCapturePreviewState {
+export function useLiveCapturePreview(captureSessionId: string | null): LiveCapturePreviewState {
   const [hasFrame, setHasFrame] = useState(false);
-  const [previewURL, setPreviewURL] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!isCaptureRunning || !hasDesktopPreviewResolver()) {
-      setPreviewURL(null);
-      return;
-    }
-
-    void desktopApi
-      .resolveCapturePreviewURL()
-      .then((nextPreviewURL) => {
-        if (!cancelled) {
-          setPreviewURL(nextPreviewURL);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPreviewURL(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isCaptureRunning]);
+  const hasPreviewResolver = hasDesktopPreviewResolver();
+  const isCaptureRunning = captureSessionId !== null;
+  const previewURLQuery = useQuery<string | null>({
+    queryKey: ["studio", "capturePreviewURL", captureSessionId],
+    enabled: Boolean(captureSessionId) && hasPreviewResolver,
+    queryFn: async () => await desktopApi.resolveCapturePreviewURL(),
+    gcTime: 0,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const previewURL = captureSessionId ? (previewURLQuery.data ?? null) : null;
 
   useEffect(() => {
     const imageElement = imageRef.current;

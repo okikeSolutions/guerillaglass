@@ -19,6 +19,9 @@ public extension CaptureEngine {
         guard isRunning else {
             throw CaptureError.captureNotRunning
         }
+        await MainActor.run {
+            self.lastRecordingTelemetry = nil
+        }
         let expectedFrameRate = max(1, captureFrameRate)
         let outputURL = makeRecordingURL()
         Self.logger.info("Start recording to \(outputURL.path, privacy: .private(mask: .hash))")
@@ -131,6 +134,7 @@ public extension CaptureEngine {
                             let duration = await Self.recordingDuration(for: url)
                             engine.recordingURL = url
                             engine.recordingDuration = duration
+                            engine.lastRecordingTelemetry = engine.telemetrySnapshot()
                         case let .failure(error):
                             Self.logger.error("Recording failed: \(error.localizedDescription, privacy: .private)")
                             engine.lastError = error.localizedDescription
@@ -145,6 +149,7 @@ public extension CaptureEngine {
     func loadRecording(from url: URL) {
         Task { @MainActor in
             self.recordingURL = url
+            self.lastRecordingTelemetry = nil
         }
         Task {
             let duration = await Self.recordingDuration(for: url)
@@ -158,6 +163,7 @@ public extension CaptureEngine {
         Task { @MainActor in
             self.recordingURL = nil
             self.recordingDuration = 0
+            self.lastRecordingTelemetry = nil
         }
     }
 

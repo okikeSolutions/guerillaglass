@@ -5,6 +5,7 @@ import type {
   BridgeRequestInvoker,
   BridgeRequests,
   HostMenuState,
+  StudioDiagnosticsEntry,
   WindowBridgeBindings,
 } from "./bridgeRpc";
 import {
@@ -25,6 +26,7 @@ import { bridgeRequestDefinitions, bridgeRequestNameList } from "./bridgeRpc";
 export function createWindowBridgeBindings(
   invoke: BridgeRequestInvoker,
   sendHostMenuState: (state: HostMenuState) => void,
+  sendStudioDiagnostics: (entry: StudioDiagnosticsEntry) => void,
 ): WindowBridgeBindings {
   function createBinding<K extends BridgeRequestName>(name: K) {
     const definition = bridgeRequestDefinitions[name];
@@ -52,6 +54,7 @@ export function createWindowBridgeBindings(
     }),
   ) as WindowBridgeBindings;
   bindings.ggHostSendMenuState = sendHostMenuState;
+  bindings.ggHostSendStudioDiagnostics = sendStudioDiagnostics;
   return bindings;
 }
 

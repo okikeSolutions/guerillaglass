@@ -11,11 +11,16 @@ import type {
   ProjectRecentsResult,
   ProjectState,
   SourcesResult,
+  TimelineDocument,
 } from "@guerillaglass/engine-protocol";
 import type { StudioMessages } from "@guerillaglass/localization";
 import { engineApi } from "@lib/engine";
 import type { HostPathPickerMode } from "@shared/bridge";
-import { CaptureWindowPickerUnsupportedError, StudioActionError } from "@shared/errors";
+import {
+  CaptureWindowPickerUnsupportedError,
+  EngineResponseError,
+  StudioActionError,
+} from "@shared/errors";
 import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
@@ -37,6 +42,27 @@ type ToggleRecordingOptions = {
   preferWindowPicker?: boolean;
   preferCurrentWindow?: boolean;
 };
+
+export function resolveCompletedRecordingTelemetry(
+  status: Pick<CaptureStatusResult, "lastRecordingTelemetry">,
+  project: Pick<ProjectState, "lastRecordingTelemetry"> | null | undefined,
+) {
+  return status.lastRecordingTelemetry ?? project?.lastRecordingTelemetry ?? null;
+}
+
+export function mergeFinishedCaptureStatus(
+  stoppedStatus: CaptureStatusResult,
+  recordingStopStatus: Pick<CaptureStatusResult, "lastRecordingTelemetry"> | null | undefined,
+): CaptureStatusResult {
+  if (stoppedStatus.lastRecordingTelemetry || !recordingStopStatus?.lastRecordingTelemetry) {
+    return stoppedStatus;
+  }
+
+  return {
+    ...stoppedStatus,
+    lastRecordingTelemetry: recordingStopStatus.lastRecordingTelemetry,
+  };
+}
 
 export type SettingsFormApi = {
   state: {
@@ -72,6 +98,7 @@ type UseStudioActionsOptions = {
   setNotice: (next: Notice) => void;
   setTimelinePlayback: (isPlaying: boolean) => void;
   resetPlayhead: () => void;
+  clearInspectorSelection: () => void;
   pickPathSafely: (params: {
     mode: HostPathPickerMode;
     startingFolder?: string;
@@ -80,6 +107,7 @@ type UseStudioActionsOptions = {
   selectedWindowId: number;
   inputMonitoringDenied: boolean;
   recordingURL: string | null;
+  timelineDocument: TimelineDocument;
   selectedPreset: ExportPreset | undefined;
   recentsLimit: number;
   settingsForm: SettingsFormApi;
@@ -100,6 +128,14 @@ function delay(milliseconds: number): Promise<void> {
   });
 }
 
+export function isSelectedWindowUnavailableError(error: unknown): boolean {
+  return (
+    error instanceof EngineResponseError &&
+    error.code === "runtime_error" &&
+    /selected window is no longer available for capture/i.test(error.description)
+  );
+}
+
 export function useStudioMutations({
   queryClient,
   ui,
@@ -107,11 +143,13 @@ export function useStudioMutations({
   setNotice,
   setTimelinePlayback,
   resetPlayhead,
+  clearInspectorSelection,
   pickPathSafely,
   selectedDisplayId,
   selectedWindowId,
   inputMonitoringDenied,
   recordingURL,
+  timelineDocument,
   selectedPreset,
   recentsLimit,
   settingsForm,
@@ -225,22 +263,36 @@ export function useStudioMutations({
         }
 
         let resolvedWindowId = selectedWindowId;
-        if (resolvedWindowId === 0) {
-          const refreshedSources = await engineApi.listSources().catch(() => null);
-          if (refreshedSources) {
-            resolvedWindowId = reconcileSourcesAndSelectedWindow(
-              refreshedSources,
-              resolvedWindowId,
-            );
-          }
+        const refreshedSources = await engineApi.listSources().catch(() => null);
+        if (refreshedSources) {
+          resolvedWindowId = reconcileSourcesAndSelectedWindow(refreshedSources, resolvedWindowId);
         }
 
         if (resolvedWindowId !== 0 && !options?.preferWindowPicker) {
-          return await engineApi.startWindowCapture(resolvedWindowId, micEnabled, captureFps);
+          try {
+            return await engineApi.startWindowCapture(resolvedWindowId, micEnabled, captureFps);
+          } catch (error) {
+            if (!isSelectedWindowUnavailableError(error)) {
+              throw error;
+            }
+
+            const retriedSources = await engineApi.listSources().catch(() => null);
+            if (retriedSources) {
+              const retriedWindowId = reconcileSourcesAndSelectedWindow(
+                retriedSources,
+                resolvedWindowId,
+              );
+              if (retriedWindowId !== 0 && retriedWindowId !== resolvedWindowId) {
+                return await engineApi.startWindowCapture(retriedWindowId, micEnabled, captureFps);
+              }
+            }
+
+            return await engineApi.startCurrentWindowCapture(micEnabled, captureFps);
+          }
         }
 
         if (resolvedWindowId === 0 && !options?.preferWindowPicker) {
-          throw new StudioActionError({ reason: "window_selection_required" });
+          return await engineApi.startCurrentWindowCapture(micEnabled, captureFps);
         }
 
         try {
@@ -388,10 +440,14 @@ export function useStudioMutations({
       }
 
       if (status?.isRecording) {
-        await engineApi.stopRecording();
-        const stoppedStatus = await engineApi.stopCapture();
+        const recordingStopStatus = await engineApi.stopRecording();
+        const stoppedStatus = mergeFinishedCaptureStatus(
+          await engineApi.stopCapture(),
+          recordingStopStatus,
+        );
         return {
           nextStatus: stoppedStatus,
+          recordingStopStatus,
           finished: true,
         };
       }
@@ -404,16 +460,54 @@ export function useStudioMutations({
         finished: false,
       };
     },
-    onSuccess: async ({ nextStatus, finished }) => {
+    onSuccess: async ({ nextStatus, recordingStopStatus, finished }) => {
       queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
       await syncCaptureStatus({ expectRunning: !finished });
 
       if (finished) {
+        const refreshedProject = await engineApi.projectCurrent().catch(() => null);
+        const completedRecordingTelemetry = resolveCompletedRecordingTelemetry(
+          recordingStopStatus ?? nextStatus,
+          refreshedProject,
+        );
+        queryClient.setQueryData(
+          studioQueryKeys.projectCurrent(),
+          refreshedProject ??
+            ((current: ProjectState | undefined) => {
+              if (!current) {
+                return current;
+              }
+              return {
+                ...current,
+                recordingURL: nextStatus.recordingURL,
+                eventsURL: nextStatus.eventsURL,
+                captureMetadata: nextStatus.captureMetadata,
+                lastRecordingTelemetry: completedRecordingTelemetry,
+              };
+            }),
+        );
         setTimelinePlayback(false);
-        setNotice({ kind: "success", message: ui.notices.recordingFinished });
+        clearInspectorSelection();
+        setNotice(
+          completedRecordingTelemetry
+            ? null
+            : { kind: "success", message: ui.notices.recordingFinished },
+        );
         return;
       }
 
+      queryClient.setQueryData(
+        studioQueryKeys.projectCurrent(),
+        (current: ProjectState | undefined) => {
+          if (!current) {
+            return current;
+          }
+          return {
+            ...current,
+            lastRecordingTelemetry: null,
+          };
+        },
+      );
       exportForm.setFieldValue("trimStartSeconds", 0);
       exportForm.setFieldValue("trimEndSeconds", 0);
       resetPlayhead();
@@ -455,6 +549,7 @@ export function useStudioMutations({
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
+      clearInspectorSelection();
       setNotice({ kind: "success", message: ui.notices.projectOpened });
     },
     onError: (error) => {
@@ -470,6 +565,7 @@ export function useStudioMutations({
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
+      clearInspectorSelection();
       setNotice({ kind: "success", message: ui.notices.projectOpened });
     },
     onError: (error) => {
@@ -497,6 +593,7 @@ export function useStudioMutations({
       const nextProject = await engineApi.projectSave({
         projectPath,
         autoZoom: settingsForm.state.values.autoZoom,
+        timeline: timelineDocument,
       });
       return nextProject;
     },
@@ -556,6 +653,7 @@ export function useStudioMutations({
         presetId: selectedPreset.id,
         trimStartSeconds: trimStart,
         trimEndSeconds: trimEnd,
+        timeline: timelineDocument,
       });
     },
     onSuccess: (result) => {

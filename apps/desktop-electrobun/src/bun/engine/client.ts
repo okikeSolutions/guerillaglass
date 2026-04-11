@@ -27,6 +27,7 @@ import {
   type CaptureFrameRate,
   type EngineRequest,
   type EngineRequestEncoded,
+  type TimelineDocument,
   type TranscriptionProvider,
 } from "@guerillaglass/engine-protocol";
 import {
@@ -217,9 +218,15 @@ const engineMethodDefinitions = {
   } satisfies EngineMethodDefinition<typeof sourcesResultSchema, []>,
   startDisplayCapture: {
     method: "capture.startDisplay",
-    toParams: (enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number) => ({
+    toParams: (
+      enableMic: boolean,
+      captureFps: CaptureFrameRate,
+      displayId?: number,
+      enablePreview = true,
+    ) => ({
       displayId,
       enableMic,
+      enablePreview,
       captureFps,
     }),
     schema: captureStatusResultSchema,
@@ -227,23 +234,33 @@ const engineMethodDefinitions = {
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     typeof captureStatusResultSchema,
-    [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number]
+    [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number, enablePreview?: boolean]
   >,
   startCurrentWindowCapture: {
     method: "capture.startCurrentWindow",
-    toParams: (enableMic: boolean, captureFps: CaptureFrameRate) => ({ enableMic, captureFps }),
+    toParams: (enableMic: boolean, captureFps: CaptureFrameRate, enablePreview = true) => ({
+      enableMic,
+      enablePreview,
+      captureFps,
+    }),
     schema: captureStatusResultSchema,
     timeoutMs: 15_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     typeof captureStatusResultSchema,
-    [enableMic: boolean, captureFps: CaptureFrameRate]
+    [enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
   >,
   startWindowCapture: {
     method: "capture.startWindow",
-    toParams: (windowId: number, enableMic: boolean, captureFps: CaptureFrameRate) => ({
+    toParams: (
+      windowId: number,
+      enableMic: boolean,
+      captureFps: CaptureFrameRate,
+      enablePreview = true,
+    ) => ({
       windowId,
       enableMic,
+      enablePreview,
       captureFps,
     }),
     schema: captureStatusResultSchema,
@@ -252,7 +269,7 @@ const engineMethodDefinitions = {
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     typeof captureStatusResultSchema,
-    [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate]
+    [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
   >,
   stopCapture: {
     method: "capture.stop",
@@ -303,6 +320,7 @@ const engineMethodDefinitions = {
       presetId: string;
       trimStartSeconds?: number;
       trimEndSeconds?: number;
+      timeline?: TimelineDocument;
     }) => params,
     schema: exportRunResultSchema,
     // 0 disables timeout: exports can legitimately run for long recordings.
@@ -316,6 +334,7 @@ const engineMethodDefinitions = {
         presetId: string;
         trimStartSeconds?: number;
         trimEndSeconds?: number;
+        timeline?: TimelineDocument;
       },
     ]
   >,
@@ -345,13 +364,23 @@ const engineMethodDefinitions = {
   } satisfies EngineMethodDefinition<typeof projectStateSchema, [projectPath: string]>,
   projectSave: {
     method: "project.save",
-    toParams: (params: { projectPath?: string; autoZoom?: AutoZoomSettings }) => params,
+    toParams: (params: {
+      projectPath?: string;
+      autoZoom?: AutoZoomSettings;
+      timeline?: TimelineDocument;
+    }) => params,
     schema: projectStateSchema,
     timeoutMs: 20_000,
     retryableRead: false,
   } satisfies EngineMethodDefinition<
     typeof projectStateSchema,
-    [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
+    [
+      params: {
+        projectPath?: string;
+        autoZoom?: AutoZoomSettings;
+        timeline?: TimelineDocument;
+      },
+    ]
   >,
   projectRecents: {
     method: "project.recents",
@@ -805,49 +834,61 @@ export class EngineClient {
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
     displayId?: number,
+    enablePreview = true,
   ) {
     const definition = engineMethodDefinitions.startDisplayCapture;
-    return this.captureMethodEffect(definition, enableMic, captureFps, displayId);
+    return this.captureMethodEffect(definition, enableMic, captureFps, displayId, enablePreview);
   }
 
   async startDisplayCapture(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
     displayId?: number,
+    enablePreview = true,
   ) {
-    return await runEffectPromise(this.startDisplayCaptureEffect(enableMic, captureFps, displayId));
+    return await runEffectPromise(
+      this.startDisplayCaptureEffect(enableMic, captureFps, displayId, enablePreview),
+    );
   }
 
   startCurrentWindowCaptureEffect(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    enablePreview = true,
   ) {
     const definition = engineMethodDefinitions.startCurrentWindowCapture;
-    return this.captureMethodEffect(definition, enableMic, captureFps);
+    return this.captureMethodEffect(definition, enableMic, captureFps, enablePreview);
   }
 
   async startCurrentWindowCapture(
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    enablePreview = true,
   ) {
-    return await runEffectPromise(this.startCurrentWindowCaptureEffect(enableMic, captureFps));
+    return await runEffectPromise(
+      this.startCurrentWindowCaptureEffect(enableMic, captureFps, enablePreview),
+    );
   }
 
   startWindowCaptureEffect(
     windowId: number,
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    enablePreview = true,
   ) {
     const definition = engineMethodDefinitions.startWindowCapture;
-    return this.captureMethodEffect(definition, windowId, enableMic, captureFps);
+    return this.captureMethodEffect(definition, windowId, enableMic, captureFps, enablePreview);
   }
 
   async startWindowCapture(
     windowId: number,
     enableMic: boolean,
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
+    enablePreview = true,
   ) {
-    return await runEffectPromise(this.startWindowCaptureEffect(windowId, enableMic, captureFps));
+    return await runEffectPromise(
+      this.startWindowCaptureEffect(windowId, enableMic, captureFps, enablePreview),
+    );
   }
 
   stopCaptureEffect() {
@@ -974,6 +1015,7 @@ export class EngineClient {
     presetId: string;
     trimStartSeconds?: number;
     trimEndSeconds?: number;
+    timeline?: TimelineDocument;
   }) {
     const definition = engineMethodDefinitions.runExport;
     return this.methodEffect(definition, params);
@@ -984,6 +1026,7 @@ export class EngineClient {
     presetId: string;
     trimStartSeconds?: number;
     trimEndSeconds?: number;
+    timeline?: TimelineDocument;
   }) {
     return await runEffectPromise(this.runExportEffect(params));
   }
@@ -1015,12 +1058,20 @@ export class EngineClient {
     return await runEffectPromise(this.projectOpenEffect(projectPath));
   }
 
-  projectSaveEffect(params: { projectPath?: string; autoZoom?: AutoZoomSettings }) {
+  projectSaveEffect(params: {
+    projectPath?: string;
+    autoZoom?: AutoZoomSettings;
+    timeline?: TimelineDocument;
+  }) {
     const definition = engineMethodDefinitions.projectSave;
     return this.methodEffect(definition, params);
   }
 
-  async projectSave(params: { projectPath?: string; autoZoom?: AutoZoomSettings }) {
+  async projectSave(params: {
+    projectPath?: string;
+    autoZoom?: AutoZoomSettings;
+    timeline?: TimelineDocument;
+  }) {
     return await runEffectPromise(this.projectSaveEffect(params));
   }
 

@@ -44,6 +44,7 @@ final class ProjectMigrationTests: XCTestCase {
         XCTAssertEqual(decoded.projectVersion, ProjectSchemaVersion.current)
         XCTAssertEqual(decoded.project.id, projectV1.id)
         XCTAssertEqual(decoded.project.autoZoom, AutoZoomSettings())
+        XCTAssertEqual(decoded.project.timeline, TimelineDocument())
         XCTAssertNil(decoded.project.captureMetadata)
         XCTAssertNotNil(decoded.project.agentAnalysis)
     }
@@ -62,6 +63,7 @@ final class ProjectMigrationTests: XCTestCase {
 
         XCTAssertEqual(decoded.projectVersion, ProjectSchemaVersion.current)
         XCTAssertEqual(decoded.project.autoZoom, document.project.autoZoom)
+        XCTAssertEqual(decoded.project.timeline, TimelineDocument())
         XCTAssertNil(decoded.project.captureMetadata)
         XCTAssertNotNil(decoded.project.agentAnalysis)
     }
@@ -80,6 +82,22 @@ final class ProjectMigrationTests: XCTestCase {
 
         XCTAssertEqual(decoded.projectVersion, ProjectSchemaVersion.current)
         XCTAssertNotNil(decoded.project.agentAnalysis)
+        XCTAssertEqual(decoded.project.timeline, TimelineDocument())
+    }
+
+    func testMigrationUpgradesV4Document() throws {
+        var document = ProjectDocument()
+        document.projectVersion = 4
+
+        let encoder = ProjectStore.makeDefaultEncoder()
+        let data = try encoder.encode(document)
+
+        let migrated = try ProjectMigration.migrateIfNeeded(data)
+        let decoder = ProjectStore.makeDefaultDecoder()
+        let decoded = try decoder.decode(ProjectDocument.self, from: migrated)
+
+        XCTAssertEqual(decoded.projectVersion, ProjectSchemaVersion.current)
+        XCTAssertEqual(decoded.project.timeline, TimelineDocument())
     }
 
     func testMigrationRejectsMissingVersion() throws {

@@ -7,18 +7,20 @@ import ScreenCaptureKit
 /// Primary ScreenCaptureKit capture coordinator for display and window capture sessions.
 public final class CaptureEngine: NSObject, ObservableObject {
     @Published public private(set) var isRunning: Bool = false
+    @Published public private(set) var captureSessionID: String?
     @Published public internal(set) var lastError: String?
     @Published public private(set) var availableWindows: [ShareableWindow] = []
     @Published public internal(set) var isRecording: Bool = false
     @Published public internal(set) var recordingURL: URL?
     @Published public internal(set) var recordingDuration: TimeInterval = 0
+    @Published public internal(set) var lastRecordingTelemetry: CaptureTelemetrySnapshot?
     @Published public private(set) var captureDescriptor: CaptureDescriptor?
 
     private let sampleQueue = DispatchQueue(label: "gg.capture.sample")
     private let sampleQueueKey = DispatchSpecificKey<Void>()
     let recordingQueue = DispatchQueue(label: "gg.capture.recording")
-    let telemetryStore = CaptureTelemetryStore()
-    let livePreviewStore = CapturePreviewStore()
+    let telemetryStore: CaptureTelemetryStore
+    let livePreviewStore: CapturePreviewStore
     private var stream: SCStream?
     private var startCaptureTask: Task<Void, Never>?
     var recordingActivationTask: Task<Void, Never>?
@@ -54,6 +56,11 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @MainActor private var pickerContinuation: CheckedContinuation<SCContentFilter, Error>?
 
     override public init() {
+        let telemetryStore = CaptureTelemetryStore()
+        self.telemetryStore = telemetryStore
+        livePreviewStore = CapturePreviewStore { [weak telemetryStore] durationMs in
+            telemetryStore?.recordPreviewEncodeDuration(durationMs)
+        }
         super.init()
         sampleQueue.setSpecific(key: sampleQueueKey, value: ())
     }
@@ -108,16 +115,19 @@ public final class CaptureEngine: NSObject, ObservableObject {
         public let captureCallbackMs: Double
         public let recordQueueLagMs: Double
         public let writerAppendMs: Double
+        public let previewEncodeMs: Double
     }
 
     @MainActor
     public func startDisplayCapture(
         displayID: CGDirectDisplayID? = nil,
         enableMic: Bool = false,
-        targetFrameRate: Int = 30
+        targetFrameRate: Int = 30,
+        enablePreview: Bool = true
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        setPreviewCachingEnabled(enablePreview)
         clearPreviewFrame()
         clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
@@ -181,6 +191,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             try await waitForStartupHandshake()
             await MainActor.run {
                 self.isRunning = true
+                self.captureSessionID = UUID().uuidString
                 self.lastError = nil
                 self.captureDescriptor = makeDisplayDescriptor(display: display)
             }
@@ -195,6 +206,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             }
             stream = nil
             isRunning = false
+            captureSessionID = nil
             clearLatestCompleteVideoSample()
             clearStartupHandshake()
             audioCapture.stop()
@@ -206,10 +218,12 @@ public final class CaptureEngine: NSObject, ObservableObject {
     public func startWindowCapture(
         windowID: CGWindowID,
         enableMic: Bool = false,
-        targetFrameRate: Int = 30
+        targetFrameRate: Int = 30,
+        enablePreview: Bool = true
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        setPreviewCachingEnabled(enablePreview)
         clearPreviewFrame()
         clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
@@ -266,6 +280,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             try await waitForStartupHandshake()
             await MainActor.run {
                 self.isRunning = true
+                self.captureSessionID = UUID().uuidString
                 self.lastError = nil
                 self.captureDescriptor = CaptureDescriptor(
                     source: .window,
@@ -289,6 +304,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
             }
             stream = nil
             isRunning = false
+            captureSessionID = nil
             clearLatestCompleteVideoSample()
             clearStartupHandshake()
             audioCapture.stop()
@@ -299,13 +315,15 @@ public final class CaptureEngine: NSObject, ObservableObject {
     @MainActor
     public func startCurrentWindowCapture(
         enableMic: Bool = false,
-        targetFrameRate: Int = 30
+        targetFrameRate: Int = 30,
+        enablePreview: Bool = true
     ) async throws {
         let frontmostWindow = try await resolveFrontmostWindow()
         try await startWindowCapture(
             windowID: frontmostWindow.windowID,
             enableMic: enableMic,
-            targetFrameRate: targetFrameRate
+            targetFrameRate: targetFrameRate,
+            enablePreview: enablePreview
         )
     }
 
@@ -314,12 +332,20 @@ public final class CaptureEngine: NSObject, ObservableObject {
     public func startCaptureUsingPicker(
         style: SCShareableContentStyle? = nil,
         enableMic: Bool = false,
-        targetFrameRate: Int = 30
+        targetFrameRate: Int = 30,
+        enablePreview: Bool = true
     ) async throws {
         let filter = try await pickContent(style: style)
-        try await startCapture(using: filter, enableMic: enableMic, targetFrameRate: targetFrameRate)
+        try await startCapture(
+            using: filter,
+            enableMic: enableMic,
+            targetFrameRate: targetFrameRate,
+            enablePreview: enablePreview
+        )
     }
+}
 
+extension CaptureEngine {
     @MainActor
     public func stopCapture() async {
         clearPreviewFrame()
@@ -331,6 +357,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         try? await stream.stopCapture()
         audioCapture.stop()
         isRunning = false
+        captureSessionID = nil
         startCaptureTask?.cancel()
         startCaptureTask = nil
         recordingActivationTask?.cancel()
@@ -352,6 +379,10 @@ public final class CaptureEngine: NSObject, ObservableObject {
         lastError = nil
     }
 
+    func setPreviewCachingEnabled(_ enabled: Bool) {
+        livePreviewStore.setEnabled(enabled)
+    }
+
     @MainActor
     public func setErrorMessage(_ message: String?) {
         lastError = message
@@ -367,9 +398,7 @@ public final class CaptureEngine: NSObject, ObservableObject {
         availableWindows = shareable
         windowsByID = mapped
     }
-}
 
-extension CaptureEngine {
     private func withSampleQueue<T>(_ operation: () -> T) -> T {
         if DispatchQueue.getSpecific(key: sampleQueueKey) != nil {
             return operation()
@@ -595,6 +624,7 @@ extension CaptureEngine {
                 resolveStartupHandshakeIfNeeded(.failure(error))
                 await MainActor.run {
                     self.isRunning = false
+                    self.captureSessionID = nil
                     self.lastError = error.localizedDescription
                 }
             }
@@ -631,10 +661,12 @@ extension CaptureEngine {
     private func startCapture(
         using filter: SCContentFilter,
         enableMic: Bool,
-        targetFrameRate: Int
+        targetFrameRate: Int,
+        enablePreview: Bool
     ) async throws {
         guard !isRunning else { return }
         resetTelemetry()
+        setPreviewCachingEnabled(enablePreview)
         clearPreviewFrame()
         clearLatestCompleteVideoSample()
         hasLoggedFirstVideoSample = false
@@ -687,6 +719,7 @@ extension CaptureEngine {
             try await waitForStartupHandshake()
             await MainActor.run {
                 self.isRunning = true
+                self.captureSessionID = UUID().uuidString
                 self.lastError = nil
                 self.captureDescriptor = makeDescriptor(filter: filter)
             }
@@ -701,6 +734,7 @@ extension CaptureEngine {
             }
             stream = nil
             isRunning = false
+            captureSessionID = nil
             clearLatestCompleteVideoSample()
             clearStartupHandshake()
             audioCapture.stop()

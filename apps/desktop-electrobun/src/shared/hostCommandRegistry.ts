@@ -8,7 +8,7 @@ import {
 } from "./shortcuts";
 
 type HostCommandLabelKey = keyof DesktopMenuMessages | "recordingToggle";
-type HostCommandEnablement = "canSave" | "canExport" | "canToggleTimeline";
+type HostCommandEnablement = "canSave" | "canExport" | "canTrimTimeline" | "canToggleTimeline";
 type HostCommandCheckedState =
   | "locale.en-US"
   | "locale.de-DE"
@@ -134,6 +134,7 @@ export const hostCommandDefinitions: HostCommandDefinition[] = [
       appSection: "timeline",
       appGroup: 0,
       labelKey: "setTrimIn",
+      enableWhen: "canTrimTimeline",
     },
   },
   {
@@ -144,6 +145,7 @@ export const hostCommandDefinitions: HostCommandDefinition[] = [
       appSection: "timeline",
       appGroup: 0,
       labelKey: "setTrimOut",
+      enableWhen: "canTrimTimeline",
     },
   },
   {

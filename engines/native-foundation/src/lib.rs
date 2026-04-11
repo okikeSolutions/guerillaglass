@@ -53,6 +53,8 @@ struct State {
     clock: CaptureClock,
     is_running: bool,
     is_recording: bool,
+    capture_session_id: Option<String>,
+    next_capture_session_id: u64,
     recording_duration: RunningDuration,
     recording_url: Option<String>,
     events_url: Option<String>,
@@ -76,6 +78,8 @@ impl State {
             clock: CaptureClock::default(),
             is_running: false,
             is_recording: false,
+            capture_session_id: None,
+            next_capture_session_id: 0,
             recording_duration: RunningDuration::default(),
             recording_url: None,
             events_url: None,
@@ -97,15 +101,22 @@ impl State {
         self.recording_duration.current(&self.clock)
     }
 
+    fn begin_capture_session(&mut self) {
+        self.next_capture_session_id += 1;
+        self.capture_session_id = Some(format!("capture-session-{}", self.next_capture_session_id));
+    }
+
     fn capture_status(&self) -> Value {
         json!({
             "isRunning": self.is_running,
             "isRecording": self.is_recording,
+            "captureSessionId": self.capture_session_id,
             "recordingDurationSeconds": self.current_duration(),
             "recordingURL": self.recording_url,
             "captureMetadata": self.capture_metadata,
             "lastError": self.last_error,
             "eventsURL": self.events_url,
+            "lastRecordingTelemetry": Value::Null,
             "telemetry": {
                 "sourceDroppedFrames": 0,
                 "writerDroppedFrames": 0,
@@ -834,6 +845,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                 );
             }
             state.is_running = true;
+            state.begin_capture_session();
             state.capture_metadata = Some(json!({
                 "window": Value::Null,
                 "source": "display",
@@ -857,6 +869,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                 );
             }
             state.is_running = true;
+            state.begin_capture_session();
             state.capture_metadata = Some(json!({
                 "window": {
                     "id": 101,
@@ -888,6 +901,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
                 .and_then(Value::as_u64)
                 .unwrap_or(101);
             state.is_running = true;
+            state.begin_capture_session();
             state.capture_metadata = Some(json!({
                 "window": {
                     "id": window_id,
@@ -904,6 +918,7 @@ fn handle_request(platform: &str, state: &mut State, request: &EngineRequest) ->
             state.recording_duration.stop(&state.clock);
             state.is_recording = false;
             state.is_running = false;
+            state.capture_session_id = None;
             success(&request.id, state.capture_status())
         }
         EngineMethod::RecordingStart => {
@@ -1338,6 +1353,10 @@ mod tests {
             let capture_result = expect_success(capture);
             assert_eq!(capture_result["isRunning"], json!(true));
             assert_eq!(
+                capture_result["captureSessionId"],
+                json!("capture-session-1")
+            );
+            assert_eq!(
                 capture_result["captureMetadata"]["source"],
                 json!("display")
             );
@@ -1367,6 +1386,36 @@ mod tests {
                 handle_request("linux", state, &request("r6", "capture.stop", json!({})));
             let stopped_capture_result = expect_success(stopped_capture);
             assert_eq!(stopped_capture_result["isRunning"], json!(false));
+            assert_eq!(stopped_capture_result["captureSessionId"], Value::Null);
+        });
+    }
+
+    #[test]
+    fn capture_session_id_changes_across_capture_restarts() {
+        with_state("capture-session-ids", |state, _| {
+            let first_capture = handle_request(
+                "linux",
+                state,
+                &request("r3", "capture.startDisplay", json!({})),
+            );
+            let first_capture_result = expect_success(first_capture);
+            assert_eq!(
+                first_capture_result["captureSessionId"],
+                json!("capture-session-1")
+            );
+
+            let _ = handle_request("linux", state, &request("r4", "capture.stop", json!({})));
+
+            let second_capture = handle_request(
+                "linux",
+                state,
+                &request("r5", "capture.startDisplay", json!({})),
+            );
+            let second_capture_result = expect_success(second_capture);
+            assert_eq!(
+                second_capture_result["captureSessionId"],
+                json!("capture-session-2")
+            );
         });
     }
 

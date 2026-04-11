@@ -27,8 +27,6 @@ type InspectorModeStudio = Pick<
   | "selectedPreset"
   | "setAudioMixerGain"
   | "setPlayheadSeconds"
-  | "setTrimEndSeconds"
-  | "setTrimStartSeconds"
   | "settingsForm"
   | "supportedCaptureFrameRates"
   | "toggleAudioMixerMuted"

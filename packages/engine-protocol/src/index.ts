@@ -87,6 +87,20 @@ export const inputEventLogSchema = Schema.Struct({
   events: Schema.Array(inputEventSchema),
 });
 
+/** Linked A/V segment persisted in project timeline state. */
+export const timelineSegmentSchema = Schema.Struct({
+  id: NonEmptyString,
+  sourceAssetId: Schema.Literal("recording"),
+  sourceStartSeconds: NonNegativeNumber,
+  sourceEndSeconds: NonNegativeNumber,
+});
+
+/** Project timeline document persisted by the editor and engine. */
+export const timelineDocumentSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  segments: Schema.Array(timelineSegmentSchema),
+});
+
 /** Result payload for `system.ping`. */
 export const pingResultSchema = Schema.Struct({
   app: NonEmptyString,
@@ -199,6 +213,7 @@ const createDefaultCaptureTelemetry = () => ({
   captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
+  previewEncodeMs: 0,
 });
 
 /** Capture and export lifecycle payloads returned directly from the engine. */
@@ -216,6 +231,7 @@ export const captureTelemetrySchema = Schema.Struct({
   captureCallbackMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
   recordQueueLagMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
   writerAppendMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
+  previewEncodeMs: Schema.optional(NonNegativeNumber),
 });
 
 /** Lightweight shell preview frame payload returned by `capture.previewFrame`. */
@@ -228,11 +244,15 @@ export const capturePreviewFrameSchema = Schema.Struct({
 export const captureStatusResultSchema = Schema.Struct({
   isRunning: Schema.Boolean,
   isRecording: Schema.Boolean,
+  captureSessionId: Schema.optionalWith(Schema.NullOr(NonEmptyString), { default: () => null }),
   recordingDurationSeconds: NonNegativeNumber,
   recordingURL: Schema.NullOr(Schema.String),
   captureMetadata: Schema.optionalWith(captureMetadataSchema, { default: () => null }),
   lastError: Schema.NullOr(Schema.String),
   eventsURL: Schema.NullOr(Schema.String),
+  lastRecordingTelemetry: Schema.optionalWith(Schema.NullOr(captureTelemetrySchema), {
+    default: () => null,
+  }),
   telemetry: Schema.optionalWith(captureTelemetrySchema, {
     default: createDefaultCaptureTelemetry,
   }),
@@ -419,7 +439,16 @@ export const projectStateSchema = Schema.Struct({
   projectPath: Schema.NullOr(Schema.String),
   recordingURL: Schema.NullOr(Schema.String),
   eventsURL: Schema.NullOr(Schema.String),
+  lastRecordingTelemetry: Schema.optionalWith(Schema.NullOr(captureTelemetrySchema), {
+    default: () => null,
+  }),
   autoZoom: autoZoomSettingsSchema,
+  timeline: Schema.optionalWith(timelineDocumentSchema, {
+    default: () => ({
+      version: 1 as const,
+      segments: [],
+    }),
+  }),
   captureMetadata: captureMetadataSchema,
   agentAnalysis: Schema.optionalWith(projectAgentAnalysisSummarySchema, {
     default: () => ({
@@ -458,6 +487,7 @@ const transcriptionProviderProperty = Schema.optionalWith(transcriptionProviderS
 });
 const destructiveIntentProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
 const enableMicProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
+const enablePreviewProperty = Schema.optionalWith(Schema.Boolean, { default: () => true });
 const captureFrameRateProperty = Schema.optionalWith(captureFrameRateSchema, {
   default: () => defaultCaptureFrameRate,
 });
@@ -570,6 +600,7 @@ export const captureStartDisplayRequestSchema = Schema.Struct({
   params: Schema.Struct({
     displayId: Schema.optional(NonNegativeInt),
     enableMic: enableMicProperty,
+    enablePreview: enablePreviewProperty,
     captureFps: captureFrameRateProperty,
   }),
 });
@@ -580,6 +611,7 @@ export const captureStartCurrentWindowRequestSchema = Schema.Struct({
   method: Schema.Literal(engineMethods.CaptureStartCurrentWindow),
   params: Schema.Struct({
     enableMic: enableMicProperty,
+    enablePreview: enablePreviewProperty,
     captureFps: captureFrameRateProperty,
   }),
 });
@@ -591,6 +623,7 @@ export const captureStartWindowRequestSchema = Schema.Struct({
   params: Schema.Struct({
     windowId: NonNegativeInt,
     enableMic: enableMicProperty,
+    enablePreview: enablePreviewProperty,
     captureFps: captureFrameRateProperty,
   }),
 });
@@ -648,6 +681,7 @@ export const exportRunRequestSchema = Schema.Struct({
     presetId: NonEmptyString,
     trimStartSeconds: Schema.optional(NonNegativeNumber),
     trimEndSeconds: Schema.optional(NonNegativeNumber),
+    timeline: Schema.optional(timelineDocumentSchema),
   }),
 });
 
@@ -685,6 +719,7 @@ export const projectSaveRequestSchema = Schema.Struct({
   params: Schema.Struct({
     projectPath: Schema.optional(NonEmptyString),
     autoZoom: Schema.optional(autoZoomSettingsSchema),
+    timeline: Schema.optional(timelineDocumentSchema),
   }),
 });
 
@@ -799,6 +834,10 @@ export type CapturePreviewFrame = MutableSchemaType<typeof capturePreviewFrameSc
 export type CaptureStatusResult = MutableSchemaType<typeof captureStatusResultSchema>;
 /** Type alias for CapturePreviewFrameResult. */
 export type CapturePreviewFrameResult = MutableSchemaType<typeof capturePreviewFrameResultSchema>;
+/** Type alias for TimelineSegment. */
+export type TimelineSegment = MutableSchemaType<typeof timelineSegmentSchema>;
+/** Type alias for TimelineDocument. */
+export type TimelineDocument = MutableSchemaType<typeof timelineDocumentSchema>;
 /** Type alias for ExportPreset. */
 export type ExportPreset = MutableSchemaType<typeof exportPresetSchema>;
 /** Type alias for ExportInfoResult. */

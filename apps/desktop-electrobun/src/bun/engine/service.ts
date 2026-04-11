@@ -15,6 +15,7 @@ import {
   type ProjectRecentsResult,
   type ProjectState,
   type SourcesResult,
+  type TimelineDocument,
   type TranscriptionProvider,
 } from "@guerillaglass/engine-protocol";
 import { Context, Effect, Layer } from "effect";
@@ -68,15 +69,18 @@ export type EngineTransportService = {
     enableMic: boolean,
     captureFps: CaptureFrameRate,
     displayId?: number,
+    enablePreview?: boolean,
   ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
   startCurrentWindowCapture: (
     enableMic: boolean,
     captureFps: CaptureFrameRate,
+    enablePreview?: boolean,
   ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
   startWindowCapture: (
     windowId: number,
     enableMic: boolean,
     captureFps: CaptureFrameRate,
+    enablePreview?: boolean,
   ) => Effect.Effect<CaptureStatusResult, EngineTransportError>;
   stopCapture: Effect.Effect<CaptureStatusResult, EngineTransportError>;
   startRecording: (
@@ -91,6 +95,7 @@ export type EngineTransportService = {
     presetId: string;
     trimStartSeconds?: number;
     trimEndSeconds?: number;
+    timeline?: TimelineDocument;
   }) => Effect.Effect<ExportRunResult, EngineTransportError>;
   runCutPlanExport: (params: {
     outputURL: string;
@@ -102,6 +107,7 @@ export type EngineTransportService = {
   projectSave: (params: {
     projectPath?: string;
     autoZoom?: AutoZoomSettings;
+    timeline?: TimelineDocument;
   }) => Effect.Effect<ProjectState, EngineTransportError>;
   projectRecents: (limit?: number) => Effect.Effect<ProjectRecentsResult, EngineTransportError>;
 };
@@ -237,17 +243,17 @@ export function makeEngineTransport(client: EngineClientLike): EngineTransportSe
       client.openInputMonitoringSettings(),
     ),
     listSources: wrapClientEffect("sources.list", () => client.listSources()),
-    startDisplayCapture: (enableMic, captureFps, displayId) =>
+    startDisplayCapture: (enableMic, captureFps, displayId, enablePreview) =>
       wrapClientEffect("capture.startDisplay", () =>
-        client.startDisplayCapture(enableMic, captureFps, displayId),
+        client.startDisplayCapture(enableMic, captureFps, displayId, enablePreview),
       ),
-    startCurrentWindowCapture: (enableMic, captureFps) =>
+    startCurrentWindowCapture: (enableMic, captureFps, enablePreview) =>
       wrapClientEffect("capture.startCurrentWindow", () =>
-        client.startCurrentWindowCapture(enableMic, captureFps),
+        client.startCurrentWindowCapture(enableMic, captureFps, enablePreview),
       ),
-    startWindowCapture: (windowId, enableMic, captureFps) =>
+    startWindowCapture: (windowId, enableMic, captureFps, enablePreview) =>
       wrapClientEffect("capture.startWindow", () =>
-        client.startWindowCapture(windowId, enableMic, captureFps),
+        client.startWindowCapture(windowId, enableMic, captureFps, enablePreview),
       ),
     stopCapture: wrapClientEffect("capture.stop", () => client.stopCapture()),
     startRecording: (trackInputEvents) =>

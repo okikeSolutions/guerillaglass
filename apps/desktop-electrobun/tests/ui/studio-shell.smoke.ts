@@ -5,6 +5,8 @@ import { expect, type Page, test } from "@playwright/test";
 
 const livePreviewRouteOrigin = "http://127.0.0.1:42424";
 const livePreviewImageURL = `${livePreviewRouteOrigin}/media/live-preview-token`;
+const startRecordingButtonName =
+  /(Display|Current Window).*Start Recording|Start Recording.*(Display|Current Window)/;
 const livePreviewImageBase64 =
   "/9j/4AAQSkZJRgABAQAASABIAAD/4QBARXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/+IRrElDQ19QUk9GSUxFAAEBAAARnGFwcGwCAAAAbW50ckdSQVlYWVogB9wACAAXAA8ALgAPYWNzcEFQUEwAAAAAbm9uZQAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1hcHBsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFZGVzYwAAAMAAAAB5ZHNjbQAAATwAAAgaY3BydAAACVgAAAAjd3RwdAAACXwAAAAUa1RSQwAACZAAAAgMZGVzYwAAAAAAAAAfR2VuZXJpYyBHcmF5IEdhbW1hIDIuMiBQcm9maWxlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG1sdWMAAAAAAAAAHwAAAAxza1NLAAAALgAAAYRkYURLAAAAOgAAAbJjYUVTAAAAOAAAAex2aVZOAAAAQAAAAiRwdEJSAAAASgAAAmR1a1VBAAAALAAAAq5mckZVAAAAPgAAAtpodUhVAAAANAAAAxh6aFRXAAAAGgAAA0xrb0tSAAAAIgAAA2ZuYk5PAAAAOgAAA4hjc0NaAAAAKAAAA8JoZUlMAAAAJAAAA+pyb1JPAAAAKgAABA5kZURFAAAATgAABDhpdElUAAAATgAABIZzdlNFAAAAOAAABNR6aENOAAAAGgAABQxqYUpQAAAAJgAABSZlbEdSAAAAKgAABUxwdFBPAAAAUgAABXZubE5MAAAAQAAABchlc0VTAAAATAAABgh0aFRIAAAAMgAABlR0clRSAAAAJAAABoZmaUZJAAAARgAABqpockhSAAAAPgAABvBwbFBMAAAASgAABy5hckVHAAAALAAAB3hydVJVAAAAOgAAB6RlblVTAAAAPAAAB94AVgFhAGUAbwBiAGUAYwBuAOEAIABzAGkAdgDhACAAZwBhAG0AYQAgADIALAAyAEcAZQBuAGUAcgBpAHMAawAgAGcAcgDlACAAMgAsADIAIABnAGEAbQBtAGEALQBwAHIAbwBmAGkAbABHAGEAbQBtAGEAIABkAGUAIABnAHIAaQBzAG8AcwAgAGcAZQBuAOgAcgBpAGMAYQAgADIALgAyAEMepQB1ACAAaADsAG4AaAAgAE0A4AB1ACAAeADhAG0AIABDAGgAdQBuAGcAIABHAGEAbQBtAGEAIAAyAC4AMgBQAGUAcgBmAGkAbAAgAEcAZQBuAOkAcgBpAGMAbwAgAGQAYQAgAEcAYQBtAGEAIABkAGUAIABDAGkAbgB6AGEAcwAgADIALAAyBBcEMAQzBDAEOwRMBD0EMAAgAEcAcgBhAHkALQQzBDAEPAQwACAAMgAuADIAUAByAG8AZgBpAGwAIABnAOkAbgDpAHIAaQBxAHUAZQAgAGcAcgBpAHMAIABnAGEAbQBtAGEAIAAyACwAMgDBAGwAdABhAGwA4QBuAG8AcwAgAHMAegD8AHIAawBlACAAZwBhAG0AbQBhACAAMgAuADKQGnUocHCWjlFJXqYAMgAuADKCcl9pY8+P8Md8vBgAINaMwMkAIKwQucgAIAAyAC4AMgAg1QS4XNMMx3wARwBlAG4AZQByAGkAcwBrACAAZwByAOUAIABnAGEAbQBtAGEAIAAyACwAMgAtAHAAcgBvAGYAaQBsAE8AYgBlAGMAbgDhACABYQBlAGQA4QAgAGcAYQBtAGEAIAAyAC4AMgXSBdAF3gXUACAF0AXkBdUF6AAgBdsF3AXcBdkAIAAyAC4AMgBHAGEAbQBhACAAZwByAGkAIABnAGUAbgBlAHIAaQBjAQMAIAAyACwAMgBBAGwAbABnAGUAbQBlAGkAbgBlAHMAIABHAHIAYQB1AHMAdAB1AGYAZQBuAC0AUAByAG8AZgBpAGwAIABHAGEAbQBtAGEAIAAyACwAMgBQAHIAbwBmAGkAbABvACAAZwByAGkAZwBpAG8AIABnAGUAbgBlAHIAaQBjAG8AIABkAGUAbABsAGEAIABnAGEAbQBtAGEAIAAyACwAMgBHAGUAbgBlAHIAaQBzAGsAIABnAHIA5QAgADIALAAyACAAZwBhAG0AbQBhAHAAcgBvAGYAaQBsZm6QGnBwXqZ8+2VwADIALgAyY8+P8GWHTvZOAIIsMLAw7DCkMKww8zDeACAAMgAuADIAIDDXMO0w1TChMKQw6wOTA7UDvQO5A7oDzAAgA5MDugPBA7kAIAOTA6wDvAO8A7EAIAAyAC4AMgBQAGUAcgBmAGkAbAAgAGcAZQBuAOkAcgBpAGMAbwAgAGQAZQAgAGMAaQBuAHoAZQBuAHQAbwBzACAAZABhACAARwBhAG0AbQBhACAAMgAsADIAQQBsAGcAZQBtAGUAZQBuACAAZwByAGkAagBzACAAZwBhAG0AbQBhACAAMgAsADIALQBwAHIAbwBmAGkAZQBsAFAAZQByAGYAaQBsACAAZwBlAG4A6QByAGkAYwBvACAAZABlACAAZwBhAG0AbQBhACAAZABlACAAZwByAGkAcwBlAHMAIAAyACwAMg4jDjEOBw4qDjUOQQ4BDiEOIQ4yDkAOAQ4jDiIOTA4XDjEOSA4nDkQOGwAgADIALgAyAEcAZQBuAGUAbAAgAEcAcgBpACAARwBhAG0AYQAgADIALAAyAFkAbABlAGkAbgBlAG4AIABoAGEAcgBtAGEAYQBuACAAZwBhAG0AbQBhACAAMgAsADIAIAAtAHAAcgBvAGYAaQBpAGwAaQBHAGUAbgBlAHIAaQENAGsAaQAgAEcAcgBhAHkAIABHAGEAbQBtAGEAIAAyAC4AMgAgAHAAcgBvAGYAaQBsAFUAbgBpAHcAZQByAHMAYQBsAG4AeQAgAHAAcgBvAGYAaQBsACAAcwB6AGEAcgBvAVsAYwBpACAAZwBhAG0AbQBhACAAMgAsADIGOgYnBkUGJwAgADIALgAyACAGRAZIBkYAIAYxBkUGJwYvBkoAIAY5BicGRQQeBDEESQQwBE8AIARBBDUEQAQwBE8AIAQzBDAEPAQ8BDAAIAAyACwAMgAtBD8EQAQ+BEQEOAQ7BEwARwBlAG4AZQByAGkAYwAgAEcAcgBhAHkAIABHAGEAbQBtAGEAIAAyAC4AMgAgAFAAcgBvAGYAaQBsAGUAAHRleHQAAAAAQ29weXJpZ2h0IEFwcGxlIEluYy4sIDIwMTIAAFhZWiAAAAAAAADzUQABAAAAARbMY3VydgAAAAAAAAQAAAAABQAKAA8AFAAZAB4AIwAoAC0AMgA3ADsAQABFAEoATwBUAFkAXgBjAGgAbQByAHcAfACBAIYAiwCQAJUAmgCfAKQAqQCuALIAtwC8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";
 
@@ -13,6 +15,13 @@ function installMockBridge() {
     localStorage: Storage;
     ggEngineProjectCurrent: () => Promise<unknown>;
   };
+  const diagnosticsEntries: Array<{
+    source: string;
+    level: string;
+    message: string;
+    timestamp: string;
+    annotations?: Record<string, string | number | boolean | null>;
+  }> = [];
   const state = {
     isRunning: false,
     isRecording: false,
@@ -20,6 +29,7 @@ function installMockBridge() {
     recordingURL: null,
     eventsURL: null,
     lastError: null,
+    lastRecordingTelemetry: null,
     projectPath: null,
     autoZoom: {
       isEnabled: true,
@@ -29,6 +39,79 @@ function installMockBridge() {
     projectOpenCalls: 0,
     projectSaveCalls: 0,
     lastProjectSavePath: null as string | null,
+  };
+  const mediaTimeByElement = new WeakMap<HTMLMediaElement, number>();
+  const playbackIntervals = new WeakMap<HTMLMediaElement, number>();
+  const rvfcTimers = new Map<number, number>();
+  let nextVideoFrameHandle = 1;
+
+  const ensureMockMediaState = (media: HTMLMediaElement) => {
+    if (!Object.prototype.hasOwnProperty.call(media, "currentTime")) {
+      Object.defineProperty(media, "currentTime", {
+        configurable: true,
+        get() {
+          return mediaTimeByElement.get(media) ?? 0;
+        },
+        set(value: number) {
+          mediaTimeByElement.set(media, Number.isFinite(value) ? value : 0);
+        },
+      });
+    }
+  };
+
+  HTMLMediaElement.prototype.play = function play() {
+    const media = this as HTMLMediaElement;
+    ensureMockMediaState(media);
+    if (!Object.prototype.hasOwnProperty.call(media, "paused")) {
+      Object.defineProperty(media, "paused", {
+        configurable: true,
+        get() {
+          return playbackIntervals.has(media) === false;
+        },
+      });
+    }
+    if (!playbackIntervals.has(media)) {
+      const interval = window.setInterval(() => {
+        mediaTimeByElement.set(media, (mediaTimeByElement.get(media) ?? 0) + 1 / 30);
+      }, 1000 / 30);
+      playbackIntervals.set(media, interval);
+    }
+    media.dispatchEvent(new Event("play"));
+    return Promise.resolve();
+  };
+
+  HTMLMediaElement.prototype.pause = function pause() {
+    const media = this as HTMLMediaElement;
+    const interval = playbackIntervals.get(media);
+    if (interval != null) {
+      window.clearInterval(interval);
+      playbackIntervals.delete(media);
+    }
+    media.dispatchEvent(new Event("pause"));
+  };
+
+  HTMLVideoElement.prototype.requestVideoFrameCallback = function requestVideoFrameCallback(
+    callback,
+  ) {
+    const media = this as HTMLMediaElement;
+    ensureMockMediaState(media);
+    const handle = nextVideoFrameHandle++;
+    const timer = window.setTimeout(() => {
+      rvfcTimers.delete(handle);
+      callback(performance.now(), {
+        mediaTime: mediaTimeByElement.get(media) ?? 0,
+      });
+    }, 1000 / 30);
+    rvfcTimers.set(handle, timer);
+    return handle;
+  };
+
+  HTMLVideoElement.prototype.cancelVideoFrameCallback = function cancelVideoFrameCallback(handle) {
+    const timer = rvfcTimers.get(handle);
+    if (timer != null) {
+      window.clearTimeout(timer);
+      rvfcTimers.delete(handle);
+    }
   };
 
   const defaultCaptureMetadata = {
@@ -232,7 +315,11 @@ function installMockBridge() {
       events: [],
     });
   browserWindow.ggHostSendMenuState = () => {};
+  browserWindow.ggHostSendStudioDiagnostics = (entry) => {
+    diagnosticsEntries.push(entry as (typeof diagnosticsEntries)[number]);
+  };
   browserWindow.__ggMockState = state;
+  browserWindow.__ggDiagnosticsEntries = diagnosticsEntries;
 }
 
 function screenshotPath(name) {
@@ -262,6 +349,24 @@ async function readPlayheadSeconds(page: Page): Promise<number> {
     throw new Error(`Unable to parse playhead seconds from: ${text}`);
   }
   return Number(match[1]);
+}
+
+async function readDiagnosticsEntries(page: Page) {
+  return await page.evaluate(() => {
+    return (
+      (
+        window as Window & {
+          __ggDiagnosticsEntries?: Array<{
+            source: string;
+            level: string;
+            message: string;
+            timestamp: string;
+            annotations?: Record<string, string | number | boolean | null>;
+          }>;
+        }
+      ).__ggDiagnosticsEntries ?? []
+    );
+  });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -334,9 +439,7 @@ test("starts preview and recording through the shell controls", async ({ page })
   await page.getByRole("button", { name: "Start Preview" }).click();
   await expect(page.getByAltText("Live preview active")).toBeVisible();
 
-  await page
-    .getByRole("button", { name: /Display.*Start Recording|Start Recording.*Display/ })
-    .click();
+  await page.getByRole("button", { name: startRecordingButtonName }).click();
   await expect(page.getByRole("button", { name: "Stop Recording" })).toBeVisible();
   await expect(page.getByText("Status: recording")).toBeVisible();
   await expect(page.getByAltText("Live preview active")).toBeVisible();
@@ -500,7 +603,7 @@ test("applies single-key shortcuts only when enabled and outside interactive con
   await page.goto("/");
 
   const startRecordingButton = page.getByRole("button", {
-    name: /Display.*Start Recording|Start Recording.*Display/,
+    name: startRecordingButtonName,
   });
   await expect(startRecordingButton).toBeVisible();
 
@@ -526,9 +629,7 @@ test("applies single-key shortcuts only when enabled and outside interactive con
 
 test("keeps timeline playhead stable on pointer cancel", async ({ page }) => {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: /Display.*Start Recording|Start Recording.*Display/ })
-    .click();
+  await page.getByRole("button", { name: startRecordingButtonName }).click();
   await page.getByRole("link", { name: "Edit" }).click();
   const timelineSurface = page.locator(".gg-timeline-surface");
   const surfaceBox = await timelineSurface.boundingBox();
@@ -574,6 +675,50 @@ test("keeps timeline playhead stable on pointer cancel", async ({ page }) => {
   });
 
   await expect.poll(async () => readPlayheadSeconds(page)).toBeLessThan(8);
+});
+
+test("keeps playback churn local to the timeline during edit playback", async ({ page }) => {
+  await page.goto("/?ggDiagnostics=1");
+  await page.getByRole("button", { name: startRecordingButtonName }).click();
+  await page.getByRole("link", { name: "Edit" }).click();
+
+  const playheadBefore = await readPlayheadSeconds(page);
+  await page.evaluate(() => {
+    const video = document.querySelector("video");
+    if (!(video instanceof HTMLVideoElement)) {
+      throw new Error("Expected edit route video element");
+    }
+    return video.play();
+  });
+
+  await page.waitForTimeout(1_250);
+  const playheadAfter = await readPlayheadSeconds(page);
+  expect(playheadAfter).toBeGreaterThan(playheadBefore + 0.5);
+
+  await expect
+    .poll(async () => {
+      const entries = await readDiagnosticsEntries(page);
+      return (
+        entries.findLast((entry) => entry.message === "renderer playback diagnostics window") ??
+        null
+      );
+    })
+    .not.toBeNull();
+
+  const entries = await readDiagnosticsEntries(page);
+  const playbackWindow = entries.findLast(
+    (entry) => entry.message === "renderer playback diagnostics window",
+  );
+  expect(playbackWindow).not.toBeUndefined();
+  if (!playbackWindow?.annotations) {
+    throw new Error("Expected playback diagnostics annotations");
+  }
+
+  const annotations = playbackWindow.annotations;
+  expect(Number(annotations.playbackTicks ?? 0)).toBeGreaterThan(10);
+  expect(Number(annotations["render.TimelineDock"] ?? 0)).toBeGreaterThan(5);
+  expect(Number(annotations["render.StudioShellLayout"] ?? 0)).toBeLessThanOrEqual(3);
+  expect(Number(annotations["render.StudioShellHeader"] ?? 0)).toBeLessThanOrEqual(3);
 });
 
 test("honors reduced-motion and increased-contrast accessibility preferences", async ({ page }) => {

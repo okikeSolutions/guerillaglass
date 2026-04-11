@@ -38,6 +38,7 @@ function shouldBlockGlobalSingleKeyHotkey(target: EventTarget | null): boolean {
 
 type UseStudioHotkeysOptions = {
   runHostCommand: (command: HostMenuCommand) => void;
+  canTrimTimeline: boolean;
   singleKeyShortcutsEnabled: boolean;
   shortcutOverrides: StudioShortcutOverrides;
   shortcutPlatform: ShortcutDisplayPlatform;
@@ -65,6 +66,7 @@ function shortcutOptionsFor(
 
 export function useStudioHotkeys({
   runHostCommand,
+  canTrimTimeline,
   singleKeyShortcutsEnabled,
   shortcutOverrides,
   shortcutPlatform,
@@ -173,6 +175,9 @@ export function useStudioHotkeys({
   useHotkey(
     trimInShortcut.hotkey,
     (event) => {
+      if (!canTrimTimeline) {
+        return;
+      }
       if (
         trimInShortcut.singleKey &&
         (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
@@ -192,6 +197,9 @@ export function useStudioHotkeys({
   useHotkey(
     trimOutShortcut.hotkey,
     (event) => {
+      if (!canTrimTimeline) {
+        return;
+      }
       if (
         trimOutShortcut.singleKey &&
         (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))

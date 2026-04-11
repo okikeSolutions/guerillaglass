@@ -45,7 +45,10 @@ export function CaptureRoute() {
   const settingsValues = studio.settingsForm.state.values;
   const recordingMediaSource = useRecordingMediaSource(studio.recordingURL);
   const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
-  const liveCapturePreview = useLiveCapturePreview(isCaptureRunning);
+  const captureSessionId = isCaptureRunning
+    ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
+    : null;
+  const liveCapturePreview = useLiveCapturePreview(captureSessionId);
 
   return (
     <EditorWorkspace

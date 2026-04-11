@@ -5,7 +5,11 @@ import {
   buildEventMarkers,
   buildTimelineLanes,
   clampSeconds,
+  compileTimelineSegments,
+  createSingleSegmentTimelineDocument,
+  mapProgramSecondsToSourceTime,
   pixelsToSeconds,
+  remapInputEventsToProgramTime,
   secondsToPixels,
 } from "@studio/domain/timelineDomainModel";
 
@@ -41,17 +45,22 @@ describe("timeline model", () => {
     const events: InputEvent[] = [
       { type: "cursorMoved", timestamp: 0.2, position: { x: 8, y: 8 } },
     ];
-    const lanes = buildTimelineLanes({ recordingDurationSeconds: 5, events });
+    const lanes = buildTimelineLanes({
+      timeline: createSingleSegmentTimelineDocument(5),
+      events,
+    });
 
     expect(lanes.map((lane) => lane.id)).toEqual(["video", "audio", "events"]);
     expect(lanes[0]?.clips[0]).toEqual({
-      id: "clip-video-0",
+      id: "segment-0",
       startSeconds: 0,
       endSeconds: 5,
+      sourceStartSeconds: 0,
+      sourceEndSeconds: 5,
       semantic: "screen",
       waveform: null,
     });
-    expect(lanes[1]?.clips[0]?.id).toBe("clip-audio-0");
+    expect(lanes[1]?.clips[0]?.id).toBe("segment-0");
     expect(lanes[1]?.clips[0]?.waveform?.source).toBe("events");
     expect(lanes[2]?.markers.length).toBe(1);
   });
@@ -74,5 +83,48 @@ describe("timeline model", () => {
     expect(waveform?.peaks.length).toBeGreaterThanOrEqual(40);
     expect(waveform?.peaks.every((peak) => peak >= 0 && peak <= 1)).toBe(true);
     expect(Math.max(...(waveform?.peaks ?? [0]))).toBeCloseTo(1, 4);
+  });
+
+  test("compiles timeline segments into program ranges and remaps events", () => {
+    const timeline = {
+      version: 1 as const,
+      segments: [
+        {
+          id: "segment-a",
+          sourceAssetId: "recording" as const,
+          sourceStartSeconds: 2,
+          sourceEndSeconds: 4,
+        },
+        {
+          id: "segment-b",
+          sourceAssetId: "recording" as const,
+          sourceStartSeconds: 6,
+          sourceEndSeconds: 7.5,
+        },
+      ],
+    };
+    const compiled = compileTimelineSegments(timeline);
+    const events: InputEvent[] = [
+      { type: "cursorMoved", timestamp: 2.5, position: { x: 10, y: 10 } },
+      { type: "mouseDown", timestamp: 6.75, position: { x: 30, y: 30 }, button: "left" },
+    ];
+
+    expect(
+      compiled.map((segment) => [
+        segment.id,
+        segment.programStartSeconds,
+        segment.programEndSeconds,
+      ]),
+    ).toEqual([
+      ["segment-a", 0, 2],
+      ["segment-b", 2, 3.5],
+    ]);
+    expect(mapProgramSecondsToSourceTime(compiled, 2.25)).toMatchObject({
+      segment: expect.objectContaining({ id: "segment-b" }),
+      sourceSeconds: 6.25,
+    });
+    expect(remapInputEventsToProgramTime(events, compiled).map((event) => event.timestamp)).toEqual(
+      [0.5, 2.75],
+    );
   });
 });

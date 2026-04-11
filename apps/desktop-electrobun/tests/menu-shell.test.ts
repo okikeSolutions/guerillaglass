@@ -33,6 +33,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: false,
+        canTrimTimeline: true,
         canToggleTimeline: true,
         isRecording: true,
         locale: "en-US",
@@ -44,6 +45,7 @@ describe("shell menu helpers", () => {
       {
         canSave: false,
         canExport: true,
+        canTrimTimeline: false,
         canToggleTimeline: false,
         isRecording: false,
         locale: "en-US",
@@ -97,7 +99,11 @@ describe("shell menu helpers", () => {
     const toggleTimelineItem = timelineSubmenu.find(
       (item) => isNormalApplicationItem(item) && item.label === "Toggle Timeline",
     );
+    const trimInItem = timelineSubmenu.find(
+      (item) => isNormalApplicationItem(item) && item.label === "Set Trim In",
+    );
     expect(toggleTimelineItem).toEqual(expect.objectContaining({ enabled: false }));
+    expect(trimInItem).toEqual(expect.objectContaining({ enabled: false }));
 
     const viewSubmenu: ApplicationMenuItemConfig[] = viewMenu?.submenu ?? [];
     const languageMenu = viewSubmenu.find(
@@ -114,6 +120,7 @@ describe("shell menu helpers", () => {
     const trayMenu = buildLinuxTrayMenu({
       canSave: true,
       canExport: true,
+      canTrimTimeline: true,
       canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
@@ -142,6 +149,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: true,
+        canTrimTimeline: true,
         canToggleTimeline: true,
         isRecording: false,
         locale: "en-US",
@@ -172,6 +180,7 @@ describe("shell menu helpers", () => {
     const trayMenu = buildLinuxTrayMenu({
       canSave: true,
       canExport: true,
+      canTrimTimeline: true,
       canToggleTimeline: true,
       isRecording: false,
       locale: "en-US",
@@ -193,6 +202,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: true,
+        canTrimTimeline: true,
         canToggleTimeline: true,
         isRecording: false,
         locale: "de-DE",
@@ -206,6 +216,7 @@ describe("shell menu helpers", () => {
       {
         canSave: true,
         canExport: true,
+        canTrimTimeline: true,
         canToggleTimeline: true,
         isRecording: false,
         locale: "de-DE",

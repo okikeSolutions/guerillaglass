@@ -51,6 +51,12 @@ final class CaptureTelemetryStoreTests: XCTestCase {
 
         store.recordCaptureCallbackDuration(8)
         XCTAssertEqual(store.snapshot().captureCallbackMs, 4.8, accuracy: 0.000_001)
+
+        store.recordPreviewEncodeDuration(5)
+        XCTAssertEqual(store.snapshot().previewEncodeMs, 5, accuracy: 0.000_001)
+
+        store.recordPreviewEncodeDuration(9)
+        XCTAssertEqual(store.snapshot().previewEncodeMs, 5.72, accuracy: 0.000_001)
     }
 
     func testResetClearsAllTelemetryState() {
@@ -70,5 +76,6 @@ final class CaptureTelemetryStoreTests: XCTestCase {
         XCTAssertEqual(snapshot.captureCallbackMs, 0, accuracy: 0.000_001)
         XCTAssertEqual(snapshot.recordQueueLagMs, 0, accuracy: 0.000_001)
         XCTAssertEqual(snapshot.writerAppendMs, 0, accuracy: 0.000_001)
+        XCTAssertEqual(snapshot.previewEncodeMs, 0, accuracy: 0.000_001)
     }
 }

@@ -38,7 +38,8 @@ import {
   type ShortcutDisplayPlatform,
   studioShortcutDisplayTokens,
 } from "@shared/shortcuts";
-import { useStudio } from "../state/StudioProvider";
+import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
+import { useStudio, useStudioPlaybackValue } from "../state/StudioProvider";
 import type { StudioLayoutRoute, StudioLocalizedRouteTarget } from "../contracts/studioLayoutModel";
 import {
   studioBadgeToneClass,
@@ -231,6 +232,22 @@ export function buildUtilityActions(
   return actions;
 }
 
+export function resolveConfiguredRecordingOptions(captureSource: "display" | "window"): {
+  captureSourceOverride: "display" | "window";
+  preferCurrentWindow?: true;
+} {
+  if (captureSource === "window") {
+    return {
+      captureSourceOverride: "window",
+      preferCurrentWindow: true,
+    };
+  }
+
+  return {
+    captureSourceOverride: "display",
+  };
+}
+
 export function StudioShellHeader({
   activeLocale,
   activeRoute,
@@ -239,9 +256,13 @@ export function StudioShellHeader({
   activeRoute: StudioLayoutRoute;
 }) {
   const studio = useStudio();
+  useStudioRenderDiagnostics("StudioShellHeader", {
+    route: activeRoute,
+  });
   const shortcutPlatform = resolveShortcutPlatform();
   const modeItems = buildModeItems(studio, activeRoute);
   const utilityActions = buildUtilityActions(studio, shortcutPlatform, activeRoute);
+  const isTimelinePlaying = useStudioPlaybackValue((snapshot) => snapshot.isPlaying);
   const isRecording = Boolean(studio.captureStatusQuery.data?.isRecording);
   const permissionTone = studio.permissionsQuery.data?.screenRecordingGranted ? "live" : "error";
   const isCaptureActionDisabled = studio.isRunningAction;
@@ -250,7 +271,9 @@ export function StudioShellHeader({
       ? studio.ui.labels.display
       : studio.ui.labels.window;
   const startConfiguredRecording = () => {
-    void studio.toggleRecordingMutation.mutateAsync(undefined);
+    void studio.toggleRecordingMutation.mutateAsync(
+      resolveConfiguredRecordingOptions(studio.settingsForm.state.values.captureSource),
+    );
   };
 
   const startDisplayRecording = () => {
@@ -321,7 +344,7 @@ export function StudioShellHeader({
                     />
                   }
                 >
-                  {studio.isTimelinePlaying ? (
+                  {isTimelinePlaying ? (
                     <Pause className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
                   ) : (
                     <Play className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />

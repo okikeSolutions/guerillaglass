@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { ShortcutDisplayPlatform } from "@shared/shortcuts";
-import { buildModeItems, buildUtilityActions } from "@studio/layout/StudioShellHeader";
+import {
+  buildModeItems,
+  buildUtilityActions,
+  resolveConfiguredRecordingOptions,
+} from "@studio/layout/StudioShellHeader";
 
 type HeaderStudio = Parameters<typeof buildModeItems>[0];
 
@@ -101,5 +105,15 @@ describe("studio shell header builders", () => {
     );
 
     expect(actions.find((action) => action.id === "toggle-timeline")).toBeUndefined();
+  });
+
+  it("uses current-window capture for the main window quick-record action", () => {
+    expect(resolveConfiguredRecordingOptions("window")).toEqual({
+      captureSourceOverride: "window",
+      preferCurrentWindow: true,
+    });
+    expect(resolveConfiguredRecordingOptions("display")).toEqual({
+      captureSourceOverride: "display",
+    });
   });
 });

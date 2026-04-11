@@ -1,3 +1,4 @@
+import AVFoundation
 import Capture
 import EngineProtocol
 import Foundation
@@ -22,6 +23,12 @@ extension EngineService {
             let recordingURL = projectStore.resolveRecordingURL(for: savedProject)
             if FileManager.default.fileExists(atPath: recordingURL.path) {
                 captureEngine.loadRecording(from: recordingURL)
+                if currentProjectDocument.project.timeline.segments.isEmpty {
+                    let recordingDuration = bestEffortRecordingDuration(for: recordingURL)
+                    currentProjectDocument.project.timeline = TimelineDocument.singleSegment(
+                        recordingDuration: recordingDuration
+                    )
+                }
             } else {
                 captureEngine.clearRecording()
             }
@@ -47,6 +54,9 @@ extension EngineService {
     func projectSaveResponse(id: String, params: [String: JSONValue]) -> EngineResponse {
         if let autoZoom = parseAutoZoomSettings(from: params["autoZoom"]) {
             currentProjectDocument.project.autoZoom = autoZoom
+        }
+        if let timeline = parseTimelineDocument(from: params["timeline"]) {
+            currentProjectDocument.project.timeline = timeline
         }
         if let descriptor = captureEngine.captureDescriptor {
             currentProjectDocument.project.captureMetadata = makeCaptureMetadata(from: descriptor)
@@ -123,11 +133,13 @@ extension EngineService {
             "projectPath": currentProjectURL.map { .string($0.path) } ?? .null,
             "recordingURL": captureEngine.recordingURL.map { .string($0.path) } ?? .null,
             "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
+            "lastRecordingTelemetry": project.lastRecordingTelemetry.map(captureTelemetryJSON) ?? .null,
             "autoZoom": .object([
                 "isEnabled": .bool(autoZoom.isEnabled),
                 "intensity": .number(autoZoom.intensity),
                 "minimumKeyframeInterval": .number(autoZoom.minimumKeyframeInterval)
-            ])
+            ]),
+            "timeline": timelineDocumentJSON(from: project.timeline)
         ]
 
         if let metadata = project.captureMetadata {
@@ -155,6 +167,23 @@ extension EngineService {
             intensity: intensity,
             minimumKeyframeInterval: minimumKeyframeInterval
         ).clamped()
+    }
+
+    func parseTimelineDocument(from value: JSONValue?) -> TimelineDocument? {
+        guard let object = value?.objectValue else { return nil }
+        guard case let .array(segmentsValue)? = object["segments"] else {
+            return nil
+        }
+        guard let version = object["version"]?.doubleValue else {
+            return nil
+        }
+
+        let segments = segmentsValue.compactMap(parseTimelineSegment)
+        guard segments.count == segmentsValue.count else {
+            return nil
+        }
+
+        return TimelineDocument(version: Int(version), segments: segments)
     }
 
     func sourceURLForWrite(sourceURL: URL?, destinationDirectory: URL, expectedFileName: String) -> URL? {
@@ -202,6 +231,73 @@ extension EngineService {
         ])
     }
 
+    func captureTelemetryJSON(from telemetry: CaptureTelemetrySummary) -> JSONValue {
+        .object([
+            "sourceDroppedFrames": .number(Double(telemetry.sourceDroppedFrames)),
+            "writerDroppedFrames": .number(Double(telemetry.writerDroppedFrames)),
+            "writerBackpressureDrops": .number(Double(telemetry.writerBackpressureDrops)),
+            "achievedFps": .number(telemetry.achievedFps),
+            "cpuPercent": telemetry.cpuPercent.map { .number($0) } ?? .null,
+            "memoryBytes": telemetry.memoryBytes.map { .number(Double($0)) } ?? .null,
+            "recordingBitrateMbps": telemetry.recordingBitrateMbps.map { .number($0) } ?? .null,
+            "captureCallbackMs": .number(telemetry.captureCallbackMs),
+            "recordQueueLagMs": .number(telemetry.recordQueueLagMs),
+            "writerAppendMs": .number(telemetry.writerAppendMs),
+            "previewEncodeMs": telemetry.previewEncodeMs.map { .number($0) } ?? .null
+        ])
+    }
+
+    func captureTelemetrySummary(from telemetry: CaptureEngine.CaptureTelemetrySnapshot) -> CaptureTelemetrySummary {
+        CaptureTelemetrySummary(
+            sourceDroppedFrames: telemetry.sourceDroppedFrames,
+            writerDroppedFrames: telemetry.writerDroppedFrames,
+            writerBackpressureDrops: telemetry.writerBackpressureDrops,
+            achievedFps: telemetry.achievedFps,
+            cpuPercent: telemetry.cpuPercent,
+            memoryBytes: telemetry.memoryBytes,
+            recordingBitrateMbps: telemetry.recordingBitrateMbps,
+            captureCallbackMs: telemetry.captureCallbackMs,
+            recordQueueLagMs: telemetry.recordQueueLagMs,
+            writerAppendMs: telemetry.writerAppendMs,
+            previewEncodeMs: telemetry.previewEncodeMs
+        )
+    }
+
+    func timelineDocumentJSON(from document: TimelineDocument) -> JSONValue {
+        .object([
+            "version": .number(Double(document.version)),
+            "segments": .array(document.segments.map(timelineSegmentJSON))
+        ])
+    }
+
+    func timelineSegmentJSON(from segment: TimelineSegment) -> JSONValue {
+        .object([
+            "id": .string(segment.id),
+            "sourceAssetId": .string(segment.sourceAssetId.rawValue),
+            "sourceStartSeconds": .number(segment.sourceStartSeconds),
+            "sourceEndSeconds": .number(segment.sourceEndSeconds)
+        ])
+    }
+
+    func parseTimelineSegment(from value: JSONValue) -> TimelineSegment? {
+        guard let object = value.objectValue,
+              let id = object["id"]?.stringValue,
+              let sourceAssetIdRaw = object["sourceAssetId"]?.stringValue,
+              let sourceAssetId = TimelineSegment.SourceAssetID(rawValue: sourceAssetIdRaw),
+              let sourceStartSeconds = object["sourceStartSeconds"]?.doubleValue,
+              let sourceEndSeconds = object["sourceEndSeconds"]?.doubleValue
+        else {
+            return nil
+        }
+
+        return TimelineSegment(
+            id: id,
+            sourceAssetId: sourceAssetId,
+            sourceStartSeconds: sourceStartSeconds,
+            sourceEndSeconds: sourceEndSeconds
+        )
+    }
+
     private func recordRecentProjectIfPossible(url: URL) {
         do {
             try projectLibraryStore.recordRecentProject(url: url)
@@ -235,5 +331,23 @@ extension EngineService {
             "qaPassed": runSummary.qaReport.map { .bool($0.passed) } ?? .null,
             "updatedAt": .string(runSummary.updatedAt)
         ])
+    }
+
+    private func bestEffortRecordingDuration(for recordingURL: URL) -> TimeInterval {
+        let semaphore = DispatchSemaphore(value: 0)
+        var resolvedDuration: TimeInterval = 0
+
+        Task {
+            defer { semaphore.signal() }
+            let asset = AVAsset(url: recordingURL)
+            if let duration = try? await asset.load(.duration),
+               duration.seconds > 0
+            {
+                resolvedDuration = duration.seconds
+            }
+        }
+
+        _ = semaphore.wait(timeout: .now() + 2)
+        return max(0, resolvedDuration)
     }
 }

@@ -10,12 +10,14 @@ import type {
   BridgeResponseEnvelope,
   DesktopBridgeRPC,
   HostMenuCommand,
+  HostRuntimeFlags,
   WindowBridgeBindings,
 } from "@shared/bridge";
 import { hostBridgeEventNames, hostReviewEventMessageSchema } from "@shared/bridge";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;
+  __ggHostRuntimeFlags?: HostRuntimeFlags;
 };
 
 let bridgeInitialized = false;
@@ -66,6 +68,14 @@ export function initializeElectrobunRpcBridge(): void {
             console.warn("Rejected invalid host review event payload", error);
           }
         },
+        hostRuntimeFlags: (flags: HostRuntimeFlags) => {
+          (window as ElectrobunRuntimeWindow).__ggHostRuntimeFlags = flags;
+          window.dispatchEvent(
+            new CustomEvent(hostBridgeEventNames.runtimeFlags, {
+              detail: flags,
+            }),
+          );
+        },
       },
     },
   });
@@ -84,8 +94,10 @@ export function initializeElectrobunRpcBridge(): void {
     >;
   };
 
-  const bindings: WindowBridgeBindings = createWindowBridgeBindings(invoke, (state) =>
-    rpc.send.hostMenuState(state),
+  const bindings: WindowBridgeBindings = createWindowBridgeBindings(
+    invoke,
+    (state) => rpc.send.hostMenuState(state),
+    (entry) => rpc.send.studioDiagnostics(entry),
   );
 
   Object.assign(window, bindings);

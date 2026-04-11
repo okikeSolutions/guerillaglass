@@ -53,4 +53,8 @@ extension CaptureEngine {
             appendDurationMs: sample.appendDurationMs
         )
     }
+
+    func recordPreviewEncodeDuration(_ durationMs: Double) {
+        telemetryStore.recordPreviewEncodeDuration(durationMs)
+    }
 }

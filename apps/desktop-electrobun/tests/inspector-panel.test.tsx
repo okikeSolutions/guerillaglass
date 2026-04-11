@@ -50,8 +50,6 @@ function makeStudioMock(selection: InspectorSelection): StudioController {
     inspectorSelection: selection,
     setAudioMixerGain: () => {},
     setPlayheadSeconds: () => {},
-    setTrimEndSeconds: () => {},
-    setTrimStartSeconds: () => {},
     selectedPreset: {
       id: "preset-1",
       name: "1080p",
@@ -126,7 +124,6 @@ describe("inspector panel", () => {
     expect(html).toContain("Selected Clip");
     expect(html).toContain("Lane");
     expect(html).toContain("Video");
-    expect(html).toContain("Set Trim In To Clip Start");
     expect(html).not.toContain("Trim Window");
     expect(html).not.toContain("Active Preset");
   });

@@ -1,6 +1,7 @@
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Alert, AlertDescription } from "@guerillaglass/ui/components/alert";
+import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
 import { useStudio } from "../state/StudioProvider";
 import {
   localizedRouteTargetFor,
@@ -52,6 +53,9 @@ export function StudioShellLayout() {
     activeRoute,
     locale: studio.locale,
     setLastRoute: studio.setLastRoute,
+  });
+  useStudioRenderDiagnostics("StudioShellLayout", {
+    route: activeRoute,
   });
 
   return (

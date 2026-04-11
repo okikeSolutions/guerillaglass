@@ -42,6 +42,22 @@ public final class ExportPipeline {
         cameraPlan: CameraPlan? = nil
     ) async throws -> URL {
         let asset = AVAsset(url: recordingURL)
+        return try await export(
+            asset: asset,
+            preset: preset,
+            trimRange: trimRange,
+            outputURL: outputURL,
+            cameraPlan: cameraPlan
+        )
+    }
+
+    public func export(
+        asset: AVAsset,
+        preset: ExportPreset,
+        trimRange: CMTimeRange?,
+        outputURL: URL,
+        cameraPlan: CameraPlan? = nil
+    ) async throws -> URL {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         guard videoTracks.first != nil else {
             throw ExportError.missingVideoTrack

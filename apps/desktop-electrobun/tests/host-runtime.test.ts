@@ -11,13 +11,17 @@ import {
 } from "../src/bun/runtime/hostRuntime";
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
+  const isRunning = overrides.isRunning === true;
   return {
-    isRunning: false,
+    isRunning,
     isRecording: false,
+    captureSessionId: isRunning ? "capture-session-1" : null,
     recordingDurationSeconds: 0,
     recordingURL: null,
+    captureMetadata: null,
     lastError: null,
     eventsURL: null,
+    lastRecordingTelemetry: null,
     telemetry: {
       sourceDroppedFrames: 0,
       writerDroppedFrames: 0,

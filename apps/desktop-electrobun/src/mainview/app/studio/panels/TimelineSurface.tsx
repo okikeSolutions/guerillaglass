@@ -47,8 +47,9 @@ type TimelineSelectedClip = { laneId: "video" | "audio"; clipId: string } | null
 type TimelineSurfaceProps = {
   durationSeconds: number;
   playheadSeconds: number;
-  trimStartSeconds: number;
-  trimEndSeconds: number;
+  trimEnabled?: boolean;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number;
   zoomPercent: number;
   timelineTool: "select" | "trim" | "blade";
   timelineSnapEnabled: boolean;
@@ -56,8 +57,8 @@ type TimelineSurfaceProps = {
   laneControls: TimelineLaneControls;
   labels: TimelineSurfaceLabels;
   onSetPlayheadSeconds: (seconds: number) => void;
-  onSetTrimStartSeconds: (seconds: number) => void;
-  onSetTrimEndSeconds: (seconds: number) => void;
+  onSetTrimStartSeconds?: (seconds: number) => void;
+  onSetTrimEndSeconds?: (seconds: number) => void;
   onNudgePlayheadSeconds: (deltaSeconds: number) => void;
   onToggleLaneLocked: (laneId: "video" | "audio") => void;
   onToggleLaneMuted: (laneId: "video" | "audio") => void;
@@ -111,14 +112,15 @@ type TimelineOverlayProps = {
   labels: TimelineSurfaceLabels;
   timelineSnapEnabled: boolean;
   playheadPercent: number;
-  trimStartPercent: number;
-  trimEndPercent: number;
-  trimWidthPercent: number;
-  trimStartSeconds: number;
-  trimEndSeconds: number;
-  onSetTrimStartSeconds: (seconds: number) => void;
-  onSetTrimEndSeconds: (seconds: number) => void;
-  onTrimHandlePointerDown: (mode: TrimDragMode, event: ReactPointerEvent<HTMLElement>) => void;
+  trimEnabled: boolean;
+  trimStartPercent?: number;
+  trimEndPercent?: number;
+  trimWidthPercent?: number;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number;
+  onSetTrimStartSeconds?: (seconds: number) => void;
+  onSetTrimEndSeconds?: (seconds: number) => void;
+  onTrimHandlePointerDown?: (mode: TrimDragMode, event: ReactPointerEvent<HTMLElement>) => void;
 };
 
 type TrimHandleProps = {
@@ -199,8 +201,14 @@ function pickWaveformBars(params: {
   const clipWidthRatio =
     params.durationSeconds > 0 ? clipDuration / params.durationSeconds : Math.min(1, clipDuration);
   const barCount = Math.min(120, Math.max(14, Math.round(clipWidthRatio * 160)));
-  const startRatio = clampSeconds(params.clip.startSeconds / waveformDuration, 0, 1);
-  const endRatio = clampSeconds(params.clip.endSeconds / waveformDuration, 0, 1);
+  const clipStartSeconds =
+    params.waveform.source === "decoded"
+      ? params.clip.sourceStartSeconds
+      : params.clip.startSeconds;
+  const clipEndSeconds =
+    params.waveform.source === "decoded" ? params.clip.sourceEndSeconds : params.clip.endSeconds;
+  const startRatio = clampSeconds(clipStartSeconds / waveformDuration, 0, 1);
+  const endRatio = clampSeconds(clipEndSeconds / waveformDuration, 0, 1);
   const startIndex = Math.floor(startRatio * peaks.length);
   const endIndex = Math.max(startIndex + 1, Math.ceil(endRatio * peaks.length));
   const span = Math.max(1, endIndex - startIndex);
@@ -244,8 +252,8 @@ function useTimelineDragController(params: {
   durationSeconds: number;
   trackOverlayRef: RefObject<HTMLDivElement | null>;
   onSetPlayheadSeconds: (seconds: number) => void;
-  onSetTrimStartSeconds: (seconds: number) => void;
-  onSetTrimEndSeconds: (seconds: number) => void;
+  onSetTrimStartSeconds?: (seconds: number) => void;
+  onSetTrimEndSeconds?: (seconds: number) => void;
   onClearSelection: () => void;
 }) {
   const {
@@ -274,10 +282,10 @@ function useTimelineDragController(params: {
       const nextTime = timeFromClientX(clientX);
       switch (dragModeRef.current) {
         case "trimStart":
-          onSetTrimStartSeconds(nextTime);
+          onSetTrimStartSeconds?.(nextTime);
           break;
         case "trimEnd":
-          onSetTrimEndSeconds(nextTime);
+          onSetTrimEndSeconds?.(nextTime);
           break;
         case "playhead":
           onSetPlayheadSeconds(nextTime);
@@ -425,6 +433,7 @@ function TimelineOverlay({
   labels,
   timelineSnapEnabled,
   playheadPercent,
+  trimEnabled,
   trimStartPercent,
   trimEndPercent,
   trimWidthPercent,
@@ -436,28 +445,39 @@ function TimelineOverlay({
 }: TimelineOverlayProps) {
   return (
     <div ref={trackOverlayRef} className="gg-timeline-track-overlay">
-      <div
-        className={`gg-timeline-trim-window${timelineSnapEnabled ? " gg-timeline-trim-window-snapping" : ""}`}
-        style={{ left: `${trimStartPercent}%`, width: `${trimWidthPercent}%` }}
-      />
       <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />
-
-      <TrimHandle
-        mode="trimStart"
-        percent={trimStartPercent}
-        ariaLabel={labels.trimInSeconds}
-        seconds={trimStartSeconds}
-        onChangeSeconds={onSetTrimStartSeconds}
-        onPointerDown={onTrimHandlePointerDown}
-      />
-      <TrimHandle
-        mode="trimEnd"
-        percent={trimEndPercent}
-        ariaLabel={labels.trimOutSeconds}
-        seconds={trimEndSeconds}
-        onChangeSeconds={onSetTrimEndSeconds}
-        onPointerDown={onTrimHandlePointerDown}
-      />
+      {trimEnabled &&
+      trimStartPercent != null &&
+      trimEndPercent != null &&
+      trimWidthPercent != null &&
+      trimStartSeconds != null &&
+      trimEndSeconds != null &&
+      onSetTrimStartSeconds &&
+      onSetTrimEndSeconds &&
+      onTrimHandlePointerDown ? (
+        <>
+          <div
+            className={`gg-timeline-trim-window${timelineSnapEnabled ? " gg-timeline-trim-window-snapping" : ""}`}
+            style={{ left: `${trimStartPercent}%`, width: `${trimWidthPercent}%` }}
+          />
+          <TrimHandle
+            mode="trimStart"
+            percent={trimStartPercent}
+            ariaLabel={labels.trimInSeconds}
+            seconds={trimStartSeconds}
+            onChangeSeconds={onSetTrimStartSeconds}
+            onPointerDown={onTrimHandlePointerDown}
+          />
+          <TrimHandle
+            mode="trimEnd"
+            percent={trimEndPercent}
+            ariaLabel={labels.trimOutSeconds}
+            seconds={trimEndSeconds}
+            onChangeSeconds={onSetTrimEndSeconds}
+            onPointerDown={onTrimHandlePointerDown}
+          />
+        </>
+      ) : null}
     </div>
   );
 }
@@ -638,6 +658,7 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
 export function TimelineSurface({
   durationSeconds,
   playheadSeconds,
+  trimEnabled = false,
   trimStartSeconds,
   trimEndSeconds,
   zoomPercent,
@@ -675,8 +696,10 @@ export function TimelineSurface({
     onClearSelection,
   });
 
-  const effectiveTrimEnd = trimEndSeconds > 0 ? trimEndSeconds : durationSeconds;
-  const clampedTrimStart = clampSeconds(trimStartSeconds, 0, durationSeconds);
+  const effectiveTrimStart = trimEnabled ? (trimStartSeconds ?? 0) : 0;
+  const effectiveTrimEnd =
+    trimEnabled && trimEndSeconds != null && trimEndSeconds > 0 ? trimEndSeconds : durationSeconds;
+  const clampedTrimStart = clampSeconds(effectiveTrimStart, 0, durationSeconds);
   const clampedTrimEnd = clampSeconds(effectiveTrimEnd, clampedTrimStart, durationSeconds);
 
   const playheadPercent = toPercent(playheadSeconds, durationSeconds);
@@ -744,14 +767,15 @@ export function TimelineSurface({
             labels={labels}
             timelineSnapEnabled={timelineSnapEnabled}
             playheadPercent={playheadPercent}
-            trimStartPercent={trimStartPercent}
-            trimEndPercent={trimEndPercent}
-            trimWidthPercent={trimWidthPercent}
+            trimEnabled={trimEnabled}
+            trimStartPercent={trimEnabled ? trimStartPercent : undefined}
+            trimEndPercent={trimEnabled ? trimEndPercent : undefined}
+            trimWidthPercent={trimEnabled ? trimWidthPercent : undefined}
             trimStartSeconds={trimStartSeconds}
             trimEndSeconds={trimEndSeconds}
             onSetTrimStartSeconds={onSetTrimStartSeconds}
             onSetTrimEndSeconds={onSetTrimEndSeconds}
-            onTrimHandlePointerDown={onTrimHandlePointerDown}
+            onTrimHandlePointerDown={trimEnabled ? onTrimHandlePointerDown : undefined}
           />
         </div>
       </div>

@@ -36,6 +36,7 @@ function statusResult() {
       : null,
     lastError: null,
     eventsURL: null,
+    lastRecordingTelemetry: null,
     telemetry: {
       sourceDroppedFrames: 0,
       writerDroppedFrames: 0,

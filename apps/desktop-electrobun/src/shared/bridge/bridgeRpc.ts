@@ -15,6 +15,7 @@ import {
   projectRecentsResultSchema,
   projectStateSchema,
   sourcesResultSchema,
+  timelineDocumentSchema,
   type AgentPreflightResult,
   type AgentRunResult,
   type AgentStatusResult,
@@ -50,6 +51,7 @@ import { Schema } from "effect";
 import type { RPCSchema } from "electrobun/bun";
 import type { SerializedBridgeError } from "../errors";
 import type { StudioShortcutOverrides } from "../shortcuts";
+import type { StudioDiagnosticsValue } from "../studioDiagnostics";
 
 export const hostMenuCommands = {
   appRefresh: "app.refresh",
@@ -74,6 +76,7 @@ export const hostBridgeEventNames = {
   menuCommand: "gg-host-menu-command",
   captureStatus: "gg-host-capture-status",
   reviewEvent: "gg-host-review-event",
+  runtimeFlags: "gg-host-runtime-flags",
 } as const;
 
 export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCommands];
@@ -82,6 +85,7 @@ export const hostMenuCommandList = Object.values(hostMenuCommands) as HostMenuCo
 export type HostMenuState = {
   canSave: boolean;
   canExport: boolean;
+  canTrimTimeline: boolean;
   canToggleTimeline: boolean;
   isRecording: boolean;
   recordingURL?: string | null;
@@ -90,8 +94,22 @@ export type HostMenuState = {
   shortcutOverrides?: StudioShortcutOverrides;
 };
 
+export type HostRuntimeFlags = {
+  captureBenchmarkEnabled: boolean;
+  studioDiagnosticsEnabled: boolean;
+};
+
 /** Host path-picker modes used by renderer workflows. */
 export type HostPathPickerMode = "openProject" | "saveProjectAs" | "export";
+
+export type StudioDiagnosticsEntry = {
+  source: "renderer";
+  level: string;
+  message: string;
+  timestamp: string;
+  annotations?: Record<string, StudioDiagnosticsValue>;
+  spans?: Record<string, number>;
+};
 
 export const hostPathPickerModeSchema = Schema.Literal("openProject", "saveProjectAs", "export");
 export const pickPathRequestSchema = Schema.Struct({
@@ -113,6 +131,30 @@ export const resolveCapturePreviewURLRequestSchema = Schema.Undefined;
 export const resolveCapturePreviewURLResponseSchema = Schema.NonEmptyString;
 export const hostReviewEventMessageSchema = Schema.Struct({
   event: reviewBridgeEventSchema,
+});
+const studioDiagnosticsValueSchema = Schema.Union(
+  Schema.String,
+  Schema.Number,
+  Schema.Boolean,
+  Schema.Null,
+);
+export const studioDiagnosticsEntrySchema = Schema.Struct({
+  source: Schema.Literal("renderer"),
+  level: Schema.NonEmptyString,
+  message: Schema.NonEmptyString,
+  timestamp: Schema.NonEmptyString,
+  annotations: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: studioDiagnosticsValueSchema,
+    }),
+  ),
+  spans: Schema.optional(
+    Schema.Record({
+      key: Schema.String,
+      value: Schema.Number,
+    }),
+  ),
 });
 const nonNegativeIntSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(0));
 const nonNegativeNumberSchema = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));
@@ -150,16 +192,19 @@ const engineAgentApplyBridgeParamsSchema = Schema.Struct({
 });
 const engineCaptureStartBridgeParamsSchema = Schema.Struct({
   enableMic: Schema.optional(Schema.Boolean),
+  enablePreview: Schema.optional(Schema.Boolean),
   captureFps: Schema.optional(captureFrameRateSchema),
 });
 const engineCaptureStartDisplayBridgeParamsSchema = Schema.Struct({
   displayId: Schema.optional(nonNegativeIntSchema),
   enableMic: Schema.optional(Schema.Boolean),
+  enablePreview: Schema.optional(Schema.Boolean),
   captureFps: Schema.optional(captureFrameRateSchema),
 });
 const engineCaptureStartWindowBridgeParamsSchema = Schema.Struct({
   windowId: nonNegativeIntSchema,
   enableMic: Schema.optional(Schema.Boolean),
+  enablePreview: Schema.optional(Schema.Boolean),
   captureFps: Schema.optional(captureFrameRateSchema),
 });
 const engineStartRecordingBridgeParamsSchema = Schema.Struct({
@@ -170,6 +215,7 @@ const engineRunExportBridgeParamsSchema = Schema.Struct({
   presetId: Schema.NonEmptyString,
   trimStartSeconds: Schema.optional(nonNegativeNumberSchema),
   trimEndSeconds: Schema.optional(nonNegativeNumberSchema),
+  timeline: Schema.optional(timelineDocumentSchema),
 });
 const engineRunCutPlanExportBridgeParamsSchema = Schema.Struct({
   outputURL: Schema.NonEmptyString,
@@ -182,6 +228,7 @@ const engineProjectOpenBridgeParamsSchema = Schema.Struct({
 const engineProjectSaveBridgeParamsSchema = Schema.Struct({
   projectPath: Schema.optional(Schema.NonEmptyString),
   autoZoom: Schema.optional(autoZoomSettingsSchema),
+  timeline: Schema.optional(timelineDocumentSchema),
 });
 const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
   limit: projectRecentsLimitSchema,
@@ -328,29 +375,44 @@ export const bridgeRequestDefinitions = {
     sourcesResultSchema,
   ),
   ggEngineStartDisplayCapture: defineValidatedBridgeRequest<
-    { displayId?: number; enableMic: boolean; captureFps: CaptureFrameRate },
+    {
+      displayId?: number;
+      enableMic: boolean;
+      enablePreview?: boolean;
+      captureFps: CaptureFrameRate;
+    },
     CaptureStatusResult,
-    [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number]
+    [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number, enablePreview?: boolean]
   >(
-    (enableMic, captureFps, displayId) => ({ displayId, enableMic, captureFps }),
+    (enableMic, captureFps, displayId, enablePreview) => ({
+      displayId,
+      enableMic,
+      enablePreview,
+      captureFps,
+    }),
     engineCaptureStartDisplayBridgeParamsSchema,
     captureStatusResultSchema,
   ),
   ggEngineStartCurrentWindowCapture: defineValidatedBridgeRequest<
-    { enableMic: boolean; captureFps: CaptureFrameRate },
+    { enableMic: boolean; enablePreview?: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
-    [enableMic: boolean, captureFps: CaptureFrameRate]
+    [enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
   >(
-    (enableMic, captureFps) => ({ enableMic, captureFps }),
+    (enableMic, captureFps, enablePreview) => ({ enableMic, enablePreview, captureFps }),
     engineCaptureStartBridgeParamsSchema,
     captureStatusResultSchema,
   ),
   ggEngineStartWindowCapture: defineValidatedBridgeRequest<
-    { windowId: number; enableMic: boolean; captureFps: CaptureFrameRate },
+    { windowId: number; enableMic: boolean; enablePreview?: boolean; captureFps: CaptureFrameRate },
     CaptureStatusResult,
-    [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate]
+    [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
   >(
-    (windowId, enableMic, captureFps) => ({ windowId, enableMic, captureFps }),
+    (windowId, enableMic, captureFps, enablePreview) => ({
+      windowId,
+      enableMic,
+      enablePreview,
+      captureFps,
+    }),
     engineCaptureStartWindowBridgeParamsSchema,
     captureStatusResultSchema,
   ),
@@ -547,16 +609,24 @@ export type WindowBridgeBindings = {
   ) => Promise<BridgeRequestResponse<BridgeRequestDefinitions[K]>>;
 } & {
   ggHostSendMenuState?: (state: HostMenuState) => void;
+  ggHostSendStudioDiagnostics?: (entry: StudioDiagnosticsEntry) => void;
 };
 
 export type DesktopBridgeRPC = {
-  bun: RPCSchema<{ requests: BridgeTransportRequests; messages: { hostMenuState: HostMenuState } }>;
+  bun: RPCSchema<{
+    requests: BridgeTransportRequests;
+    messages: {
+      hostMenuState: HostMenuState;
+      studioDiagnostics: StudioDiagnosticsEntry;
+    };
+  }>;
   webview: RPCSchema<{
     requests: Record<string, never>;
     messages: {
       hostMenuCommand: { command: HostMenuCommand };
       hostCaptureStatus: { captureStatus: CaptureStatusResult };
       hostReviewEvent: { event: ReviewBridgeEvent };
+      hostRuntimeFlags: HostRuntimeFlags;
     };
   }>;
 };

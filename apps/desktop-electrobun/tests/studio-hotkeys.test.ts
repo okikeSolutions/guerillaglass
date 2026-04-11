@@ -34,6 +34,7 @@ describe("studio hotkeys", () => {
 
     useStudioHotkeys({
       runHostCommand: (command) => commands.push(command),
+      canTrimTimeline: true,
       singleKeyShortcutsEnabled: true,
       shortcutOverrides: {
         save: "Control+Shift+P",

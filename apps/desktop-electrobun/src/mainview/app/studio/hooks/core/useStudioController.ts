@@ -6,9 +6,11 @@ import {
   type AutoZoomSettings,
   type CaptureFrameRate,
   type ExportPreset,
+  type TimelineDocument,
 } from "@guerillaglass/engine-protocol";
 import { getStudioMessages, type StudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
+import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
 import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge";
 import { hostBridgeEventNames } from "@shared/bridge";
 import {
@@ -37,6 +39,14 @@ import {
   normalizeInspectorSelection,
   selectionFromPreset,
 } from "../../domain/inspectorSelectionModel";
+import {
+  createEmptyTimelineDocument,
+  createSingleSegmentTimelineDocument,
+} from "../../domain/timelineDomainModel";
+import {
+  normalizeTimelineFrameRate,
+  quantizeSecondsToFrame,
+} from "../../domain/timelineFrameTimebase";
 import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import {
@@ -210,7 +220,7 @@ export function useStudioController() {
 
   const settingsForm = useForm({
     defaultValues: {
-      captureSource: "display" as CaptureSourceMode,
+      captureSource: "window" as CaptureSourceMode,
       selectedDisplayId: 0,
       selectedWindowId: 0,
       captureFps: defaultCaptureFrameRate,
@@ -244,10 +254,17 @@ export function useStudioController() {
     timelineEvents,
     displayChoices,
     windowChoices,
-  } = useStudioDataQueries(studioRecentsLimit);
+  } = useStudioDataQueries({
+    recentsLimit: studioRecentsLimit,
+    subscribeToCaptureStatus: activeMode === "capture",
+  });
   const recentsLimit = studioRecentsLimit;
 
   const lastHydratedProjectAutoZoomSignatureRef = useRef<string | null>(null);
+  const diagnosticsRenderSignatureRef = useRef<Record<
+    string,
+    string | number | boolean | null
+  > | null>(null);
 
   useEffect(() => {
     saveStudioShortcutOverrides(shortcutOverrides, shortcutPlatform);
@@ -265,6 +282,24 @@ export function useStudioController() {
     lastHydratedProjectAutoZoomSignatureRef.current = nextSignature;
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
   }, [projectQuery.data?.autoZoom, settingsForm]);
+
+  const timelineDocument = useMemo<TimelineDocument>(() => {
+    const projectTimeline = projectQuery.data?.timeline;
+    const recordingDurationSeconds = captureStatusQuery.data?.recordingDurationSeconds ?? 0;
+    if (projectTimeline && projectTimeline.segments.length > 0) {
+      return projectTimeline;
+    }
+
+    if (recordingURL && recordingDurationSeconds > 0) {
+      return createSingleSegmentTimelineDocument(recordingDurationSeconds);
+    }
+
+    return createEmptyTimelineDocument();
+  }, [
+    captureStatusQuery.data?.recordingDurationSeconds,
+    projectQuery.data?.timeline,
+    recordingURL,
+  ]);
 
   const selectedDisplayId = useMemo(() => {
     return resolveSelectedDisplayId(displayChoices, settingsForm.state.values.selectedDisplayId);
@@ -332,6 +367,7 @@ export function useStudioController() {
     activeMode,
     recordingURL,
     recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+    timelineDocument,
     timelineFrameRate,
     timelineEvents,
     laneLabels: {
@@ -339,17 +375,11 @@ export function useStudioController() {
       audio: ui.labels.timelineLaneAudio,
       events: ui.labels.timelineLaneEvents,
     },
-    trimStartSeconds: exportForm.state.values.trimStartSeconds,
-    trimEndSeconds: exportForm.state.values.trimEndSeconds,
-    onTrimStartSecondsChange: (seconds) => exportForm.setFieldValue("trimStartSeconds", seconds),
-    onTrimEndSecondsChange: (seconds) => exportForm.setFieldValue("trimEndSeconds", seconds),
   });
   const {
     audioMixer,
-    isTimelinePlaying,
     nudgePlayheadSeconds,
-    playheadSeconds: boundedPlayheadSeconds,
-    playbackRate,
+    playbackStore,
     playbackRates,
     resetTimelineZoom,
     setAudioMixerGain,
@@ -362,13 +392,10 @@ export function useStudioController() {
     setTimelinePlaybackActive,
     setTimelineTool,
     setTimelineZoom,
-    setTrimEndSeconds,
-    setTrimInFromPlayhead,
-    setTrimOutFromPlayhead,
-    setTrimStartSeconds,
     timelineDuration,
     timelineLaneControlState,
     timelineLanes,
+    timelineSegments,
     timelineRippleEnabled,
     timelineSnapEnabled,
     timelineTool,
@@ -381,6 +408,106 @@ export function useStudioController() {
     zoomTimelineIn,
     zoomTimelineOut,
   } = timeline;
+
+  useEffect(() => {
+    const nextSignature: Record<string, string | number | boolean | null> = {
+      activeMode,
+      locale,
+      densityMode: layout.densityMode,
+      lastRoute: layout.lastRoute,
+      noticeKind: notice?.kind ?? null,
+      noticeMessage: notice?.message ?? null,
+      recordingURL,
+      recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+      captureIsRunning: captureStatusQuery.data?.isRunning ?? false,
+      captureIsRecording: captureStatusQuery.data?.isRecording ?? false,
+      projectPath: projectQuery.data?.projectPath ?? null,
+      projectTimelineSegments: projectQuery.data?.timeline?.segments.length ?? 0,
+      timelineDocumentSegments: timelineDocument.segments.length,
+      timelineDuration,
+      selectedDisplayId,
+      selectedWindowId,
+      eventsCount: timelineEvents.length,
+      playbackIsPlaying: playbackStore.getSnapshot().isPlaying,
+      playbackRate: playbackStore.getSnapshot().playbackRate,
+    };
+
+    const previousSignature = diagnosticsRenderSignatureRef.current;
+    diagnosticsRenderSignatureRef.current = nextSignature;
+    if (!previousSignature) {
+      return;
+    }
+
+    const changedKeys = Object.keys(nextSignature).filter(
+      (key) => previousSignature[key] !== nextSignature[key],
+    );
+    if (changedKeys.length === 0) {
+      recordStudioDiagnosticsEvent("studio controller render without tracked state change", {
+        activeMode,
+      });
+      return;
+    }
+
+    recordStudioDiagnosticsEvent("studio controller render drivers", {
+      activeMode,
+      changedKeys: changedKeys.join(","),
+    });
+  });
+
+  const setTrimStartSeconds = useCallback(
+    (seconds: number) => {
+      const nextTrimStart = Math.min(
+        Math.max(
+          timelineSnapEnabled
+            ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
+            : seconds,
+          0,
+        ),
+        timelineDuration,
+      );
+      exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
+      if (
+        exportForm.state.values.trimEndSeconds > 0 &&
+        nextTrimStart > exportForm.state.values.trimEndSeconds
+      ) {
+        exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
+      }
+    },
+    [exportForm, timelineDuration, timelineFrameRate, timelineSnapEnabled],
+  );
+
+  const setTrimEndSeconds = useCallback(
+    (seconds: number) => {
+      const nextTrimEnd = Math.min(
+        Math.max(
+          timelineSnapEnabled
+            ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
+            : seconds,
+          0,
+        ),
+        timelineDuration,
+      );
+      exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
+      if (exportForm.state.values.trimStartSeconds > nextTrimEnd) {
+        exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
+      }
+    },
+    [exportForm, timelineDuration, timelineFrameRate, timelineSnapEnabled],
+  );
+
+  const setTrimInFromPlayhead = useCallback(() => {
+    if (activeMode !== "deliver") {
+      return;
+    }
+    setTrimStartSeconds(playbackStore.getSnapshot().playheadSeconds);
+  }, [activeMode, playbackStore, setTrimStartSeconds]);
+
+  const setTrimOutFromPlayhead = useCallback(() => {
+    if (activeMode !== "deliver") {
+      return;
+    }
+    setTrimEndSeconds(playbackStore.getSnapshot().playheadSeconds);
+  }, [activeMode, playbackStore, setTrimEndSeconds]);
 
   const selectedPreset = useMemo<ExportPreset | undefined>(() => {
     const selected = presets.find((preset) => preset.id === exportForm.state.values.presetId);
@@ -399,6 +526,10 @@ export function useStudioController() {
       await desktopApi.pickPath(params),
     [],
   );
+
+  const clearInspectorSelection = useCallback(() => {
+    setRawInspectorSelection(emptyInspectorSelection);
+  }, []);
 
   const {
     exportMutation,
@@ -420,11 +551,13 @@ export function useStudioController() {
     setNotice,
     setTimelinePlayback: setIsTimelinePlaying,
     resetPlayhead: () => setPlayheadSeconds(0),
+    clearInspectorSelection,
     pickPathSafely,
     selectedDisplayId,
     selectedWindowId,
     inputMonitoringDenied,
     recordingURL,
+    timelineDocument,
     selectedPreset,
     recentsLimit,
     settingsForm: settingsForm as unknown as SettingsFormApi,
@@ -503,10 +636,6 @@ export function useStudioController() {
     [presets],
   );
 
-  const clearInspectorSelection = useCallback(() => {
-    setRawInspectorSelection(emptyInspectorSelection);
-  }, []);
-
   const runHostCommand = useMemo(
     () =>
       createHostCommandRunnerFromHandlers({
@@ -532,9 +661,15 @@ export function useStudioController() {
           toggleTimelinePlayback();
         },
         timelineTrimIn: () => {
+          if (activeMode !== "deliver") {
+            return;
+          }
           setTrimInFromPlayhead();
         },
         timelineTrimOut: () => {
+          if (activeMode !== "deliver") {
+            return;
+          }
           setTrimOutFromPlayhead();
         },
         timelineTogglePanel: () => {
@@ -567,6 +702,7 @@ export function useStudioController() {
       openProjectMutation,
       refreshMutation,
       saveProjectMutation,
+      activeMode,
       setDensityMode,
       setLocale,
       setTrimInFromPlayhead,
@@ -624,6 +760,7 @@ export function useStudioController() {
 
   useStudioHotkeys({
     runHostCommand,
+    canTrimTimeline: activeMode === "deliver" && Boolean(recordingURL),
     singleKeyShortcutsEnabled: settingsForm.state.values.singleKeyShortcutsEnabled,
     shortcutOverrides,
     shortcutPlatform,
@@ -636,6 +773,7 @@ export function useStudioController() {
     sendHostMenuState({
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
+      canTrimTimeline: activeMode === "deliver" && !isRunningAction && Boolean(recordingURL),
       canToggleTimeline: activeMode !== "capture",
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
       recordingURL,
@@ -652,6 +790,12 @@ export function useStudioController() {
     recordingURL,
     shortcutOverrides,
   ]);
+
+  useEffect(() => {
+    if (activeMode !== "deliver" && timelineTool === "trim") {
+      setTimelineTool("select");
+    }
+  }, [activeMode, setTimelineTool, timelineTool]);
 
   useEffect(() => {
     const onHostMenuCommand = (event: Event) => {
@@ -691,7 +835,6 @@ export function useStudioController() {
     inputMonitoringDenied,
     isRefreshing,
     isRunningAction,
-    isTimelinePlaying,
     audioMixer,
     activeMode,
     locale,
@@ -703,8 +846,7 @@ export function useStudioController() {
     openRecentProjectMutation,
     permissionsQuery,
     pingQuery,
-    playheadSeconds: boundedPlayheadSeconds,
-    playbackRate,
+    playbackStore,
     playbackRates,
     recordingRequiredNotice,
     layout,
@@ -771,6 +913,8 @@ export function useStudioController() {
     supportedCaptureFrameRates,
     timelineDuration,
     timelineLanes,
+    timelineDocument,
+    timelineSegments,
     toggleRecordingMutation,
     resetShortcutOverride,
     toggleRightPaneCollapsed,
