@@ -18,10 +18,10 @@ export type MediaSourceServiceType = {
 };
 
 /** Effect service tag for media URL resolution in the Bun host. */
-export class MediaSourceService extends Context.Tag("@guerillaglass/desktop/MediaSourceService")<
+export class MediaSourceService extends Context.Service<
   MediaSourceService,
   MediaSourceServiceType
->() {}
+>()("@guerillaglass/desktop/MediaSourceService") {}
 
 /** Wraps a media server instance in the Effect media source service interface. */
 export function makeMediaSourceService(server: MediaServerLike): MediaSourceServiceType {
@@ -35,10 +35,10 @@ export function makeMediaSourceService(server: MediaServerLike): MediaSourceServ
 /** Builds the scoped live media source layer and owns media server shutdown. */
 export function makeMediaSourceServiceLive(options?: { createServer?: () => MediaServerLike }) {
   const createServer = options?.createServer ?? (() => new MediaServer());
-  return Layer.scoped(
+  return Layer.effect(
     MediaSourceService,
     Effect.acquireRelease(Effect.sync(createServer), (server) =>
-      Effect.catchAll(server.stopEffect(), (error) =>
+      Effect.catch(server.stopEffect(), (error) =>
         Effect.logWarning("Media source service shutdown failed", error),
       ),
     ).pipe(Effect.map(makeMediaSourceService)),

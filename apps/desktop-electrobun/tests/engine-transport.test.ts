@@ -179,7 +179,7 @@ async function readRuntimeFailure(
   if (Exit.isSuccess(exit)) {
     throw new Error("Expected runtime effect to fail");
   }
-  const failure = Cause.failureOption(exit.cause);
+  const failure = Cause.findErrorOption(exit.cause);
   return Option.isSome(failure) ? failure.value : Cause.squash(exit.cause);
 }
 

@@ -1,4 +1,4 @@
-import { Effect, ParseResult, Schema } from "effect";
+import { Effect, Schema, SchemaIssue } from "effect";
 import {
   ContractDecodeError,
   JsonParseError,
@@ -27,17 +27,19 @@ export function extractValidationIssues(error: unknown): ValidationIssue[] {
   if (Array.isArray(error) && error.every((issue) => isValidationIssue(issue))) {
     return error;
   }
-  if (!ParseResult.isParseError(error)) {
+  if (!Schema.isSchemaError(error)) {
     return [];
   }
-  return ParseResult.ArrayFormatter.formatErrorSync(error)
+  const formatted = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues;
+  return formatted
     .map((issue) => ({
-      path: issue.path.flatMap((segment) => {
-        if (typeof segment === "string" || typeof segment === "number") {
-          return [segment];
-        }
-        return [];
-      }),
+      path:
+        issue.path?.flatMap((segment) => {
+          if (typeof segment === "string" || typeof segment === "number") {
+            return [segment];
+          }
+          return [];
+        }) ?? [],
       message: issue.message,
     }))
     .filter((issue) => isValidationIssue(issue));
@@ -63,7 +65,7 @@ export function decodeUnknownWithSchema<S extends Schema.Top>(
   contract: string,
 ): Effect.Effect<MutableDeep<Schema.Schema.Type<S>>, ContractDecodeError> {
   return Effect.mapError(
-    Schema.decodeUnknown(schema as never, decodeAllIssuesOptions)(raw),
+    Schema.decodeUnknownEffect(schema as never, decodeAllIssuesOptions)(raw),
     (error) =>
       new ContractDecodeError({
         contract,

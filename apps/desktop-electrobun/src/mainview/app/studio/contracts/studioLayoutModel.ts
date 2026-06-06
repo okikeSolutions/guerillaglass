@@ -70,12 +70,7 @@ const studioLayoutStorageCandidateSchema = Schema.Struct({
   locale: Schema.optional(Schema.String),
   densityMode: Schema.optional(Schema.String),
   presetRoutesApplied: Schema.optional(Schema.Array(Schema.String)),
-  presetVersionByRoute: Schema.optional(
-    Schema.Record({
-      key: Schema.String,
-      value: Schema.Number,
-    }),
-  ),
+  presetVersionByRoute: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
 });
 
 export type StudioLayoutState = {

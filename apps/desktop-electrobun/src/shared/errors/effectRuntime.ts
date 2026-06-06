@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from "effect";
 
 function throwEffectFailure(cause: Cause.Cause<unknown>): never {
-  const failure = Cause.failureOption(cause);
+  const failure = Cause.findErrorOption(cause);
   if (Option.isSome(failure)) {
     throw failure.value;
   }

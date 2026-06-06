@@ -1,5 +1,5 @@
 import { type CaptureStatusResult } from "@guerillaglass/engine-protocol";
-import { Cause, Context, Effect, Either, Exit, Layer, ManagedRuntime, Option, Scope } from "effect";
+import { Cause, Context, Effect, Exit, Layer, ManagedRuntime, Option } from "effect";
 import { EngineClientError, messageFromUnknownError } from "../../shared/errors";
 import { EngineTransport, EngineTransportLive } from "../engine/service";
 import { MediaSourceService, MediaSourceServiceLive } from "../media/service";
@@ -28,9 +28,10 @@ export type HostRuntimeServices =
 export type HostRuntimeError = EngineClientError;
 
 /** Service tag for pushing capture status events from the runtime back to the app shell. */
-export class HostCaptureStatusSink extends Context.Tag(
-  "@guerillaglass/desktop/HostCaptureStatusSink",
-)<HostCaptureStatusSink, HostCaptureStatusSinkService>() {}
+export class HostCaptureStatusSink extends Context.Service<
+  HostCaptureStatusSink,
+  HostCaptureStatusSinkService
+>()("@guerillaglass/desktop/HostCaptureStatusSink") {}
 
 /** Managed runtime handle used by the Bun app and bridge execution edges. */
 export type HostRuntime = {
@@ -44,7 +45,7 @@ export type HostRuntime = {
 };
 
 function throwManagedRuntimeFailure(cause: Cause.Cause<unknown>): never {
-  const failure = Cause.failureOption(cause);
+  const failure = Cause.findErrorOption(cause);
   if (Option.isSome(failure)) {
     throw failure.value;
   }
@@ -76,19 +77,22 @@ export function makeCaptureStatusStreamEffect(
         yield* Effect.sleep(`${nextDelay} millis`);
       }
 
-      const result = yield* Effect.either(transport.captureStatus);
-      if (Either.isLeft(result)) {
+      const result = yield* Effect.exit(transport.captureStatus);
+      if (Exit.isFailure(result)) {
         nextDelay = 1000;
         yield* Effect.logWarning(
-          `capture status stream tick failed: ${messageFromUnknownError(result.left, "capture status stream failed")}`,
+          `capture status stream tick failed: ${messageFromUnknownError(
+            Cause.squash(result.cause),
+            "capture status stream failed",
+          )}`,
         );
         continue;
       }
 
-      nextDelay = captureStatusStreamInterval(result.right);
+      nextDelay = captureStatusStreamInterval(result.value);
       const sendResult = yield* Effect.exit(
         Effect.sync(() => {
-          sink.sendCaptureStatus(result.right);
+          sink.sendCaptureStatus(result.value);
         }),
       );
       if (Exit.isFailure(sendResult)) {
@@ -111,7 +115,7 @@ function makeCaptureStatusStreamLayer(
     return Layer.empty;
   }
 
-  return Layer.scopedDiscard(
+  return Layer.effectDiscard(
     Effect.forkScoped(makeCaptureStatusStreamEffect(options.initialCaptureStatusDelayMs ?? 0)),
   );
 }
@@ -131,26 +135,13 @@ export function makeHostLive(options: HostRuntimeOptions) {
     return servicesLayer;
   }
 
-  return Layer.scopedContext(
-    Effect.gen(function* () {
-      const scope = yield* Scope.Scope;
-      const memoizedServicesLayer = yield* Layer.memoize(servicesLayer);
-      const services = yield* Layer.buildWithScope(memoizedServicesLayer, scope);
-
-      yield* Layer.buildWithScope(
-        makeCaptureStatusStreamLayer(options).pipe(Layer.provide(memoizedServicesLayer)),
-        scope,
-      );
-
-      return services;
-    }),
-  );
+  return makeCaptureStatusStreamLayer(options).pipe(Layer.provideMerge(servicesLayer));
 }
 
 /** Creates the managed Bun host runtime and starts the capture-status stream when enabled. */
 export async function createHostRuntime(options: HostRuntimeOptions): Promise<HostRuntime> {
   const runtime = ManagedRuntime.make(makeHostLive(options));
-  await runtime.runtime();
+  await runtime.context();
 
   return {
     runtime,

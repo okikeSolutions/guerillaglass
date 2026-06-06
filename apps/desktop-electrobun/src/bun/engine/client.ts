@@ -569,7 +569,7 @@ export function resolveEnginePath(options?: {
 /** JSON-RPC client for the native engine stdio transport. */
 export class EngineClient {
   private session: EngineSession | null = null;
-  private sessionScope: Scope.CloseableScope | null = null;
+  private sessionScope: Scope.Closeable | null = null;
   private pending = new Map<string, PendingRequest>();
   private sessionDeferred: Deferred.Deferred<EngineSession, EngineClientFailure> | null = null;
   private readonly enginePath: string;
@@ -611,7 +611,7 @@ export class EngineClient {
   }
 
   stopEffect(): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       yield* Effect.sync(() => {
         this.isStopping = true;
       });
@@ -638,7 +638,7 @@ export class EngineClient {
         });
       }
     }).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         this.isStopping ? Effect.void : Effect.logWarning("Engine client stop failed", error),
       ),
     );
@@ -705,7 +705,7 @@ export class EngineClient {
    * staying inside the typed `Effect` failure channel.
    */
   sendRawEffect(method: string, params: unknown, options?: { timeoutMs?: number }) {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const rawRpcAllowed =
         process.env.NODE_ENV !== "production" || process.env.GG_ENGINE_ALLOW_RAW_RPC === "1";
       if (!rawRpcAllowed) {
@@ -805,11 +805,11 @@ export class EngineClient {
   stopCaptureEffect() {
     const definition = engineMethodDefinitions.stopCapture;
     return this.captureMethodEffect(definition).pipe(
-      Effect.catchAll((error) => {
+      Effect.catch((error) => {
         if (!(error instanceof EngineClientError) || error.code !== "ENGINE_REQUEST_TIMEOUT") {
           return Effect.fail(error);
         }
-        return Effect.gen(this, function* () {
+        return Effect.gen({ self: this }, function* () {
           const liveStatus = yield* this.tryCaptureStatusProbeEffect(750);
           if (liveStatus?.isRecording) {
             return yield* Effect.fail(
@@ -968,7 +968,7 @@ export class EngineClient {
       Effect.flatMap((session) =>
         this.dispatchRequestEffect(session, method, params, this.resolveRequestTimeoutMs(method)),
       ),
-      Effect.catchAll((error) => {
+      Effect.catch((error) => {
         if (!this.shouldRetryRequest(method, error, attempt)) {
           return Effect.fail(error);
         }
@@ -986,7 +986,7 @@ export class EngineClient {
     payload: string,
     timeoutMs: number,
   ): Effect.Effect<unknown, EngineClientFailure> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const pending = yield* Deferred.make<unknown, EngineClientFailure>();
       yield* Effect.sync(() => {
         this.pending.set(requestId, pending);
@@ -995,13 +995,15 @@ export class EngineClient {
       const awaitPending =
         Number.isFinite(timeoutMs) && timeoutMs > 0
           ? Deferred.await(pending).pipe(
-              Effect.timeoutFail({
+              Effect.timeoutOrElse({
                 duration: `${Math.max(1, Math.round(timeoutMs))} millis`,
-                onTimeout: () =>
-                  new EngineClientError({
-                    code: "ENGINE_REQUEST_TIMEOUT",
-                    description: `Engine request timed out: ${method}`,
-                  }),
+                orElse: () =>
+                  Effect.fail(
+                    new EngineClientError({
+                      code: "ENGINE_REQUEST_TIMEOUT",
+                      description: `Engine request timed out: ${method}`,
+                    }),
+                  ),
               }),
             )
           : Deferred.await(pending);
@@ -1015,7 +1017,7 @@ export class EngineClient {
             cause,
           }),
       }).pipe(
-        Effect.zipRight(awaitPending),
+        Effect.andThen(awaitPending),
         Effect.ensuring(
           Effect.sync(() => {
             if (this.pending.get(requestId) === pending) {
@@ -1042,7 +1044,7 @@ export class EngineClient {
       Effect.flatMap((result) =>
         decodeUnknownWithSchema(definition.schema, result, `${definition.method} result`),
       ),
-      Effect.catchAll(() => Effect.succeed(null)),
+      Effect.catch(() => Effect.succeed(null)),
     );
   }
 
@@ -1087,7 +1089,7 @@ export class EngineClient {
         this.readLinesEffect(reader, decoder, "", (line) =>
           this.handleResponseLineEffect(line),
         ).pipe(
-          Effect.catchAll((error) =>
+          Effect.catch((error) =>
             this.logSessionWarningEffect(session, "Engine stdout stream failed", error),
           ),
         ),
@@ -1112,7 +1114,7 @@ export class EngineClient {
         this.readLinesEffect(reader, decoder, "", (line) =>
           this.logEngineStderrLineEffect(session, line),
         ).pipe(
-          Effect.catchAll((error) =>
+          Effect.catch((error) =>
             this.logSessionWarningEffect(session, "Engine stderr stream failed", error),
           ),
         ),
@@ -1166,7 +1168,7 @@ export class EngineClient {
     const remainingBuffer = buffer.slice(newlineIndex + 1);
     const handleLine = line.length > 0 ? onLine(line) : Effect.void;
     return handleLine.pipe(
-      Effect.zipRight(this.processBufferedLinesEffect(remainingBuffer, onLine)),
+      Effect.andThen(this.processBufferedLinesEffect(remainingBuffer, onLine)),
     );
   }
 
@@ -1182,7 +1184,7 @@ export class EngineClient {
   }
 
   private handleResponseLineEffect(line: string): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const rawResponse = yield* parseJsonString(line, "engine response");
       const response = yield* decodeUnknownWithSchema(
         engineResponseSchema,
@@ -1207,9 +1209,9 @@ export class EngineClient {
         }),
       );
     }).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         this.rejectPendingForInvalidResponseLineEffect(line, error).pipe(
-          Effect.zipRight(Effect.logWarning("Failed to parse engine response", error)),
+          Effect.andThen(Effect.logWarning("Failed to parse engine response", error)),
         ),
       ),
     );
@@ -1218,7 +1220,7 @@ export class EngineClient {
   private watchProcessExitEffect(session: EngineSession): Effect.Effect<void, never> {
     return Effect.tryPromise(() => session.process.exited).pipe(
       Effect.flatMap((exitCode) => this.handleUnexpectedProcessExitEffect(session, exitCode)),
-      Effect.catchAll((error) => this.handleUnexpectedProcessFailureEffect(session, error)),
+      Effect.catch((error) => this.handleUnexpectedProcessFailureEffect(session, error)),
     );
   }
 
@@ -1226,7 +1228,7 @@ export class EngineClient {
     session: EngineSession,
     exitCode: number,
   ): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const { scope, isStopping } = yield* Effect.sync(() => ({
         scope: this.detachSessionScope(session),
         isStopping: this.isStopping,
@@ -1257,7 +1259,7 @@ export class EngineClient {
     session: EngineSession,
     error: unknown,
   ): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const { scope, isStopping } = yield* Effect.sync(() => ({
         scope: this.detachSessionScope(session),
         isStopping: this.isStopping,
@@ -1329,7 +1331,7 @@ export class EngineClient {
     requestId: string,
     error: EngineClientFailure,
   ): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const pending = yield* Effect.sync(() => this.takePendingRequest(requestId));
       if (!pending) {
         return;
@@ -1339,7 +1341,7 @@ export class EngineClient {
   }
 
   private rejectAllPendingEffect(error: EngineClientFailure): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const pendingRequests = yield* Effect.sync(() => {
         const requests = Array.from(this.pending.values());
         this.pending.clear();
@@ -1383,7 +1385,7 @@ export class EngineClient {
   }
 
   private resetForRetryEffect(): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       yield* Effect.sync(() => {
         this.registerUnexpectedRestart();
       });
@@ -1433,20 +1435,17 @@ export class EngineClient {
   }
 
   private ensureSessionEffect(): Effect.Effect<EngineSession, EngineClientFailure> {
-    return Effect.fiberId.pipe(
-      Effect.flatMap((fiberId) =>
-        Effect.sync((): SessionAcquisitionState => {
-          if (this.session) {
-            return { _tag: "session", session: this.session };
-          }
-          if (this.sessionDeferred) {
-            return { _tag: "pending", pending: this.sessionDeferred };
-          }
-          const pending = Deferred.unsafeMake<EngineSession, EngineClientFailure>(fiberId);
-          this.sessionDeferred = pending;
-          return { _tag: "acquire", pending };
-        }),
-      ),
+    return Effect.sync((): SessionAcquisitionState => {
+      if (this.session) {
+        return { _tag: "session", session: this.session };
+      }
+      if (this.sessionDeferred) {
+        return { _tag: "pending", pending: this.sessionDeferred };
+      }
+      const pending = Deferred.makeUnsafe<EngineSession, EngineClientFailure>();
+      this.sessionDeferred = pending;
+      return { _tag: "acquire", pending };
+    }).pipe(
       Effect.flatMap((state) => {
         switch (state._tag) {
           case "session":
@@ -1454,10 +1453,9 @@ export class EngineClient {
           case "pending":
             return Deferred.await(state.pending);
           case "acquire":
-            return Effect.zipRight(
-              Effect.forkDaemon(
-                this.acquireAndStoreSessionEffect().pipe(
-                  Effect.intoDeferred(state.pending),
+            return Effect.andThen(
+              Effect.forkDetach(
+                Deferred.complete(state.pending, this.acquireAndStoreSessionEffect()).pipe(
                   Effect.ensuring(
                     Effect.sync(() => {
                       if (this.sessionDeferred === state.pending) {
@@ -1475,9 +1473,9 @@ export class EngineClient {
   }
 
   private acquireAndStoreSessionEffect(): Effect.Effect<EngineSession, EngineClientFailure> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const scope = yield* Scope.make();
-      const acquisition = yield* Effect.exit(Scope.extend(this.acquireSessionEffect(), scope));
+      const acquisition = yield* Effect.exit(Scope.provide(this.acquireSessionEffect(), scope));
       if (Exit.isFailure(acquisition)) {
         yield* this.closeSessionScopeEffect(scope, acquisition);
         return yield* Effect.failCause(acquisition.cause);
@@ -1505,7 +1503,7 @@ export class EngineClient {
   }
 
   private acquireSessionEffect(): Effect.Effect<EngineSession, EngineClientFailure, Scope.Scope> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       yield* Effect.sync(() => {
         this.throwIfRestartCircuitOpen();
       });
@@ -1562,7 +1560,7 @@ export class EngineClient {
     );
   }
 
-  private detachSessionScope(expectedSession?: EngineSession): Scope.CloseableScope | null {
+  private detachSessionScope(expectedSession?: EngineSession): Scope.Closeable | null {
     if (expectedSession && this.session !== expectedSession) {
       return null;
     }
@@ -1573,7 +1571,7 @@ export class EngineClient {
   }
 
   private waitForSessionCloseEffect(
-    scope: Scope.CloseableScope | null,
+    scope: Scope.Closeable | null,
     exit: Exit.Exit<unknown, unknown>,
     session: EngineSession | null,
     options: SessionCloseOptions,
@@ -1588,7 +1586,7 @@ export class EngineClient {
     }
 
     return this.closeSessionScopeEffect(scope, exit).pipe(
-      Effect.zipRight(this.waitForProcessExitEffect(session, options.maxWaitMs)),
+      Effect.andThen(this.waitForProcessExitEffect(session, options.maxWaitMs)),
       Effect.flatMap((exitedCleanly) => {
         if (exitedCleanly) {
           return Effect.void;
@@ -1596,7 +1594,7 @@ export class EngineClient {
         return this.logScopeWarningEffect(
           `Engine session shutdown exceeded ${options.maxWaitMs}ms during ${options.reason}; sending SIGKILL.`,
         ).pipe(
-          Effect.zipRight(
+          Effect.andThen(
             Effect.try({
               try: () => session.process.kill("SIGKILL"),
               catch: (cause) =>
@@ -1608,16 +1606,16 @@ export class EngineClient {
                   ),
                 }),
             }).pipe(
-              Effect.catchAll((error) =>
+              Effect.catch((error) =>
                 this.logScopeWarningEffect("Failed to force-kill engine process cleanly", error),
               ),
             ),
           ),
-          Effect.zipRight(
+          Effect.andThen(
             Effect.raceFirst(
               Effect.tryPromise(() => session.process.exited).pipe(
                 Effect.asVoid,
-                Effect.catchAll(() => Effect.void),
+                Effect.catch(() => Effect.void),
               ),
               Effect.sleep(`${forcedShutdownDrainMs} millis`),
             ),
@@ -1634,28 +1632,28 @@ export class EngineClient {
     return Effect.raceFirst(
       Effect.tryPromise(() => session.process.exited).pipe(
         Effect.as(true),
-        Effect.catchAll(() => Effect.succeed(true)),
+        Effect.catch(() => Effect.succeed(true)),
       ),
       Effect.sleep(`${Math.max(1, Math.round(waitMs))} millis`).pipe(Effect.as(false)),
     );
   }
 
   private closeSessionScopeEffect(
-    scope: Scope.CloseableScope | null,
+    scope: Scope.Closeable | null,
     exit: Exit.Exit<unknown, unknown>,
   ): Effect.Effect<void, never> {
     if (!scope) {
       return Effect.void;
     }
     return Scope.close(scope, exit).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         this.logScopeWarningEffect("Failed to close engine session scope cleanly", error),
       ),
     );
   }
 
   private releaseSessionEffect(session: EngineSession): Effect.Effect<void, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       yield* Effect.sync(() => {
         if (this.session === session) {
           this.session = null;
@@ -1670,7 +1668,7 @@ export class EngineClient {
             description: messageFromUnknownError(cause, "Failed to close engine stdin cleanly."),
           }),
       }).pipe(
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           this.logScopeWarningEffect("Failed to close engine stdin cleanly", error),
         ),
       );
@@ -1683,7 +1681,7 @@ export class EngineClient {
             description: messageFromUnknownError(cause, "Failed to kill engine process cleanly."),
           }),
       }).pipe(
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           this.logScopeWarningEffect("Failed to kill engine process cleanly", error),
         ),
       );

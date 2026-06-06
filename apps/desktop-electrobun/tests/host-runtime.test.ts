@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Effect, Fiber, Layer, TestClock, TestContext } from "effect";
+import { Clock, Effect, Fiber, Layer } from "effect";
+import { TestClock } from "effect/testing";
 import { EngineOperationError } from "@shared/errors";
 import { EngineTransport } from "../src/bun/engine/service";
 import { MediaSourceService } from "../src/bun/media/service";
@@ -46,7 +47,7 @@ describe("host runtime capture status stream", () => {
     const testProgram = Effect.scoped(
       Effect.gen(function* () {
         const fiber = yield* Effect.forkScoped(makeCaptureStatusStreamEffect());
-        yield* Effect.yieldNow();
+        yield* Effect.yieldNow;
 
         expect(polledAt).toEqual([0]);
 
@@ -67,9 +68,9 @@ describe("host runtime capture status stream", () => {
     ).pipe(
       Effect.provide(
         Layer.mergeAll(
-          TestContext.TestContext,
+          TestClock.layer(),
           Layer.succeed(EngineTransport, {
-            captureStatus: Effect.flatMap(TestClock.currentTimeMillis, (now) =>
+            captureStatus: Effect.flatMap(Clock.currentTimeMillis, (now) =>
               Effect.sync(() => {
                 polledAt.push(now);
                 callCount += 1;
@@ -90,7 +91,7 @@ describe("host runtime capture status stream", () => {
       ),
     );
 
-    await Effect.runPromise(testProgram);
+    await Effect.runPromise(testProgram as Effect.Effect<void, unknown, never>);
   });
 
   test("backs off to one second after capture status failures", async () => {
@@ -100,7 +101,7 @@ describe("host runtime capture status stream", () => {
     const testProgram = Effect.scoped(
       Effect.gen(function* () {
         const fiber = yield* Effect.forkScoped(makeCaptureStatusStreamEffect());
-        yield* Effect.yieldNow();
+        yield* Effect.yieldNow;
 
         expect(attemptedAt).toEqual([0]);
 
@@ -115,9 +116,9 @@ describe("host runtime capture status stream", () => {
     ).pipe(
       Effect.provide(
         Layer.mergeAll(
-          TestContext.TestContext,
+          TestClock.layer(),
           Layer.succeed(EngineTransport, {
-            captureStatus: Effect.flatMap(TestClock.currentTimeMillis, (now) =>
+            captureStatus: Effect.flatMap(Clock.currentTimeMillis, (now) =>
               Effect.suspend(() => {
                 attemptedAt.push(now);
                 callCount += 1;
@@ -140,7 +141,7 @@ describe("host runtime capture status stream", () => {
       ),
     );
 
-    await Effect.runPromise(testProgram);
+    await Effect.runPromise(testProgram as Effect.Effect<void, unknown, never>);
   });
 
   test("stops polling once the runtime is disposed", async () => {
@@ -149,7 +150,7 @@ describe("host runtime capture status stream", () => {
     const testProgram = Effect.scoped(
       Effect.gen(function* () {
         const fiber = yield* Effect.forkScoped(makeCaptureStatusStreamEffect());
-        yield* Effect.yieldNow();
+        yield* Effect.yieldNow;
         expect(polledAt).toEqual([0]);
 
         yield* TestClock.adjust("250 millis");
@@ -163,9 +164,9 @@ describe("host runtime capture status stream", () => {
     ).pipe(
       Effect.provide(
         Layer.mergeAll(
-          TestContext.TestContext,
+          TestClock.layer(),
           Layer.succeed(EngineTransport, {
-            captureStatus: Effect.flatMap(TestClock.currentTimeMillis, (now) =>
+            captureStatus: Effect.flatMap(Clock.currentTimeMillis, (now) =>
               Effect.sync(() => {
                 polledAt.push(now);
                 return makeCaptureStatus({ isRunning: true, isRecording: true });
@@ -179,7 +180,7 @@ describe("host runtime capture status stream", () => {
       ),
     );
 
-    await Effect.runPromise(testProgram);
+    await Effect.runPromise(testProgram as Effect.Effect<void, unknown, never>);
   });
 
   test("shares one engine transport acquisition with the capture status worker", async () => {
@@ -188,7 +189,7 @@ describe("host runtime capture status stream", () => {
 
     const runtime = await createHostRuntime({
       sendCaptureStatus: () => {},
-      engineTransportLayer: Layer.scoped(
+      engineTransportLayer: Layer.effect(
         EngineTransport,
         Effect.acquireRelease(
           Effect.sync(() => {

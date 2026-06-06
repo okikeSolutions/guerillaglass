@@ -255,10 +255,9 @@ type EngineClientLike = {
 };
 
 /** Effect service tag for engine operations used by the Bun host. */
-export class EngineTransport extends Context.Tag("@guerillaglass/desktop/EngineTransport")<
-  EngineTransport,
-  EngineTransportService
->() {}
+export class EngineTransport extends Context.Service<EngineTransport, EngineTransportService>()(
+  "@guerillaglass/desktop/EngineTransport",
+) {}
 
 function isEngineTransportError(error: unknown): error is EngineTransportError {
   return (
@@ -321,7 +320,7 @@ function stopClientEffect(client: EngineClientLike): Effect.Effect<void, never> 
     return Effect.void;
   }
   const stop = client.stop;
-  return Effect.catchAll(
+  return Effect.catch(
     Effect.tryPromise({
       try: () => stop(),
       catch: (error) => normalizeEngineLifecycleError("stop", error),
@@ -536,7 +535,7 @@ export function makeEngineTransport(client: EngineClientLike): EngineTransportSe
 /** Builds the scoped live engine transport layer and owns client startup and shutdown. */
 export function makeEngineTransportLive(options?: { createClient?: () => EngineClientLike }) {
   const createClient = options?.createClient ?? (() => new EngineClient());
-  return Layer.scoped(
+  return Layer.effect(
     EngineTransport,
     Effect.acquireRelease(Effect.sync(createClient).pipe(Effect.tap(startClientEffect)), (client) =>
       stopClientEffect(client),

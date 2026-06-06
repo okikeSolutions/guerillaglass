@@ -1,4 +1,3 @@
-import { ParseResult } from "effect";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
@@ -276,8 +275,7 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       return new ContractDecodeError({
         contract: readSerializedBridgeString(serialized, "contract", "bridge contract"),
         issues: readSerializedBridgeIssues(serialized),
-        cause: (cause ??
-          new Error(serialized.message ?? "Invalid bridge payload.")) as ParseResult.ParseError,
+        cause: cause ?? new Error(serialized.message ?? "Invalid bridge payload."),
       });
     case "EngineRequestValidationError":
       return new EngineRequestValidationError({

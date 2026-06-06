@@ -163,18 +163,8 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
   level: Schema.NonEmptyString,
   message: Schema.NonEmptyString,
   timestamp: isoDateTimeSchema,
-  annotations: Schema.optional(
-    Schema.Record({
-      key: Schema.String,
-      value: studioDiagnosticsValueSchema,
-    }),
-  ),
-  spans: Schema.optional(
-    Schema.Record({
-      key: Schema.String,
-      value: Schema.Number,
-    }),
-  ),
+  annotations: Schema.optional(Schema.Record(Schema.String, studioDiagnosticsValueSchema)),
+  spans: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
 });
 const nonNegativeIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(0));
 const nonNegativeNumberSchema = Schema.Number.pipe(greaterThanOrEqualTo(0));

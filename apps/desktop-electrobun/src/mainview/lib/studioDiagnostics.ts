@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Effect, Layer, LogLevel, Logger, Metric } from "effect";
+import { Effect, Metric } from "effect";
 import { sendHostStudioDiagnostics } from "./engine";
 import type { StudioDiagnosticsEntry } from "@shared/bridge";
 import {
@@ -10,10 +10,10 @@ import {
 type DiagnosticsAnnotations = Record<string, StudioDiagnosticsValue>;
 
 type DiagnosticsLogOptions = {
-  readonly logLevel: { readonly label: string };
+  readonly level: StudioDiagnosticsEntry["level"];
   readonly message: unknown;
-  readonly annotations: Iterable<readonly [string, unknown]>;
-  readonly spans: Iterable<{ readonly label: string; readonly startTime: number }>;
+  readonly annotations?: DiagnosticsAnnotations | undefined;
+  readonly spans?: Record<string, number> | undefined;
   readonly date: Date;
 };
 
@@ -49,14 +49,6 @@ const playbackIntervalAvgGauge = Metric.gauge("gg_renderer_playback_interval_avg
 const playbackIntervalMaxGauge = Metric.gauge("gg_renderer_playback_interval_max_ms", {
   description: "Maximum playback sync interval observed in the last diagnostics window.",
 });
-
-const diagnosticsLoggerLayer = Layer.mergeAll(
-  Logger.replace(
-    Logger.defaultLogger,
-    Logger.make((options) => emitDiagnosticsLog(options)),
-  ),
-  Logger.minimumLogLevel(LogLevel.Debug),
-);
 
 let diagnosticsHeartbeatStarted = false;
 let diagnosticsHeartbeatHandle: number | null = null;
@@ -120,58 +112,20 @@ function formatDiagnosticsValue(value: unknown): string {
   }
 }
 
-function normalizeDiagnosticsValue(value: unknown): StudioDiagnosticsValue | undefined {
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return value;
-  }
-  if (value === null) {
-    return null;
-  }
-  return undefined;
-}
-
-function normalizeDiagnosticsAnnotations(
-  annotations: DiagnosticsLogOptions["annotations"],
-): Record<string, StudioDiagnosticsValue> | undefined {
-  const normalized = Object.fromEntries(
-    Array.from(annotations)
-      .map(([key, value]) => {
-        const next = normalizeDiagnosticsValue(value);
-        return next === undefined ? null : ([key, next] as const);
-      })
-      .filter((entry): entry is readonly [string, StudioDiagnosticsValue] => entry !== null),
-  );
-  return Object.keys(normalized).length > 0 ? normalized : undefined;
-}
-
-function normalizeDiagnosticsSpans(
-  options: DiagnosticsLogOptions,
-): Record<string, number> | undefined {
-  const spans = Object.fromEntries(
-    Array.from(options.spans).map((span) => [
-      span.label,
-      Math.max(0, Math.round((options.date.getTime() - span.startTime) * 100) / 100),
-    ]),
-  );
-  return Object.keys(spans).length > 0 ? spans : undefined;
-}
-
 function emitDiagnosticsLog(options: DiagnosticsLogOptions): void {
   const entry: StudioDiagnosticsEntry = {
     source: "renderer",
-    level: options.logLevel.label as StudioDiagnosticsEntry["level"],
+    level: options.level,
     message: formatDiagnosticsMessage(options.message),
     timestamp: options.date.toISOString(),
   };
 
-  const annotations = normalizeDiagnosticsAnnotations(options.annotations);
-  if (annotations) {
-    entry.annotations = annotations;
+  if (options.annotations && Object.keys(options.annotations).length > 0) {
+    entry.annotations = options.annotations;
   }
 
-  const spans = normalizeDiagnosticsSpans(options);
-  if (spans) {
-    entry.spans = spans;
+  if (options.spans && Object.keys(options.spans).length > 0) {
+    entry.spans = options.spans;
   }
 
   if (typeof window === "undefined") {
@@ -190,7 +144,7 @@ function runDiagnosticsEffect(effect: Effect.Effect<void, never, never>): void {
   if (!diagnosticsEnabled()) {
     return;
   }
-  Effect.runFork(effect.pipe(Effect.provide(diagnosticsLoggerLayer)));
+  Effect.runFork(effect);
 }
 
 function roundToHundredths(value: number): number {
@@ -246,14 +200,24 @@ function flushStudioDiagnosticsWindow(): void {
     return;
   }
 
+  emitDiagnosticsLog({
+    level: "Info",
+    message: annotations.playbackTicks
+      ? "renderer playback diagnostics window"
+      : "renderer render diagnostics window",
+    annotations,
+    spans: { "studioDiagnostics.flush": roundToHundredths(windowDurationMs) },
+    date: new Date(),
+  });
+
   runDiagnosticsEffect(
     Effect.gen(function* () {
-      yield* Metric.incrementBy(playbackTickCounter, annotations.playbackTicks as number);
-      yield* Metric.incrementBy(renderCommitCounter, totalRenderCommits);
-      yield* Metric.set(playbackTickRateGauge, annotations.playbackTickRate as number);
-      yield* Metric.set(renderCommitRateGauge, annotations.renderCommitRate as number);
-      yield* Metric.set(playbackIntervalAvgGauge, annotations.playbackIntervalAvgMs as number);
-      yield* Metric.set(playbackIntervalMaxGauge, annotations.playbackIntervalMaxMs as number);
+      yield* Metric.update(playbackTickCounter, annotations.playbackTicks as number);
+      yield* Metric.update(renderCommitCounter, totalRenderCommits);
+      yield* Metric.update(playbackTickRateGauge, annotations.playbackTickRate as number);
+      yield* Metric.update(renderCommitRateGauge, annotations.renderCommitRate as number);
+      yield* Metric.update(playbackIntervalAvgGauge, annotations.playbackIntervalAvgMs as number);
+      yield* Metric.update(playbackIntervalMaxGauge, annotations.playbackIntervalMaxMs as number);
       yield* Effect.logInfo(
         annotations.playbackTicks
           ? "renderer playback diagnostics window"
@@ -273,14 +237,15 @@ function ensureStudioDiagnosticsSession(): void {
     flushStudioDiagnosticsWindow();
   }, 1000);
 
-  runDiagnosticsEffect(
-    Effect.logInfo("renderer diagnostics enabled").pipe(
-      Effect.annotateLogs({
-        search: window.location.search,
-      }),
-      Effect.withLogSpan("studioDiagnostics.start"),
-    ),
-  );
+  emitDiagnosticsLog({
+    level: "Info",
+    message: "renderer diagnostics enabled",
+    annotations: { search: window.location.search },
+    spans: { "studioDiagnostics.start": 0 },
+    date: new Date(),
+  });
+
+  runDiagnosticsEffect(Effect.logInfo("renderer diagnostics enabled"));
 }
 
 export function useStudioDiagnosticsSession(): void {

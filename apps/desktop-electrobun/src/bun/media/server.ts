@@ -229,7 +229,7 @@ export class MediaServer {
 
   private handleServerErrorEffect(error: Error): Effect.Effect<Response, never> {
     return Effect.logWarning("Media server request failed", error).pipe(
-      Effect.zipRight(Effect.succeed(this.response(500, "Internal server error"))),
+      Effect.andThen(Effect.succeed(this.response(500, "Internal server error"))),
     );
   }
 
@@ -261,7 +261,7 @@ export class MediaServer {
   private bindReservedServerEffect(
     host: string,
   ): Effect.Effect<StartedMediaServer, MediaServerError> {
-    return Effect.catchAll(reserveLoopbackPortEffect(host), () => Effect.sync(randomLoopbackPort))
+    return Effect.catch(reserveLoopbackPortEffect(host), () => Effect.sync(randomLoopbackPort))
       .pipe(Effect.flatMap((port) => this.startServerEffect(host, port)))
       .pipe(
         Effect.retry({
@@ -278,7 +278,7 @@ export class MediaServer {
       }
 
       const host = "127.0.0.1";
-      return Effect.catchAll(this.startServerEffect(host, 0), (error) => {
+      return Effect.catch(this.startServerEffect(host, 0), (error) => {
         if (!isUnsupportedPortZeroError(error) && !isAddressInUse(error)) {
           return Effect.fail(error);
         }
@@ -371,7 +371,7 @@ export class MediaServer {
     token: string,
     entry: PreviewTokenEntry,
   ): Effect.Effect<Response, MediaServerError> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const frame = yield* Effect.tryPromise({
         try: () => entry.loadPreviewFrame(),
         catch: (cause) =>
@@ -419,7 +419,7 @@ export class MediaServer {
     token: string,
     entry: MediaTokenEntry,
   ): Effect.Effect<Response, MediaServerError> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const file = Bun.file(entry.filePath);
       const exists = yield* Effect.tryPromise({
         try: () => file.exists(),
@@ -484,7 +484,7 @@ export class MediaServer {
   }
 
   private handleRequestEffect(request: Request): Effect.Effect<Response, never> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return this.response(405, "Method not allowed", { allow: "GET, HEAD" });
       }
@@ -531,9 +531,9 @@ export class MediaServer {
 
       return yield* this.handleFileRequestEffect(request, token, entry);
     }).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Effect.logWarning("Media server request failed", error).pipe(
-          Effect.zipRight(Effect.succeed(this.response(500, "Internal server error"))),
+          Effect.andThen(Effect.succeed(this.response(500, "Internal server error"))),
         ),
       ),
     );

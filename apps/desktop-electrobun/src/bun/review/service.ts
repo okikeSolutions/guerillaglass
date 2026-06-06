@@ -59,10 +59,9 @@ type ReviewGatewayDependencies = {
 };
 
 /** Effect service tag for Convex-backed review operations used by the Bun host. */
-export class ReviewGateway extends Context.Tag("@guerillaglass/desktop/ReviewGateway")<
-  ReviewGateway,
-  ReviewGatewayService
->() {}
+export class ReviewGateway extends Context.Service<ReviewGateway, ReviewGatewayService>()(
+  "@guerillaglass/desktop/ReviewGateway",
+) {}
 
 function resolveReviewConvexUrl(
   resolveConvexUrl?: () => string | undefined,
