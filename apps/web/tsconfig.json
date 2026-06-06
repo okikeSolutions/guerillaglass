@@ -9,6 +9,14 @@
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": true,
+        "ignoreEffectSuggestionsInTscExitCode": true
+      }
+    ],
 
     /* Bundler mode */
     "moduleResolution": "bundler",

@@ -49,9 +49,11 @@
     "coverage:rust": "./Scripts/rust_coverage.sh",
     "coverage:swift": "./Scripts/swift_coverage.sh",
     "coverage:check": "./Scripts/coverage_check.sh",
-    "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml"
+    "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml",
+    "prepare": "effect-language-service patch"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.86.2",
     "@nkzw/eslint-plugin": "^2.0.0",
     "@nkzw/oxlint-config": "^1.2.1",
     "eslint-plugin-no-only-tests": "^3.4.0",
