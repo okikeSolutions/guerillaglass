@@ -146,7 +146,7 @@ extension EngineService {
         recordingURL: URL,
         timeline: TimelineDocument?
     ) async throws -> AVAsset {
-        guard let timeline, !timeline.segments.isEmpty else {
+        guard let timeline, !timeline.items.isEmpty else {
             return AVAsset(url: recordingURL)
         }
 
@@ -176,31 +176,43 @@ extension EngineService {
         }
 
         var insertTime = CMTime.zero
-        for segment in timeline.segments {
-            let start = segment.sourceStartSeconds
-            let end = segment.sourceEndSeconds
-            guard end > start else {
-                continue
-            }
-            let timeRange = CMTimeRange(
-                start: CMTime(seconds: start, preferredTimescale: 600),
-                duration: CMTime(seconds: end - start, preferredTimescale: 600)
-            )
-            try compositionVideoTrack.insertTimeRange(
-                timeRange,
-                of: sourceVideoTrack,
-                at: insertTime
-            )
-            if let sourceAudioTrack,
-               let compositionAudioTrack
-            {
-                try compositionAudioTrack.insertTimeRange(
+        for item in timeline.items {
+            switch item {
+            case let .clip(clip):
+                let start = clip.sourceStartSeconds
+                let end = clip.sourceEndSeconds
+                guard end > start else {
+                    continue
+                }
+                let timeRange = CMTimeRange(
+                    start: CMTime(seconds: start, preferredTimescale: 600),
+                    duration: CMTime(seconds: end - start, preferredTimescale: 600)
+                )
+                try compositionVideoTrack.insertTimeRange(
                     timeRange,
-                    of: sourceAudioTrack,
+                    of: sourceVideoTrack,
                     at: insertTime
                 )
+                if let sourceAudioTrack,
+                   let compositionAudioTrack
+                {
+                    try compositionAudioTrack.insertTimeRange(
+                        timeRange,
+                        of: sourceAudioTrack,
+                        at: insertTime
+                    )
+                }
+                insertTime = CMTimeAdd(insertTime, timeRange.duration)
+            case let .gap(gap):
+                let duration = CMTime(seconds: max(0, gap.durationSeconds), preferredTimescale: 600)
+                guard duration.seconds > 0 else {
+                    continue
+                }
+                composition.insertEmptyTimeRange(
+                    CMTimeRange(start: insertTime, duration: duration)
+                )
+                insertTime = CMTimeAdd(insertTime, duration)
             }
-            insertTime = CMTimeAdd(insertTime, timeRange.duration)
         }
 
         return composition

@@ -98,18 +98,34 @@ export const inputEventLogSchema = Schema.Struct({
   events: Schema.Array(inputEventSchema),
 });
 
-/** Linked A/V segment persisted in project timeline state. */
-export const timelineSegmentSchema = Schema.Struct({
-  id: timelineSegmentIdSchema,
+const timelineItemIdSchema = timelineSegmentIdSchema;
+
+/** Linked A/V clip item persisted in project timeline state. */
+export const timelineClipItemSchema = Schema.Struct({
+  kind: Schema.Literal("clip"),
+  id: timelineItemIdSchema,
   sourceAssetId: Schema.Literal("recording"),
   sourceStartSeconds: NonNegativeNumber,
   sourceEndSeconds: NonNegativeNumber,
 });
 
+/** Explicit timeline gap item used for non-ripple editing operations. */
+export const timelineGapItemSchema = Schema.Struct({
+  kind: Schema.Literal("gap"),
+  id: timelineItemIdSchema,
+  durationSeconds: NonNegativeNumber,
+});
+
+/** Timeline item persisted by the editor and engine. */
+export const timelineItemSchema = Schema.Union(timelineClipItemSchema, timelineGapItemSchema);
+
+/** Legacy alias retained while the editor moves from segments to timeline items. */
+export const timelineSegmentSchema = timelineClipItemSchema;
+
 /** Project timeline document persisted by the editor and engine. */
 export const timelineDocumentSchema = Schema.Struct({
-  version: Schema.Literal(1),
-  segments: Schema.Array(timelineSegmentSchema),
+  version: Schema.Literal(2),
+  items: Schema.Array(timelineItemSchema),
 });
 
 /** Result payload for `system.ping`. */
@@ -458,8 +474,8 @@ export const projectStateSchema = Schema.Struct({
   autoZoom: autoZoomSettingsSchema,
   timeline: Schema.optionalWith(timelineDocumentSchema, {
     default: () => ({
-      version: 1 as const,
-      segments: [],
+      version: 2 as const,
+      items: [],
     }),
   }),
   captureMetadata: captureMetadataSchema,
@@ -847,6 +863,12 @@ export type CapturePreviewFrame = MutableSchemaType<typeof capturePreviewFrameSc
 export type CaptureStatusResult = MutableSchemaType<typeof captureStatusResultSchema>;
 /** Type alias for CapturePreviewFrameResult. */
 export type CapturePreviewFrameResult = MutableSchemaType<typeof capturePreviewFrameResultSchema>;
+/** Type alias for TimelineClipItem. */
+export type TimelineClipItem = MutableSchemaType<typeof timelineClipItemSchema>;
+/** Type alias for TimelineGapItem. */
+export type TimelineGapItem = MutableSchemaType<typeof timelineGapItemSchema>;
+/** Type alias for TimelineItem. */
+export type TimelineItem = MutableSchemaType<typeof timelineItemSchema>;
 /** Type alias for TimelineSegment. */
 export type TimelineSegment = MutableSchemaType<typeof timelineSegmentSchema>;
 /** Type alias for TimelineDocument. */

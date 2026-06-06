@@ -152,6 +152,7 @@ Editing depth checklist:
 - [x] Elevate display capture to a first-class primary record affordance alongside current-window capture.
 - [x] Replace the synthetic single-clip timeline model with a real clip/segment data model.
 - [ ] Implement clip split/delete/lift/move operations and make the ripple toggle behavior real.
+- Implementation design reference: `docs/TIMELINE_EDITING_DESIGN.md`
 - [ ] Add per-segment camera/zoom editing with manual keyframe override.
 - [ ] Add crop/reframe/redaction/highlight tools for demo-focused editing.
 - [ ] Add transcript import plus caption editing/export baseline.

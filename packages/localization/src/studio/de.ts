@@ -280,6 +280,12 @@ export const deDE: StudioMessages = {
     actions: {
       setTrimInToClipStart: "Trim In auf Clip-Anfang setzen",
       setTrimOutToClipEnd: "Trim Out auf Clip-Ende setzen",
+      splitClipAtPlayhead: "Am Abspielkopf teilen",
+      liftClip: "Clip anheben",
+      moveClipEarlier: "Früher verschieben",
+      moveClipLater: "Später verschieben",
+      deleteClip: (rippleEnabled: boolean) =>
+        rippleEnabled ? "Clip löschen (Ripple)" : "Clip löschen",
       jumpPlayheadToMarker: "Abspielkopf zum Marker springen",
     },
   },

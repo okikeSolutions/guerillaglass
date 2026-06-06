@@ -121,9 +121,10 @@ describe("engine protocol", () => {
         minimumKeyframeInterval: 1 / 30,
       },
       timeline: {
-        version: 1,
-        segments: [
+        version: 2,
+        items: [
           {
+            kind: "clip",
             id: "segment-0",
             sourceAssetId: "recording",
             sourceStartSeconds: 0,
@@ -353,7 +354,7 @@ describe("engine protocol", () => {
     expect(projectState.lastRecordingTelemetry?.achievedFps).toBe(28.7);
     expect(exportInfo.presets.length).toBe(1);
     expect(projectState.projectPath).toContain("project.gglassproj");
-    expect(projectState.timeline.segments).toEqual([]);
+    expect(projectState.timeline.items).toEqual([]);
     expect(String(projectState.agentAnalysis.latestJobId)).toBe("job-123");
     expect(blockedAgentStatus.blockingReason).toBe("weak_narrative_structure");
     expect(recents.items[0]?.displayName).toBe("project");
@@ -393,9 +394,10 @@ describe("engine protocol", () => {
       outputURL: "/tmp/out.mp4",
       presetId: "h264-1080p-30",
       timeline: {
-        version: 1,
-        segments: [
+        version: 2,
+        items: [
           {
+            kind: "clip",
             id: "segment-a",
             sourceAssetId: "recording",
             sourceStartSeconds: 1,

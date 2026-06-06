@@ -87,15 +87,17 @@ describe("timeline model", () => {
 
   test("compiles timeline segments into program ranges and remaps events", () => {
     const timeline = {
-      version: 1 as const,
-      segments: [
+      version: 2 as const,
+      items: [
         {
+          kind: "clip" as const,
           id: "segment-a",
           sourceAssetId: "recording" as const,
           sourceStartSeconds: 2,
           sourceEndSeconds: 4,
         },
         {
+          kind: "clip" as const,
           id: "segment-b",
           sourceAssetId: "recording" as const,
           sourceStartSeconds: 6,

@@ -35,16 +35,22 @@ public enum ProjectMigration {
         case 1:
             let v3Data = try migrateV1ToV3(data, decoder: decoder)
             let v4Data = try migrateV3ToV4(v3Data, decoder: decoder)
-            return try migrateV4ToV5(v4Data, decoder: decoder)
+            let v5Data = try migrateV4ToV5(v4Data, decoder: decoder)
+            return try migrateV5ToV6(v5Data, decoder: decoder)
         case 2:
             let v3Data = try migrateV2ToV3(data, decoder: decoder)
             let v4Data = try migrateV3ToV4(v3Data, decoder: decoder)
-            return try migrateV4ToV5(v4Data, decoder: decoder)
+            let v5Data = try migrateV4ToV5(v4Data, decoder: decoder)
+            return try migrateV5ToV6(v5Data, decoder: decoder)
         case 3:
             let v4Data = try migrateV3ToV4(data, decoder: decoder)
-            return try migrateV4ToV5(v4Data, decoder: decoder)
+            let v5Data = try migrateV4ToV5(v4Data, decoder: decoder)
+            return try migrateV5ToV6(v5Data, decoder: decoder)
         case 4:
-            return try migrateV4ToV5(data, decoder: decoder)
+            let v5Data = try migrateV4ToV5(data, decoder: decoder)
+            return try migrateV5ToV6(v5Data, decoder: decoder)
+        case 5:
+            return try migrateV5ToV6(data, decoder: decoder)
         case ProjectSchemaVersion.current:
             return data
         default:
@@ -92,10 +98,17 @@ public enum ProjectMigration {
 
     private static func migrateV4ToV5(_ data: Data, decoder: JSONDecoder) throws -> Data {
         var document = try decoder.decode(ProjectDocument.self, from: data)
-        document.projectVersion = ProjectSchemaVersion.current
-        if document.project.timeline.segments.isEmpty {
+        document.projectVersion = 5
+        if document.project.timeline.items.isEmpty {
             document.project.timeline = TimelineDocument()
         }
+        let encoder = ProjectStore.makeDefaultEncoder()
+        return try encoder.encode(document)
+    }
+
+    private static func migrateV5ToV6(_ data: Data, decoder: JSONDecoder) throws -> Data {
+        var document = try decoder.decode(ProjectDocument.self, from: data)
+        document.projectVersion = ProjectSchemaVersion.current
         let encoder = ProjectStore.makeDefaultEncoder()
         return try encoder.encode(document)
     }

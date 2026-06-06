@@ -259,6 +259,7 @@ export function TimelineDock() {
               onSetTrimStartSeconds={trimEnabled ? studio.setTrimStartSeconds : undefined}
               onSetTrimEndSeconds={trimEnabled ? studio.setTrimEndSeconds : undefined}
               onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
+              onBladeClipAtSeconds={studio.splitTimelineClipAtSeconds}
               onToggleLaneLocked={(laneId) => studio.toggleLaneControl(laneId, "locked")}
               onToggleLaneMuted={(laneId) => studio.toggleLaneControl(laneId, "muted")}
               onToggleLaneSolo={(laneId) => studio.toggleLaneControl(laneId, "solo")}

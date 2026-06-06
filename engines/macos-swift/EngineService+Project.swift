@@ -23,7 +23,7 @@ extension EngineService {
             let recordingURL = projectStore.resolveRecordingURL(for: savedProject)
             if FileManager.default.fileExists(atPath: recordingURL.path) {
                 captureEngine.loadRecording(from: recordingURL)
-                if currentProjectDocument.project.timeline.segments.isEmpty {
+                if currentProjectDocument.project.timeline.items.isEmpty {
                     let recordingDuration = bestEffortRecordingDuration(for: recordingURL)
                     currentProjectDocument.project.timeline = TimelineDocument.singleSegment(
                         recordingDuration: recordingDuration
@@ -171,19 +171,27 @@ extension EngineService {
 
     func parseTimelineDocument(from value: JSONValue?) -> TimelineDocument? {
         guard let object = value?.objectValue else { return nil }
-        guard case let .array(segmentsValue)? = object["segments"] else {
-            return nil
-        }
         guard let version = object["version"]?.doubleValue else {
             return nil
         }
 
-        let segments = segmentsValue.compactMap(parseTimelineSegment)
-        guard segments.count == segmentsValue.count else {
-            return nil
+        if case let .array(itemsValue)? = object["items"] {
+            let items = itemsValue.compactMap(parseTimelineItem)
+            guard items.count == itemsValue.count else {
+                return nil
+            }
+            return TimelineDocument(version: Int(version), items: items)
         }
 
-        return TimelineDocument(version: Int(version), segments: segments)
+        if case let .array(segmentsValue)? = object["segments"] {
+            let items = segmentsValue.compactMap(parseTimelineSegment).map(TimelineItem.clip)
+            guard items.count == segmentsValue.count else {
+                return nil
+            }
+            return TimelineDocument(version: Int(version), items: items)
+        }
+
+        return nil
     }
 
     func sourceURLForWrite(sourceURL: URL?, destinationDirectory: URL, expectedFileName: String) -> URL? {
@@ -266,31 +274,68 @@ extension EngineService {
     func timelineDocumentJSON(from document: TimelineDocument) -> JSONValue {
         .object([
             "version": .number(Double(document.version)),
-            "segments": .array(document.segments.map(timelineSegmentJSON))
+            "items": .array(document.items.map(timelineItemJSON))
         ])
     }
 
-    func timelineSegmentJSON(from segment: TimelineSegment) -> JSONValue {
-        .object([
-            "id": .string(segment.id),
-            "sourceAssetId": .string(segment.sourceAssetId.rawValue),
-            "sourceStartSeconds": .number(segment.sourceStartSeconds),
-            "sourceEndSeconds": .number(segment.sourceEndSeconds)
-        ])
+    func timelineItemJSON(from item: TimelineItem) -> JSONValue {
+        switch item {
+        case let .clip(clip):
+            .object([
+                "kind": .string("clip"),
+                "id": .string(clip.id),
+                "sourceAssetId": .string(clip.sourceAssetId.rawValue),
+                "sourceStartSeconds": .number(clip.sourceStartSeconds),
+                "sourceEndSeconds": .number(clip.sourceEndSeconds)
+            ])
+        case let .gap(gap):
+            .object([
+                "kind": .string("gap"),
+                "id": .string(gap.id),
+                "durationSeconds": .number(gap.durationSeconds)
+            ])
+        }
     }
 
-    func parseTimelineSegment(from value: JSONValue) -> TimelineSegment? {
+    func parseTimelineItem(from value: JSONValue) -> TimelineItem? {
+        guard let object = value.objectValue,
+              let kind = object["kind"]?.stringValue
+        else {
+            return nil
+        }
+
+        switch kind {
+        case "clip":
+            return parseTimelineSegment(from: value).map(TimelineItem.clip)
+        case "gap":
+            guard let id = object["id"]?.stringValue,
+                  let durationSeconds = object["durationSeconds"]?.doubleValue
+            else {
+                return nil
+            }
+            return .gap(
+                TimelineGap(
+                    id: id,
+                    durationSeconds: durationSeconds
+                )
+            )
+        default:
+            return nil
+        }
+    }
+
+    func parseTimelineSegment(from value: JSONValue) -> TimelineClip? {
         guard let object = value.objectValue,
               let id = object["id"]?.stringValue,
               let sourceAssetIdRaw = object["sourceAssetId"]?.stringValue,
-              let sourceAssetId = TimelineSegment.SourceAssetID(rawValue: sourceAssetIdRaw),
+              let sourceAssetId = TimelineClip.SourceAssetID(rawValue: sourceAssetIdRaw),
               let sourceStartSeconds = object["sourceStartSeconds"]?.doubleValue,
               let sourceEndSeconds = object["sourceEndSeconds"]?.doubleValue
         else {
             return nil
         }
 
-        return TimelineSegment(
+        return TimelineClip(
             id: id,
             sourceAssetId: sourceAssetId,
             sourceStartSeconds: sourceStartSeconds,

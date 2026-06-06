@@ -1,6 +1,13 @@
-import type { InputEvent, TimelineDocument, TimelineSegment } from "@guerillaglass/engine-protocol";
+import type {
+  InputEvent,
+  TimelineClipItem,
+  TimelineDocument,
+  TimelineGapItem,
+  TimelineItem,
+  TimelineSegment,
+} from "@guerillaglass/engine-protocol";
 
-export type TimelineClipSemantic = "screen" | "mix";
+export type TimelineClipSemantic = "screen" | "mix" | "gap";
 
 export type TimelineWaveform = {
   peaks: number[];
@@ -20,6 +27,20 @@ export type TimelineClip = {
 };
 
 export type CompiledTimelineSegment = TimelineSegment & {
+  index: number;
+  programStartSeconds: number;
+  programEndSeconds: number;
+  durationSeconds: number;
+};
+
+export type CompiledTimelineGap = TimelineGapItem & {
+  index: number;
+  programStartSeconds: number;
+  programEndSeconds: number;
+  durationSeconds: number;
+};
+
+export type CompiledTimelineItem = (TimelineClipItem | TimelineGapItem) & {
   index: number;
   programStartSeconds: number;
   programEndSeconds: number;
@@ -55,8 +76,8 @@ export function clampSeconds(value: number, min: number, max: number): number {
 
 export function createEmptyTimelineDocument(): TimelineDocument {
   return {
-    version: 1,
-    segments: [],
+    version: 2,
+    items: [],
   };
 }
 
@@ -69,9 +90,10 @@ export function createSingleSegmentTimelineDocument(
   }
 
   return {
-    version: 1,
-    segments: [
+    version: 2,
+    items: [
       {
+        kind: "clip",
         id: "segment-0",
         sourceAssetId: "recording",
         sourceStartSeconds: 0,
@@ -221,27 +243,34 @@ export function buildEventWaveform(
   };
 }
 
-export function compileTimelineSegments(
+function compiledDurationSeconds(item: TimelineItem): number {
+  if (item.kind === "gap") {
+    return Math.max(0, item.durationSeconds);
+  }
+  return Math.max(0, item.sourceEndSeconds - item.sourceStartSeconds);
+}
+
+export function compileTimelineItems(
   timeline: TimelineDocument | null | undefined,
-): CompiledTimelineSegment[] {
-  if (!timeline || timeline.segments.length === 0) {
+): CompiledTimelineItem[] {
+  if (!timeline || timeline.items.length === 0) {
     return [];
   }
 
   let programCursorSeconds = 0;
-  const compiledSegments: CompiledTimelineSegment[] = [];
+  const compiledItems: CompiledTimelineItem[] = [];
 
-  for (const segment of timeline.segments) {
-    const durationSeconds = Math.max(0, segment.sourceEndSeconds - segment.sourceStartSeconds);
+  for (const item of timeline.items) {
+    const durationSeconds = compiledDurationSeconds(item);
     if (durationSeconds <= Number.EPSILON) {
       continue;
     }
 
     const programStartSeconds = programCursorSeconds;
     const programEndSeconds = programStartSeconds + durationSeconds;
-    compiledSegments.push({
-      ...segment,
-      index: compiledSegments.length,
+    compiledItems.push({
+      ...item,
+      index: compiledItems.length,
       programStartSeconds,
       programEndSeconds,
       durationSeconds,
@@ -249,12 +278,39 @@ export function compileTimelineSegments(
     programCursorSeconds = programEndSeconds;
   }
 
-  return compiledSegments;
+  return compiledItems;
 }
 
-export function timelineDurationSeconds(segments: CompiledTimelineSegment[]): number {
-  const lastSegment = segments[segments.length - 1];
-  return lastSegment?.programEndSeconds ?? 0;
+export function compileTimelineSegments(
+  timeline: TimelineDocument | null | undefined,
+): CompiledTimelineSegment[] {
+  return compileTimelineItems(timeline).flatMap((item) => (item.kind === "clip" ? [item] : []));
+}
+
+export function timelineDurationSeconds(items: Array<{ programEndSeconds: number }>): number {
+  const lastItem = items[items.length - 1];
+  return lastItem?.programEndSeconds ?? 0;
+}
+
+export function findTimelineItemAtProgramTime(
+  items: CompiledTimelineItem[],
+  programSeconds: number,
+): CompiledTimelineItem | null {
+  if (items.length === 0) {
+    return null;
+  }
+
+  const boundedProgramSeconds = clampSeconds(programSeconds, 0, timelineDurationSeconds(items));
+  for (const item of items) {
+    if (
+      boundedProgramSeconds >= item.programStartSeconds &&
+      boundedProgramSeconds < item.programEndSeconds
+    ) {
+      return item;
+    }
+  }
+
+  return items[items.length - 1] ?? null;
 }
 
 export function findTimelineSegmentAtProgramTime(
@@ -267,7 +323,10 @@ export function findTimelineSegmentAtProgramTime(
 
   const boundedProgramSeconds = clampSeconds(programSeconds, 0, timelineDurationSeconds(segments));
   for (const segment of segments) {
-    if (boundedProgramSeconds < segment.programEndSeconds) {
+    if (
+      boundedProgramSeconds >= segment.programStartSeconds &&
+      boundedProgramSeconds < segment.programEndSeconds
+    ) {
       return segment;
     }
   }
@@ -331,7 +390,8 @@ export function buildTimelineLanes(params: {
   labels?: TimelineLaneLabels;
 }): TimelineLane[] {
   const compiledSegments = compileTimelineSegments(params.timeline);
-  const duration = timelineDurationSeconds(compiledSegments);
+  const compiledItems = compileTimelineItems(params.timeline);
+  const duration = timelineDurationSeconds(compiledItems);
   const labels = params.labels ?? {
     video: "Video",
     audio: "Audio",
@@ -345,29 +405,53 @@ export function buildTimelineLanes(params: {
     {
       id: "video",
       label: labels.video,
-      clips: compiledSegments.map((segment) => ({
-        id: segment.id,
-        startSeconds: segment.programStartSeconds,
-        endSeconds: segment.programEndSeconds,
-        sourceStartSeconds: segment.sourceStartSeconds,
-        sourceEndSeconds: segment.sourceEndSeconds,
-        semantic: "screen" as const,
-        waveform: null,
-      })),
+      clips: compiledItems.map((item) =>
+        item.kind === "gap"
+          ? {
+              id: item.id,
+              startSeconds: item.programStartSeconds,
+              endSeconds: item.programEndSeconds,
+              sourceStartSeconds: 0,
+              sourceEndSeconds: 0,
+              semantic: "gap" as const,
+              waveform: null,
+            }
+          : {
+              id: item.id,
+              startSeconds: item.programStartSeconds,
+              endSeconds: item.programEndSeconds,
+              sourceStartSeconds: item.sourceStartSeconds,
+              sourceEndSeconds: item.sourceEndSeconds,
+              semantic: "screen" as const,
+              waveform: null,
+            },
+      ),
       markers: [],
     },
     {
       id: "audio",
       label: labels.audio,
-      clips: compiledSegments.map((segment) => ({
-        id: segment.id,
-        startSeconds: segment.programStartSeconds,
-        endSeconds: segment.programEndSeconds,
-        sourceStartSeconds: segment.sourceStartSeconds,
-        sourceEndSeconds: segment.sourceEndSeconds,
-        semantic: "mix" as const,
-        waveform: fallbackWaveform,
-      })),
+      clips: compiledItems.map((item) =>
+        item.kind === "gap"
+          ? {
+              id: item.id,
+              startSeconds: item.programStartSeconds,
+              endSeconds: item.programEndSeconds,
+              sourceStartSeconds: 0,
+              sourceEndSeconds: 0,
+              semantic: "gap" as const,
+              waveform: null,
+            }
+          : {
+              id: item.id,
+              startSeconds: item.programStartSeconds,
+              endSeconds: item.programEndSeconds,
+              sourceStartSeconds: item.sourceStartSeconds,
+              sourceEndSeconds: item.sourceEndSeconds,
+              semantic: "mix" as const,
+              waveform: fallbackWaveform,
+            },
+      ),
       markers: [],
     },
     {

@@ -282,6 +282,12 @@ export const enUS = {
     actions: {
       setTrimInToClipStart: "Set Trim In To Clip Start",
       setTrimOutToClipEnd: "Set Trim Out To Clip End",
+      splitClipAtPlayhead: "Split At Playhead",
+      liftClip: "Lift Clip",
+      moveClipEarlier: "Move Earlier",
+      moveClipLater: "Move Later",
+      deleteClip: (rippleEnabled: boolean) =>
+        rippleEnabled ? "Delete Clip (Ripple)" : "Delete Clip",
       jumpPlayheadToMarker: "Jump Playhead To Marker",
     },
   },
@@ -318,7 +324,7 @@ type WidenLiterals<T> = T extends string
     : T extends boolean
       ? boolean
       : T extends (...args: infer TArgs) => infer TResult
-        ? (...args: TArgs) => TResult
+        ? (...args: TArgs) => WidenLiterals<TResult>
         : T extends readonly (infer U)[]
           ? readonly WidenLiterals<U>[]
           : T extends object

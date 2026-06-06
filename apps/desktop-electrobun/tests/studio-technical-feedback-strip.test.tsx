@@ -50,8 +50,8 @@ function makeStudioMock(overrides: Partial<StudioController> = {}): StudioContro
           minimumKeyframeInterval: 1 / 30,
         },
         timeline: {
-          version: 1,
-          segments: [],
+          version: 2,
+          items: [],
         },
         captureMetadata: null,
         agentAnalysis: {

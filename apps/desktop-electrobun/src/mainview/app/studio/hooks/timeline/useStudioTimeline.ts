@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { InputEvent, TimelineDocument } from "@guerillaglass/engine-protocol";
 import {
   buildTimelineLanes,
+  compileTimelineItems,
   compileTimelineSegments,
   timelineDurationSeconds,
 } from "../../domain/timelineDomainModel";
@@ -103,9 +104,13 @@ export function useStudioTimeline({
     () => compileTimelineSegments(timelineDocument),
     [timelineDocument],
   );
+  const compiledTimelineItems = useMemo(
+    () => compileTimelineItems(timelineDocument),
+    [timelineDocument],
+  );
   const compiledTimelineDurationSeconds = useMemo(
-    () => timelineDurationSeconds(compiledTimelineSegments),
-    [compiledTimelineSegments],
+    () => timelineDurationSeconds(compiledTimelineItems),
+    [compiledTimelineItems],
   );
   const timelineDuration = useMemo(
     () => Math.max(compiledTimelineDurationSeconds, 1),

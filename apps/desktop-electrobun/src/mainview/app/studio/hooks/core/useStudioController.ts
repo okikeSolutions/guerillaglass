@@ -44,6 +44,12 @@ import {
   createSingleSegmentTimelineDocument,
 } from "../../domain/timelineDomainModel";
 import {
+  deleteTimelineItems,
+  liftTimelineItems,
+  moveTimelineItems,
+  splitTimelineClipAtProgramTime,
+} from "../../domain/timelineCommands";
+import {
   normalizeTimelineFrameRate,
   quantizeSecondsToFrame,
 } from "../../domain/timelineFrameTimebase";
@@ -283,10 +289,10 @@ export function useStudioController() {
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
-  const timelineDocument = useMemo<TimelineDocument>(() => {
+  const baselineTimelineDocument = useMemo<TimelineDocument>(() => {
     const projectTimeline = projectQuery.data?.timeline;
     const recordingDurationSeconds = captureStatusQuery.data?.recordingDurationSeconds ?? 0;
-    if (projectTimeline && projectTimeline.segments.length > 0) {
+    if (projectTimeline && projectTimeline.items.length > 0) {
       return projectTimeline;
     }
 
@@ -300,6 +306,33 @@ export function useStudioController() {
     projectQuery.data?.timeline,
     recordingURL,
   ]);
+  const baselineTimelineSignature = useMemo(
+    () => JSON.stringify(baselineTimelineDocument),
+    [baselineTimelineDocument],
+  );
+  const [timelineDraftState, setTimelineDraftState] = useState<{
+    draft: TimelineDocument;
+    sourceSignature: string;
+  } | null>(null);
+  const timelineDocument =
+    timelineDraftState?.sourceSignature === baselineTimelineSignature
+      ? timelineDraftState.draft
+      : baselineTimelineDocument;
+  const updateTimelineDocument = useCallback(
+    (updater: (currentTimeline: TimelineDocument) => TimelineDocument) => {
+      setTimelineDraftState((currentDraftState) => {
+        const currentTimeline =
+          currentDraftState?.sourceSignature === baselineTimelineSignature
+            ? currentDraftState.draft
+            : baselineTimelineDocument;
+        return {
+          draft: updater(currentTimeline),
+          sourceSignature: baselineTimelineSignature,
+        };
+      });
+    },
+    [baselineTimelineDocument, baselineTimelineSignature],
+  );
 
   const selectedDisplayId = useMemo(() => {
     return resolveSelectedDisplayId(displayChoices, settingsForm.state.values.selectedDisplayId);
@@ -422,8 +455,8 @@ export function useStudioController() {
       captureIsRunning: captureStatusQuery.data?.isRunning ?? false,
       captureIsRecording: captureStatusQuery.data?.isRecording ?? false,
       projectPath: projectQuery.data?.projectPath ?? null,
-      projectTimelineSegments: projectQuery.data?.timeline?.segments.length ?? 0,
-      timelineDocumentSegments: timelineDocument.segments.length,
+      projectTimelineSegments: projectQuery.data?.timeline?.items.length ?? 0,
+      timelineDocumentSegments: timelineDocument.items.length,
       timelineDuration,
       selectedDisplayId,
       selectedWindowId,
@@ -520,16 +553,154 @@ export function useStudioController() {
     () => normalizeInspectorSelection(activeMode, rawInspectorSelection),
     [activeMode, rawInspectorSelection],
   );
+  const selectedTimelineClip =
+    inspectorSelection.kind === "timelineClip" ? inspectorSelection : null;
+  const clearInspectorSelection = useCallback(() => {
+    setRawInspectorSelection(emptyInspectorSelection);
+  }, []);
+
+  const splitSelectedTimelineClipAtPlayhead = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const result = splitTimelineClipAtProgramTime(
+        currentTimeline,
+        playbackStore.getSnapshot().playheadSeconds,
+      );
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+      setTimelineTool("select");
+    }
+  }, [clearInspectorSelection, playbackStore, selectedTimelineClip, setTimelineTool]);
+
+  const splitTimelineClipAtSeconds = useCallback(
+    (seconds: number) => {
+      let didChange = false;
+      updateTimelineDocument((currentTimeline) => {
+        const result = splitTimelineClipAtProgramTime(currentTimeline, seconds);
+        didChange = result.changed;
+        return result.timeline;
+      });
+      if (didChange) {
+        clearInspectorSelection();
+        setPlayheadSecondsClamped(seconds);
+        setTimelineTool("select");
+      }
+    },
+    [clearInspectorSelection, setPlayheadSecondsClamped, setTimelineTool],
+  );
+
+  const deleteSelectedTimelineClip = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const result = deleteTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+        ripple: timelineRippleEnabled,
+      });
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+
+  const liftSelectedTimelineClip = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const result = liftTimelineItems(currentTimeline, [selectedTimelineClip.clipId]);
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip]);
+
+  const moveSelectedTimelineClipEarlier = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const selectedIndex = currentTimeline.items.findIndex(
+        (item) => item.id === selectedTimelineClip.clipId,
+      );
+      if (selectedIndex <= 0) {
+        return currentTimeline;
+      }
+
+      const previousItem = currentTimeline.items[selectedIndex - 1] ?? null;
+      const result =
+        timelineRippleEnabled || previousItem?.kind !== "gap"
+          ? moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: true,
+              destinationIndex: Math.max(0, selectedIndex - 1),
+            })
+          : moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: false,
+              destinationGapId: previousItem.id,
+            });
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+
+  const moveSelectedTimelineClipLater = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const selectedIndex = currentTimeline.items.findIndex(
+        (item) => item.id === selectedTimelineClip.clipId,
+      );
+      if (selectedIndex === -1 || selectedIndex >= currentTimeline.items.length - 1) {
+        return currentTimeline;
+      }
+
+      const nextItem = currentTimeline.items[selectedIndex + 1] ?? null;
+      const result =
+        timelineRippleEnabled || nextItem?.kind !== "gap"
+          ? moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: true,
+              destinationIndex: Math.min(currentTimeline.items.length, selectedIndex + 2),
+            })
+          : moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: false,
+              destinationGapId: nextItem.id,
+            });
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
 
   const pickPathSafely = useCallback(
     async (params: { mode: HostPathPickerMode; startingFolder?: string }): Promise<string | null> =>
       await desktopApi.pickPath(params),
     [],
   );
-
-  const clearInspectorSelection = useCallback(() => {
-    setRawInspectorSelection(emptyInspectorSelection);
-  }, []);
 
   const {
     exportMutation,
@@ -761,11 +932,14 @@ export function useStudioController() {
   useStudioHotkeys({
     runHostCommand,
     canTrimTimeline: activeMode === "deliver" && Boolean(recordingURL),
+    canEditSelectedTimelineClip: activeMode === "edit" && selectedTimelineClip != null,
     singleKeyShortcutsEnabled: settingsForm.state.values.singleKeyShortcutsEnabled,
     shortcutOverrides,
     shortcutPlatform,
     clearInspectorSelection,
     clearNotice,
+    deleteSelectedTimelineClip,
+    liftSelectedTimelineClip,
     setTimelineTool,
   });
 
@@ -872,6 +1046,8 @@ export function useStudioController() {
     setPlayheadSecondsFromMedia,
     setPlaybackRate,
     setTimelinePlaybackActive,
+    splitTimelineClipAtSeconds,
+    splitSelectedTimelineClipAtPlayhead,
     setTimelineTool,
     setTimelineZoom,
     setLocale,
@@ -911,6 +1087,10 @@ export function useStudioController() {
     shortcutOverrides,
     shortcutPlatform,
     supportedCaptureFrameRates,
+    deleteSelectedTimelineClip,
+    liftSelectedTimelineClip,
+    moveSelectedTimelineClipEarlier,
+    moveSelectedTimelineClipLater,
     timelineDuration,
     timelineLanes,
     timelineDocument,

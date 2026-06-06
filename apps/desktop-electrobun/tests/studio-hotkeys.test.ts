@@ -35,6 +35,7 @@ describe("studio hotkeys", () => {
     useStudioHotkeys({
       runHostCommand: (command) => commands.push(command),
       canTrimTimeline: true,
+      canEditSelectedTimelineClip: false,
       singleKeyShortcutsEnabled: true,
       shortcutOverrides: {
         save: "Control+Shift+P",
@@ -42,6 +43,8 @@ describe("studio hotkeys", () => {
       shortcutPlatform: "windows",
       clearInspectorSelection: () => {},
       clearNotice: () => {},
+      deleteSelectedTimelineClip: () => {},
+      liftSelectedTimelineClip: () => {},
       setTimelineTool: () => {},
     });
 

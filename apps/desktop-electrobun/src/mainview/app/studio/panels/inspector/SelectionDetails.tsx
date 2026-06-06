@@ -3,7 +3,18 @@ import type { InspectorSelection } from "../../domain/inspectorSelectionModel";
 import { Button } from "@guerillaglass/ui/components/button";
 import { InspectorDetailRows, InspectorSection } from "./InspectorPrimitives";
 
-type SelectionDetailsStudio = Pick<StudioController, "formatDecimal" | "setPlayheadSeconds" | "ui">;
+type SelectionDetailsStudio = Pick<
+  StudioController,
+  | "deleteSelectedTimelineClip"
+  | "formatDecimal"
+  | "liftSelectedTimelineClip"
+  | "moveSelectedTimelineClipEarlier"
+  | "moveSelectedTimelineClipLater"
+  | "setPlayheadSeconds"
+  | "splitSelectedTimelineClipAtPlayhead"
+  | "timelineRippleEnabled"
+  | "ui"
+>;
 
 type TimelineClipSelection = Extract<InspectorSelection, { kind: "timelineClip" }>;
 type TimelineMarkerSelection = Extract<InspectorSelection, { kind: "timelineMarker" }>;
@@ -39,26 +50,57 @@ export function SelectionDetailsTimelineClip({
 }) {
   return (
     <InspectorSection title={studio.ui.inspector.cards.selectedClip} defaultOpen>
-      <InspectorDetailRows
-        rows={[
-          {
-            label: studio.ui.inspector.fields.lane,
-            value: localizeTimelineLaneId(selection.laneId, studio),
-          },
-          {
-            label: studio.ui.inspector.fields.start,
-            value: `${studio.formatDecimal(selection.startSeconds)}s`,
-          },
-          {
-            label: studio.ui.inspector.fields.end,
-            value: `${studio.formatDecimal(selection.endSeconds)}s`,
-          },
-          {
-            label: studio.ui.inspector.fields.duration,
-            value: `${studio.formatDecimal(Math.max(0, selection.endSeconds - selection.startSeconds))}s`,
-          },
-        ]}
-      />
+      <div className="space-y-2">
+        <InspectorDetailRows
+          rows={[
+            {
+              label: studio.ui.inspector.fields.lane,
+              value: localizeTimelineLaneId(selection.laneId, studio),
+            },
+            {
+              label: studio.ui.inspector.fields.start,
+              value: `${studio.formatDecimal(selection.startSeconds)}s`,
+            },
+            {
+              label: studio.ui.inspector.fields.end,
+              value: `${studio.formatDecimal(selection.endSeconds)}s`,
+            },
+            {
+              label: studio.ui.inspector.fields.duration,
+              value: `${studio.formatDecimal(Math.max(0, selection.endSeconds - selection.startSeconds))}s`,
+            },
+          ]}
+        />
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => studio.splitSelectedTimelineClipAtPlayhead()}
+          >
+            {studio.ui.inspector.actions.splitClipAtPlayhead}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => studio.liftSelectedTimelineClip()}>
+            {studio.ui.inspector.actions.liftClip}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => studio.moveSelectedTimelineClipEarlier()}
+          >
+            {studio.ui.inspector.actions.moveClipEarlier}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => studio.moveSelectedTimelineClipLater()}
+          >
+            {studio.ui.inspector.actions.moveClipLater}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => studio.deleteSelectedTimelineClip()}>
+            {studio.ui.inspector.actions.deleteClip(studio.timelineRippleEnabled)}
+          </Button>
+        </div>
+      </div>
     </InspectorSection>
   );
 }

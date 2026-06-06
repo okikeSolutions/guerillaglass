@@ -64,6 +64,7 @@ type TimelineSurfaceProps = {
   onToggleLaneMuted: (laneId: "video" | "audio") => void;
   onToggleLaneSolo: (laneId: "video" | "audio") => void;
   onClearSelection: () => void;
+  onBladeClipAtSeconds?: (seconds: number) => void;
   selectedClip: TimelineSelectedClip;
   selectedMarkerId: string | null;
   onSelectClip: (params: {
@@ -105,6 +106,8 @@ type TimelineLanesLayerProps = {
     density: number;
     timestampSeconds: number;
   }) => void;
+  onBladeClipAtSeconds?: (seconds: number) => void;
+  timelineTool: "select" | "trim" | "blade";
 };
 
 type TimelineOverlayProps = {
@@ -494,6 +497,8 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
   onToggleLaneSolo,
   onSelectClip,
   onSelectMarker,
+  onBladeClipAtSeconds,
+  timelineTool,
 }: TimelineLanesLayerProps) {
   return (
     <div className="gg-timeline-lanes">
@@ -573,14 +578,31 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                       )}
                       aria-pressed={isSelected}
                       disabled={laneLocked}
-                      onClick={() =>
+                      onClick={(event) => {
+                        if (
+                          timelineTool === "blade" &&
+                          clip.semantic !== "gap" &&
+                          onBladeClipAtSeconds
+                        ) {
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          const pointerRatio =
+                            rect.width > 0
+                              ? clampSeconds((event.clientX - rect.left) / rect.width, 0, 1)
+                              : 0;
+                          const bladeSeconds =
+                            clip.startSeconds +
+                            pointerRatio * Math.max(0, clip.endSeconds - clip.startSeconds);
+                          onBladeClipAtSeconds(bladeSeconds);
+                          return;
+                        }
+
                         onSelectClip({
                           laneId: lane.id,
                           clipId: clip.id,
                           startSeconds: clip.startSeconds,
                           endSeconds: clip.endSeconds,
-                        })
-                      }
+                        });
+                      }}
                     >
                       <div className="gg-timeline-clip-content">
                         <div className="gg-timeline-clip-header">
@@ -675,6 +697,7 @@ export function TimelineSurface({
   onToggleLaneMuted,
   onToggleLaneSolo,
   onClearSelection,
+  onBladeClipAtSeconds,
   selectedClip,
   selectedMarkerId,
   onSelectClip,
@@ -761,6 +784,8 @@ export function TimelineSurface({
             onToggleLaneSolo={onToggleLaneSolo}
             onSelectClip={onSelectClip}
             onSelectMarker={onSelectMarker}
+            onBladeClipAtSeconds={onBladeClipAtSeconds}
+            timelineTool={timelineTool}
           />
           <TimelineOverlay
             trackOverlayRef={trackOverlayRef}
