@@ -88,7 +88,7 @@ const stopShutdownGraceMs = 1_000;
 const forcedShutdownDrainMs = 100;
 const textEncoder = new TextEncoder();
 
-type EngineMethodDefinition<TSchema extends Schema.Schema.Any, TArgs extends unknown[]> = {
+type EngineMethodDefinition<TSchema extends Schema.Top, TArgs extends unknown[]> = {
   method: EngineRequest["method"];
   toParams: (...args: TArgs) => unknown;
   schema: TSchema;
@@ -644,7 +644,7 @@ export class EngineClient {
     );
   }
 
-  private methodEffect<TSchema extends Schema.Schema.AnyNoContext, TArgs extends unknown[]>(
+  private methodEffect<TSchema extends Schema.Top, TArgs extends unknown[]>(
     definition: EngineMethodDefinition<TSchema, TArgs>,
     ...args: TArgs
   ): Effect.Effect<MutableDeep<Schema.Schema.Type<TSchema>>, EngineClientFailure> {
@@ -655,7 +655,7 @@ export class EngineClient {
     );
   }
 
-  private captureMethodEffect<TSchema extends Schema.Schema.AnyNoContext, TArgs extends unknown[]>(
+  private captureMethodEffect<TSchema extends Schema.Top, TArgs extends unknown[]>(
     definition: EngineMethodDefinition<TSchema, TArgs>,
     ...args: TArgs
   ): Effect.Effect<MutableDeep<Schema.Schema.Type<TSchema>>, EngineClientFailure> {
@@ -937,7 +937,7 @@ export class EngineClient {
     return this.methodEffect(definition, limit);
   }
 
-  private callAndParseEffect<TSchema extends Schema.Schema.AnyNoContext>(
+  private callAndParseEffect<TSchema extends Schema.Top>(
     method: EngineRequest["method"],
     params: unknown,
     schema: TSchema,

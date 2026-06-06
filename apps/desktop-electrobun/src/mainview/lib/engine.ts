@@ -84,7 +84,7 @@ async function invokeBridge<K extends keyof WindowBridgeBindings>(
 
 async function invokeBridgeDecoded<
   K extends keyof WindowBridgeBindings,
-  S extends import("effect").Schema.Schema.AnyNoContext,
+  S extends import("effect").Schema.Top,
 >(
   name: K,
   schema: S,

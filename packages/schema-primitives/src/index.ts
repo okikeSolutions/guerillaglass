@@ -1,5 +1,18 @@
 import { Schema } from "effect";
 
+function pattern(pattern: RegExp) {
+  return Schema.check<Schema.Schema<string>>(Schema.isPattern(pattern));
+}
+
+function refineString(predicate: (value: string) => boolean, message: string) {
+  return Schema.refine(
+    (value: unknown): value is string => typeof value === "string" && predicate(value),
+    {
+      message,
+    },
+  );
+}
+
 /** Shared ISO 8601 datetime validation for typed protocol surfaces. */
 export const isoDateTimePattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
@@ -80,9 +93,7 @@ export const reviewCommentIdSchema = brandedNonEmptyString("ReviewCommentId");
 export const reviewUserIdSchema = brandedNonEmptyString("ReviewUserId");
 /** Review auth token required by Bun review bridge requests. */
 export const reviewAuthTokenSchema = Schema.String.pipe(
-  Schema.filter((value) => value.trim().length > 0, {
-    message: () => "Expected a non-empty review auth token.",
-  }),
+  refineString((value) => value.trim().length > 0, "Expected a non-empty review auth token."),
   Schema.brand("ReviewAuthToken"),
 );
 /** JSON-RPC request id used by native engine envelopes. */
@@ -108,9 +119,7 @@ export const artifactPathSchema = Schema.NonEmptyString;
 
 /** Effect Schema primitive for canonical ISO 8601 datetime strings. */
 export const isoDateTimeSchema = Schema.String.pipe(
-  Schema.pattern(isoDateTimePattern),
-  Schema.filter((value) => isValidIsoDateTime(value), {
-    message: () => "Expected an ISO 8601 datetime string.",
-  }),
+  pattern(isoDateTimePattern),
+  refineString(isValidIsoDateTime, "Expected an ISO 8601 datetime string."),
   Schema.brand("IsoDateTime"),
 );

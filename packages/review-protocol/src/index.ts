@@ -5,6 +5,10 @@
  * desktop Deliver route in sync with collaboration state, playback readiness, and comments.
  */
 import { Schema } from "effect";
+
+function greaterThanOrEqualTo(minimum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
+}
 import {
   isoDateTimeSchema,
   reviewCommentIdSchema,
@@ -14,33 +18,33 @@ import {
 
 /** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */
-export const reviewWorkflowStatusSchema = Schema.Union(
+export const reviewWorkflowStatusSchema = Schema.Union([
   Schema.Literal("review"),
   Schema.Literal("rework"),
   Schema.Literal("done"),
-);
+]);
 
 /** Team roles used for collaboration access and review attribution. */
-export const reviewRoleSchema = Schema.Union(
+export const reviewRoleSchema = Schema.Union([
   Schema.Literal("owner"),
   Schema.Literal("admin"),
   Schema.Literal("member"),
   Schema.Literal("viewer"),
-);
+]);
 
 /** Processing state for cloud review playback sources. */
-export const reviewProcessingStateSchema = Schema.Union(
+export const reviewProcessingStateSchema = Schema.Union([
   Schema.Literal("pending"),
   Schema.Literal("processing"),
   Schema.Literal("ready"),
   Schema.Literal("failed"),
-);
+]);
 
 /** Preferred playback source when review media is loaded. */
-export const reviewPlaybackSourceSchema = Schema.Union(
+export const reviewPlaybackSourceSchema = Schema.Union([
   Schema.Literal("processed"),
   Schema.Literal("original"),
-);
+]);
 
 /** Access policy for review share links. */
 export const reviewSharePolicySchema = Schema.Struct({
@@ -64,8 +68,8 @@ export const reviewCommentSchema = Schema.Struct({
   authorId: reviewUserIdSchema,
   authorName: Schema.NonEmptyString,
   body: Schema.NonEmptyString,
-  frameNumber: Schema.NullOr(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))),
-  timestampSeconds: Schema.NullOr(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0))),
+  frameNumber: Schema.NullOr(Schema.Int.pipe(greaterThanOrEqualTo(0))),
+  timestampSeconds: Schema.NullOr(Schema.Number.pipe(greaterThanOrEqualTo(0))),
   resolved: Schema.Boolean,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
@@ -94,8 +98,8 @@ export const reviewSessionSnapshotRequestSchema = Schema.Struct({
 export const reviewCreateCommentRequestSchema = Schema.Struct({
   reviewId: reviewIdSchema,
   body: Schema.NonEmptyString,
-  frameNumber: Schema.optional(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))),
-  timestampSeconds: Schema.optional(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0))),
+  frameNumber: Schema.optional(Schema.Int.pipe(greaterThanOrEqualTo(0))),
+  timestampSeconds: Schema.optional(Schema.Number.pipe(greaterThanOrEqualTo(0))),
   parentCommentId: Schema.optional(reviewCommentIdSchema),
 });
 
@@ -152,12 +156,12 @@ export const reviewPlaybackStateChangedEventSchema = Schema.Struct({
  * Consumers should branch on `type` instead of probing payload shapes so newly-added event
  * payloads can extend the union without ambiguous runtime checks.
  */
-export const reviewBridgeEventSchema = Schema.Union(
+export const reviewBridgeEventSchema = Schema.Union([
   reviewPresenceUpdatedEventSchema,
   reviewCommentCreatedEventSchema,
   reviewStatusChangedEventSchema,
   reviewPlaybackStateChangedEventSchema,
-);
+]);
 
 /** Inferred TypeScript aliases for consumers that only need the review data model. */
 /** Type alias for ReviewWorkflowStatus. */

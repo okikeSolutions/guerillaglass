@@ -5,7 +5,7 @@
  * shared value objects first, then capture/export payloads, Agent Mode payloads,
  * project persistence models, request envelopes, and finally response helpers.
  */
-import { Schema, type Types } from "effect";
+import { Effect, Schema, type Types } from "effect";
 import {
   agentJobIdSchema,
   agentPreflightTokenSchema,
@@ -22,38 +22,67 @@ import { engineMethods } from "./methods.js";
 
 const NonEmptyString = Schema.NonEmptyString;
 const IsoDateTime = isoDateTimeSchema;
-const NonNegativeInt = Schema.Int.pipe(Schema.greaterThanOrEqualTo(0));
-const PositiveInt = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
-const NonNegativeNumber = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));
-const PositiveNumber = Schema.Number.pipe(Schema.greaterThan(0));
-const RuntimeBudgetMinutesSchema = PositiveInt.pipe(Schema.lessThanOrEqualTo(60));
-const ProjectRecentsLimitSchema = PositiveInt.pipe(Schema.lessThanOrEqualTo(100));
+const NonNegativeInt = Schema.Int.pipe(greaterThanOrEqualTo(0));
+const PositiveInt = Schema.Int.pipe(greaterThanOrEqualTo(1));
+const NonNegativeNumber = Schema.Number.pipe(greaterThanOrEqualTo(0));
+const PositiveNumber = Schema.Number.pipe(greaterThan(0));
+const RuntimeBudgetMinutesSchema = PositiveInt.pipe(lessThanOrEqualTo(60));
+const ProjectRecentsLimitSchema = PositiveInt.pipe(lessThanOrEqualTo(100));
 const decodeAllIssuesOptions = {
   errors: "all",
 } as const;
 
-type MutableSchemaType<S extends Schema.Schema.Any> = Types.DeepMutable<
-  Schema.Schema.Type<Schema.mutable<S>>
->;
-type MutableEncodedSchemaType<S extends Schema.Schema.Any> = Types.DeepMutable<
-  Schema.Schema.Encoded<Schema.mutable<S>>
->;
+function greaterThanOrEqualTo(minimum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
+}
 
-function decodeSchemaSync<S extends Schema.Schema.AnyNoContext>(
+function greaterThan(minimum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThan(minimum));
+}
+
+function lessThanOrEqualTo(maximum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isLessThanOrEqualTo(maximum));
+}
+
+function between(minimum: number, maximum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isBetween({ minimum, maximum }));
+}
+
+function optionalWith<S extends Schema.Top>(
   schema: S,
-  raw: unknown,
-): MutableSchemaType<S> {
-  return Schema.decodeUnknownSync(schema, decodeAllIssuesOptions)(raw) as MutableSchemaType<S>;
+  options: { default: () => Schema.Schema.Type<S> },
+) {
+  return schema.pipe(Schema.withDecodingDefaultTypeKey(Effect.sync(options.default)));
+}
+
+function refineSchema<T>(predicate: (value: T) => boolean, message: string) {
+  return Schema.refine((value: unknown): value is T => predicate(value as T), {
+    message,
+  });
+}
+
+type MutableSchemaType<S extends Schema.Top> = Types.DeepMutable<Schema.Schema.Type<S>>;
+type MutableEncodedSchemaType<S extends Schema.Top> = Types.DeepMutable<Schema.Codec.Encoded<S>>;
+
+function decodeSchemaSync<S extends Schema.Top>(schema: S, raw: unknown): MutableSchemaType<S> {
+  return Schema.decodeUnknownSync(
+    schema as never,
+    decodeAllIssuesOptions,
+  )(raw) as MutableSchemaType<S>;
 }
 
 /** Shared value objects reused across capture, project, and permission payloads. */
 /** Input Monitoring permission states returned by the native engine. */
-export const inputMonitoringStatusSchema = Schema.Literal("notDetermined", "denied", "authorized");
+export const inputMonitoringStatusSchema = Schema.Literals([
+  "notDetermined",
+  "denied",
+  "authorized",
+]);
 
 /** Auto-zoom project settings shared between renderer and native engine. */
 export const autoZoomSettingsSchema = Schema.Struct({
   isEnabled: Schema.Boolean,
-  intensity: Schema.Number.pipe(Schema.between(0, 1)),
+  intensity: Schema.Number.pipe(between(0, 1)),
   minimumKeyframeInterval: PositiveNumber,
 });
 
@@ -73,8 +102,8 @@ const captureContentRectSchema = Schema.Struct({
 /** Optional capture metadata embedded in capture status and project state. */
 export const captureMetadataSchema = Schema.NullOr(
   Schema.Struct({
-    window: Schema.optionalWith(Schema.NullOr(captureWindowSchema), { default: () => null }),
-    source: Schema.Literal("display", "window"),
+    window: optionalWith(Schema.NullOr(captureWindowSchema), { default: () => null }),
+    source: Schema.Literals(["display", "window"]),
     contentRect: captureContentRectSchema,
     pixelScale: PositiveNumber,
     fps: Schema.optional(Schema.NullOr(PositiveNumber)),
@@ -83,13 +112,13 @@ export const captureMetadataSchema = Schema.NullOr(
 
 /** Input event payload captured during recording. */
 export const inputEventSchema = Schema.Struct({
-  type: Schema.Literal("cursorMoved", "mouseDown", "mouseUp"),
+  type: Schema.Literals(["cursorMoved", "mouseDown", "mouseUp"]),
   timestamp: NonNegativeNumber,
   position: Schema.Struct({
     x: Schema.Number,
     y: Schema.Number,
   }),
-  button: Schema.optional(Schema.Literal("left", "right", "other")),
+  button: Schema.optional(Schema.Literals(["left", "right", "other"])),
 });
 
 /** Input event log written by engines that support input tracking. */
@@ -117,7 +146,7 @@ export const timelineGapItemSchema = Schema.Struct({
 });
 
 /** Timeline item persisted by the editor and engine. */
-export const timelineItemSchema = Schema.Union(timelineClipItemSchema, timelineGapItemSchema);
+export const timelineItemSchema = Schema.Union([timelineClipItemSchema, timelineGapItemSchema]);
 
 /** Legacy alias retained while the editor moves from segments to timeline items. */
 export const timelineSegmentSchema = timelineClipItemSchema;
@@ -141,15 +170,15 @@ const capabilitiesAgentSchema = Schema.Struct({
   run: Schema.Boolean,
   status: Schema.Boolean,
   apply: Schema.Boolean,
-  localOnly: Schema.optionalWith(Schema.Boolean, { default: () => true }),
-  runtimeBudgetMinutes: Schema.optionalWith(PositiveInt, { default: () => 10 }),
+  localOnly: optionalWith(Schema.Boolean, { default: () => true }),
+  runtimeBudgetMinutes: optionalWith(PositiveInt, { default: () => 10 }),
 });
 
 /** Result payload for `engine.capabilities`. */
 export const capabilitiesResultSchema = Schema.Struct({
   protocolVersion: NonEmptyString,
   platform: NonEmptyString,
-  phase: Schema.Literal("stub", "foundation", "native"),
+  phase: Schema.Literals(["stub", "foundation", "native"]),
   capture: Schema.Struct({
     display: Schema.Boolean,
     window: Schema.Boolean,
@@ -161,12 +190,12 @@ export const capabilitiesResultSchema = Schema.Struct({
   }),
   export: Schema.Struct({
     presets: Schema.Boolean,
-    cutPlan: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+    cutPlan: optionalWith(Schema.Boolean, { default: () => false }),
   }),
   project: Schema.Struct({
     openSave: Schema.Boolean,
   }),
-  agent: Schema.optionalWith(capabilitiesAgentSchema, {
+  agent: optionalWith(capabilitiesAgentSchema, {
     default: () => ({
       preflight: false,
       run: false,
@@ -196,7 +225,7 @@ export const captureFrameRates = [24, 30, 60, 120] as const;
 /** Default capture frame rate used when request params omit `captureFps`. */
 export const defaultCaptureFrameRate: (typeof captureFrameRates)[number] = 30;
 /** Effect schema for engine-supported capture FPS values. */
-export const captureFrameRateSchema = Schema.Literal(...captureFrameRates);
+export const captureFrameRateSchema = Schema.Literals(captureFrameRates);
 
 /** Display capture source descriptor. */
 export const displaySourceSchema = Schema.Struct({
@@ -246,18 +275,18 @@ const createDefaultCaptureTelemetry = () => ({
 /** Capture and export lifecycle payloads returned directly from the engine. */
 /** Capture telemetry payload returned by `capture.status`. */
 export const captureTelemetrySchema = Schema.Struct({
-  sourceDroppedFrames: Schema.optionalWith(NonNegativeInt, { default: () => 0 }),
-  writerDroppedFrames: Schema.optionalWith(NonNegativeInt, { default: () => 0 }),
-  writerBackpressureDrops: Schema.optionalWith(NonNegativeInt, { default: () => 0 }),
-  achievedFps: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
-  cpuPercent: Schema.optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
-  memoryBytes: Schema.optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
-  recordingBitrateMbps: Schema.optionalWith(Schema.NullOr(NonNegativeNumber), {
+  sourceDroppedFrames: optionalWith(NonNegativeInt, { default: () => 0 }),
+  writerDroppedFrames: optionalWith(NonNegativeInt, { default: () => 0 }),
+  writerBackpressureDrops: optionalWith(NonNegativeInt, { default: () => 0 }),
+  achievedFps: optionalWith(NonNegativeNumber, { default: () => 0 }),
+  cpuPercent: optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
+  memoryBytes: optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
+  recordingBitrateMbps: optionalWith(Schema.NullOr(NonNegativeNumber), {
     default: () => null,
   }),
-  captureCallbackMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
-  recordQueueLagMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
-  writerAppendMs: Schema.optionalWith(NonNegativeNumber, { default: () => 0 }),
+  captureCallbackMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
+  recordQueueLagMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
+  writerAppendMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
   previewEncodeMs: Schema.optional(NonNegativeNumber),
 });
 
@@ -271,18 +300,18 @@ export const capturePreviewFrameSchema = Schema.Struct({
 export const captureStatusResultSchema = Schema.Struct({
   isRunning: Schema.Boolean,
   isRecording: Schema.Boolean,
-  captureSessionId: Schema.optionalWith(Schema.NullOr(captureSessionIdSchema), {
+  captureSessionId: optionalWith(Schema.NullOr(captureSessionIdSchema), {
     default: () => null,
   }),
   recordingDurationSeconds: NonNegativeNumber,
   recordingURL: Schema.NullOr(Schema.String),
-  captureMetadata: Schema.optionalWith(captureMetadataSchema, { default: () => null }),
+  captureMetadata: optionalWith(captureMetadataSchema, { default: () => null }),
   lastError: Schema.NullOr(Schema.String),
   eventsURL: Schema.NullOr(Schema.String),
-  lastRecordingTelemetry: Schema.optionalWith(Schema.NullOr(captureTelemetrySchema), {
+  lastRecordingTelemetry: optionalWith(Schema.NullOr(captureTelemetrySchema), {
     default: () => null,
   }),
-  telemetry: Schema.optionalWith(captureTelemetrySchema, {
+  telemetry: optionalWith(captureTelemetrySchema, {
     default: createDefaultCaptureTelemetry,
   }),
 });
@@ -297,7 +326,7 @@ export const exportPresetSchema = Schema.Struct({
   width: PositiveInt,
   height: PositiveInt,
   fps: PositiveInt,
-  fileType: Schema.Literal("mp4", "mov"),
+  fileType: Schema.Literals(["mp4", "mov"]),
 });
 
 /** Result payload for `export.info`. */
@@ -312,24 +341,24 @@ export const exportRunResultSchema = Schema.Struct({
 
 /** Agent Mode payloads covering preflight, execution, and persisted artifacts. */
 /** Agent job lifecycle statuses. */
-export const agentJobStatusSchema = Schema.Literal(
+export const agentJobStatusSchema = Schema.Literals([
   "queued",
   "running",
   "completed",
   "failed",
   "cancelled",
   "blocked",
-);
+]);
 
 /** Artifact kinds emitted by `agent.run`. */
-export const agentArtifactKindSchema = Schema.Literal(
+export const agentArtifactKindSchema = Schema.Literals([
   "transcript.full.v1",
   "transcript.words.v1",
   "beat-map.v1",
   "qa-report.v1",
   "cut-plan.v1",
   "run-summary.v1",
-);
+]);
 
 /** Single persisted agent artifact descriptor. */
 export const agentArtifactSchema = Schema.Struct({
@@ -338,7 +367,7 @@ export const agentArtifactSchema = Schema.Struct({
 });
 
 /** Supported transcription providers for Agent Mode v1. */
-export const transcriptionProviderSchema = Schema.Literal("none", "imported_transcript");
+export const transcriptionProviderSchema = Schema.Literals(["none", "imported_transcript"]);
 
 /** Single imported transcript segment entry with absolute timing in seconds. */
 export const importedTranscriptSegmentSchema = Schema.Struct({
@@ -346,9 +375,11 @@ export const importedTranscriptSegmentSchema = Schema.Struct({
   startSeconds: NonNegativeNumber,
   endSeconds: NonNegativeNumber,
 }).pipe(
-  Schema.filter((segment) => segment.endSeconds > segment.startSeconds, {
-    message: () => "Imported transcript segment endSeconds must be greater than startSeconds.",
-  }),
+  refineSchema(
+    (segment: { endSeconds: number; startSeconds: number }) =>
+      segment.endSeconds > segment.startSeconds,
+    "Imported transcript segment endSeconds must be greater than startSeconds.",
+  ),
 );
 
 /** Single imported transcript word entry with absolute timing in seconds. */
@@ -357,27 +388,30 @@ export const importedTranscriptWordSchema = Schema.Struct({
   startSeconds: NonNegativeNumber,
   endSeconds: NonNegativeNumber,
 }).pipe(
-  Schema.filter((word) => word.endSeconds > word.startSeconds, {
-    message: () => "Imported transcript word endSeconds must be greater than startSeconds.",
-  }),
+  refineSchema(
+    (word: { endSeconds: number; startSeconds: number }) => word.endSeconds > word.startSeconds,
+    "Imported transcript word endSeconds must be greater than startSeconds.",
+  ),
 );
 
 /** Canonical imported transcript payload accepted by Agent Mode v1. */
 export const importedTranscriptSchema = Schema.Struct({
-  segments: Schema.optionalWith(Schema.Array(importedTranscriptSegmentSchema), {
+  segments: optionalWith(Schema.Array(importedTranscriptSegmentSchema), {
     default: () => [],
   }),
-  words: Schema.optionalWith(Schema.Array(importedTranscriptWordSchema), {
+  words: optionalWith(Schema.Array(importedTranscriptWordSchema), {
     default: () => [],
   }),
 }).pipe(
-  Schema.filter((transcript) => transcript.segments.length > 0 || transcript.words.length > 0, {
-    message: () => "Imported transcript must contain at least one segment or one word entry.",
-  }),
+  refineSchema(
+    (transcript: { segments: ReadonlyArray<unknown>; words: ReadonlyArray<unknown> }) =>
+      transcript.segments.length > 0 || transcript.words.length > 0,
+    "Imported transcript must contain at least one segment or one word entry.",
+  ),
 );
 
 /** Machine-readable reasons emitted by Agent Mode preflight. */
-export const agentPreflightBlockingReasonSchema = Schema.Literal(
+export const agentPreflightBlockingReasonSchema = Schema.Literals([
   "missing_project",
   "missing_recording",
   "invalid_runtime_budget",
@@ -388,10 +422,10 @@ export const agentPreflightBlockingReasonSchema = Schema.Literal(
   "invalid_imported_transcript",
   "no_audio_track",
   "silent_audio",
-);
+]);
 
 /** Machine-readable reasons emitted by Agent Mode run/status payloads. */
-export const agentRunBlockingReasonSchema = Schema.Literal(
+export const agentRunBlockingReasonSchema = Schema.Literals([
   "missing_project",
   "missing_recording",
   "invalid_runtime_budget",
@@ -404,21 +438,21 @@ export const agentRunBlockingReasonSchema = Schema.Literal(
   "silent_audio",
   "empty_transcript",
   "weak_narrative_structure",
-);
+]);
 
-const agentBeatSchema = Schema.Literal("hook", "action", "payoff", "takeaway");
+const agentBeatSchema = Schema.Literals(["hook", "action", "payoff", "takeaway"]);
 
 /** Narrative QA gate report produced by `agent.run`. */
 export const agentQAReportSchema = Schema.Struct({
   passed: Schema.Boolean,
-  score: Schema.Number.pipe(Schema.between(0, 1)),
+  score: Schema.Number.pipe(between(0, 1)),
   coverage: Schema.Struct({
     hook: Schema.Boolean,
     action: Schema.Boolean,
     payoff: Schema.Boolean,
     takeaway: Schema.Boolean,
   }),
-  missingBeats: Schema.optionalWith(Schema.Array(agentBeatSchema), { default: () => [] }),
+  missingBeats: optionalWith(Schema.Array(agentBeatSchema), { default: () => [] }),
 });
 
 /** Summary payload for agent pipeline execution. */
@@ -468,18 +502,18 @@ export const projectStateSchema = Schema.Struct({
   projectPath: Schema.NullOr(projectPathSchema),
   recordingURL: Schema.NullOr(Schema.String),
   eventsURL: Schema.NullOr(Schema.String),
-  lastRecordingTelemetry: Schema.optionalWith(Schema.NullOr(captureTelemetrySchema), {
+  lastRecordingTelemetry: optionalWith(Schema.NullOr(captureTelemetrySchema), {
     default: () => null,
   }),
   autoZoom: autoZoomSettingsSchema,
-  timeline: Schema.optionalWith(timelineDocumentSchema, {
+  timeline: optionalWith(timelineDocumentSchema, {
     default: () => ({
       version: 2 as const,
       items: [],
     }),
   }),
   captureMetadata: captureMetadataSchema,
-  agentAnalysis: Schema.optionalWith(projectAgentAnalysisSummarySchema, {
+  agentAnalysis: optionalWith(projectAgentAnalysisSummarySchema, {
     default: () => ({
       latestJobId: null,
       latestStatus: null,
@@ -507,20 +541,20 @@ const requestBaseFields = {
 } as const;
 
 const emptyParamsSchema = Schema.Struct({});
-const emptyParamsProperty = Schema.optionalWith(emptyParamsSchema, { default: () => ({}) });
-const runtimeBudgetMinutesProperty = Schema.optionalWith(RuntimeBudgetMinutesSchema, {
+const emptyParamsProperty = optionalWith(emptyParamsSchema, { default: () => ({}) });
+const runtimeBudgetMinutesProperty = optionalWith(RuntimeBudgetMinutesSchema, {
   default: () => 10,
 });
-const transcriptionProviderProperty = Schema.optionalWith(transcriptionProviderSchema, {
+const transcriptionProviderProperty = optionalWith(transcriptionProviderSchema, {
   default: () => "none" as const,
 });
-const destructiveIntentProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
-const enableMicProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
-const enablePreviewProperty = Schema.optionalWith(Schema.Boolean, { default: () => true });
-const captureFrameRateProperty = Schema.optionalWith(captureFrameRateSchema, {
+const destructiveIntentProperty = optionalWith(Schema.Boolean, { default: () => false });
+const enableMicProperty = optionalWith(Schema.Boolean, { default: () => false });
+const enablePreviewProperty = optionalWith(Schema.Boolean, { default: () => true });
+const captureFrameRateProperty = optionalWith(captureFrameRateSchema, {
   default: () => defaultCaptureFrameRate,
 });
-const trackInputEventsProperty = Schema.optionalWith(Schema.Boolean, { default: () => false });
+const trackInputEventsProperty = optionalWith(Schema.Boolean, { default: () => false });
 
 /** Request envelopes ordered by the shell lifecycle they participate in. */
 /** Engine protocol schema for systemPingRequestSchema. */
@@ -557,7 +591,7 @@ export const agentRunRequestSchema = Schema.Struct({
     runtimeBudgetMinutes: runtimeBudgetMinutesProperty,
     transcriptionProvider: transcriptionProviderProperty,
     importedTranscriptPath: Schema.optional(projectPathSchema),
-    force: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+    force: optionalWith(Schema.Boolean, { default: () => false }),
   }),
 });
 
@@ -756,7 +790,7 @@ export const projectSaveRequestSchema = Schema.Struct({
 export const projectRecentsRequestSchema = Schema.Struct({
   ...requestBaseFields,
   method: Schema.Literal(engineMethods.ProjectRecents),
-  params: Schema.optionalWith(
+  params: optionalWith(
     Schema.Struct({
       limit: Schema.optional(ProjectRecentsLimitSchema),
     }),
@@ -765,7 +799,7 @@ export const projectRecentsRequestSchema = Schema.Struct({
 });
 
 /** Discriminated union of all request payloads supported by the engine. */
-export const engineRequestSchema = Schema.Union(
+export const engineRequestSchema = Schema.Union([
   systemPingRequestSchema,
   engineCapabilitiesRequestSchema,
   agentPreflightRequestSchema,
@@ -793,10 +827,10 @@ export const engineRequestSchema = Schema.Union(
   projectOpenRequestSchema,
   projectSaveRequestSchema,
   projectRecentsRequestSchema,
-);
+]);
 
 /** Error code values returned on failed engine responses. */
-export const engineErrorCodeSchema = Schema.Literal(
+export const engineErrorCodeSchema = Schema.Literals([
   "invalid_request",
   "invalid_params",
   "unsupported_method",
@@ -806,7 +840,7 @@ export const engineErrorCodeSchema = Schema.Literal(
   "missing_local_model",
   "invalid_cut_plan",
   "runtime_error",
-);
+]);
 
 /** Error object shape returned by failed engine responses. */
 export const engineErrorSchema = Schema.Struct({
@@ -829,10 +863,10 @@ export const engineErrorResponseSchema = Schema.Struct({
 });
 
 /** Union of success and error engine response envelopes. */
-export const engineResponseSchema = Schema.Union(
+export const engineResponseSchema = Schema.Union([
   engineSuccessResponseSchema,
   engineErrorResponseSchema,
-);
+]);
 
 /** Inferred TypeScript aliases for consumers that only need static typing. */
 /** Type alias for EngineRequest. */

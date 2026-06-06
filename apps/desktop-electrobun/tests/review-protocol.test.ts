@@ -7,10 +7,7 @@ import {
   reviewSessionSnapshotSchema,
 } from "@guerillaglass/review-protocol";
 
-function decodeSchemaSync<S extends Schema.Schema.Any>(
-  schema: S,
-  raw: unknown,
-): Schema.Schema.Type<S> {
+function decodeSchemaSync<S extends Schema.Top>(schema: S, raw: unknown): Schema.Schema.Type<S> {
   return Schema.decodeUnknownSync(schema as never)(raw) as Schema.Schema.Type<S>;
 }
 

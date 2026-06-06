@@ -57,7 +57,7 @@ export function parseJsonStringSync(raw: string, source: string): unknown {
   return runEffectSync(parseJsonString(raw, source));
 }
 
-export function decodeUnknownWithSchema<S extends Schema.Schema.AnyNoContext>(
+export function decodeUnknownWithSchema<S extends Schema.Top>(
   schema: S,
   raw: unknown,
   contract: string,
@@ -73,7 +73,7 @@ export function decodeUnknownWithSchema<S extends Schema.Schema.AnyNoContext>(
   ) as Effect.Effect<MutableDeep<Schema.Schema.Type<S>>, ContractDecodeError>;
 }
 
-export function decodeUnknownWithSchemaSync<S extends Schema.Schema.AnyNoContext>(
+export function decodeUnknownWithSchemaSync<S extends Schema.Top>(
   schema: S,
   raw: unknown,
   contract: string,
@@ -81,7 +81,7 @@ export function decodeUnknownWithSchemaSync<S extends Schema.Schema.AnyNoContext
   return runEffectSync(decodeUnknownWithSchema(schema, raw, contract));
 }
 
-export function decodeJsonStringWithSchemaSync<S extends Schema.Schema.AnyNoContext>(
+export function decodeJsonStringWithSchemaSync<S extends Schema.Top>(
   schema: S,
   raw: string,
   contract: string,

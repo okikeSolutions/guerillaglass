@@ -11,7 +11,7 @@
     "gate:typescript": "bun run js:format:check && bun run js:lint && bun run js:lint:react-effects && bun run docs:check:ts && bun run desktop:typecheck && bun run web:typecheck && bun run protocol:typecheck && bun run desktop:test",
     "js:format": "bunx oxfmt --write apps packages",
     "js:format:check": "bunx oxfmt --check apps packages",
-    "js:lint": "bunx oxlint .",
+    "js:lint": "bunx oxlint apps packages Scripts oxlint.config.mjs",
     "js:lint:react-effects": "bun ./Scripts/lint_no_state_updates_in_effect.mjs",
     "swift:build": "swift build",
     "swift:test": "swift test",
@@ -53,15 +53,15 @@
   },
   "devDependencies": {
     "@nkzw/eslint-plugin": "^2.0.0",
-    "@nkzw/oxlint-config": "^1.0.1",
-    "eslint-plugin-no-only-tests": "^3.3.0",
-    "eslint-plugin-perfectionist": "^5.8.0",
-    "eslint-plugin-react-hooks": "^7.0.1",
+    "@nkzw/oxlint-config": "^1.2.1",
+    "eslint-plugin-no-only-tests": "^3.4.0",
+    "eslint-plugin-perfectionist": "^5.9.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "oxfmt": "^0.44.0",
-    "oxlint": "^1.59.0",
-    "oxlint-tsgolint": "^0.20.0",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.1"
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0",
+    "oxlint-tsgolint": "^0.23.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.1"
   }
 }

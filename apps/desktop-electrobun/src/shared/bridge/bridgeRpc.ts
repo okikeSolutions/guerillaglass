@@ -65,6 +65,14 @@ import type { SerializedBridgeError } from "../errors";
 import type { StudioShortcutOverrides } from "../shortcuts";
 import type { StudioDiagnosticsValue } from "../studioDiagnostics";
 
+function greaterThanOrEqualTo(minimum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
+}
+
+function lessThanOrEqualTo(maximum: number) {
+  return Schema.check<Schema.Schema<number>>(Schema.isLessThanOrEqualTo(maximum));
+}
+
 export const hostMenuCommands = {
   appRefresh: "app.refresh",
   appLocaleEnUS: "app.locale.enUS",
@@ -123,7 +131,7 @@ export type StudioDiagnosticsEntry = {
   spans?: Record<string, number>;
 };
 
-export const hostPathPickerModeSchema = Schema.Literal("openProject", "saveProjectAs", "export");
+export const hostPathPickerModeSchema = Schema.Literals(["openProject", "saveProjectAs", "export"]);
 export const pickPathRequestSchema = Schema.Struct({
   mode: hostPathPickerModeSchema,
   startingFolder: Schema.optional(Schema.String),
@@ -144,12 +152,12 @@ export const resolveCapturePreviewURLResponseSchema = outputUrlSchema;
 export const hostReviewEventMessageSchema = Schema.Struct({
   event: reviewBridgeEventSchema,
 });
-const studioDiagnosticsValueSchema = Schema.Union(
+const studioDiagnosticsValueSchema = Schema.Union([
   Schema.String,
   Schema.Number,
   Schema.Boolean,
   Schema.Null,
-);
+]);
 export const studioDiagnosticsEntrySchema = Schema.Struct({
   source: Schema.Literal("renderer"),
   level: Schema.NonEmptyString,
@@ -168,25 +176,21 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
     }),
   ),
 });
-const nonNegativeIntSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(0));
-const nonNegativeNumberSchema = Schema.Number.pipe(Schema.greaterThanOrEqualTo(0));
-const positiveIntSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
-const runtimeBudgetMinutesSchema = Schema.optional(
-  positiveIntSchema.pipe(Schema.lessThanOrEqualTo(60)),
-);
-const projectRecentsLimitSchema = Schema.optional(
-  positiveIntSchema.pipe(Schema.lessThanOrEqualTo(100)),
-);
+const nonNegativeIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(0));
+const nonNegativeNumberSchema = Schema.Number.pipe(greaterThanOrEqualTo(0));
+const positiveIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(1));
+const runtimeBudgetMinutesSchema = Schema.optional(positiveIntSchema.pipe(lessThanOrEqualTo(60)));
+const projectRecentsLimitSchema = Schema.optional(positiveIntSchema.pipe(lessThanOrEqualTo(100)));
 const undefinedBridgeParamsSchema = Schema.Undefined;
 const engineAgentPreflightBridgeParamsSchema = Schema.Struct({
   runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
-  transcriptionProvider: Schema.optional(Schema.Literal("none", "imported_transcript")),
+  transcriptionProvider: Schema.optional(Schema.Literals(["none", "imported_transcript"])),
   importedTranscriptPath: Schema.optional(filePathSchema),
 });
 const engineAgentRunBridgeParamsSchema = Schema.Struct({
   preflightToken: agentPreflightTokenSchema,
   runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
-  transcriptionProvider: Schema.optional(Schema.Literal("none", "imported_transcript")),
+  transcriptionProvider: Schema.optional(Schema.Literals(["none", "imported_transcript"])),
   importedTranscriptPath: Schema.optional(filePathSchema),
   force: Schema.optional(Schema.Boolean),
 });
@@ -261,8 +265,8 @@ const reviewSetWorkflowStatusBridgeParamsSchema = Schema.Struct({
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
   responseType: Response;
-  paramsSchema?: Schema.Schema.AnyNoContext;
-  responseSchema?: Schema.Schema.AnyNoContext;
+  paramsSchema?: Schema.Top;
+  responseSchema?: Schema.Top;
 };
 
 type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
@@ -272,8 +276,8 @@ type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
 function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
   toParams: (...args: Args) => Params,
   options?: {
-    paramsSchema?: Schema.Schema.AnyNoContext;
-    responseSchema?: Schema.Schema.AnyNoContext;
+    paramsSchema?: Schema.Top;
+    responseSchema?: Schema.Top;
   },
 ): BridgeRequestDefinition<Params, Response, Args> {
   return {
@@ -286,8 +290,8 @@ function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
 
 function defineValidatedBridgeRequest<Params, Response, Args extends readonly unknown[]>(
   toParams: (...args: Args) => Params,
-  paramsSchema: Schema.Schema.AnyNoContext,
-  responseSchema: Schema.Schema.AnyNoContext,
+  paramsSchema: Schema.Top,
+  responseSchema: Schema.Top,
 ): BridgeRequestDefinition<Params, Response, Args> {
   return defineBridgeRequest(toParams, {
     paramsSchema,
