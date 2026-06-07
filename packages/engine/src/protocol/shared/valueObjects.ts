@@ -37,11 +37,11 @@ const captureContentRectSchema = Schema.Struct({
 /** Optional capture metadata embedded in capture status and project state. */
 export const captureMetadataSchema = Schema.OptionFromNullOr(
   Schema.Struct({
-    window: Schema.OptionFromOptionalNullOr(captureWindowSchema),
+    window: Schema.OptionFromOptionalNullOr(captureWindowSchema, { onNoneEncoding: null }),
     source: Schema.Literals(["display", "window"]),
     contentRect: captureContentRectSchema,
     pixelScale: PositiveNumber,
-    fps: Schema.OptionFromOptionalNullOr(PositiveNumber),
+    fps: Schema.OptionFromOptionalNullOr(PositiveNumber, { onNoneEncoding: null }),
   }),
 );
 

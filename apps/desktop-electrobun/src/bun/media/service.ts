@@ -32,8 +32,8 @@ export function makeMediaSourceService(server: MediaServerLike): MediaSourceServ
   };
 }
 
-/** Builds the scoped live media source layer and owns media server shutdown. */
-export function makeMediaSourceServiceLive(options?: { createServer?: () => MediaServerLike }) {
+/** Builds the scoped media source layer and owns media server shutdown. */
+export function makeLayerMediaSourceService(options?: { createServer?: () => MediaServerLike }) {
   const createServer = options?.createServer ?? (() => new MediaServer());
   return Layer.effect(
     MediaSourceService,
@@ -45,5 +45,5 @@ export function makeMediaSourceServiceLive(options?: { createServer?: () => Medi
   );
 }
 
-/** Default live media source layer used by the desktop Bun host runtime. */
-export const MediaSourceServiceLive = makeMediaSourceServiceLive();
+/** Default media source layer used by the desktop app runtime. */
+export const layerMediaSourceService = makeLayerMediaSourceService();

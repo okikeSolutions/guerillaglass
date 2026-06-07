@@ -272,7 +272,7 @@ Creator Studio implementation requirements:
   - preserve project state for repeat exports
   - Open Project picker targets `.gglassproj` packages (project container contract).
   - Save As resolves and validates target package paths in host shell code; renderer receives the final path.
-  - Save As uses a native save panel when available in the host runtime.
+  - Save As uses a native save panel when available in the desktop host.
   - Save As fallback uses an open picker that accepts either a `*.gglassproj` file path or a directory, then resolves to a final `*.gglassproj` target path in host shell code.
   - Save path collisions may require explicit host confirmation before replacing an existing project package.
   - Save/Save As/Export picker defaults should start in platform Videos/Movies directories, with Documents as a host fallback.

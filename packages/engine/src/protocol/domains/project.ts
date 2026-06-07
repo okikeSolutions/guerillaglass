@@ -30,7 +30,9 @@ export const projectStateSchema = Schema.Struct({
   projectPath: Schema.OptionFromNullOr(projectPathSchema),
   recordingURL: Schema.OptionFromNullOr(Schema.String),
   eventsURL: Schema.OptionFromNullOr(Schema.String),
-  lastRecordingTelemetry: Schema.OptionFromOptionalNullOr(captureTelemetrySchema),
+  lastRecordingTelemetry: Schema.OptionFromOptionalNullOr(captureTelemetrySchema, {
+    onNoneEncoding: null,
+  }),
   autoZoom: autoZoomSettingsSchema,
   timeline: optionalWith(timelineDocumentSchema, {
     default: () => ({

@@ -109,7 +109,7 @@ export const hostBridgeEventNames = {
   menuCommand: "gg-host-menu-command",
   captureStatus: "gg-host-capture-status",
   reviewEvent: "gg-host-review-event",
-  runtimeFlags: "gg-host-runtime-flags",
+  desktopRuntimeFlags: "gg-desktop-runtime-flags",
 } as const;
 
 export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCommands];
@@ -127,7 +127,7 @@ export type HostMenuState = {
   shortcutOverrides?: StudioShortcutOverrides;
 };
 
-export type HostRuntimeFlags = {
+export type DesktopRuntimeFlags = {
   captureBenchmarkEnabled: boolean;
   studioDiagnosticsEnabled: boolean;
 };
@@ -697,7 +697,7 @@ export type DesktopBridgeRPC = {
       hostMenuCommand: { command: HostMenuCommand };
       hostCaptureStatus: { captureStatus: CaptureStatusResult };
       hostReviewEvent: { event: ReviewBridgeEvent };
-      hostRuntimeFlags: HostRuntimeFlags;
+      desktopRuntimeFlags: DesktopRuntimeFlags;
     };
   }>;
 };

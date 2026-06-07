@@ -6,11 +6,12 @@ import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../share
 import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../media/service";
 import { ReviewGateway } from "../review/service";
-import type { HostRuntime, HostRuntimeServices } from "../runtime/hostRuntime";
+import type { DesktopAppRuntime } from "../app/AppRuntime";
+import type { DesktopAppServices } from "../app/AppLayer";
 import { resolveAllowedMediaFilePath } from "../security/fileAccess";
 
 type BridgeHandlerDependencies = {
-  runtime: HostRuntime;
+  runtime: DesktopAppRuntime;
   pickPath: (params: {
     mode: HostPathPickerMode;
     startingFolder?: string;
@@ -21,7 +22,7 @@ type BridgeHandlerDependencies = {
   emitReviewEvent: (event: ReviewBridgeEvent) => void;
 };
 
-/** Creates bridge RPC handlers backed by the scoped host runtime. */
+/** Creates bridge RPC handlers backed by the scoped desktop app runtime. */
 export function createEngineBridgeHandlers({
   runtime,
   pickPath,
@@ -31,7 +32,7 @@ export function createEngineBridgeHandlers({
   emitReviewEvent,
 }: BridgeHandlerDependencies): BunBridgeRequestHandlerMap {
   const run = (effect: Effect.Effect<unknown, unknown, unknown>): Promise<any> =>
-    runtime.runPromise(effect as Effect.Effect<unknown, unknown, HostRuntimeServices>);
+    runtime.runPromise(effect as Effect.Effect<unknown, unknown, DesktopAppServices>);
 
   return createBunBridgeHandlers({
     ggEnginePing: async () =>

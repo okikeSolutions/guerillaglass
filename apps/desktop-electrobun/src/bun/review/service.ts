@@ -160,10 +160,10 @@ export function makeReviewGateway(
   };
 }
 
-/** Builds the live review gateway layer with injectable Convex wiring for tests. */
-export function makeReviewGatewayLive(dependencies?: ReviewGatewayDependencies) {
+/** Builds the review gateway layer with injectable Convex wiring for tests. */
+export function makeLayerReviewGateway(dependencies?: ReviewGatewayDependencies) {
   return Layer.succeed(ReviewGateway, makeReviewGateway(dependencies));
 }
 
-/** Default live review gateway layer used by the desktop Bun host runtime. */
-export const ReviewGatewayLive = makeReviewGatewayLive();
+/** Default review gateway layer used by the desktop app runtime. */
+export const layerReviewGateway = makeLayerReviewGateway();

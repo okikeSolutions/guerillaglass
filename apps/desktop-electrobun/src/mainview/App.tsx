@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { useEffect, useState } from "react";
-import { hostBridgeEventNames, type HostRuntimeFlags } from "../shared/bridge";
+import { hostBridgeEventNames, type DesktopRuntimeFlags } from "../shared/bridge";
 import { appRouter } from "./app/navigation/router";
 import { StudioProvider } from "./app/studio/state/StudioProvider";
 import { useStudioController } from "./app/studio/hooks/core/useStudioController";
@@ -11,14 +11,14 @@ import { CaptureBenchmarkScene } from "./CaptureBenchmarkScene";
 import { isCaptureBenchmarkEnabledFromSearch } from "../shared/captureBenchmark";
 
 type RuntimeWindow = Window & {
-  __ggHostRuntimeFlags?: HostRuntimeFlags;
+  __ggDesktopRuntimeFlags?: DesktopRuntimeFlags;
 };
 
-function readHostRuntimeFlags(): HostRuntimeFlags | null {
+function readDesktopRuntimeFlags(): DesktopRuntimeFlags | null {
   if (typeof window === "undefined") {
     return null;
   }
-  return (window as RuntimeWindow).__ggHostRuntimeFlags ?? null;
+  return (window as RuntimeWindow).__ggDesktopRuntimeFlags ?? null;
 }
 
 function StudioAppRouter() {
@@ -32,23 +32,26 @@ function StudioAppRouter() {
 }
 
 export default function App() {
-  const [hostRuntimeFlags, setHostRuntimeFlags] = useState<HostRuntimeFlags | null>(() =>
-    readHostRuntimeFlags(),
+  const [desktopRuntimeFlags, setDesktopRuntimeFlags] = useState<DesktopRuntimeFlags | null>(() =>
+    readDesktopRuntimeFlags(),
   );
 
   useEffect(() => {
-    const onRuntimeFlags = (event: Event) => {
-      const customEvent = event as CustomEvent<HostRuntimeFlags>;
+    const onDesktopRuntimeFlags = (event: Event) => {
+      const customEvent = event as CustomEvent<DesktopRuntimeFlags>;
       if (customEvent.detail) {
-        setHostRuntimeFlags(customEvent.detail);
+        setDesktopRuntimeFlags(customEvent.detail);
       }
     };
 
-    window.addEventListener(hostBridgeEventNames.runtimeFlags, onRuntimeFlags as EventListener);
+    window.addEventListener(
+      hostBridgeEventNames.desktopRuntimeFlags,
+      onDesktopRuntimeFlags as EventListener,
+    );
     return () => {
       window.removeEventListener(
-        hostBridgeEventNames.runtimeFlags,
-        onRuntimeFlags as EventListener,
+        hostBridgeEventNames.desktopRuntimeFlags,
+        onDesktopRuntimeFlags as EventListener,
       );
     };
   }, []);
@@ -58,7 +61,7 @@ export default function App() {
     (isCaptureBenchmarkEnabledFromSearch(window.location.search) ||
       isCaptureBenchmarkEnabledFromSearch(window.location.hash));
   const captureBenchmarkEnabled =
-    captureBenchmarkEnabledFromUrl || hostRuntimeFlags?.captureBenchmarkEnabled === true;
+    captureBenchmarkEnabledFromUrl || desktopRuntimeFlags?.captureBenchmarkEnabled === true;
 
   if (captureBenchmarkEnabled) {
     return <CaptureBenchmarkScene />;

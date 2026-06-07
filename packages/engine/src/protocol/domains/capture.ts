@@ -28,9 +28,11 @@ export const captureTelemetrySchema = Schema.Struct({
   writerDroppedFrames: optionalWith(NonNegativeInt, { default: () => 0 }),
   writerBackpressureDrops: optionalWith(NonNegativeInt, { default: () => 0 }),
   achievedFps: optionalWith(NonNegativeNumber, { default: () => 0 }),
-  cpuPercent: Schema.OptionFromOptionalNullOr(NonNegativeNumber),
-  memoryBytes: Schema.OptionFromOptionalNullOr(NonNegativeNumber),
-  recordingBitrateMbps: Schema.OptionFromOptionalNullOr(NonNegativeNumber),
+  cpuPercent: Schema.OptionFromOptionalNullOr(NonNegativeNumber, { onNoneEncoding: null }),
+  memoryBytes: Schema.OptionFromOptionalNullOr(NonNegativeNumber, { onNoneEncoding: null }),
+  recordingBitrateMbps: Schema.OptionFromOptionalNullOr(NonNegativeNumber, {
+    onNoneEncoding: null,
+  }),
   captureCallbackMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
   recordQueueLagMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
   writerAppendMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
@@ -47,13 +49,17 @@ export const capturePreviewFrameSchema = Schema.Struct({
 export const captureStatusResultSchema = Schema.Struct({
   isRunning: Schema.Boolean,
   isRecording: Schema.Boolean,
-  captureSessionId: Schema.OptionFromOptionalNullOr(captureSessionIdSchema),
+  captureSessionId: Schema.OptionFromOptionalNullOr(captureSessionIdSchema, {
+    onNoneEncoding: null,
+  }),
   recordingDurationSeconds: NonNegativeNumber,
   recordingURL: Schema.OptionFromNullOr(Schema.String),
   captureMetadata: optionalWith(captureMetadataSchema, { default: () => Option.none() }),
   lastError: Schema.OptionFromNullOr(Schema.String),
   eventsURL: Schema.OptionFromNullOr(Schema.String),
-  lastRecordingTelemetry: Schema.OptionFromOptionalNullOr(captureTelemetrySchema),
+  lastRecordingTelemetry: Schema.OptionFromOptionalNullOr(captureTelemetrySchema, {
+    onNoneEncoding: null,
+  }),
   telemetry: optionalWith(captureTelemetrySchema, {
     default: createDefaultCaptureTelemetry,
   }),

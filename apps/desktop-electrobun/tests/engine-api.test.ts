@@ -20,7 +20,7 @@ import {
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
-import { createHostRuntime } from "../src/bun/runtime/hostRuntime";
+import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -491,7 +491,7 @@ describe("renderer engine bridge", () => {
     delete process.env.GG_REVIEW_CONVEX_URL;
     delete process.env.VITE_CONVEX_URL;
 
-    const runtime = await createHostRuntime({
+    const runtime = await makeDesktopAppRuntime({
       sendCaptureStatus: () => {},
       enableCaptureStatusStream: false,
       engineTransportLayer: Layer.succeed(EngineTransport, {} as never),

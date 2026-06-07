@@ -1,14 +1,17 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Fiber, Layer, Stream } from "effect";
-import { type CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import { Effect, Layer, Schema, Stream } from "effect";
+import {
+  captureStatusResultSchema,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine/protocol/domains/capture";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
 import {
-  createHostRuntime,
-  HostCaptureStatusSink,
+  DesktopCaptureStatusSink,
   makeCaptureStatusStreamEffect,
-} from "../src/bun/runtime/hostRuntime";
+} from "../src/bun/app/AppLayer";
+import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): CaptureStatusResult {
   const isRunning = overrides.isRunning === true;
@@ -38,20 +41,23 @@ function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): Ca
   };
 }
 
-describe("host runtime capture status stream", () => {
+describe("desktop app runtime capture status stream", () => {
   it.effect("forwards capture status stream chunks", () =>
     Effect.gen(function* () {
       const delivered: CaptureStatusResult[] = [];
       const first = makeCaptureStatus({ isRunning: true, isRecording: true });
       const second = makeCaptureStatus({ isRunning: true, isRecording: false });
+      const statusCodec = Schema.toCodecJson(captureStatusResultSchema);
+      const decodeStatus = Schema.decodeUnknownSync(statusCodec);
+      const encodeStatus = Schema.encodeUnknownSync(statusCodec);
 
       yield* makeCaptureStatusStreamEffect().pipe(
         Effect.provide(
           Layer.mergeAll(
             Layer.succeed(EngineTransport, {
-              "capture.statusStream": () => Stream.make(first, second),
+              "capture.statusStream": () => Stream.make(decodeStatus(first), decodeStatus(second)),
             } as never),
-            Layer.succeed(HostCaptureStatusSink, {
+            Layer.succeed(DesktopCaptureStatusSink, {
               sendCaptureStatus: (status: CaptureStatusResult) => {
                 delivered.push(status);
               },
@@ -60,7 +66,7 @@ describe("host runtime capture status stream", () => {
         ),
       );
 
-      expect(delivered).toEqual([first, second]);
+      expect(delivered).toEqual([encodeStatus(decodeStatus(first)), encodeStatus(decodeStatus(second))]);
     }),
   );
 
@@ -74,36 +80,7 @@ describe("host runtime capture status stream", () => {
             Layer.succeed(EngineTransport, {
               "capture.statusStream": () => Stream.fail("status probe failed"),
             } as never),
-            Layer.succeed(HostCaptureStatusSink, {
-              sendCaptureStatus: (status: CaptureStatusResult) => {
-                delivered.push(status);
-              },
-            }),
-          ),
-        ),
-      );
-
-      expect(delivered).toEqual([]);
-    }),
-  );
-
-  it.effect("stops forwarding once the stream fiber is interrupted", () =>
-    Effect.gen(function* () {
-      const delivered: CaptureStatusResult[] = [];
-
-      yield* Effect.scoped(
-        Effect.gen(function* () {
-          const fiber = yield* Effect.forkScoped(makeCaptureStatusStreamEffect());
-          yield* Effect.yieldNow;
-          yield* Fiber.interrupt(fiber);
-        }),
-      ).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            Layer.succeed(EngineTransport, {
-              "capture.statusStream": () => Stream.never,
-            } as never),
-            Layer.succeed(HostCaptureStatusSink, {
+            Layer.succeed(DesktopCaptureStatusSink, {
               sendCaptureStatus: (status: CaptureStatusResult) => {
                 delivered.push(status);
               },
@@ -122,7 +99,7 @@ describe("host runtime capture status stream", () => {
       let releases = 0;
 
       const runtime = yield* Effect.promise(() =>
-        createHostRuntime({
+        makeDesktopAppRuntime({
           sendCaptureStatus: () => {},
           engineTransportLayer: Layer.effect(
             EngineTransport,

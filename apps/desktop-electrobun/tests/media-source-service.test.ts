@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Effect, ManagedRuntime } from "effect";
-import { MediaSourceService, makeMediaSourceServiceLive } from "../src/bun/media/service";
+import { MediaSourceService, makeLayerMediaSourceService } from "../src/bun/media/service";
 
 describe("media source service", () => {
   test("owns server shutdown through the live layer", async () => {
     let stopped = 0;
     const runtime = ManagedRuntime.make(
-      makeMediaSourceServiceLive({
+      makeLayerMediaSourceService({
         createServer: () =>
           ({
             resolveMediaSourceURLEffect: (filePath: string) =>

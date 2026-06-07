@@ -115,7 +115,7 @@ Playback transport hardening (current):
 - Renderer picker flows (`open project`, `save as`, export target selection) use a single host RPC (`ggPickPath`) with explicit modes: `openProject`, `saveProjectAs`, `export`.
 - `openProject` selections are constrained to `.gglassproj` package paths.
 - macOS build hooks patch generated `Info.plist` entries to register `.gglassproj` using `UTExportedTypeDeclarations` (custom UTI) and `CFBundleDocumentTypes` (`LSItemContentTypes` + `LSTypeIsPackage`) so Finder treats projects as single package items by default.
-- `saveProjectAs` prefers a native save dialog when the host runtime exposes one; otherwise it falls back to an open picker that accepts either a target `*.gglassproj` file or a directory (resolved to `<directory>/<default-name>.gglassproj`).
+- `saveProjectAs` prefers a native save dialog when the desktop host exposes one; otherwise it falls back to an open picker that accepts either a target `*.gglassproj` file or a directory (resolved to `<directory>/<default-name>.gglassproj`).
 - Save/Save As/Export pickers default to the platform Videos/Movies directory (`Utils.paths.videos`) and fall back to Documents when unavailable.
 - Save path collisions can trigger a host confirmation message before replacing an existing `*.gglassproj` target.
 - Renderer picker flows treat host RPC timeout responses as recoverable interruptions and show workflow guidance instead of a sticky fatal error state.

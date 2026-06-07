@@ -521,7 +521,7 @@ The previous desktop-local engine client and protocol definitions have been cons
 
 ```txt
 Electrobun handler
-  -> HostRuntime
+  -> DesktopAppRuntime
   -> EngineTransport service
   -> packages/engine/client/liveBun
   -> processBun starts native sidecar and reads socket readiness
@@ -617,7 +617,7 @@ mainWindow          -> WindowService / DesktopShell scoped state
 linuxTray          -> TrayService scoped state
 hostMenuState      -> Ref<HostMenuState>
 currentProjectPath -> ProjectSession Ref<Option<string>>
-hostRuntime        -> composition root only
+desktopAppRuntime  -> composition root only
 ```
 
 ## Host events goal
@@ -630,7 +630,7 @@ Events may include:
 type HostEvent =
   | { readonly _tag: "CaptureStatusUpdated"; readonly status: CaptureStatusResult }
   | { readonly _tag: "MenuCommand"; readonly command: HostMenuCommand }
-  | { readonly _tag: "RuntimeFlagsChanged"; readonly flags: HostRuntimeFlags }
+  | { readonly _tag: "DesktopRuntimeFlagsChanged"; readonly flags: DesktopRuntimeFlags }
   | { readonly _tag: "EngineProcessExited"; readonly reason: unknown };
 ```
 
@@ -689,12 +689,13 @@ Most backend tests should run without Electrobun by providing test layers for `D
 - Bridge handlers receive schema-decoded/branded params instead of using `as never` casts for engine RPC calls.
 - Current preference remains no barrels and no compatibility shims.
 
-### Phase 2 — Establish composition root
+### Phase 2 — Establish composition root — complete
 
-- Create `app/AppLayer.ts`.
-- Create one runtime/app-launch owner.
-- Convert current host runtime naming to v4 service/layer conventions.
-- Keep shell as shell; do not let shell own the app runtime architecture.
+- `apps/desktop-electrobun/src/bun/app/AppLayer.ts` composes the desktop app layer.
+- `apps/desktop-electrobun/src/bun/app/AppRuntime.ts` owns the single managed app runtime boundary.
+- Previous host runtime naming was removed in favor of v4-style app service/layer names such as `makeLayerDesktopApp`, `makeDesktopAppRuntime`, `DesktopAppRuntime`, and `DesktopCaptureStatusSink`.
+- `apps/desktop-electrobun/src/bun/runtime/hostRuntime.ts` was removed; no compatibility shim remains.
+- Shell resources remain in `app/index.ts` until Phase 3 so the shell does not own the runtime architecture.
 
 ### Phase 3 — Shell as scoped service
 

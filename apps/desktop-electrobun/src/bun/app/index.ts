@@ -16,7 +16,8 @@ import {
   type DesktopBridgeRPC,
   type HostMenuCommand,
   type HostMenuState,
-  type HostRuntimeFlags,
+  type DesktopRuntimeFlags,
+  type HostPathPickerMode,
   type StudioDiagnosticsEntry,
 } from "../../shared/bridge";
 import {
@@ -36,8 +37,7 @@ import {
   type ProjectState,
 } from "@guerillaglass/engine/protocol/domains/project";
 import { pickPathForMode } from "../path/picker";
-import type { HostPathPickerMode } from "../../shared/bridge";
-import { createHostRuntime, type HostRuntime } from "../runtime/hostRuntime";
+import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -59,20 +59,29 @@ let hostMenuState: HostMenuState = {
   shortcutOverrides: {},
 };
 let currentProjectPath: string | null = null;
-let hostRuntime: HostRuntime | null = null;
-const hostRuntimeFlags: HostRuntimeFlags = {
+let desktopAppRuntime: DesktopAppRuntime | null = null;
+const desktopRuntimeFlags: DesktopRuntimeFlags = {
   captureBenchmarkEnabled,
   studioDiagnosticsEnabled,
 };
 
 async function disposeHostShell() {
-  const runtime = hostRuntime;
-  hostRuntime = null;
+  const runtime = desktopAppRuntime;
+  desktopAppRuntime = null;
   mainWindow = null;
   linuxTray?.remove();
   linuxTray = null;
   await runtime?.dispose();
 }
+
+function disposeHostShellOnProcessSignal() {
+  void disposeHostShell().finally(() => {
+    Utils.quit();
+  });
+}
+
+process.once("SIGINT", disposeHostShellOnProcessSignal);
+process.once("SIGTERM", disposeHostShellOnProcessSignal);
 
 async function getMainViewURL(): Promise<string> {
   if (captureBenchmarkEnabled) {
@@ -224,15 +233,15 @@ function dispatchReviewEvent(event: ReviewBridgeEvent) {
   }
 }
 
-function dispatchHostRuntimeFlags() {
+function dispatchDesktopRuntimeFlags() {
   if (!mainWindow) {
     return;
   }
 
   try {
-    mainWindow.webview.rpc?.send.hostRuntimeFlags(hostRuntimeFlags);
+    mainWindow.webview.rpc?.send.desktopRuntimeFlags(desktopRuntimeFlags);
   } catch (error) {
-    console.warn("Failed to dispatch host runtime flags:", error);
+    console.warn("Failed to dispatch desktop runtime flags:", error);
   }
 }
 
@@ -248,7 +257,7 @@ function handleShellAction(action: string) {
 }
 
 async function bootstrapApp() {
-  hostRuntime = await createHostRuntime({
+  desktopAppRuntime = await makeDesktopAppRuntime({
     sendCaptureStatus: (captureStatus) => {
       mainWindow?.webview.rpc?.send.hostCaptureStatus({ captureStatus });
     },
@@ -258,7 +267,7 @@ async function bootstrapApp() {
   try {
     if (!captureBenchmarkEnabled) {
       try {
-        const initialProject = await hostRuntime.runPromise(
+        const initialProject = await desktopAppRuntime.runPromise(
           Effect.flatMap(
             EngineTransport,
             (transport) =>
@@ -277,7 +286,7 @@ async function bootstrapApp() {
       maxRequestTime: Infinity,
       handlers: {
         requests: createEngineBridgeHandlers({
-          runtime: hostRuntime,
+          runtime: desktopAppRuntime,
           pickPath,
           readTextFile,
           getCurrentProjectPath: () => currentProjectPath,
@@ -302,7 +311,7 @@ async function bootstrapApp() {
     mainWindow = new BrowserWindow({
       title: captureBenchmarkEnabled ? captureBenchmarkWindowTitle : "Guerillaglass",
       url: await getMainViewURL(),
-      preload: `window.__ggHostRuntimeFlags = ${JSON.stringify(hostRuntimeFlags)};`,
+      preload: `window.__ggDesktopRuntimeFlags = ${JSON.stringify(desktopRuntimeFlags)};`,
       rpc,
       frame: {
         width: 1320,
@@ -316,13 +325,13 @@ async function bootstrapApp() {
       applyShellMenus();
     }, 500);
     setTimeout(() => {
-      dispatchHostRuntimeFlags();
+      dispatchDesktopRuntimeFlags();
     }, 50);
     setTimeout(() => {
-      dispatchHostRuntimeFlags();
+      dispatchDesktopRuntimeFlags();
     }, 250);
     setTimeout(() => {
-      dispatchHostRuntimeFlags();
+      dispatchDesktopRuntimeFlags();
     }, 1000);
 
     Electrobun.events.on("application-menu-clicked", (event: unknown) => {
@@ -343,13 +352,13 @@ async function bootstrapApp() {
 
     mainWindow.on("focus", () => {
       applyShellMenus();
-      dispatchHostRuntimeFlags();
+      dispatchDesktopRuntimeFlags();
     });
   } catch (error) {
     try {
       await disposeHostShell();
     } catch (disposeError) {
-      console.warn("Failed to dispose host runtime after bootstrap failure", disposeError);
+      console.warn("Failed to dispose desktop app runtime after bootstrap failure", disposeError);
     }
     throw error;
   }
