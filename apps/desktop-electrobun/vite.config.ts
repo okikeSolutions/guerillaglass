@@ -1,13 +1,23 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    paraglideVitePlugin({
+      project: path.resolve(rootDirectory, "../../project.inlang"),
+      outdir: path.resolve(rootDirectory, "src/paraglide"),
+      strategy: ["localStorage", "baseLocale"],
+      emitGitIgnore: false,
+    }),
+    react(),
+    tailwindcss(),
+  ],
   root: "src/mainview",
   build: {
     outDir: "../../dist",

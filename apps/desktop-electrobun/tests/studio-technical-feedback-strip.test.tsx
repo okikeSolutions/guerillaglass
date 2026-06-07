@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { enUS } from "@guerillaglass/localization";
+import { enUS } from "@shared/localization";
 import { StudioTechnicalFeedbackStrip } from "@studio/layout/StudioTechnicalFeedbackStrip";
 import { StudioProvider } from "@studio/state/StudioProvider";
 import type { StudioController } from "@studio/hooks/core/useStudioController";

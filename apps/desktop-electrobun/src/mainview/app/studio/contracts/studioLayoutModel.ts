@@ -3,8 +3,11 @@ import {
   defaultStudioLocale,
   normalizeStudioLocale,
   type StudioLocale,
-} from "@guerillaglass/localization";
-import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@shared/localization";
+import {
+  ContractDecodeError,
+  JsonParseError,
+} from "@guerillaglass/engine/client/errors/clientErrors";
 import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import type { StudioMode } from "../domain/inspectorSelectionModel";
 import {

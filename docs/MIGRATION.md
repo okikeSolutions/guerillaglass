@@ -156,7 +156,7 @@ Native sidecars remain in `engines/`; `packages/engine` is the TypeScript Effect
 
 ### Localization: use Paraglide JS instead of a custom package
 
-The custom `packages/localization` package should not grow. We should migrate localization to Paraglide JS.
+The custom `packages/localization` package has been removed. Desktop and web now compile from the shared Paraglide inlang project instead of a hand-rolled localization package.
 
 Paraglide quick-start model:
 
@@ -176,11 +176,11 @@ getLocale();
 setLocale("de");
 ```
 
-Migration direction:
+Migration result:
 
-- Replace `packages/localization` with Paraglide-generated messages/runtime.
-- Keep generated Paraglide output close to the app(s) that use it unless we intentionally share locale messages across desktop and web.
-- If desktop and web share messages, create one messages workspace/package specifically for Paraglide output, not a hand-rolled localization abstraction.
+- Shared source messages live in root `messages/*.json` and `project.inlang`.
+- Desktop and web each compile app-local generated output under `src/paraglide` using `paraglideVitePlugin` and the root `i18n:compile` scripts.
+- The old `packages/localization` workspace package was removed after desktop callers moved off `@guerillaglass/localization`.
 
 ### Keep `ui` and `typescript-config`
 
@@ -304,7 +304,7 @@ Effect schemas have two important sides:
 Effect RPC returns decoded schema `Type` values. Renderer-facing Electrobun bridge values should be encoded JSON DTOs. Bridge boundaries must encode decoded Effect values with:
 
 ```ts
-Schema.encodeEffect(Schema.toCodecJson(schema))
+Schema.encodeEffect(Schema.toCodecJson(schema));
 ```
 
 before returning them to renderer code, and renderer-facing validation should treat payloads as encoded JSON DTOs. This avoids leaking `Option<T>`, brands, and other decoded Effect-only shapes into UI DTOs that expect `T | null`, plain strings, and plain numbers.
@@ -508,9 +508,8 @@ The key requirement is that there is one composition root and one runtime bounda
 Current bridge handlers perform orchestration. Target bridge handlers only decode/route:
 
 ```ts
-ggEnginePing: () => runtime.runPromise(
-  EngineTransport.use((engine) => engine["system.ping"](undefined)),
-)
+ggEnginePing: () =>
+  runtime.runPromise(EngineTransport.use((engine) => engine["system.ping"](undefined)));
 ```
 
 The bridge should not own project path, engine process, media URL policy, or retry logic. Those belong to services.
@@ -649,7 +648,7 @@ type HostEvent =
 Model capture status as a stream:
 
 ```ts
-Stream.Stream<CaptureStatusResult, EngineError>
+Stream.Stream<CaptureStatusResult, EngineError>;
 ```
 
 The stream can be implemented with engine polling + `Schedule` initially, then later switch to native engine push events if the wire protocol adds them. The renderer-facing push still uses Electrobun messages, but the backend source of truth is an Effect stream.
@@ -742,12 +741,13 @@ Most backend tests should run without Electrobun by providing test layers for `D
 - Media HTTP server lifetime is scoped by the desktop app layer and finalized through Effect layer scope shutdown.
 - Tests now exercise media routes through Effect HTTP web handlers instead of mocking `Bun.serve` or monkey-patching Bun globals.
 
-### Phase 7 — Version alignment and localization migration
+### Phase 7 — Version alignment and localization migration — complete
 
-- Align package versions with the repository semantic version before landing the breaking architecture change.
-- Initialize Paraglide JS.
-- Replace hand-written localization package usages with generated message functions/runtime.
-- Remove `packages/localization` after desktop/web callers are migrated.
+- Package/crate versions are aligned to `1.0.0` for the breaking architecture change.
+- Paraglide JS is initialized with shared root `project.inlang` and `messages/*.json`.
+- Desktop and web use app-local Paraglide generated runtime/message output via Vite plugin configuration and `i18n:compile` scripts.
+- `@guerillaglass/localization` imports were removed from desktop callers.
+- `packages/localization` was removed.
 
 ## Design rules
 
@@ -799,9 +799,15 @@ Current TypeScript-side shape:
 Stable client-to-native messages:
 
 ```ts
-{ type: "request", id, method, params, authToken }
-{ type: "interrupt", id, authToken }
-{ type: "ping" }
+{
+  type: ("request", id, method, params, authToken);
+}
+{
+  type: ("interrupt", id, authToken);
+}
+{
+  type: "ping";
+}
 ```
 
 Stable native-to-client messages:

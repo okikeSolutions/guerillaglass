@@ -1,5 +1,6 @@
 {
-  "name": "web",
+  "name": "@guerillaglass/web",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "imports": {
@@ -7,11 +8,12 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "build": "bun run i18n:compile && vite build",
+    "typecheck": "bun run i18n:compile && tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run",
-    "generate:auth": "SITE_URL=http://localhost:3000 npx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts"
+    "test": "bun run i18n:compile && vitest run",
+    "generate:auth": "SITE_URL=http://localhost:3000 npx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts",
+    "i18n:compile": "cd ../.. && bun run i18n:compile:web"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.12.2",

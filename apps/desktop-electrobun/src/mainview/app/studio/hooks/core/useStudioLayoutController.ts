@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { StudioLocale } from "@guerillaglass/localization";
+import type { StudioLocale } from "@shared/localization";
 import type { StudioMode } from "../../domain/inspectorSelectionModel";
 import {
   defaultStudioLayoutState,

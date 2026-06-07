@@ -1,4 +1,0 @@
-{
-  "extends": "@guerillaglass/typescript-config/react-library.json",
-  "include": ["src"]
-}

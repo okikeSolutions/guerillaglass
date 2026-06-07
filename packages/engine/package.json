@@ -1,6 +1,6 @@
 {
   "name": "@guerillaglass/engine",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Effect-native TypeScript engine protocol and client runtime for Guerillaglass native engines",
   "type": "module",

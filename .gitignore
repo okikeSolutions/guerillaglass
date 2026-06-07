@@ -36,6 +36,7 @@ guerillaglass.app/
 node_modules/
 apps/*/dist/
 apps/*/build/
+apps/*/src/paraglide/
 apps/*/playwright-report/
 apps/*/test-results/
 coverage/

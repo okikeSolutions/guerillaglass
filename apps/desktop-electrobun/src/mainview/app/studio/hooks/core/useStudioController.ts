@@ -10,7 +10,7 @@ import {
   type AutoZoomSettings,
   type TimelineDocument,
 } from "@guerillaglass/engine/protocol/shared/valueObjects";
-import { getStudioMessages, type StudioMessages } from "@guerillaglass/localization";
+import { getStudioMessages, type StudioMessages } from "@shared/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
 import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
 import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge/desktopBridgeContract";

@@ -1,5 +1,6 @@
 {
   "name": "guerillaglass",
+  "version": "1.0.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -34,7 +35,7 @@
     "desktop:test": "cd apps/desktop-electrobun && bun run test",
     "desktop:typecheck": "cd apps/desktop-electrobun && bun run typecheck",
     "desktop:test:coverage": "cd apps/desktop-electrobun && bun run test:coverage",
-    "desktop:test:e2e": "cd apps/desktop-electrobun && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts",
+    "desktop:test:e2e": "cd apps/desktop-electrobun && bun run i18n:compile && bun test tests/parity-e2e.test.ts tests/engine-client.test.ts tests/stub-engine.test.ts",
     "desktop:test:ui": "cd apps/desktop-electrobun && bun run test:ui",
     "desktop:test:ui:headed": "cd apps/desktop-electrobun && bun run test:ui:headed",
     "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
@@ -51,10 +52,14 @@
     "coverage:swift": "./Scripts/swift_coverage.sh",
     "coverage:check": "./Scripts/coverage_check.sh",
     "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml",
-    "prepare": "effect-language-service patch"
+    "prepare": "effect-language-service patch",
+    "i18n:compile": "bun run i18n:compile:desktop && bun run i18n:compile:web",
+    "i18n:compile:desktop": "paraglide-js compile --project ./project.inlang --outdir ./apps/desktop-electrobun/src/paraglide --strategy localStorage baseLocale --emit-ts-declarations --no-emit-git-ignore",
+    "i18n:compile:web": "paraglide-js compile --project ./project.inlang --outdir ./apps/web/src/paraglide --strategy localStorage baseLocale --emit-ts-declarations --no-emit-git-ignore"
   },
   "devDependencies": {
     "@effect/language-service": "^0.86.2",
+    "@inlang/paraglide-js": "^2.18.2",
     "@nkzw/eslint-plugin": "^2.0.0",
     "@nkzw/oxlint-config": "^1.2.1",
     "eslint-plugin-no-only-tests": "^3.4.0",

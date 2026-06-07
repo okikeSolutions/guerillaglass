@@ -6,7 +6,7 @@ import {
   lazyRouteComponent,
   redirect,
 } from "@tanstack/react-router";
-import { normalizeStudioLocale } from "@guerillaglass/localization";
+import { normalizeStudioLocale } from "@shared/localization";
 import { StudioShellLayout } from "../studio/layout/StudioShellLayout";
 import {
   getInitialStudioLocale,

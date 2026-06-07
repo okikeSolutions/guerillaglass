@@ -17,10 +17,13 @@ import type {
   AutoZoomSettings,
   TimelineDocument,
 } from "@guerillaglass/engine/protocol/shared/valueObjects";
-import type { StudioMessages } from "@guerillaglass/localization";
+import type { StudioMessages } from "@shared/localization";
 import { engineApi } from "@lib/engine";
 import type { HostPathPickerMode } from "@shared/bridge/desktopBridgeContract";
-import { CaptureWindowPickerUnsupportedError, StudioActionError } from "@shared/errors/desktopErrors";
+import {
+  CaptureWindowPickerUnsupportedError,
+  StudioActionError,
+} from "@shared/errors/desktopErrors";
 import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
 import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";

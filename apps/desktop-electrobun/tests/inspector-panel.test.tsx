@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { enUS } from "@guerillaglass/localization";
+import { enUS } from "@shared/localization";
 import { InspectorPanel } from "@studio/panels/InspectorPanel";
 import { ShortcutOverridesSection } from "@studio/panels/inspector/ShortcutOverridesSection";
 import { StudioProvider } from "@studio/state/StudioProvider";
