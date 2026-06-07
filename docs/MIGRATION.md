@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft for review. This document captures the intended architecture for the next desktop backend overhaul. It is not an implementation checklist yet; it defines the goal state, boundaries, constraints, and migration direction.
+Living migration note. Phase 0 and most of Phase 1 are now complete: Effect v4 compatibility is stable enough for package and desktop typechecks, and `packages/engine` owns the TypeScript protocol plus the Bun engine transport. The remaining sections define the target desktop backend architecture, known boundaries, and migration direction.
 
 ## Research inputs
 
@@ -68,7 +68,7 @@ React renderer
       -> one ManagedRuntime / launched AppLayer
         -> Effect services and scoped resources
           -> packages/engine
-            -> engine protocol + EngineService + EngineRpc + EngineProcess
+            -> engine protocol + EngineTransport + Bun socket live layer
           -> Effect HTTP media server
           -> Electrobun shell adapter
 ```
@@ -102,9 +102,9 @@ packages/  shared TypeScript libraries/contracts/runtime clients
 engines/   native sidecars and native protocol modules
 ```
 
-### Move TypeScript engine and engine protocol together
+### Keep TypeScript engine and engine protocol together
 
-The local engine is the product's core backend boundary. Its TypeScript protocol contract and TypeScript Effect-native engine client/runtime should live together.
+The local engine is the product's core backend boundary. Its TypeScript protocol contract and TypeScript Effect-native engine client/runtime now live together in `packages/engine`.
 
 Recommended package direction:
 
@@ -116,36 +116,41 @@ packages/
   typescript-config/
 ```
 
-`packages/engine` owns the TypeScript side of the local media plane:
+`packages/engine` owns the TypeScript side of the local media plane. The package has already been created and currently uses explicit, non-barrel entry points:
 
 ```txt
 packages/engine/
   src/protocol/
-    index.ts
-    methods.ts
+    domains/
+    rpc/
+    shared/
     schema-primitives.ts
   src/client/
-    EngineProcess.ts
-    EngineRpc.ts
-    EngineService.ts
-    EngineTarget.ts
-    EngineErrors.ts
-  src/index.ts
+    service.ts        # EngineTransport service tag and public client types
+    liveBun.ts        # Bun-backed production layer
+    processBun.ts     # internal native process/readiness helper
+    wireProtocol.ts   # internal Effect RPC <-> Guerillaglass wire bridge
+    config/
+    errors/
 ```
 
-Exports should keep protocol and runtime entry points explicit:
+Exports should remain explicit. Do not add broad `./client` or `./protocol` barrels unless there is a specific API reason:
 
 ```json
 {
   "exports": {
-    ".": "./src/index.ts",
-    "./protocol": "./src/protocol/index.ts",
-    "./client": "./src/client/index.ts"
+    "./client/service": "./src/client/service.ts",
+    "./client/liveBun": "./src/client/liveBun.ts",
+    "./client/config/paths": "./src/client/config/paths.ts",
+    "./client/config/targets": "./src/client/config/targets.ts",
+    "./client/errors/clientErrors": "./src/client/errors/clientErrors.ts",
+    "./protocol/rpc/group": "./src/protocol/rpc/group.ts",
+    "./protocol/domains/capture": "./src/protocol/domains/capture.ts"
   }
 }
 ```
 
-This consolidates the previous protocol, schema primitive, and desktop-local engine client split into one TypeScript engine package.
+This consolidates the previous protocol, schema primitive, and desktop-local engine client split into one TypeScript engine package. The current public service is `EngineTransport`; `processBun.ts` and `wireProtocol.ts` are package-internal implementation details.
 
 Native sidecars remain in `engines/`; `packages/engine` is the TypeScript Effect-native client/protocol package that talks to those sidecars.
 
@@ -212,11 +217,12 @@ Review is out of scope for the first Effect-native backend migration. Local capt
 Use `Context.Service` for service boundaries.
 
 ```ts
-export class EngineService extends Context.Service<EngineService, {
-  readonly ping: Effect.Effect<PingResult, EngineError>
-  startCapture(params: StartCaptureParams): Effect.Effect<CaptureStatusResult, EngineError>
-}>()("@guerillaglass/engine/EngineService") {}
+export class EngineTransport extends Context.Service<EngineTransport, EngineRpcClient>()(
+  "@guerillaglass/engine/EngineTransport",
+) {}
 ```
+
+Future product-level app services may wrap this transport with narrower domain methods, but the package-level native client service is currently `EngineTransport`.
 
 Use service identifiers that include package/app and path-like context.
 
@@ -231,7 +237,7 @@ Use explicit layers, named with v4 conventions:
 - `layerMock` for controllable mock implementation
 - `layerNoDeps` only when useful for composition
 
-Avoid v3-style `Live` / `Default` as the primary convention for new code.
+Prefer `layer*` names for new app services. Existing package client exports such as `EngineTransportBunLive` may keep their current names until a deliberate naming cleanup; do not add additional compatibility aliases.
 
 Compose the full app layer once. Effect v4 memoizes layer builds more safely than v3, but the docs still recommend explicit layer composition over scattered `Effect.provide` calls.
 
@@ -265,8 +271,8 @@ The preferred architecture is still one runtime boundary.
 Use scoped resources for anything that must be cleaned up:
 
 - native engine process
-- stdout/stderr stream readers
-- pending request queues
+- native process readiness readers
+- socket connections and protocol loops
 - media HTTP server
 - Electrobun window/tray/menu event listeners
 - capture-status stream
@@ -281,12 +287,27 @@ Use tagged errors, ideally `Schema.TaggedErrorClass`, for domain and infrastruct
 Prefer:
 
 ```ts
-Effect.catchTag("EngineProcessError", ...)
+Effect.catchTag("EngineClientError", ...)
 Effect.catchTags({ ... })
 Effect.catch(...)
 ```
 
 over broad `unknown` propagation.
+
+### Schema boundaries
+
+Effect schemas have two important sides:
+
+- `Schema.Schema.Type<S>` is the decoded runtime type used inside Effect code.
+- `Schema.Codec.Encoded<S>` is the canonical JSON/wire DTO type.
+
+Effect RPC returns decoded schema `Type` values. Renderer-facing Electrobun bridge values should be encoded JSON DTOs. Bridge boundaries must encode decoded Effect values with:
+
+```ts
+Schema.encodeEffect(Schema.toCodecJson(schema))
+```
+
+before returning them to renderer code, and renderer-facing validation should treat payloads as encoded JSON DTOs. This avoids leaking `Option<T>`, brands, and other decoded Effect-only shapes into UI DTOs that expect `T | null`, plain strings, and plain numbers.
 
 ### Observability
 
@@ -308,9 +329,9 @@ Every engine RPC should have a span. Background streams should log interruption 
 
 Use Effect primitives for asynchronous backend flows:
 
-- `Stream` for engine stdout/stderr and event sources
+- `Stream` for backend event sources
 - `Stream<CaptureStatusResult>` for capture status
-- `Queue` / `Deferred` for JSON-RPC request correlation
+- socket protocol loops and request correlation internal to the TypeScript Effect RPC bridge
 - `PubSub` for host domain events fan-out
 - `Schedule` for polling, retry, and restart backoff
 
@@ -396,17 +417,22 @@ apps/desktop-electrobun/src/bun/
 
 ```
 
-Engine TypeScript runtime moves to `packages/engine`:
+Engine TypeScript runtime now lives in `packages/engine`:
 
 ```txt
 packages/engine/src/
   protocol/
+    domains/
+    rpc/
+    shared/
+    schema-primitives.ts
   client/
-    EngineProcess.ts
-    EngineRpc.ts
-    EngineService.ts
-    EngineTarget.ts
-    EngineErrors.ts
+    service.ts
+    liveBun.ts
+    processBun.ts
+    wireProtocol.ts
+    config/
+    errors/
 ```
 
 ## Proposed service graph
@@ -418,7 +444,7 @@ DesktopApp
   requires CaptureStatusStream
 
 RendererBridge
-  requires EngineService            # from packages/engine
+  requires EngineTransport          # from packages/engine/client/service
   requires MediaService
   requires ProjectSession
   requires DesktopShell
@@ -428,25 +454,21 @@ DesktopShell
   requires RuntimeFlags
 
 CaptureStatusStream
-  requires EngineService
+  requires EngineTransport
   exposes Stream<CaptureStatusResult>
+  encodes decoded Effect values to renderer-facing JSON DTOs before forwarding
   may publish HostEvents for shell forwarding
 
-EngineService
-  requires EngineRpc
-
-EngineRpc
-  requires EngineProcess
-  requires HostEvents / Diagnostics
-
-EngineProcess
-  requires AppConfig / EngineTarget
-  requires @effect/platform-bun child process services
+EngineTransport
+  provided by packages/engine/client/liveBun
+  uses processBun to start native sidecar and read socket readiness
+  uses wireProtocol to bridge Effect RPC encoded messages to stable Guerillaglass wire
+  requires Bun socket, filesystem, and path platform services
 
 MediaService
   requires AppConfig
   requires Effect HTTP server services
-  should avoid hidden cycles with EngineService
+  should avoid hidden cycles with EngineTransport
 
 ProjectSession
   owns current project path/state refs
@@ -487,7 +509,7 @@ Current bridge handlers perform orchestration. Target bridge handlers only decod
 
 ```ts
 ggEnginePing: () => runtime.runPromise(
-  EngineService.use((engine) => engine.ping),
+  EngineTransport.use((engine) => engine["system.ping"](undefined)),
 )
 ```
 
@@ -495,65 +517,58 @@ The bridge should not own project path, engine process, media URL policy, or ret
 
 ## Engine package goal
 
-Collapse the current chain:
+The previous desktop-local engine client and protocol definitions have been consolidated into `packages/engine`. The current chain is:
 
 ```txt
 Electrobun handler
   -> HostRuntime
   -> EngineTransport service
-  -> EngineClient class
-  -> requestEffect/requestRawEffect
+  -> packages/engine/client/liveBun
+  -> processBun starts native sidecar and reads socket readiness
+  -> wireProtocol bridges Effect RPC encoded messages to stable Guerillaglass wire
+  -> Bun TCP socket
   -> native sidecar
 ```
 
-into:
+Native engines speak the stable Guerillaglass socket wire protocol, not Effect RPC internals. TypeScript owns the bridge between Effect RPC encoded messages and the native wire protocol.
 
-```txt
-Electrobun handler
-  -> runtime.runPromise(EngineService.method)
-  -> packages/engine EngineService
-  -> EngineRpc
-  -> EngineProcess
+### EngineTransport
+
+`EngineTransport` is the package-level Effect service tag for the generated engine RPC client. App code should depend on this service rather than constructing process/socket/wire details directly.
+
+Responsibilities:
+
+- provide the typed Effect RPC client generated from the engine RPC group;
+- hide native process, socket, auth token, and wire-message details;
+- expose decoded Effect schema values to backend Effect code;
+- let bridge boundaries encode decoded values back to `Schema.Codec.Encoded` JSON DTOs before sending them to renderer code.
+
+### processBun
+
+`processBun.ts` is internal. It starts the configured native sidecar, passes socket/auth environment, drains stderr, reads the readiness line from stdout, and returns `{ address, authToken }` to the Bun live layer. It is not exported from the package.
+
+### wireProtocol
+
+`wireProtocol.ts` is internal. It adapts Effect RPC encoded client/server messages to the stable Guerillaglass wire shapes:
+
+```ts
+{ type: "request", id, method, params, authToken }
+{ type: "response", id, result }
+{ type: "error", id, error: { code, message } }
+{ type: "chunk", id, values }
+{ type: "ping" }
+{ type: "pong" }
+{ type: "interrupt", id }
 ```
 
-### EngineProcess
+It intentionally does not expose Effect RPC wire internals to Swift/Rust/native engines.
 
-Owns the native sidecar as a scoped resource.
+### Remaining engine hardening
 
-Responsibilities:
-
-- resolve engine target and executable path
-- spawn process via `@effect/platform-bun` where feasible
-- expose stdin/stdout/stderr streams or write/read functions
-- close/kill process on scope close
-- emit process lifecycle events
-
-Adopt `@effect/platform-bun` immediately for this work unless a specific API gap blocks us.
-
-### EngineRpc
-
-Owns wire-level JSON-RPC correlation.
-
-Responsibilities:
-
-- encode requests using package-local protocol schemas
-- write request lines
-- read stdout lines as a stream
-- decode responses/events
-- correlate responses with `Deferred`s keyed by request id
-- timeouts and interruption cleanup
-- request-level spans/log annotations
-
-### EngineService
-
-Owns product-level engine methods.
-
-Responsibilities:
-
-- expose typed methods like `ping`, `startDisplayCapture`, `projectSave`
-- map protocol failures into tagged domain errors
-- apply retry/backoff only where product-safe
-- hide wire details from bridge/UI
+- Replace remaining ad-hoc process/readiness code with Effect platform primitives where feasible.
+- Add spans and structured logs around process spawn, socket connect, RPC send/receive, and protocol errors.
+- Add retry/restart policy using `Schedule` only where product-safe.
+- Keep `processBun` and `wireProtocol` private implementation modules unless a real public use case appears.
 
 ## Media goal
 
@@ -564,7 +579,7 @@ Media server should become an Effect HTTP server service:
 - expose `resolveMediaSourceURL` and `resolveCapturePreviewURL`
 - serve media/preview routes through Effect HTTP routing where feasible
 - validate path/token inputs at the boundary
-- avoid direct dependency cycles with `EngineService`; pass preview-frame loading explicitly, use a stream, or route through an event/request service
+- avoid direct dependency cycles with `EngineTransport`; pass preview-frame loading explicitly, use a stream, or route through an event/request service
 
 Preferred implementation path is `@effect/platform-bun` `BunHttpServer` + Effect HTTP router primitives. More implementation research is needed before replacing all custom media behavior, especially byte ranges, headers, token handling, and preview-frame response shape.
 
@@ -652,24 +667,25 @@ Add `@effect/vitest` once the service architecture exists. Use:
 - `Layer.fresh` or `Effect.provide(..., { local: true })` where test isolation is required
 - shared layers only when state sharing is intentional
 
-Most backend tests should run without Electrobun by providing test layers for `DesktopShell`, `EngineProcess`, and `MediaService`.
+Most backend tests should run without Electrobun by providing test layers for `DesktopShell`, `EngineTransport`, and `MediaService`.
 
 ## Migration phases
 
-### Phase 0 — Stabilize Effect v4 compatibility
+### Phase 0 — Stabilize Effect v4 compatibility — mostly complete
 
-- Finish Effect v4 API migration.
+- Effect v4 API migration is stable enough for `packages/engine` and desktop typechecks.
 - Keep direct Effect versions pinned exactly.
-- Adopt `@effect/platform-bun` immediately for new backend/engine work.
+- Adopt `@effect/platform-bun` for new backend/engine work where it fits.
 - Add `@effect/vitest` when converting backend tests.
-- Do not broaden runtime architecture while typecheck is red.
+- Do not broaden runtime architecture while package or desktop typecheck is red.
 
-### Phase 1 — Package consolidation first
+### Phase 1 — Package consolidation first — mostly complete
 
-- Create `packages/engine`.
-- Move engine protocol and schema primitives into `packages/engine/src/protocol`.
-- Move the desktop engine client behind the package-local `EngineService` facade.
-- Update desktop and package imports to use `@guerillaglass/engine`, `@guerillaglass/engine/client`, or `@guerillaglass/engine/protocol`.
+- `packages/engine` exists.
+- Engine protocol and schema primitives live in `packages/engine/src/protocol`.
+- The desktop engine client now uses explicit package-local client entry points: `client/service` for `EngineTransport` and `client/liveBun` for the Bun-backed layer.
+- Desktop and package imports use explicit `@guerillaglass/engine` exports rather than old desktop-local engine client paths.
+- Remaining Phase 1 work is documentation/API polishing, fixture/golden generation, and deciding whether any public package-level aliases are still necessary. Current preference: no barrels and no compatibility shims.
 
 ### Phase 2 — Establish composition root
 
@@ -690,14 +706,14 @@ Most backend tests should run without Electrobun by providing test layers for `D
 - Make handlers call service methods only.
 - Move current project path handling into `ProjectSession`.
 
-### Phase 5 — Engine rewrite inside `packages/engine`
+### Phase 5 — Engine client hardening inside `packages/engine`
 
-- Replace `EngineClient` class with `EngineProcess`, `EngineRpc`, and `EngineService`.
-- Use `@effect/platform-bun` child process and stream primitives where feasible.
-- Use streams for stdout/stderr.
-- Use `Deferred`/`Queue` for request correlation.
-- Use `Schedule` for retry/restart policy.
-- Add spans and structured logs.
+- Keep native engines on the stable Guerillaglass socket wire protocol.
+- Keep Effect RPC serialization details inside TypeScript `wireProtocol`.
+- Do not export `processBun` or `wireProtocol` unless a real public use case appears.
+- Replace remaining ad-hoc process/readiness handling with Effect platform primitives where feasible.
+- Use `Schedule` for retry/restart policy only where product-safe.
+- Add spans and structured logs around process spawn, socket connect, RPC send/receive, protocol errors, and shutdown.
 
 ### Phase 6 — Media/session cleanup
 
@@ -719,7 +735,7 @@ Most backend tests should run without Electrobun by providing test layers for `D
 3. Shell stays shell; composition root owns app runtime/lifecycle.
 4. React remains React; Effect owns the host backend and TypeScript engine package.
 5. Use native Effect primitives wherever recommended and feasible.
-6. Move TypeScript engine protocol + TypeScript engine runtime into `packages/engine`.
+6. Keep TypeScript engine protocol + TypeScript engine runtime in `packages/engine` with explicit, non-barrel exports.
 7. Native Swift/Rust sidecars stay in `engines/`.
 8. All long-lived resources are scoped.
 9. All backend async loops are fibers/streams/schedules.
@@ -731,49 +747,60 @@ Most backend tests should run without Electrobun by providing test layers for `D
 15. Avoid tiny services; keep pure functions pure.
 16. Prefer Effect HTTP client/server over raw `fetch`/ad-hoc `Bun.serve` in new backend code.
 17. Use Paraglide JS for localization instead of maintaining custom localization infrastructure.
-18. This is a breaking architecture change; all package versions must be aligned with the repository semver version when the migration lands.
+18. Renderer-facing DTOs use `Schema.Codec.Encoded<S>`; backend Effect code may use decoded `Schema.Schema.Type<S>`.
+19. This is a breaking architecture change; all package versions must be aligned with the repository semver version when the migration lands.
 
 ## Resolved decisions from review
 
-- `packages/engine` consolidation happens before the full Effect-native backend rewrite.
-- Adopt `@effect/platform-bun` immediately for new backend/engine architecture.
+- `packages/engine` consolidation happened before the full Effect-native backend rewrite.
+- Native engines speak a stable Guerillaglass socket wire protocol; TypeScript owns the Effect RPC bridge.
+- `packages/engine` exposes explicit client entry points (`client/service`, `client/liveBun`) and keeps process/wire modules private.
+- Adopt `@effect/platform-bun` for new backend/engine architecture where it fits.
 - Shell remains shell. Effect approach: wrap Electrobun resources as scoped shell services; the composition root owns runtime/lifecycle.
 - Capture status should be modeled as `Stream<CaptureStatusResult>` unless deeper implementation research proves a better Effect-native design.
+- Bridge boundaries encode decoded Effect values into `Schema.Codec.Encoded` JSON DTOs before sending them to renderer code.
 - Leave review out of the first migration.
 - `packages/review-protocol` should later become `packages/review` with an Effect-native review service.
 
 ## Resolved implementation research
 
-### `@effect/platform-bun` child-process fit for long-lived stdio JSON-RPC sidecars
+### Native engine process and stable socket wire boundary
 
-`@effect/platform-bun` is a good fit for the native engine sidecar. `BunChildProcessSpawner` re-exports the shared Node-compatible child-process spawner implementation, which adapts `node:child_process.spawn` into Effect's `ChildProcessSpawner` service. The API gives us exactly the pieces needed for a long-lived stdio JSON-RPC sidecar:
+Native stdio transport has been removed from the real native engine path. The sidecar process is still a scoped resource, but native request/response traffic now flows over a socket using the stable Guerillaglass wire protocol.
 
-- `ChildProcess.make(command, args, options)` command values.
-- `ChildProcessSpawner.spawn(command)` for an interactive scoped handle.
-- `ChildProcessHandle.stdin` as a `Sink` for request lines.
-- `ChildProcessHandle.stdout` / `stderr` / `all` as `Stream<Uint8Array, PlatformError>`.
-- `exitCode`, `isRunning`, `kill`, and `unref`.
-- `Scope` ownership so the process is terminated/finalized with the layer.
-- `stdin: { stream: "pipe", endOnDone: false }` support, which is important for a sidecar that receives many request lines over one process lifetime.
+Current TypeScript-side shape:
 
-Recommended EngineProcess shape:
+- `processBun.ts` resolves the engine executable, spawns it, passes `GG_ENGINE_RPC_TRANSPORT=socket` and `GG_ENGINE_RPC_AUTH_TOKEN`, drains stderr, and reads the stdout readiness line.
+- Native engines print a readiness envelope containing host/port, then serve the socket protocol.
+- `liveBun.ts` connects with `BunSocket.layerNet` and provides `RpcClient.Protocol`.
+- `wireProtocol.ts` maps Effect RPC encoded messages to/from stable Guerillaglass wire messages.
+
+Stable client-to-native messages:
 
 ```ts
-const command = ChildProcess.make(enginePath, engineArgs, {
-  cwd: engineCwd,
-  env: engineEnv,
-  extendEnv: true,
-  stdin: { stream: "pipe", endOnDone: false },
-  stdout: { stream: "pipe" },
-  stderr: { stream: "pipe" },
-});
-
-const handle = yield* ChildProcessSpawner.ChildProcessSpawner.use((spawner) =>
-  spawner.spawn(command),
-);
+{ type: "request", id, method, params, authToken }
+{ type: "interrupt", id, authToken }
+{ type: "ping" }
 ```
 
-`EngineRpc` should decode `handle.stdout` with `Stream.decodeText` + `Stream.splitLines`; `stderr` should be consumed by a logging fiber; writes should run encoded request-line chunks into `handle.stdin`. The sidecar process belongs in a scoped `EngineProcess.layer`; restart policy belongs above it in `EngineService`/supervision using `Schedule`.
+Stable native-to-client messages:
+
+```ts
+{ type: "response", id, result }
+{ type: "error", id, error: { code, message } }
+{ type: "chunk", id, values }
+{ type: "pong" }
+{ type: "protocolError", message }
+```
+
+Effect RPC internals must remain contained in TypeScript. Swift/Rust/native code should depend on generated Guerillaglass protocol bindings and fixtures, not on `effect/unstable/rpc` wire shapes.
+
+Remaining research/hardening:
+
+- Evaluate replacing the current `Bun.spawn` wrapper with `@effect/platform-bun` child-process services where that improves lifecycle/readiness handling.
+- Keep stdout for readiness and stderr for logging; do not reintroduce stdio request transport.
+- Add structured logging/spans around process spawn, readiness, socket connect, send/receive, and protocol errors.
+- Add restart/retry with `Schedule` only where product-safe.
 
 ### `BunHttpServer` / Effect HTTP route shape for media byte ranges, signed preview URLs, and cache headers
 
