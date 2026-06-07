@@ -13,19 +13,21 @@ import {
 import { getStudioMessages, type StudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
 import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
-import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge";
-import { hostBridgeEventNames } from "@shared/bridge";
+import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge/desktopBridgeContract";
+import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
+  PathPickerError,
+  StudioActionError,
+} from "@shared/errors/desktopErrors";
+import {
   ContractDecodeError,
   EngineClientError,
   EngineResponseError,
   JsonParseError,
-  PathPickerError,
-  StudioActionError,
   messageFromUnknownError,
-} from "@shared/errors";
+} from "@guerillaglass/engine/client/errors/clientErrors";
 import { createHostCommandRunnerFromHandlers } from "@shared/hostCommandRegistry";
 import {
   detectStudioShortcutPlatform,

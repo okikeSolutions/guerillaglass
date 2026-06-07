@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { ApplicationMenuItemConfig } from "electrobun/bun";
-import { hostMenuCommandList } from "@shared/bridge";
+import { hostMenuCommandList } from "@shared/bridge/desktopBridgeContract";
 import {
   decodeHostMenuAction,
   encodeHostMenuAction,

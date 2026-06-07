@@ -1,5 +1,7 @@
-import type { HostPathPickerMode } from "../../shared/bridge";
-import { PathPickerError, messageFromUnknownError } from "../../shared/errors";
+import { Effect } from "effect";
+import type { HostPathPickerMode } from "../../shared/bridge/desktopBridgeContract";
+import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { PathPickerError } from "../../shared/errors/desktopErrors";
 
 const projectPackageExtension = ".gglassproj";
 const defaultProjectName = "guerillaglass-project";
@@ -19,6 +21,15 @@ type FileDialogDependencies = {
   openFileDialog: (options: OpenFileDialogOptions) => Promise<string[]>;
   pathExists?: (filePath: string) => Promise<boolean>;
   confirmOverwritePath?: (filePath: string) => Promise<boolean>;
+};
+
+type FileDialogEffectDependencies = {
+  currentProjectPath?: string | null;
+  startingFolder?: string;
+  defaultFolder: string;
+  openFileDialog: (options: OpenFileDialogOptions) => Effect.Effect<string[], unknown>;
+  pathExists?: (filePath: string) => Effect.Effect<boolean, unknown>;
+  confirmOverwritePath?: (filePath: string) => Effect.Effect<boolean, unknown>;
 };
 
 function trimTrailingSeparators(path: string): string {
@@ -164,6 +175,22 @@ async function confirmOverwriteIfNeeded(
   return await dependencies.confirmOverwritePath(projectPath);
 }
 
+function confirmOverwriteIfNeededEffect(
+  projectPath: string,
+  dependencies: Pick<FileDialogEffectDependencies, "pathExists" | "confirmOverwritePath">,
+): Effect.Effect<boolean, unknown> {
+  if (!dependencies.pathExists || !dependencies.confirmOverwritePath) {
+    return Effect.succeed(true);
+  }
+  return Effect.gen(function* () {
+    const exists = yield* dependencies.pathExists!(projectPath);
+    if (!exists) {
+      return true;
+    }
+    return yield* dependencies.confirmOverwritePath!(projectPath);
+  });
+}
+
 async function openFileDialogSafely(
   dependencies: Pick<FileDialogDependencies, "openFileDialog">,
   options: OpenFileDialogOptions,
@@ -177,6 +204,22 @@ async function openFileDialogSafely(
       cause: error,
     });
   }
+}
+
+function openFileDialogSafelyEffect(
+  dependencies: Pick<FileDialogEffectDependencies, "openFileDialog">,
+  options: OpenFileDialogOptions,
+): Effect.Effect<string[], PathPickerError> {
+  return dependencies.openFileDialog(options).pipe(
+    Effect.mapError(
+      (error) =>
+        new PathPickerError({
+          code: "PATH_PICKER_OPEN_DIALOG_FAILED",
+          description: messageFromUnknownError(error, "Open dialog failed."),
+          cause: error,
+        }),
+    ),
+  );
 }
 
 /** Opens the host file/save picker for a workflow mode and returns a resolved path target. */
@@ -242,4 +285,69 @@ export async function pickPathForMode(
   );
 
   return selectedPath;
+}
+
+/** Opens the host file/save picker as an Effect for backend services. */
+export function pickPathForModeEffect(
+  mode: HostPathPickerMode,
+  dependencies: FileDialogEffectDependencies,
+): Effect.Effect<string | null, unknown> {
+  return Effect.gen(function* () {
+    const startingFolder = resolveStartingFolder({
+      startingFolder: dependencies.startingFolder,
+      currentProjectPath: dependencies.currentProjectPath,
+      defaultFolder: dependencies.defaultFolder,
+    });
+
+    if (mode === "openProject") {
+      const selectedPath = resolveFirstPath(
+        yield* openFileDialogSafelyEffect(dependencies, {
+          startingFolder,
+          canChooseFiles: true,
+          canChooseDirectory: true,
+          allowsMultipleSelection: false,
+          allowedFileTypes: "gglassproj",
+        }),
+      );
+      if (!selectedPath?.toLowerCase().endsWith(projectPackageExtension)) {
+        return null;
+      }
+      return selectedPath;
+    }
+
+    if (mode === "saveProjectAs") {
+      const selectedPath = resolveFirstPath(
+        yield* openFileDialogSafelyEffect(dependencies, {
+          startingFolder,
+          canChooseFiles: true,
+          canChooseDirectory: true,
+          allowsMultipleSelection: false,
+          allowedFileTypes: "gglassproj",
+        }),
+      );
+      if (!selectedPath) {
+        return null;
+      }
+      const saveTargetPath = resolveSaveTargetFromOpenSelection({
+        selectedPath,
+        currentProjectPath: dependencies.currentProjectPath,
+      });
+
+      if (!(yield* confirmOverwriteIfNeededEffect(saveTargetPath, dependencies))) {
+        return null;
+      }
+
+      return saveTargetPath;
+    }
+
+    return resolveFirstPath(
+      yield* openFileDialogSafelyEffect(dependencies, {
+        startingFolder,
+        canChooseFiles: false,
+        canChooseDirectory: true,
+        allowsMultipleSelection: false,
+        allowedFileTypes: "*",
+      }),
+    );
+  });
 }

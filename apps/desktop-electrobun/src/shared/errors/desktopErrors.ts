@@ -1,4 +1,4 @@
-import { Data, type Types } from "effect";
+import { Data } from "effect";
 import {
   ContractDecodeError,
   EngineClientError,
@@ -6,32 +6,7 @@ import {
   EngineRequestValidationError,
   EngineResponseError,
   JsonParseError,
-  messageFromUnknownError,
-  type EngineClientErrorCode,
 } from "@guerillaglass/engine/client/errors/clientErrors";
-
-export type MutableDeep<T> = Types.DeepMutable<T>;
-
-export type ValidationIssue = {
-  readonly path: ReadonlyArray<string | number>;
-  readonly message: string;
-};
-
-export function formatValidationIssue(issue: ValidationIssue, fallbackPath = "payload"): string {
-  const path = issue.path.length > 0 ? issue.path.join(".") : fallbackPath;
-  return `${path}: ${issue.message}`;
-}
-
-export {
-  ContractDecodeError,
-  EngineClientError,
-  EngineOperationError,
-  EngineRequestValidationError,
-  EngineResponseError,
-  JsonParseError,
-  messageFromUnknownError,
-  type EngineClientErrorCode,
-};
 
 export type FileAccessPolicyErrorCode =
   | "FILE_PATH_REQUIRED"

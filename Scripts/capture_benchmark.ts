@@ -4,27 +4,25 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import {
-  BunFileSystem,
-  BunPath,
-} from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/index.js";
+import * as BunFileSystem from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunFileSystem.js";
+import * as BunPath from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunPath.js";
 import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
 import * as Layer from "../apps/desktop-electrobun/node_modules/effect/dist/Layer.js";
 import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
 import * as Schema from "../apps/desktop-electrobun/node_modules/effect/dist/Schema.js";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
-import { makeLayerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
-import { resolveEnginePath } from "@guerillaglass/engine/client/config/paths";
+import { EngineTransport } from "../packages/engine/src/client/service";
+import { makeLayerEngineTransportBun } from "../packages/engine/src/client/liveBun";
+import { resolveEnginePath } from "../packages/engine/src/client/config/paths";
 import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
 import {
   sourcesResultSchema,
   type CaptureFrameRate,
   type SourcesResult,
-} from "@guerillaglass/engine/protocol/domains/sources";
+} from "../packages/engine/src/protocol/domains/sources";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
+} from "../packages/engine/src/protocol/domains/capture";
 
 export type BenchmarkScenarioID =
   | "display-30-no-mic"

@@ -1,5 +1,5 @@
 import { createContext, useContext, useSyncExternalStore, type PropsWithChildren } from "react";
-import { StudioContextUnavailableError } from "@shared/errors";
+import { StudioContextUnavailableError } from "@shared/errors/desktopErrors";
 import type { StudioController } from "../hooks/core/useStudioController";
 import type {
   PlaybackTransportSnapshot,

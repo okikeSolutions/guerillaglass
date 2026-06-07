@@ -3,21 +3,20 @@ import {
   type CaptureStatusResult,
 } from "@guerillaglass/engine/protocol/domains/capture";
 import { Effect, Exit, Layer, Schema, Stream, Cause } from "effect";
-import {
-  EngineTransport,
-  type EngineTransportError,
-} from "@guerillaglass/engine/client/service";
-import { layerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
-import { messageFromUnknownError } from "../../shared/errors";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
+import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
 import { MediaSourceService, layerMediaSourceService } from "../media/service";
 import { ReviewGateway, layerReviewGateway } from "../review/service";
 import { DesktopShell } from "../shell/DesktopShell";
+import { ProjectSession } from "../session/ProjectSession";
+import { HostBridgeService, layerHostBridgeService } from "../bridge/HostBridgeService";
 
 export type DesktopAppLayerOptions = {
-  engineTransportLayer?: Layer.Layer<EngineTransport, EngineTransportError, never>;
+  engineTransportLayer: Layer.Layer<EngineTransport, unknown, never>;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, never>;
   mediaSourceServiceLayer?: Layer.Layer<MediaSourceService, never, never>;
   desktopShellLayer: Layer.Layer<DesktopShell, never, never>;
+  projectSessionLayer: Layer.Layer<ProjectSession, never, never>;
   enableCaptureStatusStream?: boolean;
   initialCaptureStatusDelayMs?: number;
 };
@@ -27,7 +26,9 @@ export type DesktopAppServices =
   | EngineTransport
   | ReviewGateway
   | MediaSourceService
-  | DesktopShell;
+  | DesktopShell
+  | ProjectSession
+  | HostBridgeService;
 
 /** Creates the streaming program that forwards capture status updates through the app layer. */
 export function makeCaptureStatusStreamEffect(
@@ -94,13 +95,13 @@ function makeCaptureStatusStreamLayer(
 
 /** Composes the desktop app layer used by the managed runtime. */
 export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
-  const engineTransportLayer = options.engineTransportLayer ?? layerEngineTransportBun;
-
   const servicesLayer = Layer.mergeAll(
-    engineTransportLayer,
+    options.engineTransportLayer,
     options.reviewGatewayLayer ?? layerReviewGateway,
     options.mediaSourceServiceLayer ?? layerMediaSourceService,
     options.desktopShellLayer,
+    options.projectSessionLayer,
+    layerHostBridgeService,
   );
 
   if (options.enableCaptureStatusStream === false) {

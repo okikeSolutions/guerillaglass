@@ -1,5 +1,5 @@
 import { useHotkey, type RegisterableHotkey } from "@tanstack/react-hotkeys";
-import { hostMenuCommands, type HostMenuCommand } from "@shared/bridge";
+import { hostMenuCommands, type HostMenuCommand } from "@shared/bridge/desktopBridgeContract";
 import {
   resolveStudioShortcutBinding,
   type ShortcutDisplayPlatform,

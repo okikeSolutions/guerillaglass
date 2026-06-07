@@ -705,11 +705,13 @@ Most backend tests should run without Electrobun by providing test layers for `D
 - Window close/focus/menu/tray listeners are registered from the shell layer; finalizers perform best-effort tray cleanup and state clearing because Electrobun does not expose unregistration for these listeners.
 - `DesktopShell.start` is intentionally one-shot for each shell service instance to avoid duplicate non-unsubscribable Electrobun listeners.
 
-### Phase 4 — Bridge as thin adapter
+### Phase 4 — Bridge as thin adapter — complete
 
-- Move orchestration out of `requestHandlers.ts`.
-- Make handlers call service methods only.
-- Move current project path handling into `ProjectSession`.
+- `apps/desktop-electrobun/src/bun/bridge/requestHandlers.ts` is now a thin Electrobun RPC adapter that routes each request into `HostBridgeService` through the single `DesktopAppRuntime` boundary.
+- `apps/desktop-electrobun/src/bun/bridge/HostBridgeService.ts` owns bridge request orchestration for engine, review, media, picker, and file-read operations.
+- `apps/desktop-electrobun/src/bun/session/ProjectSession.ts` defines the project-session service boundary without Electrobun side effects.
+- `apps/desktop-electrobun/src/bun/session/ProjectSessionElectrobun.ts` provides the Electrobun-backed project-session layer, owns current project path state, project path-aware picker/file policy, and initial project-state loading.
+- `DesktopShell` no longer owns current project path state or project/session bridge callbacks.
 
 ### Phase 5 — Engine client hardening inside `packages/engine`
 

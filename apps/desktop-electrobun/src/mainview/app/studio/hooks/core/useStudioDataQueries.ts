@@ -13,8 +13,8 @@ import type {
 import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
 import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
 import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
-import { hostBridgeEventNames } from "@shared/bridge";
-import { validateEncodedUnknownWithSchemaSync } from "@shared/errors";
+import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
+import { validateEncodedUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };

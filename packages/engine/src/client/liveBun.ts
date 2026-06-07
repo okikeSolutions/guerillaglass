@@ -1,4 +1,6 @@
-import { BunFileSystem, BunPath, BunSocket } from "@effect/platform-bun";
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import * as BunPath from "@effect/platform-bun/BunPath";
+import * as BunSocket from "@effect/platform-bun/BunSocket";
 import { Effect, Layer } from "effect";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import { EngineTransport } from "@guerillaglass/engine/client/service";

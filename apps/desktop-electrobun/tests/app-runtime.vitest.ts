@@ -9,6 +9,7 @@ import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
 import { makeCaptureStatusStreamEffect } from "../src/bun/app/AppLayer";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
+import { ProjectSession } from "../src/bun/session/ProjectSession";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): CaptureStatusResult {
@@ -61,6 +62,7 @@ describe("desktop app runtime capture status stream", () => {
                 Effect.sync(() => {
                   delivered.push(status);
                 }),
+              publishReviewEvent: () => Effect.void,
               dispose: Effect.void,
             }),
           ),
@@ -87,6 +89,7 @@ describe("desktop app runtime capture status stream", () => {
                 Effect.sync(() => {
                   delivered.push(status);
                 }),
+              publishReviewEvent: () => Effect.void,
               dispose: Effect.void,
             }),
           ),
@@ -107,8 +110,10 @@ describe("desktop app runtime capture status stream", () => {
           desktopShellLayer: Layer.succeed(DesktopShell, {
             start: () => Effect.void,
             publishCaptureStatus: () => Effect.void,
+            publishReviewEvent: () => Effect.void,
             dispose: Effect.void,
           }),
+          projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
           engineTransportLayer: Layer.effect(
             EngineTransport,
             Effect.acquireRelease(

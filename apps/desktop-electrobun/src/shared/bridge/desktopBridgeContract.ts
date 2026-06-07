@@ -1,49 +1,31 @@
-import {
-  agentPreflightResultSchema,
-  agentRunResultSchema,
-  agentStatusResultSchema,
-  type AgentPreflightResult,
-  type AgentRunResult,
-  type AgentStatusResult,
+import type {
+  AgentPreflightResult,
+  AgentRunResult,
+  AgentStatusResult,
 } from "@guerillaglass/engine/protocol/domains/agent";
-import {
-  capturePreviewFrameResultSchema,
-  captureStatusResultSchema,
-  type CapturePreviewFrameResult,
-  type CaptureStatusResult,
+import type {
+  CapturePreviewFrameResult,
+  CaptureStatusResult,
 } from "@guerillaglass/engine/protocol/domains/capture";
-import {
-  exportInfoResultSchema,
-  exportRunCutPlanResultSchema,
-  exportRunResultSchema,
-  type ExportInfoResult,
-  type ExportRunCutPlanResult,
-  type ExportRunResult,
+import type {
+  ExportInfoResult,
+  ExportRunCutPlanResult,
+  ExportRunResult,
 } from "@guerillaglass/engine/protocol/domains/export";
-import {
-  actionResultSchema,
-  permissionsResultSchema,
-  type ActionResult,
-  type PermissionsResult,
+import type {
+  ActionResult,
+  PermissionsResult,
 } from "@guerillaglass/engine/protocol/domains/permissions";
-import {
-  projectRecentsResultSchema,
-  projectStateSchema,
-  type ProjectRecentsResult,
-  type ProjectState,
+import type {
+  ProjectRecentsResult,
+  ProjectState,
 } from "@guerillaglass/engine/protocol/domains/project";
-import {
-  captureFrameRateSchema,
-  sourcesResultSchema,
-  type CaptureFrameRate,
-  type SourcesResult,
+import type {
+  CaptureFrameRate,
+  SourcesResult,
 } from "@guerillaglass/engine/protocol/domains/sources";
-import { pingResultSchema, type PingResult } from "@guerillaglass/engine/protocol/domains/system";
-import {
-  autoZoomSettingsSchema,
-  timelineDocumentSchema,
-  type AutoZoomSettings,
-} from "@guerillaglass/engine/protocol/shared/valueObjects";
+import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import type { AutoZoomSettings } from "@guerillaglass/engine/protocol/shared/valueObjects";
 import {
   reviewBridgeEventSchema,
   reviewCommentSchema,
@@ -59,8 +41,6 @@ import {
   type ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
 import {
-  agentJobIdSchema,
-  agentPreflightTokenSchema,
   exportPresetIdSchema,
   filePathSchema,
   isoDateTimeSchema,
@@ -71,8 +51,9 @@ import {
   reviewIdSchema,
 } from "@guerillaglass/engine/protocol/schema-primitives";
 import { Schema } from "effect";
+import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
 import type { RPCSchema } from "electrobun/bun";
-import type { SerializedBridgeError } from "../errors";
+import type { SerializedBridgeError } from "../errors/desktopErrors";
 import type { StudioShortcutOverrides } from "../shortcuts";
 import type { StudioDiagnosticsValue } from "../studioDiagnostics";
 
@@ -81,10 +62,8 @@ function greaterThanOrEqualTo(minimum: number) {
     schema.check(Schema.isGreaterThanOrEqualTo(minimum));
 }
 
-function lessThanOrEqualTo(maximum: number) {
-  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
-    schema.check(Schema.isLessThanOrEqualTo(maximum));
-}
+const nonNegativeIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(0));
+const nonNegativeNumberSchema = Schema.Number.pipe(greaterThanOrEqualTo(0));
 
 export const hostMenuCommands = {
   appRefresh: "app.refresh",
@@ -179,74 +158,36 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
   annotations: Schema.optional(Schema.Record(Schema.String, studioDiagnosticsValueSchema)),
   spans: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
 });
-const nonNegativeIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(0));
-const nonNegativeNumberSchema = Schema.Number.pipe(greaterThanOrEqualTo(0));
-const positiveIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(1));
-const runtimeBudgetMinutesSchema = Schema.optional(positiveIntSchema.pipe(lessThanOrEqualTo(60)));
-const projectRecentsLimitSchema = Schema.optional(positiveIntSchema.pipe(lessThanOrEqualTo(100)));
-const undefinedBridgeParamsSchema = Schema.Undefined;
-const engineAgentPreflightBridgeParamsSchema = Schema.Struct({
-  runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
-  transcriptionProvider: Schema.optional(Schema.Literals(["none", "imported_transcript"])),
-  importedTranscriptPath: Schema.optional(filePathSchema),
-});
-const engineAgentRunBridgeParamsSchema = Schema.Struct({
-  preflightToken: agentPreflightTokenSchema,
-  runtimeBudgetMinutes: runtimeBudgetMinutesSchema,
-  transcriptionProvider: Schema.optional(Schema.Literals(["none", "imported_transcript"])),
-  importedTranscriptPath: Schema.optional(filePathSchema),
-  force: Schema.optional(Schema.Boolean),
-});
-const engineAgentStatusBridgeParamsSchema = Schema.Struct({
-  jobId: agentJobIdSchema,
-});
-const engineAgentApplyBridgeParamsSchema = Schema.Struct({
-  jobId: agentJobIdSchema,
-  destructiveIntent: Schema.optional(Schema.Boolean),
-});
-const engineCaptureStartBridgeParamsSchema = Schema.Struct({
-  enableMic: Schema.optional(Schema.Boolean),
-  enablePreview: Schema.optional(Schema.Boolean),
-  captureFps: Schema.optional(captureFrameRateSchema),
-});
-const engineCaptureStartDisplayBridgeParamsSchema = Schema.Struct({
-  displayId: Schema.optional(nonNegativeIntSchema),
-  enableMic: Schema.optional(Schema.Boolean),
-  enablePreview: Schema.optional(Schema.Boolean),
-  captureFps: Schema.optional(captureFrameRateSchema),
-});
-const engineCaptureStartWindowBridgeParamsSchema = Schema.Struct({
-  windowId: nonNegativeIntSchema,
-  enableMic: Schema.optional(Schema.Boolean),
-  enablePreview: Schema.optional(Schema.Boolean),
-  captureFps: Schema.optional(captureFrameRateSchema),
-});
-const engineStartRecordingBridgeParamsSchema = Schema.Struct({
-  trackInputEvents: Schema.optional(Schema.Boolean),
-});
-const engineRunExportBridgeParamsSchema = Schema.Struct({
-  outputURL: outputUrlSchema,
-  presetId: exportPresetIdSchema,
-  trimStartSeconds: Schema.optional(nonNegativeNumberSchema),
-  trimEndSeconds: Schema.optional(nonNegativeNumberSchema),
-  timeline: Schema.optional(timelineDocumentSchema),
-});
-const engineRunCutPlanExportBridgeParamsSchema = Schema.Struct({
-  outputURL: outputUrlSchema,
-  presetId: exportPresetIdSchema,
-  jobId: agentJobIdSchema,
-});
-const engineProjectOpenBridgeParamsSchema = Schema.Struct({
-  projectPath: projectPathSchema,
-});
-const engineProjectSaveBridgeParamsSchema = Schema.Struct({
-  projectPath: Schema.optional(projectPathSchema),
-  autoZoom: Schema.optional(autoZoomSettingsSchema),
-  timeline: Schema.optional(timelineDocumentSchema),
-});
-const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
-  limit: projectRecentsLimitSchema,
-});
+function engineRpc(method: string): { readonly payloadSchema: Schema.Top; readonly successSchema: Schema.Top } {
+  const rpc = EngineRpcs.requests.get(method);
+  if (!rpc) {
+    throw new Error(`Unknown engine RPC method: ${method}`);
+  }
+  return rpc as { readonly payloadSchema: Schema.Top; readonly successSchema: Schema.Top };
+}
+
+function enginePayloadSchema(method: string): Schema.Top {
+  return engineRpc(method).payloadSchema;
+}
+
+function engineSuccessSchema(method: string): Schema.Top {
+  return engineRpc(method).successSchema;
+}
+
+const undefinedBridgeParamsSchema = enginePayloadSchema("system.ping");
+const engineAgentPreflightBridgeParamsSchema = enginePayloadSchema("agent.preflight");
+const engineAgentRunBridgeParamsSchema = enginePayloadSchema("agent.run");
+const engineAgentStatusBridgeParamsSchema = enginePayloadSchema("agent.status");
+const engineAgentApplyBridgeParamsSchema = enginePayloadSchema("agent.apply");
+const engineCaptureStartBridgeParamsSchema = enginePayloadSchema("capture.startCurrentWindow");
+const engineCaptureStartDisplayBridgeParamsSchema = enginePayloadSchema("capture.startDisplay");
+const engineCaptureStartWindowBridgeParamsSchema = enginePayloadSchema("capture.startWindow");
+const engineStartRecordingBridgeParamsSchema = enginePayloadSchema("recording.start");
+const engineRunExportBridgeParamsSchema = enginePayloadSchema("export.run");
+const engineRunCutPlanExportBridgeParamsSchema = enginePayloadSchema("export.runCutPlan");
+const engineProjectOpenBridgeParamsSchema = enginePayloadSchema("project.open");
+const engineProjectSaveBridgeParamsSchema = enginePayloadSchema("project.save");
+const engineProjectRecentsBridgeParamsSchema = enginePayloadSchema("project.recents");
 const reviewSessionSnapshotBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
   reviewId: reviewIdSchema,
@@ -328,12 +269,12 @@ export const bridgeRequestDefinitions = {
   ggEnginePing: defineValidatedBridgeRequest<undefined, PingResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    pingResultSchema,
+    engineSuccessSchema("system.ping"),
   ),
   ggEngineGetPermissions: defineValidatedBridgeRequest<undefined, PermissionsResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    permissionsResultSchema,
+    engineSuccessSchema("permissions.get"),
   ),
   ggEngineAgentPreflight: defineValidatedBridgeRequest<
     {
@@ -355,7 +296,7 @@ export const bridgeRequestDefinitions = {
       importedTranscriptPath: makeOptionalProjectPath(params?.importedTranscriptPath),
     }),
     engineAgentPreflightBridgeParamsSchema,
-    agentPreflightResultSchema,
+    engineSuccessSchema("agent.preflight"),
   ),
   ggEngineAgentRun: defineValidatedBridgeRequest<
     {
@@ -381,42 +322,42 @@ export const bridgeRequestDefinitions = {
       importedTranscriptPath: makeOptionalProjectPath(params.importedTranscriptPath),
     }),
     engineAgentRunBridgeParamsSchema,
-    agentRunResultSchema,
+    engineSuccessSchema("agent.run"),
   ),
   ggEngineAgentStatus: defineValidatedBridgeRequest<
     { jobId: string },
     AgentStatusResult,
     [jobId: string]
-  >((jobId) => ({ jobId }), engineAgentStatusBridgeParamsSchema, agentStatusResultSchema),
+  >((jobId) => ({ jobId }), engineAgentStatusBridgeParamsSchema, engineSuccessSchema("agent.status")),
   ggEngineAgentApply: defineValidatedBridgeRequest<
     { jobId: string; destructiveIntent?: boolean },
     ActionResult,
     [params: { jobId: string; destructiveIntent?: boolean }]
-  >((params) => params, engineAgentApplyBridgeParamsSchema, actionResultSchema),
+  >((params) => params, engineAgentApplyBridgeParamsSchema, engineSuccessSchema("agent.apply")),
   ggEngineRequestScreenRecordingPermission: defineValidatedBridgeRequest<
     undefined,
     ActionResult,
     []
-  >(() => undefined, undefinedBridgeParamsSchema, actionResultSchema),
+  >(() => undefined, undefinedBridgeParamsSchema, engineSuccessSchema("permissions.requestScreenRecording")),
   ggEngineRequestMicrophonePermission: defineValidatedBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    actionResultSchema,
+    engineSuccessSchema("permissions.requestMicrophone"),
   ),
   ggEngineRequestInputMonitoringPermission: defineValidatedBridgeRequest<
     undefined,
     ActionResult,
     []
-  >(() => undefined, undefinedBridgeParamsSchema, actionResultSchema),
+  >(() => undefined, undefinedBridgeParamsSchema, engineSuccessSchema("permissions.requestInputMonitoring")),
   ggEngineOpenInputMonitoringSettings: defineValidatedBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    actionResultSchema,
+    engineSuccessSchema("permissions.openInputMonitoringSettings"),
   ),
   ggEngineListSources: defineValidatedBridgeRequest<undefined, SourcesResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    sourcesResultSchema,
+    engineSuccessSchema("sources.list"),
   ),
   ggEngineStartDisplayCapture: defineValidatedBridgeRequest<
     {
@@ -435,7 +376,7 @@ export const bridgeRequestDefinitions = {
       captureFps,
     }),
     engineCaptureStartDisplayBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("capture.startDisplay"),
   ),
   ggEngineStartCurrentWindowCapture: defineValidatedBridgeRequest<
     { enableMic: boolean; enablePreview?: boolean; captureFps: CaptureFrameRate },
@@ -444,7 +385,7 @@ export const bridgeRequestDefinitions = {
   >(
     (enableMic, captureFps, enablePreview) => ({ enableMic, enablePreview, captureFps }),
     engineCaptureStartBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("capture.startCurrentWindow"),
   ),
   ggEngineStartWindowCapture: defineValidatedBridgeRequest<
     { windowId: number; enableMic: boolean; enablePreview?: boolean; captureFps: CaptureFrameRate },
@@ -458,12 +399,12 @@ export const bridgeRequestDefinitions = {
       captureFps,
     }),
     engineCaptureStartWindowBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("capture.startWindow"),
   ),
   ggEngineStopCapture: defineValidatedBridgeRequest<undefined, CaptureStatusResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("capture.stop"),
   ),
   ggEngineStartRecording: defineValidatedBridgeRequest<
     { trackInputEvents: boolean },
@@ -472,27 +413,27 @@ export const bridgeRequestDefinitions = {
   >(
     (trackInputEvents) => ({ trackInputEvents }),
     engineStartRecordingBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("recording.start"),
   ),
   ggEngineStopRecording: defineValidatedBridgeRequest<undefined, CaptureStatusResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("recording.stop"),
   ),
   ggEngineCaptureStatus: defineValidatedBridgeRequest<undefined, CaptureStatusResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    captureStatusResultSchema,
+    engineSuccessSchema("capture.status"),
   ),
   ggEngineCapturePreviewFrame: defineValidatedBridgeRequest<
     undefined,
     CapturePreviewFrameResult,
     []
-  >(() => undefined, undefinedBridgeParamsSchema, capturePreviewFrameResultSchema),
+  >(() => undefined, undefinedBridgeParamsSchema, engineSuccessSchema("capture.previewFrame")),
   ggEngineExportInfo: defineValidatedBridgeRequest<undefined, ExportInfoResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    exportInfoResultSchema,
+    engineSuccessSchema("export.info"),
   ),
   ggEngineRunExport: defineValidatedBridgeRequest<
     {
@@ -517,7 +458,7 @@ export const bridgeRequestDefinitions = {
       presetId: makeExportPresetId(params.presetId),
     }),
     engineRunExportBridgeParamsSchema,
-    exportRunResultSchema,
+    engineSuccessSchema("export.run"),
   ),
   ggEngineRunCutPlanExport: defineValidatedBridgeRequest<
     {
@@ -534,12 +475,12 @@ export const bridgeRequestDefinitions = {
       presetId: makeExportPresetId(params.presetId),
     }),
     engineRunCutPlanExportBridgeParamsSchema,
-    exportRunCutPlanResultSchema,
+    engineSuccessSchema("export.runCutPlan"),
   ),
   ggEngineProjectCurrent: defineValidatedBridgeRequest<undefined, ProjectState, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
-    projectStateSchema,
+    engineSuccessSchema("project.current"),
   ),
   ggEngineProjectOpen: defineValidatedBridgeRequest<
     { projectPath: ProjectPath },
@@ -548,7 +489,7 @@ export const bridgeRequestDefinitions = {
   >(
     (projectPath) => ({ projectPath: projectPathSchema.make(projectPath) }),
     engineProjectOpenBridgeParamsSchema,
-    projectStateSchema,
+    engineSuccessSchema("project.open"),
   ),
   ggEngineProjectSave: defineValidatedBridgeRequest<
     { projectPath?: ProjectPath; autoZoom?: AutoZoomSettings },
@@ -560,13 +501,13 @@ export const bridgeRequestDefinitions = {
       projectPath: makeOptionalProjectPath(params.projectPath),
     }),
     engineProjectSaveBridgeParamsSchema,
-    projectStateSchema,
+    engineSuccessSchema("project.save"),
   ),
   ggEngineProjectRecents: defineValidatedBridgeRequest<
     { limit?: number },
     ProjectRecentsResult,
     [limit?: number]
-  >((limit) => ({ limit }), engineProjectRecentsBridgeParamsSchema, projectRecentsResultSchema),
+  >((limit) => ({ limit }), engineProjectRecentsBridgeParamsSchema, engineSuccessSchema("project.recents")),
   ggReviewSessionSnapshot: defineValidatedBridgeRequest<
     ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>,
     ReviewSessionSnapshot,

@@ -3,30 +3,34 @@ import {
   BridgeUnavailableError,
   BrowserStorageError,
   CaptureWindowPickerUnsupportedError,
-  ContractDecodeError,
-  EngineClientError,
-  EngineOperationError,
-  EngineRequestValidationError,
-  EngineResponseError,
   FileAccessPolicyError,
-  JsonParseError,
   MediaServerError,
   PathPickerError,
   ReviewBridgeError,
   StudioActionError,
   StudioContextUnavailableError,
-  messageFromUnknownError,
   type BrowserStorageErrorCode,
-  type EngineClientErrorCode,
   type FileAccessPolicyErrorCode,
   type MediaServerErrorCode,
   type PathPickerErrorCode,
   type ReviewBridgeErrorCode,
   type SerializedBridgeError,
   type StudioActionReason,
+} from "./desktopErrors";
+import {
+  ContractDecodeError,
+  EngineClientError,
+  EngineOperationError,
+  EngineRequestValidationError,
+  EngineResponseError,
+  JsonParseError,
+  messageFromUnknownError,
+  type EngineClientErrorCode,
+} from "@guerillaglass/engine/client/errors/clientErrors";
+import {
+  isValidationIssue,
   type ValidationIssue,
-} from "./domain";
-import { isValidationIssue } from "./schemaDecode";
+} from "@guerillaglass/engine/client/errors/schemaContracts";
 
 function serializeBridgeErrorInternal(error: unknown, depth: number): SerializedBridgeError {
   if (depth >= 3) {

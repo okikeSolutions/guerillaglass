@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { hostMenuCommands } from "@shared/bridge";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import { hostMenuCommands } from "@shared/bridge/desktopBridgeContract";
 
 type RegisteredHotkey = {
   hotkey: string;
@@ -10,16 +10,21 @@ type RegisteredHotkey = {
   }) => void;
 };
 
-const registeredHotkeys: RegisteredHotkey[] = [];
-const useHotkeyMock = mock((hotkey: string, handler: RegisteredHotkey["handler"]) => {
-  registeredHotkeys.push({ hotkey, handler });
+const { registeredHotkeys, useHotkeyMock } = vi.hoisted(() => {
+  const registeredHotkeys: RegisteredHotkey[] = [];
+  const useHotkeyMock = vi.fn((hotkey: string, handler: RegisteredHotkey["handler"]) => {
+    registeredHotkeys.push({ hotkey, handler });
+  });
+  return { registeredHotkeys, useHotkeyMock };
 });
-const hotkeysModule = await import("@tanstack/react-hotkeys");
 
-mock.module("@tanstack/react-hotkeys", () => ({
-  ...hotkeysModule,
-  useHotkey: useHotkeyMock,
-}));
+vi.mock("@tanstack/react-hotkeys", async (importOriginal) => {
+  const hotkeysModule = await importOriginal<typeof import("@tanstack/react-hotkeys")>();
+  return {
+    ...hotkeysModule,
+    useHotkey: useHotkeyMock,
+  };
+});
 
 const { useStudioHotkeys } = await import("@studio/hooks/core/useStudioHotkeys");
 

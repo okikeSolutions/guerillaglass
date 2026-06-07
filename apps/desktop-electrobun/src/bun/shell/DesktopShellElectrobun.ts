@@ -6,38 +6,28 @@ import Electrobun, {
   Updater,
   Utils,
 } from "electrobun/bun";
-import { Effect, Layer, Option, Ref, Schema } from "effect";
-import { constants as fsConstants } from "node:fs";
-import { access } from "node:fs/promises";
+import { Effect, Layer, Option, Ref } from "effect";
 import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
-import {
-  projectStateSchema,
-  type ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
-import { pickPathForMode } from "../path/picker";
-import { readAllowedTextFile } from "../security/fileAccess";
 import {
   appendCaptureBenchmarkQuery,
   captureBenchmarkWindowTitle,
 } from "../../shared/captureBenchmark";
 import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
 import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
-import { decodeUnknownWithSchemaSync } from "../../shared/errors";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import {
   hostReviewEventMessageSchema,
   type DesktopBridgeRPC,
   type DesktopRuntimeFlags,
   type HostMenuCommand,
   type HostMenuState,
-  type HostPathPickerMode,
   type StudioDiagnosticsEntry,
-} from "../../shared/bridge";
+} from "../../shared/bridge/desktopBridgeContract";
 import {
   DesktopShell,
   type DesktopShellLayerOptions,
@@ -100,7 +90,6 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const mainWindowRef = yield* Ref.make(Option.none<MainWindow>());
         const linuxTrayRef = yield* Ref.make(Option.none<Tray>());
         const hostMenuStateRef = yield* Ref.make(initialHostMenuState);
-        const currentProjectPathRef = yield* Ref.make(Option.none<string>());
         const hasStartedRef = yield* Ref.make(false);
         const runtimeFlags = makeDesktopRuntimeFlags(options);
         const captureBenchmarkEnabled = runtimeFlags.captureBenchmarkEnabled;
@@ -110,11 +99,6 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
           void Effect.runPromiseWith(services)(effect);
         };
 
-        const setCurrentProjectPath = (projectPath: string | null) =>
-          Ref.set(
-            currentProjectPathRef,
-            projectPath === null ? Option.none() : Option.some(projectPath),
-          );
 
         const getMainViewURL = Effect.promise(async () => {
           if (captureBenchmarkEnabled) {
@@ -209,7 +193,15 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
               dispatchHostCommand: (command) => {
                 runShellEffect(dispatchHostCommand(command));
               },
-              toggleDevTools: () => Option.getOrNull(mainWindowRef.ref.current)?.webview.toggleDevTools(),
+              toggleDevTools: () => {
+                runShellEffect(
+                  Ref.get(mainWindowRef).pipe(
+                    Effect.map((windowOption) =>
+                      Option.getOrNull(windowOption)?.webview.toggleDevTools(),
+                    ),
+                  ),
+                );
+              },
               openDocs: () => {
                 void Utils.openExternal("https://github.com/okikeSolutions/guerillaglass");
               },
@@ -252,46 +244,6 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
             });
           });
 
-        const pickPath = async (params: {
-          mode: HostPathPickerMode;
-          startingFolder?: string;
-        }): Promise<string | null> => {
-          const defaultPickerFolder = Utils.paths.videos ?? Utils.paths.documents;
-
-          return await pickPathForMode(params.mode, {
-            currentProjectPath: Option.getOrNull(currentProjectPathRef.ref.current),
-            startingFolder: params.startingFolder,
-            defaultFolder: defaultPickerFolder,
-            openFileDialog: (dialogOptions) => Utils.openFileDialog(dialogOptions),
-            pathExists: async (filePath) => {
-              try {
-                await access(filePath, fsConstants.F_OK);
-                return true;
-              } catch {
-                return false;
-              }
-            },
-            confirmOverwritePath: async (filePath) => {
-              const result = await Utils.showMessageBox({
-                type: "question",
-                title: "Replace Project?",
-                message: "A project already exists at this location.",
-                detail: filePath,
-                buttons: ["Replace", "Cancel"],
-                defaultId: 1,
-                cancelId: 1,
-              });
-              return result.response === 0;
-            },
-          });
-        };
-
-        const readTextFile = async (filePath: string): Promise<string> =>
-          await readAllowedTextFile(filePath, {
-            currentProjectPath: Option.getOrNull(currentProjectPathRef.ref.current),
-            tempDirectory: process.env.TMPDIR,
-          });
-
         const start = ({ runtime, onClose }: DesktopShellStartOptions): Effect.Effect<void> =>
           Effect.gen(function* () {
             const hasStarted = yield* Ref.get(hasStartedRef);
@@ -301,46 +253,12 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
             }
             yield* Ref.set(hasStartedRef, true);
 
-            if (!captureBenchmarkEnabled) {
-              yield* Effect.tryPromise(() =>
-                runtime.runPromise(
-                  Effect.flatMap(
-                    EngineTransport,
-                    (transport) =>
-                      transport["project.current"](undefined).pipe(
-                        Effect.flatMap(
-                          Schema.encodeUnknownEffect(Schema.toCodecJson(projectStateSchema)),
-                        ),
-                      ) as Effect.Effect<ProjectState, unknown, never>,
-                  ),
-                ),
-              ).pipe(
-                Effect.flatMap((initialProject) => setCurrentProjectPath(initialProject.projectPath)),
-                Effect.catch((error) =>
-                  Effect.sync(() => {
-                    console.warn(
-                      "Failed to load initial project state for file-access policy",
-                      error,
-                    );
-                  }),
-                ),
-              );
-            }
 
             const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
               maxRequestTime: Infinity,
               handlers: {
                 requests: createEngineBridgeHandlers({
                   runtime,
-                  pickPath,
-                  readTextFile,
-                  getCurrentProjectPath: () => Option.getOrNull(currentProjectPathRef.ref.current),
-                  setCurrentProjectPath: (projectPath) => {
-                    runShellEffect(setCurrentProjectPath(projectPath));
-                  },
-                  emitReviewEvent: (event) => {
-                    runShellEffect(dispatchReviewEvent(event));
-                  },
                 }),
                 messages: {
                   hostMenuState: (nextState: HostMenuState) => {
@@ -429,6 +347,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         return DesktopShell.of({
           start,
           publishCaptureStatus,
+          publishReviewEvent: dispatchReviewEvent,
           dispose,
         });
       }),

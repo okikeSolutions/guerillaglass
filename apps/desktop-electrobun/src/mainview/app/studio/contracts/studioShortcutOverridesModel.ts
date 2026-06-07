@@ -4,11 +4,8 @@ import {
   type ShortcutDisplayPlatform,
   type StudioShortcutOverrides,
 } from "@shared/shortcuts";
-import {
-  ContractDecodeError,
-  JsonParseError,
-  decodeJsonStringWithSchemaSync,
-} from "@shared/errors";
+import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import {
   createDesktopPreferenceStorageKey,
   loadDesktopPreference,

@@ -1,13 +1,16 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
-import { FileAccessPolicyError } from "@shared/errors";
+import { fileURLToPath } from "node:url";
+import { describe, expect, test } from "vitest";
+import { FileAccessPolicyError } from "@shared/errors/desktopErrors";
 import {
   readAllowedTextFile,
   resolveAllowedMediaFilePath,
   resolveAllowedTextFilePath,
 } from "../src/bun/security/fileAccess";
+
+const testDirectory = fileURLToPath(new URL(".", import.meta.url));
 
 function createTempDirectory(prefix: string): string {
   return mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -67,7 +70,7 @@ describe("file access policy", () => {
   });
 
   test("rejects files outside allowed roots", () => {
-    const outsidePath = path.resolve(import.meta.dir, "../../../package.json");
+    const outsidePath = path.resolve(testDirectory, "../../../package.json");
     expect(() =>
       resolveAllowedTextFilePath(outsidePath, {
         currentProjectPath: "/definitely/not-this-path",
@@ -190,7 +193,7 @@ describe("file access policy", () => {
   });
 
   test("rejects media files outside allowed roots", () => {
-    const outsideDir = mkdtempSync(path.join(import.meta.dir, "gg-outside-media-"));
+    const outsideDir = mkdtempSync(path.join(testDirectory, "gg-outside-media-"));
     try {
       const outsidePath = path.join(outsideDir, "capture.mov");
       writeFileSync(outsidePath, "video-bytes", "utf8");
@@ -207,7 +210,7 @@ describe("file access policy", () => {
 
   test("rejects symlinked media paths that escape allowed roots", () => {
     const projectDir = createTempDirectory("gg-project-media-access-");
-    const outsideDir = mkdtempSync(path.join(import.meta.dir, "gg-outside-media-target-"));
+    const outsideDir = mkdtempSync(path.join(testDirectory, "gg-outside-media-target-"));
     try {
       const outsideMediaPath = path.join(outsideDir, "outside.mov");
       writeFileSync(outsideMediaPath, "video-bytes", "utf8");

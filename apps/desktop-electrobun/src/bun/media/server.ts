@@ -1,14 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import path from "node:path";
-import { Effect } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
-import {
-  MediaServerError,
-  messageFromUnknownError,
-  runEffectPromise,
-  runEffectSync,
-} from "../../shared/errors";
+import { MediaServerError } from "../../shared/errors/desktopErrors";
+import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
 import { isSupportedMediaPath, mediaTypeForPath } from "./policy";
 
 const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;
@@ -39,7 +35,7 @@ type PreviewTokenEntry = {
   kind: "capturePreview";
   createdAt: number;
   lastAccessedAt: number;
-  loadPreviewFrame: () => Promise<CapturePreviewFrameResult>;
+  loadPreviewFrame: Effect.Effect<CapturePreviewFrameResult, unknown>;
   cachedFrameId: number | null;
   cachedJPEGBytes: Uint8Array | null;
 };
@@ -47,12 +43,38 @@ type PreviewTokenEntry = {
 type TokenEntry = MediaTokenEntry | PreviewTokenEntry;
 
 type TokenPathResult = { token: string; response: null } | { token: null; response: Response };
+type BunMediaServerAdapter = {
+  serve: typeof Bun.serve;
+  file: typeof Bun.file;
+};
 type StartedMediaServer = {
   server: ReturnType<typeof Bun.serve>;
   origin: string;
 };
 
 const livePreviewMimeType = "image/jpeg";
+
+function throwEffectFailure(cause: Cause.Cause<unknown>): never {
+  const failure = Cause.findErrorOption(cause);
+  if (Option.isSome(failure)) {
+    throw failure.value;
+  }
+  throw Cause.squash(cause);
+}
+
+function runLocalEffectSync<A, E>(effect: Effect.Effect<A, E>): A {
+  return Exit.match(Effect.runSyncExit(effect), {
+    onFailure: throwEffectFailure,
+    onSuccess: (value) => value,
+  });
+}
+
+async function runLocalEffectPromise<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+  return Exit.match(await Effect.runPromiseExit(effect), {
+    onFailure: throwEffectFailure,
+    onSuccess: (value) => value,
+  });
+}
 
 function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   const trimmedRangeHeader = rangeHeader.trim();
@@ -203,9 +225,20 @@ function reserveLoopbackPortEffect(host: string): Effect.Effect<number, MediaSer
 
 /** Loopback-only media server that mints temporary media and live-preview URLs. */
 export class MediaServer {
+  private readonly adapter: BunMediaServerAdapter;
   private server: ReturnType<typeof Bun.serve> | null = null;
   private origin: string | null = null;
   private readonly tokens = new Map<string, TokenEntry>();
+
+  constructor(options?: { adapter?: BunMediaServerAdapter }) {
+    this.adapter = options?.adapter ?? globalThis.Bun;
+    if (!this.adapter) {
+      throw new MediaServerError({
+        code: "MEDIA_SERVER_BIND_FAILED",
+        description: "Bun media server adapter is not available.",
+      });
+    }
+  }
 
   private response(status: number, body: string, headers: Record<string, string> = {}): Response {
     return new Response(body, {
@@ -234,11 +267,11 @@ export class MediaServer {
   }
 
   private startServer(host: string, port: number): ReturnType<typeof Bun.serve> {
-    return Bun.serve({
+    return this.adapter.serve({
       hostname: host,
       port,
-      fetch: (request) => runEffectPromise(this.handleRequestEffect(request)),
-      error: (error) => runEffectSync(this.handleServerErrorEffect(error)),
+      fetch: (request) => runLocalEffectPromise(this.handleRequestEffect(request)),
+      error: (error) => runLocalEffectSync(this.handleServerErrorEffect(error)),
     });
   }
 
@@ -371,15 +404,16 @@ export class MediaServer {
     entry: PreviewTokenEntry,
   ): Effect.Effect<Response, MediaServerError> {
     return Effect.gen({ self: this }, function* () {
-      const frame = yield* Effect.tryPromise({
-        try: () => entry.loadPreviewFrame(),
-        catch: (cause) =>
-          new MediaServerError({
-            code: "MEDIA_SERVER_BIND_FAILED",
-            description: messageFromUnknownError(cause, "Unable to read live capture preview."),
-            cause,
-          }),
-      });
+      const frame = yield* entry.loadPreviewFrame.pipe(
+        Effect.mapError(
+          (cause) =>
+            new MediaServerError({
+              code: "MEDIA_SERVER_BIND_FAILED",
+              description: messageFromUnknownError(cause, "Unable to read live capture preview."),
+              cause,
+            }),
+        ),
+      );
 
       if (!frame) {
         if (entry.cachedJPEGBytes) {
@@ -419,7 +453,7 @@ export class MediaServer {
     entry: MediaTokenEntry,
   ): Effect.Effect<Response, MediaServerError> {
     return Effect.gen({ self: this }, function* () {
-      const file = Bun.file(entry.filePath);
+      const file = this.adapter.file(entry.filePath);
       const exists = yield* Effect.tryPromise({
         try: () => file.exists(),
         catch: (cause) =>
@@ -539,6 +573,7 @@ export class MediaServer {
   }
 
   private resolveMediaPathEffect(filePath: string): Effect.Effect<string, MediaServerError> {
+    const adapter = this.adapter;
     return Effect.gen(function* () {
       if (typeof filePath !== "string" || filePath.trim().length === 0) {
         return yield* new MediaServerError({
@@ -563,7 +598,7 @@ export class MediaServer {
         });
       }
 
-      const mediaFile = Bun.file(normalizedPath);
+      const mediaFile = adapter.file(normalizedPath);
       const exists = yield* Effect.tryPromise({
         try: () => mediaFile.exists(),
         catch: (cause) =>
@@ -620,7 +655,7 @@ export class MediaServer {
   }
 
   resolveCapturePreviewURLEffect(
-    loadPreviewFrame: () => Promise<CapturePreviewFrameResult>,
+    loadPreviewFrame: Effect.Effect<CapturePreviewFrameResult, unknown>,
   ): Effect.Effect<string, MediaServerError> {
     return this.ensureServerEffect().pipe(
       Effect.flatMap(() =>
@@ -655,13 +690,25 @@ export class MediaServer {
   }
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
-    return await runEffectPromise(this.resolveMediaSourceURLEffect(filePath));
+    return await runLocalEffectPromise(this.resolveMediaSourceURLEffect(filePath));
   }
 
   async resolveCapturePreviewURL(
     loadPreviewFrame: () => Promise<CapturePreviewFrameResult>,
   ): Promise<string> {
-    return await runEffectPromise(this.resolveCapturePreviewURLEffect(loadPreviewFrame));
+    return await runLocalEffectPromise(
+      this.resolveCapturePreviewURLEffect(
+        Effect.tryPromise({
+          try: loadPreviewFrame,
+          catch: (cause) =>
+            new MediaServerError({
+              code: "MEDIA_SERVER_BIND_FAILED",
+              description: messageFromUnknownError(cause, "Unable to read live capture preview."),
+              cause,
+            }),
+        }),
+      ),
+    );
   }
 
   stopEffect(): Effect.Effect<void, MediaServerError> {
@@ -688,7 +735,7 @@ export class MediaServer {
   }
 
   stop(): void {
-    runEffectSync(this.stopEffect());
+    runLocalEffectSync(this.stopEffect());
   }
 
   private logDebugEffect(message: string): Effect.Effect<void, never> {

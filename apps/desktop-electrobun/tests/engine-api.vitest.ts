@@ -1,5 +1,5 @@
 import { Effect, Layer } from "effect";
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { reviewIdSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 import {
   desktopApi,
@@ -8,20 +8,23 @@ import {
   sendHostMenuState,
   sendHostStudioDiagnostics,
 } from "@lib/engine";
-import { createBunBridgeHandlers, createWindowBridgeBindings } from "@shared/bridge";
-import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "@shared/bridge";
+import { createBunBridgeHandlers, createWindowBridgeBindings } from "@shared/bridge/desktopBridgeBindings";
+import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,
+  MediaServerError,
+} from "@shared/errors/desktopErrors";
+import {
   ContractDecodeError,
   EngineResponseError,
-  MediaServerError,
-} from "@shared/errors";
+} from "@guerillaglass/engine/client/errors/clientErrors";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
+import { ProjectSession } from "../src/bun/session/ProjectSession";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -496,22 +499,17 @@ describe("renderer engine bridge", () => {
       desktopShellLayer: Layer.succeed(DesktopShell, {
         start: () => Effect.void,
         publishCaptureStatus: () => Effect.void,
+        publishReviewEvent: () => Effect.void,
         dispose: Effect.void,
       }),
       enableCaptureStatusStream: false,
+      projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
       engineTransportLayer: Layer.succeed(EngineTransport, {} as never),
       mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
     });
 
     try {
-      const handlers = createEngineBridgeHandlers({
-        runtime,
-        pickPath: async () => null,
-        readTextFile: async () => "",
-        getCurrentProjectPath: () => null,
-        setCurrentProjectPath: () => {},
-        emitReviewEvent: () => {},
-      });
+      const handlers = createEngineBridgeHandlers({ runtime });
 
       const response = await handlers.ggReviewSessionSnapshot({
         authToken: "token",

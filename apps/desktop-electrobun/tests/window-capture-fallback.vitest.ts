@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { EngineResponseError } from "@shared/errors";
+import { describe, expect, test } from "vitest";
+import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
 import {
   isSelectedWindowUnavailableError,
   mergeFinishedCaptureStatus,

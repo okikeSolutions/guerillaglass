@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Schema } from "effect";
-import * as RpcSerialization from "effect/unstable/rpc/RpcSerialization";
+
 import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
 import { engineRpcErrorSchema } from "@guerillaglass/engine/protocol/rpc/errors";
 import { projectRecentsResultSchema } from "@guerillaglass/engine/protocol/domains/project";
@@ -18,18 +18,14 @@ describe("engine Effect RPC protocol", () => {
     expect(EngineRpcs.requests.has("project.save")).toBe(true);
   });
 
-  test("uses Effect newline-delimited JSON-RPC serialization", async () => {
-    const parser = RpcSerialization.ndJsonRpc().makeUnsafe();
-    const encoded = parser.encode({
-      _tag: "Request",
+  test("uses stable Guerillaglass wire envelopes for native fixtures", async () => {
+    const request = await Bun.file(new URL("engine-capabilities.request.json", fixtureDir)).json();
+    expect(request).toMatchObject({
+      type: "request",
       id: "1",
-      tag: "engine.capabilities",
-      payload: {},
-      headers: [],
+      method: "engine.capabilities",
+      params: {},
     });
-    expect(typeof encoded).toBe("string");
-    expect(String(encoded)).toContain('"jsonrpc":"2.0"');
-    expect(String(encoded)).toContain('"method":"engine.capabilities"');
   });
 
   test("validates Effect RPC typed errors", () => {
@@ -41,12 +37,9 @@ describe("engine Effect RPC protocol", () => {
     expect(error.code).toBe("unsupported_method");
   });
 
-  test("fixtures use Effect JSON-RPC envelopes", async () => {
-    const request = await Bun.file(new URL("engine-capabilities.request.json", fixtureDir)).json();
-    expect(request).toMatchObject({ jsonrpc: "2.0", method: "engine.capabilities" });
-
+  test("fixtures validate stable wire response payloads", async () => {
     const response = await Bun.file(new URL("project-recents.response.json", fixtureDir)).json();
-    expect(response).toHaveProperty("jsonrpc", "2.0");
+    expect(response).toHaveProperty("type", "response");
     expect(response).toHaveProperty("result");
     const recents = decodeSchemaSync(projectRecentsResultSchema, response.result);
     expect(recents.items[0]?.displayName).toBe("fixture");

@@ -1,9 +1,10 @@
+import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { MediaServer } from "../src/bun/media/server";
-import { MediaServerError } from "@shared/errors";
+import { MediaServerError } from "@shared/errors/desktopErrors";
 
 const livePreviewBytes = Buffer.from("preview-frame", "utf8");
 const livePreviewBase64 = livePreviewBytes.toString("base64");
@@ -37,14 +38,20 @@ type MockServeConfig = {
 };
 
 function mockBunServe(config: MockServeConfig = {}) {
-  const originalServe = Bun.serve;
   let activeFetchHandler: FetchHandler | null = null;
   let activeErrorHandler: ErrorHandler | null = null;
   let invocationCount = 0;
   const requestedPorts: number[] = [];
   let remainingEaddrinuseAttempts = config.eaddrinuseAttempts ?? 0;
 
-  (Bun as unknown as { serve: typeof Bun.serve }).serve = ((options: ServeOptions) => {
+  const file = ((filePath: string) => {
+    const bytes = existsSync(filePath) ? readFileSync(filePath) : Buffer.alloc(0);
+    const bunFile = new Blob([bytes]) as Blob & { exists: () => Promise<boolean> };
+    bunFile.exists = async () => existsSync(filePath);
+    return bunFile;
+  }) as typeof Bun.file;
+
+  const serve = ((options: ServeOptions) => {
     invocationCount += 1;
     if (!options.fetch) {
       throw new Error("Missing Bun.serve fetch handler in media server test mock.");
@@ -77,6 +84,7 @@ function mockBunServe(config: MockServeConfig = {}) {
   }) as typeof Bun.serve;
 
   return {
+    adapter: { serve, file },
     async dispatch(input: string, init?: RequestInit): Promise<Response> {
       if (!activeFetchHandler) {
         throw new Error("Media handler is not registered yet.");
@@ -97,9 +105,7 @@ function mockBunServe(config: MockServeConfig = {}) {
     get requestedPorts() {
       return requestedPorts;
     },
-    restore() {
-      (Bun as unknown as { serve: typeof Bun.serve }).serve = originalServe;
-    },
+    restore() {},
   };
 }
 
@@ -112,8 +118,8 @@ function tokenFromResolvedURL(resolvedURL: string): string {
 describe("media server", () => {
   test("serves whole-file and range responses for local media paths", async () => {
     const fixture = await createTempFile("capture.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -144,8 +150,8 @@ describe("media server", () => {
 
   test("supports HEAD, serves first segment for multi-range, and returns 416 for invalid ranges", async () => {
     const fixture = await createTempFile("head.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -176,8 +182,8 @@ describe("media server", () => {
 
   test("returns protocol errors for unsupported requests", async () => {
     const fixture = await createTempFile("request.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -211,8 +217,8 @@ describe("media server", () => {
   test("rejects unsupported file extensions and missing files", async () => {
     const fixture = await createTempFile("readme.txt", "notes");
     const missingPath = path.join(path.dirname(fixture.filePath), "gone.mov");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       try {
@@ -242,8 +248,8 @@ describe("media server", () => {
 
   test("prunes oldest tokens once max token count is exceeded", async () => {
     const fixture = await createTempFile("prune.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const firstResolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -267,8 +273,8 @@ describe("media server", () => {
 
   test("expires stale token requests", async () => {
     const fixture = await createTempFile("expired.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -293,8 +299,8 @@ describe("media server", () => {
 
   test("expires idle tokens", async () => {
     const fixture = await createTempFile("idle-expired.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -319,8 +325,8 @@ describe("media server", () => {
 
   test("allows repeat range requests without relying on cookies", async () => {
     const fixture = await createTempFile("repeat-range.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
       const firstResponse = await serve.dispatch(resolved);
@@ -340,8 +346,8 @@ describe("media server", () => {
   });
 
   test("serves loopback live preview tokens from the latest cached frame", async () => {
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
     let previewCalls = 0;
 
     try {
@@ -372,8 +378,8 @@ describe("media server", () => {
   });
 
   test("returns 404 when the live preview token has no frame yet", async () => {
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveCapturePreviewURL(async () => null);
@@ -386,8 +392,8 @@ describe("media server", () => {
   });
 
   test("does not expire active live preview tokens based on absolute age alone", async () => {
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveCapturePreviewURL(async () => ({
@@ -417,8 +423,8 @@ describe("media server", () => {
   });
 
   test("rejects non-local and unsupported media source paths", async () => {
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
     try {
       await expect(server.resolveMediaSourceURL("https://example.com/video.mov")).rejects.toThrow();
       await expect(server.resolveMediaSourceURL("file://example.com/video.mov")).rejects.toThrow();
@@ -432,8 +438,8 @@ describe("media server", () => {
 
   test("falls back to reserved loopback port when port zero binding is unsupported", async () => {
     const fixture = await createTempFile("port-zero-fallback.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe({ failOnPortZero: true });
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -450,8 +456,8 @@ describe("media server", () => {
 
   test("retries media server bind on EADDRINUSE collisions", async () => {
     const fixture = await createTempFile("port-collision-retry.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe({ failOnPortZero: true, eaddrinuseAttempts: 2 });
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       const resolved = await server.resolveMediaSourceURL(fixture.filePath);
@@ -470,8 +476,8 @@ describe("media server", () => {
 
   test("returns a generic 500 response from Bun.serve error handler", async () => {
     const fixture = await createTempFile("error-handler.mov", "0123456789");
-    const server = new MediaServer();
     const serve = mockBunServe();
+    const server = new MediaServer({ adapter: serve.adapter });
 
     try {
       await server.resolveMediaSourceURL(fixture.filePath);

@@ -7,16 +7,14 @@ import type {
   HostMenuState,
   StudioDiagnosticsEntry,
   WindowBridgeBindings,
-} from "./bridgeRpc";
+} from "./desktopBridgeContract";
 import {
   decodeUnknownWithSchemaSync,
-  encodeUnknownWithSchema,
-  validateEncodedUnknownWithSchema,
-  deserializeBridgeError,
-  runEffectPromise,
-  serializeBridgeError,
-} from "../errors";
-import { bridgeRequestDefinitions, bridgeRequestNameList } from "./bridgeRpc";
+  encodeUnknownWithSchemaSync,
+  validateEncodedUnknownWithSchemaSync,
+} from "@guerillaglass/engine/client/errors/schemaContracts";
+import { deserializeBridgeError, serializeBridgeError } from "../errors/desktopErrorSerialization";
+import { bridgeRequestDefinitions, bridgeRequestNameList } from "./desktopBridgeContract";
 
 /**
  * Builds the renderer-facing bridge object from a generic request invoker.
@@ -40,12 +38,10 @@ export function createWindowBridgeBindings(
         if (!definition.responseSchema) {
           return response.data;
         }
-        return await runEffectPromise(
-          validateEncodedUnknownWithSchema(
-            definition.responseSchema,
-            response.data,
-            `${name} bridge response`,
-          ),
+        return validateEncodedUnknownWithSchemaSync(
+          definition.responseSchema,
+          response.data,
+          `${name} bridge response`,
         );
       }
       throw deserializeBridgeError(response.error);
@@ -88,12 +84,10 @@ export function createBunBridgeHandlers(
               : params;
             const data = await handler(validatedParams);
             const validatedData = definition.responseSchema
-              ? await runEffectPromise(
-                  encodeUnknownWithSchema(
-                    definition.responseSchema,
-                    data,
-                    `${name} bridge response`,
-                  ),
+              ? encodeUnknownWithSchemaSync(
+                  definition.responseSchema,
+                  data,
+                  `${name} bridge response`,
                 )
               : data;
             return {

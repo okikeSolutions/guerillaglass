@@ -1,11 +1,9 @@
-import { Effect, Schema, SchemaIssue } from "effect";
-import {
-  ContractDecodeError,
-  JsonParseError,
-  type MutableDeep,
-  type ValidationIssue,
-} from "./domain";
-import { runEffectSync } from "./effectRuntime";
+import { Effect, Schema, SchemaIssue, type Types } from "effect";
+import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import type { ValidationIssue } from "./validation.js";
+
+export type { ValidationIssue };
+export type MutableDeep<T> = Types.DeepMutable<T>;
 
 const decodeAllIssuesOptions = {
   errors: "all",
@@ -45,10 +43,7 @@ export function extractValidationIssues(error: unknown): ValidationIssue[] {
     .filter((issue) => isValidationIssue(issue));
 }
 
-export function parseJsonString(
-  raw: string,
-  source: string,
-): Effect.Effect<unknown, JsonParseError> {
+export function parseJsonString(raw: string, source: string): Effect.Effect<unknown, JsonParseError> {
   return Effect.try({
     try: () => JSON.parse(raw) as unknown,
     catch: (cause) => new JsonParseError({ source, cause }),
@@ -56,7 +51,11 @@ export function parseJsonString(
 }
 
 export function parseJsonStringSync(raw: string, source: string): unknown {
-  return runEffectSync(parseJsonString(raw, source));
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (cause) {
+    throw new JsonParseError({ source, cause });
+  }
 }
 
 export function decodeUnknownWithSchema<S extends Schema.Top>(
@@ -80,10 +79,19 @@ export function decodeUnknownWithSchemaSync<S extends Schema.Top>(
   raw: unknown,
   contract: string,
 ): MutableDeep<Schema.Schema.Type<S>> {
-  return runEffectSync(decodeUnknownWithSchema(schema, raw, contract));
+  try {
+    return Schema.decodeUnknownSync(schema as never, decodeAllIssuesOptions)(raw) as MutableDeep<
+      Schema.Schema.Type<S>
+    >;
+  } catch (error) {
+    throw new ContractDecodeError({
+      contract,
+      issues: extractValidationIssues(error),
+      cause: error,
+    });
+  }
 }
 
-/** Encodes a decoded schema value into its canonical JSON/wire representation. */
 export function encodeUnknownWithSchema<S extends Schema.Top>(
   schema: S,
   raw: unknown,
@@ -100,7 +108,25 @@ export function encodeUnknownWithSchema<S extends Schema.Top>(
   ) as Effect.Effect<MutableDeep<Schema.Codec.Encoded<S>>, ContractDecodeError>;
 }
 
-/** Validates an unknown JSON/wire value and returns it in canonical encoded form. */
+export function encodeUnknownWithSchemaSync<S extends Schema.Top>(
+  schema: S,
+  raw: unknown,
+  contract: string,
+): MutableDeep<Schema.Codec.Encoded<S>> {
+  try {
+    return Schema.encodeUnknownSync(
+      Schema.toCodecJson(schema) as never,
+      decodeAllIssuesOptions,
+    )(raw) as MutableDeep<Schema.Codec.Encoded<S>>;
+  } catch (error) {
+    throw new ContractDecodeError({
+      contract,
+      issues: extractValidationIssues(error),
+      cause: error,
+    });
+  }
+}
+
 export function validateEncodedUnknownWithSchema<S extends Schema.Top>(
   schema: S,
   raw: unknown,
@@ -116,7 +142,8 @@ export function validateEncodedUnknownWithSchemaSync<S extends Schema.Top>(
   raw: unknown,
   contract: string,
 ): MutableDeep<Schema.Codec.Encoded<S>> {
-  return runEffectSync(validateEncodedUnknownWithSchema(schema, raw, contract));
+  const decoded = decodeUnknownWithSchemaSync(schema, raw, contract);
+  return encodeUnknownWithSchemaSync(schema, decoded, contract);
 }
 
 export function decodeJsonStringWithSchemaSync<S extends Schema.Top>(
@@ -124,9 +151,5 @@ export function decodeJsonStringWithSchemaSync<S extends Schema.Top>(
   raw: string,
   contract: string,
 ): MutableDeep<Schema.Schema.Type<S>> {
-  return runEffectSync(
-    Effect.flatMap(parseJsonString(raw, contract), (parsed) =>
-      decodeUnknownWithSchema(schema, parsed, contract),
-    ),
-  );
+  return decodeUnknownWithSchemaSync(schema, parseJsonStringSync(raw, contract), contract);
 }

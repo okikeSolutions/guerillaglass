@@ -10,6 +10,7 @@
     "./client/config/paths": "./src/client/config/paths.ts",
     "./client/config/targets": "./src/client/config/targets.ts",
     "./client/errors/clientErrors": "./src/client/errors/clientErrors.ts",
+    "./client/errors/schemaContracts": "./src/client/errors/schemaContracts.ts",
     "./protocol/domains/agent": "./src/protocol/domains/agent.ts",
     "./protocol/domains/capture": "./src/protocol/domains/capture.ts",
     "./protocol/domains/export": "./src/protocol/domains/export.ts",

@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { pickPathForMode } from "../src/bun/path/picker";
-import { PathPickerError } from "@shared/errors";
+import { PathPickerError } from "@shared/errors/desktopErrors";
 
 describe("host path picker", () => {
   test("openProject only accepts project package paths", async () => {

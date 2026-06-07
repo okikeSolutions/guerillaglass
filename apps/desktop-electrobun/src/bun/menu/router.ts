@@ -1,4 +1,4 @@
-import type { HostMenuCommand } from "../../shared/bridge";
+import type { HostMenuCommand } from "../../shared/bridge/desktopBridgeContract";
 import { decodeHostMenuAction } from "./actions";
 
 type MenuActionHandlers = {

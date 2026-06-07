@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { useEffect, useState } from "react";
-import { hostBridgeEventNames, type DesktopRuntimeFlags } from "../shared/bridge";
+import { hostBridgeEventNames, type DesktopRuntimeFlags } from "../shared/bridge/desktopBridgeContract";
 import { appRouter } from "./app/navigation/router";
 import { StudioProvider } from "./app/studio/state/StudioProvider";
 import { useStudioController } from "./app/studio/hooks/core/useStudioController";

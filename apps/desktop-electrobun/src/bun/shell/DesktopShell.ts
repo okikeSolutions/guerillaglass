@@ -1,5 +1,6 @@
 import { Context, Effect } from "effect";
 import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import type { DesktopAppRuntime } from "../app/AppRuntime";
 
 export type DesktopShellStartOptions = {
@@ -10,6 +11,7 @@ export type DesktopShellStartOptions = {
 export type DesktopShellService = {
   start: (options: DesktopShellStartOptions) => Effect.Effect<void>;
   publishCaptureStatus: (captureStatus: CaptureStatusResult) => Effect.Effect<void>;
+  publishReviewEvent: (event: ReviewBridgeEvent) => Effect.Effect<void>;
   dispose: Effect.Effect<void>;
 };
 

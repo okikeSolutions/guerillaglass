@@ -13,7 +13,7 @@ export type MediaSourceServiceType = {
     filePath: string,
   ) => ReturnType<MediaServerLike["resolveMediaSourceURLEffect"]>;
   resolveCapturePreviewURL: (
-    loadPreviewFrame: () => Promise<CapturePreviewFrameResult>,
+    loadPreviewFrame: Effect.Effect<CapturePreviewFrameResult, unknown>,
   ) => ReturnType<MediaServerLike["resolveCapturePreviewURLEffect"]>;
 };
 

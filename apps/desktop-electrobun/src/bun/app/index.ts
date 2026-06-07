@@ -1,7 +1,11 @@
 import { Utils } from "electrobun/bun";
-import { Effect } from "effect";
+import * as BunServices from "@effect/platform-bun/BunServices";
+import { Effect, Layer } from "effect";
+import { layerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
 import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
 import { DesktopShell } from "../shell/DesktopShell";
+import { ProjectSession } from "../session/ProjectSession";
+import { layerProjectSession } from "../session/ProjectSessionElectrobun";
 import { makeLayerDesktopShell } from "../shell/DesktopShellElectrobun";
 
 const captureBenchmarkEnabled = process.env.GG_CAPTURE_BENCHMARK === "1";
@@ -31,10 +35,15 @@ async function bootstrapApp() {
       captureBenchmarkEnabled,
       studioDiagnosticsEnabled,
     }),
+    engineTransportLayer: layerEngineTransportBun,
+    projectSessionLayer: layerProjectSession.pipe(Layer.provide(BunServices.layer)),
   });
 
   try {
     const runtime = desktopAppRuntime;
+    if (!captureBenchmarkEnabled) {
+      await runtime.runPromise(Effect.flatMap(ProjectSession, (session) => session.loadInitialProject));
+    }
     await runtime.runPromise(
       Effect.flatMap(DesktopShell, (shell) =>
         shell.start({

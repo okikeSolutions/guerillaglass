@@ -1,37 +1,12 @@
-import {
-  agentPreflightResultSchema,
-  agentRunResultSchema,
-  agentStatusResultSchema,
-} from "@guerillaglass/engine/protocol/domains/agent";
-import {
-  capturePreviewFrameResultSchema,
-  captureStatusResultSchema,
-  type CapturePreviewFrameResult,
-  type CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
-import {
-  exportInfoResultSchema,
-  exportRunCutPlanResultSchema,
-  exportRunResultSchema,
-} from "@guerillaglass/engine/protocol/domains/export";
-import {
-  actionResultSchema,
-  permissionsResultSchema,
-  type PermissionsResult,
-} from "@guerillaglass/engine/protocol/domains/permissions";
-import {
-  projectRecentsResultSchema,
-  projectStateSchema,
-  type ProjectRecentsResult,
-  type ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
+import type { CapturePreviewFrameResult, CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
+import type { ProjectRecentsResult, ProjectState } from "@guerillaglass/engine/protocol/domains/project";
 import {
   defaultCaptureFrameRate,
-  sourcesResultSchema,
   type CaptureFrameRate,
   type SourcesResult,
 } from "@guerillaglass/engine/protocol/domains/sources";
-import { pingResultSchema, type PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
 import {
   inputEventLogSchema,
   type AutoZoomSettings,
@@ -43,26 +18,24 @@ import type {
   HostPathPickerMode,
   StudioDiagnosticsEntry,
   WindowBridgeBindings,
-} from "@shared/bridge";
-import {
-  pickPathResponseSchema,
-  resolveCapturePreviewURLResponseSchema,
-  readTextFileResponseSchema,
-  resolveMediaSourceURLResponseSchema,
-} from "@shared/bridge";
+  BridgeRequestName,
+  BridgeRequests,
+} from "@shared/bridge/desktopBridgeContract";
+import { bridgeRequestDefinitions } from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,
-  EngineResponseError,
   PathPickerError,
-  decodeUnknownWithSchemaSync,
-  validateEncodedUnknownWithSchema,
   isKnownTaggedError,
+} from "@shared/errors/desktopErrors";
+import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import {
+  decodeUnknownWithSchemaSync,
   parseJsonStringSync,
-  runEffectPromise,
+  validateEncodedUnknownWithSchemaSync,
   type MutableDeep,
-} from "@shared/errors";
+} from "@guerillaglass/engine/client/errors/schemaContracts";
 
 function requireBridge<K extends keyof WindowBridgeBindings>(
   name: K,
@@ -93,38 +66,33 @@ async function invokeBridge<K extends keyof WindowBridgeBindings>(
   }
 }
 
-async function invokeBridgeDecoded<
-  K extends keyof WindowBridgeBindings,
-  S extends import("effect").Schema.Top,
->(
+async function invokeBridgeContract<K extends BridgeRequestName>(
   name: K,
-  schema: S,
   contract: string,
   ...args: unknown[]
-): Promise<MutableDeep<import("effect").Schema.Codec.Encoded<S>>> {
+): Promise<MutableDeep<BridgeRequests[K]["response"]>> {
   const raw = await invokeBridge(name, ...args);
-  return await runEffectPromise(validateEncodedUnknownWithSchema(schema, raw, contract));
+  const schema = bridgeRequestDefinitions[name].responseSchema;
+  if (!schema) {
+    return raw as never;
+  }
+  return validateEncodedUnknownWithSchemaSync(schema, raw, contract) as never;
 }
 
-async function invokeCaptureStatus<K extends keyof WindowBridgeBindings>(
+async function invokeCaptureStatus<K extends BridgeRequestName>(
   name: K,
   contract: string,
   ...args: unknown[]
 ): Promise<CaptureStatusResult> {
-  return (await invokeBridgeDecoded(
-    name,
-    captureStatusResultSchema,
-    contract,
-    ...args,
-  )) as CaptureStatusResult;
+  return (await invokeBridgeContract(name, contract, ...args)) as CaptureStatusResult;
 }
 
-async function invokeProjectState<K extends keyof WindowBridgeBindings>(
+async function invokeProjectState<K extends BridgeRequestName>(
   name: K,
   contract: string,
   ...args: unknown[]
 ): Promise<ProjectState> {
-  return (await invokeBridgeDecoded(name, projectStateSchema, contract, ...args)) as ProjectState;
+  return (await invokeBridgeContract(name, contract, ...args)) as ProjectState;
 }
 
 function isMacOS13WindowPickerUnsupported(error: unknown): boolean {
@@ -140,14 +108,11 @@ function isMacOS13WindowPickerUnsupported(error: unknown): boolean {
 
 export const engineApi = {
   async ping(): Promise<PingResult> {
-    return await invokeBridgeDecoded("ggEnginePing", pingResultSchema, "engine ping result");
+    return await invokeBridgeContract("ggEnginePing", "engine ping result");
   },
 
   async getPermissions(): Promise<PermissionsResult> {
-    return await invokeBridgeDecoded(
-      "ggEngineGetPermissions",
-      permissionsResultSchema,
-      "permissions result",
+    return await invokeBridgeContract("ggEngineGetPermissions", "permissions result",
     );
   },
 
@@ -156,10 +121,7 @@ export const engineApi = {
     transcriptionProvider?: "none" | "imported_transcript";
     importedTranscriptPath?: string;
   }) {
-    return await invokeBridgeDecoded(
-      "ggEngineAgentPreflight",
-      agentPreflightResultSchema,
-      "agent preflight result",
+    return await invokeBridgeContract("ggEngineAgentPreflight", "agent preflight result",
       params,
     );
   },
@@ -171,66 +133,45 @@ export const engineApi = {
     importedTranscriptPath?: string;
     force?: boolean;
   }) {
-    return await invokeBridgeDecoded(
-      "ggEngineAgentRun",
-      agentRunResultSchema,
-      "agent run result",
+    return await invokeBridgeContract("ggEngineAgentRun", "agent run result",
       params,
     );
   },
 
   async agentStatus(jobId: string) {
-    return await invokeBridgeDecoded(
-      "ggEngineAgentStatus",
-      agentStatusResultSchema,
-      "agent status result",
+    return await invokeBridgeContract("ggEngineAgentStatus", "agent status result",
       jobId,
     );
   },
 
   async agentApply(params: { jobId: string; destructiveIntent?: boolean }) {
-    return await invokeBridgeDecoded(
-      "ggEngineAgentApply",
-      actionResultSchema,
-      "agent apply result",
+    return await invokeBridgeContract("ggEngineAgentApply", "agent apply result",
       params,
     );
   },
 
   async requestScreenRecordingPermission() {
-    return await invokeBridgeDecoded(
-      "ggEngineRequestScreenRecordingPermission",
-      actionResultSchema,
-      "screen recording permission request result",
+    return await invokeBridgeContract("ggEngineRequestScreenRecordingPermission", "screen recording permission request result",
     );
   },
 
   async requestMicrophonePermission() {
-    return await invokeBridgeDecoded(
-      "ggEngineRequestMicrophonePermission",
-      actionResultSchema,
-      "microphone permission request result",
+    return await invokeBridgeContract("ggEngineRequestMicrophonePermission", "microphone permission request result",
     );
   },
 
   async requestInputMonitoringPermission() {
-    return await invokeBridgeDecoded(
-      "ggEngineRequestInputMonitoringPermission",
-      actionResultSchema,
-      "input monitoring permission request result",
+    return await invokeBridgeContract("ggEngineRequestInputMonitoringPermission", "input monitoring permission request result",
     );
   },
 
   async openInputMonitoringSettings() {
-    return await invokeBridgeDecoded(
-      "ggEngineOpenInputMonitoringSettings",
-      actionResultSchema,
-      "open input monitoring settings result",
+    return await invokeBridgeContract("ggEngineOpenInputMonitoringSettings", "open input monitoring settings result",
     );
   },
 
   async listSources(): Promise<SourcesResult> {
-    return await invokeBridgeDecoded("ggEngineListSources", sourcesResultSchema, "sources result");
+    return await invokeBridgeContract("ggEngineListSources", "sources result");
   },
 
   async startDisplayCapture(
@@ -307,18 +248,12 @@ export const engineApi = {
   },
 
   async capturePreviewFrame(): Promise<CapturePreviewFrameResult> {
-    return await invokeBridgeDecoded(
-      "ggEngineCapturePreviewFrame",
-      capturePreviewFrameResultSchema,
-      "capture preview frame result",
+    return await invokeBridgeContract("ggEngineCapturePreviewFrame", "capture preview frame result",
     );
   },
 
   async exportInfo() {
-    return await invokeBridgeDecoded(
-      "ggEngineExportInfo",
-      exportInfoResultSchema,
-      "export info result",
+    return await invokeBridgeContract("ggEngineExportInfo", "export info result",
     );
   },
 
@@ -329,19 +264,13 @@ export const engineApi = {
     trimEndSeconds?: number;
     timeline?: TimelineDocument;
   }) {
-    return await invokeBridgeDecoded(
-      "ggEngineRunExport",
-      exportRunResultSchema,
-      "export run result",
+    return await invokeBridgeContract("ggEngineRunExport", "export run result",
       params,
     );
   },
 
   async runCutPlanExport(params: { outputURL: string; presetId: string; jobId: string }) {
-    return await invokeBridgeDecoded(
-      "ggEngineRunCutPlanExport",
-      exportRunCutPlanResultSchema,
-      "cut plan export result",
+    return await invokeBridgeContract("ggEngineRunCutPlanExport", "cut plan export result",
       params,
     );
   },
@@ -363,10 +292,7 @@ export const engineApi = {
   },
 
   async projectRecents(limit?: number): Promise<ProjectRecentsResult> {
-    return await invokeBridgeDecoded(
-      "ggEngineProjectRecents",
-      projectRecentsResultSchema,
-      "project recents result",
+    return await invokeBridgeContract("ggEngineProjectRecents", "project recents result",
       limit,
     );
   },
@@ -378,10 +304,7 @@ export const desktopApi = {
     startingFolder?: string;
   }): Promise<string | null> {
     try {
-      return await invokeBridgeDecoded(
-        "ggPickPath",
-        pickPathResponseSchema,
-        "host path picker result",
+      return await invokeBridgeContract("ggPickPath", "host path picker result",
         params,
       );
     } catch (error) {
@@ -397,28 +320,19 @@ export const desktopApi = {
   },
 
   async readTextFile(filePath: string): Promise<string> {
-    return await invokeBridgeDecoded(
-      "ggReadTextFile",
-      readTextFileResponseSchema,
-      "read text file result",
+    return await invokeBridgeContract("ggReadTextFile", "read text file result",
       filePath,
     );
   },
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
-    return await invokeBridgeDecoded(
-      "ggResolveMediaSourceURL",
-      resolveMediaSourceURLResponseSchema,
-      "media source URL result",
+    return await invokeBridgeContract("ggResolveMediaSourceURL", "media source URL result",
       filePath,
     );
   },
 
   async resolveCapturePreviewURL(): Promise<string> {
-    return await invokeBridgeDecoded(
-      "ggResolveCapturePreviewURL",
-      resolveCapturePreviewURLResponseSchema,
-      "capture preview URL result",
+    return await invokeBridgeContract("ggResolveCapturePreviewURL", "capture preview URL result",
     );
   },
 };

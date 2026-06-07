@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { getStudioMessages } from "@guerillaglass/localization";
-import { EngineResponseError } from "@shared/errors";
+import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
 import { mapStudioActionErrorMessage } from "@studio/hooks/core/useStudioController";
 
 describe("studio action error notices", () => {

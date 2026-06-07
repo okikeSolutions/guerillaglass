@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Effect, Metric } from "effect";
 import { sendHostStudioDiagnostics } from "./engine";
-import type { StudioDiagnosticsEntry } from "@shared/bridge";
+import type { StudioDiagnosticsEntry } from "@shared/bridge/desktopBridgeContract";
 import {
   isStudioDiagnosticsEnabledFromSearch,
   type StudioDiagnosticsValue,

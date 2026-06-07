@@ -1,5 +1,5 @@
 import type { DesktopMenuMessages } from "@guerillaglass/localization";
-import { hostMenuCommands, type HostMenuCommand, type HostMenuState } from "./bridge";
+import { hostMenuCommands, type HostMenuCommand, type HostMenuState } from "./bridge/desktopBridgeContract";
 import {
   studioShortcutMenuAccelerator,
   type ShortcutDisplayPlatform,

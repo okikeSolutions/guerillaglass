@@ -7,7 +7,8 @@ import type {
   ReviewSetWorkflowStatusResponse,
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
-import { ReviewBridgeError, messageFromUnknownError } from "../../shared/errors";
+import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { ReviewBridgeError } from "../../shared/errors/desktopErrors";
 
 const reviewSessionSnapshotQuery = makeFunctionReference<
   "query",
