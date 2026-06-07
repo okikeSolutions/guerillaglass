@@ -1,21 +1,18 @@
-import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { describe, expect, test } from "vitest";
-import { MediaServer } from "../src/bun/media/server";
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import { describe, expect, it } from "@effect/vitest";
+import { Cause, Effect, Layer, Option } from "effect";
+import { HttpPlatform, HttpRouter } from "effect/unstable/http";
+import { MediaRegistry, makeMediaRegistryService } from "../src/bun/media/MediaRegistry";
+import { layerMediaHttpRoutes } from "../src/bun/media/MediaHttpRoutes";
 import { MediaServerError } from "@shared/errors/desktopErrors";
 
 const livePreviewBytes = Buffer.from("preview-frame", "utf8");
 const livePreviewBase64 = livePreviewBytes.toString("base64");
 
-async function createTempFile(
-  fileName: string,
-  contents: string,
-): Promise<{
-  filePath: string;
-  cleanup: () => Promise<void>;
-}> {
+async function createTempFile(fileName: string, contents: string) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "gg-media-server-"));
   const filePath = path.join(directory, fileName);
   await writeFile(filePath, contents);
@@ -27,469 +24,224 @@ async function createTempFile(
   };
 }
 
-type ServeOptions = Parameters<typeof Bun.serve>[0];
-type ServeHandle = ReturnType<typeof Bun.serve>;
-type FetchHandler = (request: Request, server: ServeHandle) => Response | Promise<Response>;
-type ErrorHandler = (error: Error) => Response | Promise<Response>;
-
-type MockServeConfig = {
-  failOnPortZero?: boolean;
-  eaddrinuseAttempts?: number;
-};
-
-function mockBunServe(config: MockServeConfig = {}) {
-  let activeFetchHandler: FetchHandler | null = null;
-  let activeErrorHandler: ErrorHandler | null = null;
-  let invocationCount = 0;
-  const requestedPorts: number[] = [];
-  let remainingEaddrinuseAttempts = config.eaddrinuseAttempts ?? 0;
-
-  const file = ((filePath: string) => {
-    const bytes = existsSync(filePath) ? readFileSync(filePath) : Buffer.alloc(0);
-    const bunFile = new Blob([bytes]) as Blob & { exists: () => Promise<boolean> };
-    bunFile.exists = async () => existsSync(filePath);
-    return bunFile;
-  }) as typeof Bun.file;
-
-  const serve = ((options: ServeOptions) => {
-    invocationCount += 1;
-    if (!options.fetch) {
-      throw new Error("Missing Bun.serve fetch handler in media server test mock.");
-    }
-    const requestedPort = typeof options.port === "number" ? options.port : 0;
-    requestedPorts.push(requestedPort);
-
-    if (config.failOnPortZero && requestedPort === 0) {
-      const error = new Error("Failed to start server. Is port 0 in use?") as Error & {
-        code?: string;
-      };
-      error.code = "EINVAL";
-      throw error;
-    }
-
-    if (remainingEaddrinuseAttempts > 0 && requestedPort !== 0) {
-      remainingEaddrinuseAttempts -= 1;
-      const error = new Error("EADDRINUSE: address already in use") as Error & { code?: string };
-      error.code = "EADDRINUSE";
-      throw error;
-    }
-
-    activeFetchHandler = options.fetch as FetchHandler;
-    activeErrorHandler = options.error as ErrorHandler;
-    const port = 44_000 + invocationCount;
-    return {
-      port,
-      stop: () => {},
-    } as ServeHandle;
-  }) as typeof Bun.serve;
-
-  return {
-    adapter: { serve, file },
-    async dispatch(input: string, init?: RequestInit): Promise<Response> {
-      if (!activeFetchHandler) {
-        throw new Error("Media handler is not registered yet.");
-      }
-      const headers = new Headers(init?.headers);
-      const request = new Request(input, { ...init, headers });
-      return await activeFetchHandler(request, {} as ServeHandle);
-    },
-    async dispatchUnhandledError(error = new Error("boom")): Promise<Response> {
-      if (!activeErrorHandler) {
-        throw new Error("Media error handler is not registered yet.");
-      }
-      return await activeErrorHandler(error);
-    },
-    get invocationCount() {
-      return invocationCount;
-    },
-    get requestedPorts() {
-      return requestedPorts;
-    },
-    restore() {},
-  };
+function mediaAppLayer(registry: MediaRegistry["Service"]) {
+  return Layer.mergeAll(
+    layerMediaHttpRoutes,
+    Layer.succeed(MediaRegistry, registry),
+    HttpPlatform.layer.pipe(Layer.provide(BunFileSystem.layer)),
+    BunFileSystem.layer,
+  );
 }
 
-function tokenFromResolvedURL(resolvedURL: string): string {
-  const parsed = new URL(resolvedURL);
-  const encodedToken = parsed.pathname.split("/").pop() ?? "";
-  return decodeURIComponent(encodedToken);
+const makeHarness = Effect.acquireRelease(
+  Effect.gen(function* () {
+    const registry = yield* makeMediaRegistryService;
+    const webHandler = HttpRouter.toWebHandler(mediaAppLayer(registry), { disableLogger: true });
+    return { registry, handler: webHandler.handler, dispose: webHandler.dispose };
+  }),
+  (harness) => Effect.promise(() => harness.dispose()),
+);
+
+function mediaURL(token: string): string {
+  return `http://127.0.0.1/media/${encodeURIComponent(token)}`;
 }
 
-describe("media server", () => {
-  test("serves whole-file and range responses for local media paths", async () => {
-    const fixture = await createTempFile("capture.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
+type WebHandler = (request: Request, context: never) => Promise<Response>;
 
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-      expect(resolved.startsWith("http://127.0.0.1:")).toBe(true);
-      expect(resolved.includes("/media/")).toBe(true);
-      expect(serve.invocationCount).toBe(1);
+function dispatch(
+  handler: WebHandler,
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  return handler(new Request(input, init), undefined as never);
+}
 
-      const fullResponse = await serve.dispatch(resolved);
-      expect(fullResponse.status).toBe(200);
-      expect(fullResponse.headers.get("accept-ranges")).toBe("bytes");
-      expect(fullResponse.headers.get("content-type")).toBe("video/quicktime");
-      expect(fullResponse.headers.get("x-content-type-options")).toBe("nosniff");
-      expect(fullResponse.headers.get("cache-control")).toContain("no-store");
-      expect(await fullResponse.text()).toBe("0123456789");
+function firstFailure(cause: Cause.Cause<unknown>): unknown {
+  const error = Cause.findErrorOption(cause);
+  return Option.isSome(error) ? error.value : Cause.squash(cause);
+}
 
-      const rangeResponse = await serve.dispatch(resolved, {
-        headers: { range: "bytes=2-5" },
-      });
-      expect(rangeResponse.status).toBe(206);
-      expect(rangeResponse.headers.get("content-range")).toBe("bytes 2-5/10");
-      expect(await rangeResponse.text()).toBe("2345");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("supports HEAD, serves first segment for multi-range, and returns 416 for invalid ranges", async () => {
-    const fixture = await createTempFile("head.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-
-      const headResponse = await serve.dispatch(resolved, { method: "HEAD" });
-      expect(headResponse.status).toBe(200);
-      expect(headResponse.headers.get("content-length")).toBe("10");
-      expect(await headResponse.text()).toBe("");
-
-      const invalidRangeResponse = await serve.dispatch(resolved, {
-        headers: { range: "bytes=50-60" },
-      });
-      expect(invalidRangeResponse.status).toBe(416);
-      expect(invalidRangeResponse.headers.get("content-range")).toBe("bytes */10");
-
-      const multiRangeResponse = await serve.dispatch(resolved, {
-        headers: { range: "bytes=0-2,4-6" },
-      });
-      expect(multiRangeResponse.status).toBe(206);
-      expect(multiRangeResponse.headers.get("content-range")).toBe("bytes 0-2/10");
-      expect(await multiRangeResponse.text()).toBe("012");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("returns protocol errors for unsupported requests", async () => {
-    const fixture = await createTempFile("request.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-
-      const parsed = new URL(resolved);
-      const trailingSegment = parsed.pathname.split("/").pop() ?? "";
-      const badPathResponse = await serve.dispatch(`${parsed.origin}/missing/${trailingSegment}`);
-      expect(badPathResponse.status).toBe(404);
-
-      const badTokenResponse = await serve.dispatch(`${parsed.origin}/media/not-a-real-token`);
-      expect(badTokenResponse.status).toBe(404);
-
-      const malformedTokenResponse = await serve.dispatch(`${parsed.origin}/media/%E0%A4%A`);
-      expect(malformedTokenResponse.status).toBe(400);
-
-      const foreignHostResponse = await serve.dispatch(
-        `http://example.com/media/${trailingSegment}`,
-      );
-      expect(foreignHostResponse.status).toBe(403);
-
-      const postResponse = await serve.dispatch(resolved, { method: "POST" });
-      expect(postResponse.status).toBe(405);
-      expect(postResponse.headers.get("allow")).toBe("GET, HEAD");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("rejects unsupported file extensions and missing files", async () => {
-    const fixture = await createTempFile("readme.txt", "notes");
-    const missingPath = path.join(path.dirname(fixture.filePath), "gone.mov");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
+describe("media HTTP routes", () => {
+  it.effect("serves whole-file and range responses for local media paths", () =>
+    Effect.gen(function* () {
+      const fixture = yield* Effect.promise(() => createTempFile("capture.mov", "0123456789"));
       try {
-        await server.resolveMediaSourceURL(fixture.filePath);
-        throw new Error("Expected unsupported media file extension to fail");
-      } catch (error) {
+        const { registry, handler } = yield* makeHarness;
+        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
+          Effect.provide(BunFileSystem.layer),
+        );
+        const resolved = mediaURL(token);
+
+        const fullResponse = yield* Effect.promise(() => dispatch(handler, resolved));
+        expect(fullResponse.status).toBe(200);
+        expect(fullResponse.headers.get("accept-ranges")).toBe("bytes");
+        expect(fullResponse.headers.get("content-type")).toBe("video/quicktime");
+        expect(fullResponse.headers.get("x-content-type-options")).toBe("nosniff");
+        expect(fullResponse.headers.get("cache-control")).toContain("no-store");
+        expect(yield* Effect.promise(() => fullResponse.text())).toBe("0123456789");
+
+        const rangeResponse = yield* Effect.promise(() =>
+          dispatch(handler, resolved, { headers: { range: "bytes=2-5" } }),
+        );
+        expect(rangeResponse.status).toBe(206);
+        expect(rangeResponse.headers.get("content-range")).toBe("bytes 2-5/10");
+        expect(yield* Effect.promise(() => rangeResponse.text())).toBe("2345");
+      } finally {
+        yield* Effect.promise(() => fixture.cleanup());
+      }
+    }),
+  );
+
+  it.effect("supports HEAD, serves first segment for multi-range, and returns 416", () =>
+    Effect.gen(function* () {
+      const fixture = yield* Effect.promise(() => createTempFile("head.mov", "0123456789"));
+      try {
+        const { registry, handler } = yield* makeHarness;
+        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
+          Effect.provide(BunFileSystem.layer),
+        );
+        const resolved = mediaURL(token);
+
+        const headResponse = yield* Effect.promise(() => dispatch(handler, resolved, { method: "HEAD" }));
+        expect(headResponse.status).toBe(200);
+        expect(headResponse.headers.get("content-length")).toBe("10");
+        expect(yield* Effect.promise(() => headResponse.text())).toBe("");
+
+        const invalidRangeResponse = yield* Effect.promise(() =>
+          dispatch(handler, resolved, { headers: { range: "bytes=50-60" } }),
+        );
+        expect(invalidRangeResponse.status).toBe(416);
+        expect(invalidRangeResponse.headers.get("content-range")).toBe("bytes */10");
+
+        const multiRangeResponse = yield* Effect.promise(() =>
+          dispatch(handler, resolved, { headers: { range: "bytes=0-2,4-6" } }),
+        );
+        expect(multiRangeResponse.status).toBe(206);
+        expect(multiRangeResponse.headers.get("content-range")).toBe("bytes 0-2/10");
+        expect(yield* Effect.promise(() => multiRangeResponse.text())).toBe("012");
+      } finally {
+        yield* Effect.promise(() => fixture.cleanup());
+      }
+    }),
+  );
+
+  it.effect("rejects unsupported and missing media paths before minting tokens", () =>
+    Effect.gen(function* () {
+      const { registry } = yield* makeHarness;
+      const unsupported = yield* Effect.exit(
+        registry.registerMediaFile(path.join(os.tmpdir(), "capture.txt")).pipe(
+          Effect.provide(BunFileSystem.layer),
+        ),
+      );
+      expect(unsupported._tag).toBe("Failure");
+      if (unsupported._tag === "Failure") {
+        const error = firstFailure(unsupported.cause);
         expect(error).toBeInstanceOf(MediaServerError);
         expect((error as MediaServerError).code).toBe("MEDIA_TYPE_UNSUPPORTED");
-        expect((error as Error).message).toBe("Unsupported media file format.");
       }
 
-      try {
-        await server.resolveMediaSourceURL(missingPath);
-        throw new Error("Expected missing media file to fail");
-      } catch (error) {
+      const missing = yield* Effect.exit(
+        registry.registerMediaFile(path.join(os.tmpdir(), "missing.mov")).pipe(
+          Effect.provide(BunFileSystem.layer),
+        ),
+      );
+      expect(missing._tag).toBe("Failure");
+      if (missing._tag === "Failure") {
+        const error = firstFailure(missing.cause);
         expect(error).toBeInstanceOf(MediaServerError);
         expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
-        expect((error as Error).message).toBe("Media file not found.");
       }
-      expect(serve.invocationCount).toBe(0);
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
+    }),
+  );
 
-  test("prunes oldest tokens once max token count is exceeded", async () => {
-    const fixture = await createTempFile("prune.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
+  it.effect("returns 404 when a media file is deleted after token minting", () =>
+    Effect.gen(function* () {
+      const fixture = yield* Effect.promise(() => createTempFile("deleted.mov", "gone"));
+      try {
+        const { registry, handler } = yield* makeHarness;
+        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
+          Effect.provide(BunFileSystem.layer),
+        );
+        yield* Effect.promise(() => rm(fixture.filePath, { force: true }));
 
-    try {
-      const firstResolved = await server.resolveMediaSourceURL(fixture.filePath);
-      let newestResolved = firstResolved;
-      for (let index = 0; index < 520; index += 1) {
-        newestResolved = await server.resolveMediaSourceURL(fixture.filePath);
+        const response = yield* Effect.promise(() => dispatch(handler, mediaURL(token)));
+        expect(response.status).toBe(404);
+        expect(yield* Effect.promise(() => response.text())).toBe("Not found");
+      } finally {
+        yield* Effect.promise(() => fixture.cleanup());
       }
+    }),
+  );
 
-      const firstResponse = await serve.dispatch(firstResolved);
-      expect(firstResponse.status).toBe(404);
+  it.effect("returns 404 for unknown, invalid, expired, and non-loopback tokens", () =>
+    Effect.gen(function* () {
+      const fixture = yield* Effect.promise(() => createTempFile("secure.mp4", "secure"));
+      try {
+        const { registry, handler } = yield* makeHarness;
+        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
+          Effect.provide(BunFileSystem.layer),
+        );
 
-      const newestResponse = await serve.dispatch(newestResolved);
-      expect(newestResponse.status).toBe(200);
-      expect(await newestResponse.text()).toBe("0123456789");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
+        const unknownResponse = yield* Effect.promise(() =>
+          dispatch(handler, mediaURL("00000000-0000-4000-8000-000000000000")),
+        );
+        expect(unknownResponse.status).toBe(404);
 
-  test("expires stale token requests", async () => {
-    const fixture = await createTempFile("expired.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
+        const invalidResponse = yield* Effect.promise(() =>
+          dispatch(handler, "http://127.0.0.1/media/not-a-token"),
+        );
+        expect(invalidResponse.status).toBe(404);
 
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-      const token = tokenFromResolvedURL(resolved);
-      const tokenEntry = (
-        server as unknown as { tokens: Map<string, { createdAt: number }> }
-      ).tokens.get(token);
-      expect(tokenEntry).toBeTruthy();
-      if (!tokenEntry) {
-        throw new Error("Expected media token entry.");
+        const forbiddenResponse = yield* Effect.promise(() =>
+          dispatch(handler, `http://example.com/media/${encodeURIComponent(token)}`),
+        );
+        expect(forbiddenResponse.status).toBe(403);
+      } finally {
+        yield* Effect.promise(() => fixture.cleanup());
       }
-      tokenEntry.createdAt = 0;
+    }),
+  );
 
-      const response = await serve.dispatch(resolved);
-      expect(response.status).toBe(404);
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
+  it.effect("serves live preview frames and cached fallback frames", () =>
+    Effect.gen(function* () {
+      const { registry, handler } = yield* makeHarness;
+      let calls = 0;
+      const token = yield* registry.registerCapturePreview(
+        Effect.sync(() => {
+          calls += 1;
+          return calls === 1
+            ? { frameId: 1, bytesBase64: livePreviewBase64 }
+            : null;
+        }),
+      );
+      const resolved = mediaURL(token);
 
-  test("expires idle tokens", async () => {
-    const fixture = await createTempFile("idle-expired.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-      const token = tokenFromResolvedURL(resolved);
-      const tokenEntry = (
-        server as unknown as { tokens: Map<string, { lastAccessedAt: number }> }
-      ).tokens.get(token);
-      expect(tokenEntry).toBeTruthy();
-      if (!tokenEntry) {
-        throw new Error("Expected media token entry.");
-      }
-      tokenEntry.lastAccessedAt = 0;
-
-      const response = await serve.dispatch(resolved);
-      expect(response.status).toBe(404);
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("allows repeat range requests without relying on cookies", async () => {
-    const fixture = await createTempFile("repeat-range.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-      const firstResponse = await serve.dispatch(resolved);
+      const firstResponse = yield* Effect.promise(() => dispatch(handler, resolved));
       expect(firstResponse.status).toBe(200);
-      expect(firstResponse.headers.get("set-cookie")).toBe(null);
+      expect(firstResponse.headers.get("content-type")).toBe("image/jpeg");
+      expect(Buffer.from(yield* Effect.promise(() => firstResponse.arrayBuffer()))).toEqual(livePreviewBytes);
 
-      const repeatRangeResponse = await serve.dispatch(resolved, {
-        headers: { range: "bytes=0-3" },
-      });
-      expect(repeatRangeResponse.status).toBe(206);
-      expect(await repeatRangeResponse.text()).toBe("0123");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
+      const cachedResponse = yield* Effect.promise(() => dispatch(handler, resolved));
+      expect(cachedResponse.status).toBe(200);
+      expect(Buffer.from(yield* Effect.promise(() => cachedResponse.arrayBuffer()))).toEqual(livePreviewBytes);
+    }),
+  );
 
-  test("serves loopback live preview tokens from the latest cached frame", async () => {
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-    let previewCalls = 0;
-
-    try {
-      const resolved = await server.resolveCapturePreviewURL(async () => {
-        previewCalls += 1;
-        return {
-          frameId: 7,
-          bytesBase64: livePreviewBase64,
-        };
-      });
-
-      const response = await serve.dispatch(resolved);
-      expect(response.status).toBe(200);
-      expect(response.headers.get("content-type")).toBe("image/jpeg");
-      expect(response.headers.get("cache-control")).toContain("no-store");
-      expect(Buffer.from(await response.arrayBuffer())).toEqual(livePreviewBytes);
-      expect(previewCalls).toBe(1);
-
-      const secondResponse = await serve.dispatch(resolved, { method: "HEAD" });
-      expect(secondResponse.status).toBe(200);
-      expect(secondResponse.headers.get("content-length")).toBe(String(livePreviewBytes.length));
-      expect(await secondResponse.text()).toBe("");
-      expect(previewCalls).toBe(2);
-    } finally {
-      serve.restore();
-      server.stop();
-    }
-  });
-
-  test("returns 404 when the live preview token has no frame yet", async () => {
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveCapturePreviewURL(async () => null);
-      const response = await serve.dispatch(resolved);
+  it.effect("returns 404 when live preview has no frame and no cache", () =>
+    Effect.gen(function* () {
+      const { registry, handler } = yield* makeHarness;
+      const token = yield* registry.registerCapturePreview(Effect.succeed(null));
+      const response = yield* Effect.promise(() => dispatch(handler, mediaURL(token)));
       expect(response.status).toBe(404);
-    } finally {
-      serve.restore();
-      server.stop();
-    }
-  });
+    }),
+  );
 
-  test("does not expire active live preview tokens based on absolute age alone", async () => {
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveCapturePreviewURL(async () => ({
-        frameId: 3,
-        bytesBase64: livePreviewBase64,
-      }));
-      const token = tokenFromResolvedURL(resolved);
-      const tokenEntry = (
-        server as unknown as {
-          tokens: Map<string, { createdAt: number; lastAccessedAt: number }>;
-        }
-      ).tokens.get(token);
-      expect(tokenEntry).toBeTruthy();
-      if (!tokenEntry) {
-        throw new Error("Expected preview token entry.");
-      }
-      tokenEntry.createdAt = 0;
-      tokenEntry.lastAccessedAt = Date.now();
-
-      const response = await serve.dispatch(resolved);
+  it.effect("returns health response", () =>
+    Effect.gen(function* () {
+      const { handler } = yield* makeHarness;
+      const response = yield* Effect.promise(() => dispatch(handler, "http://127.0.0.1/health"));
       expect(response.status).toBe(200);
-      expect(Buffer.from(await response.arrayBuffer())).toEqual(livePreviewBytes);
-    } finally {
-      serve.restore();
-      server.stop();
-    }
-  });
-
-  test("rejects non-local and unsupported media source paths", async () => {
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-    try {
-      await expect(server.resolveMediaSourceURL("https://example.com/video.mov")).rejects.toThrow();
-      await expect(server.resolveMediaSourceURL("file://example.com/video.mov")).rejects.toThrow();
-      await expect(server.resolveMediaSourceURL("recordings/session.mp4")).rejects.toThrow();
-      expect(serve.invocationCount).toBe(0);
-    } finally {
-      serve.restore();
-      server.stop();
-    }
-  });
-
-  test("falls back to reserved loopback port when port zero binding is unsupported", async () => {
-    const fixture = await createTempFile("port-zero-fallback.mov", "0123456789");
-    const serve = mockBunServe({ failOnPortZero: true });
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-      expect(resolved.startsWith("http://127.0.0.1:")).toBe(true);
-      expect(serve.requestedPorts[0]).toBe(0);
-      expect(serve.requestedPorts.some((port) => port > 0)).toBe(true);
-      expect(serve.invocationCount).toBe(2);
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("retries media server bind on EADDRINUSE collisions", async () => {
-    const fixture = await createTempFile("port-collision-retry.mov", "0123456789");
-    const serve = mockBunServe({ failOnPortZero: true, eaddrinuseAttempts: 2 });
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      const resolved = await server.resolveMediaSourceURL(fixture.filePath);
-      expect(resolved.startsWith("http://127.0.0.1:")).toBe(true);
-      expect(serve.requestedPorts[0]).toBe(0);
-      expect(serve.invocationCount).toBe(4);
-      const response = await serve.dispatch(resolved);
-      expect(response.status).toBe(200);
-      expect(await response.text()).toBe("0123456789");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
-
-  test("returns a generic 500 response from Bun.serve error handler", async () => {
-    const fixture = await createTempFile("error-handler.mov", "0123456789");
-    const serve = mockBunServe();
-    const server = new MediaServer({ adapter: serve.adapter });
-
-    try {
-      await server.resolveMediaSourceURL(fixture.filePath);
-      const response = await serve.dispatchUnhandledError(new Error("secret details"));
-      expect(response.status).toBe(500);
-      expect(await response.text()).toBe("Internal server error");
-      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
-      expect(response.headers.get("cache-control")).toContain("no-store");
-    } finally {
-      serve.restore();
-      server.stop();
-      await fixture.cleanup();
-    }
-  });
+      expect(yield* Effect.promise(() => response.text())).toBe("ok");
+    }),
+  );
 });

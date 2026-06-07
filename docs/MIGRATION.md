@@ -581,16 +581,15 @@ Phase 5 completed the first hardening pass:
 
 ## Media goal
 
-Media server should become an Effect HTTP server service:
+Media server is now an Effect HTTP server service:
 
-- acquire server on layer build
-- release server on layer close
-- expose `resolveMediaSourceURL` and `resolveCapturePreviewURL`
-- serve media/preview routes through Effect HTTP routing where feasible
-- validate path/token inputs at the boundary
-- avoid direct dependency cycles with `EngineTransport`; pass preview-frame loading explicitly, use a stream, or route through an event/request service
-
-Preferred implementation path is `@effect/platform-bun` `BunHttpServer` + Effect HTTP router primitives. More implementation research is needed before replacing all custom media behavior, especially byte ranges, headers, token handling, and preview-frame response shape.
+- `MediaRegistry` is the token/state service.
+- `MediaHttpRoutes` registers media and health routes with `HttpRouter`.
+- `MediaSourceService` exposes `resolveMediaSourceURL` and `resolveCapturePreviewURL` as Effect-only service methods.
+- `BunHttpServer.layer` owns the loopback HTTP server lifecycle and shuts it down with the app scope.
+- Media/preview route handling uses `HttpServerRequest`, `HttpServerResponse`, and `HttpPlatform.fileResponse` via `HttpServerResponse.file`.
+- Path/token inputs are validated at the boundary.
+- There is no direct dependency cycle with `EngineTransport`; preview-frame loading is passed in as an `Effect` by `HostBridgeService`.
 
 ## Review goal
 
@@ -733,11 +732,15 @@ Most backend tests should run without Electrobun by providing test layers for `D
 - Generic RPC retry and automatic process restart were intentionally not added because many engine operations are not idempotent and engine process state is user-visible.
 - Spans and structured logs now cover process spawn, readiness, shutdown, socket connect, RPC send/receive, socket close, and protocol errors.
 
-### Phase 6 — Media/session cleanup
+### Phase 6 — Media/session cleanup — complete
 
-- Convert media server to Effect HTTP server primitives where feasible.
-- Ensure all resource lifetimes are scoped.
-- Remove Promise/Effect dual APIs.
+- Media serving now uses Effect HTTP server primitives through `BunHttpServer.layer`, `HttpRouter`, `HttpServer`, `HttpServerRequest`, `HttpServerResponse`, and `HttpPlatform`.
+- The old `MediaServer` class and Promise/Effect dual APIs were removed.
+- `MediaRegistry` owns token state, token pruning, media path registration, live-preview registration, and preview-frame cache state.
+- `MediaHttpRoutes` owns loopback `/media/*` and `/health` HTTP route handling.
+- `MediaSourceService` mints signed loopback URLs from `HttpServer.address` and delegates token state to `MediaRegistry`.
+- Media HTTP server lifetime is scoped by the desktop app layer and finalized through Effect layer scope shutdown.
+- Tests now exercise media routes through Effect HTTP web handlers instead of mocking `Bun.serve` or monkey-patching Bun globals.
 
 ### Phase 7 — Version alignment and localization migration
 
@@ -823,7 +826,7 @@ Phase 5 hardening decisions:
 
 ### `BunHttpServer` / Effect HTTP route shape for media byte ranges, signed preview URLs, and cache headers
 
-`@effect/platform-bun` `BunHttpServer` is a good fit for the local media server. It wraps `Bun.serve` as an Effect `HttpServer`, stops the server on scope finalization, and provides Bun-backed HTTP platform services. `BunHttpPlatform` maps Effect file responses to `Bun.file`, including sliced file responses for byte ranges.
+`@effect/platform-bun` `BunHttpServer` is used for the local media server. It wraps `Bun.serve` as an Effect `HttpServer`, stops the server on scope finalization, and provides Bun-backed HTTP platform services. `BunHttpPlatform` maps Effect file responses to `Bun.file`, including sliced file responses for byte ranges.
 
 Effect already has most media-serving behavior in `HttpStaticServer`:
 
