@@ -2,7 +2,7 @@ import {
   captureStatusResultSchema,
   type CaptureStatusResult,
 } from "@guerillaglass/engine/protocol/domains/capture";
-import { Context, Effect, Exit, Layer, Schema, Stream, Cause } from "effect";
+import { Effect, Exit, Layer, Schema, Stream, Cause } from "effect";
 import {
   EngineTransport,
   type EngineTransportError,
@@ -11,16 +11,13 @@ import { layerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
 import { messageFromUnknownError } from "../../shared/errors";
 import { MediaSourceService, layerMediaSourceService } from "../media/service";
 import { ReviewGateway, layerReviewGateway } from "../review/service";
-
-type DesktopCaptureStatusSinkService = {
-  sendCaptureStatus: (captureStatus: CaptureStatusResult) => void;
-};
+import { DesktopShell } from "../shell/DesktopShell";
 
 export type DesktopAppLayerOptions = {
-  sendCaptureStatus: (captureStatus: CaptureStatusResult) => void;
   engineTransportLayer?: Layer.Layer<EngineTransport, EngineTransportError, never>;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, never>;
   mediaSourceServiceLayer?: Layer.Layer<MediaSourceService, never, never>;
+  desktopShellLayer: Layer.Layer<DesktopShell, never, never>;
   enableCaptureStatusStream?: boolean;
   initialCaptureStatusDelayMs?: number;
 };
@@ -30,25 +27,19 @@ export type DesktopAppServices =
   | EngineTransport
   | ReviewGateway
   | MediaSourceService
-  | DesktopCaptureStatusSink;
-
-/** Service tag for pushing capture status events from the app layer back to the shell. */
-export class DesktopCaptureStatusSink extends Context.Service<
-  DesktopCaptureStatusSink,
-  DesktopCaptureStatusSinkService
->()("@guerillaglass/desktop/DesktopCaptureStatusSink") {}
+  | DesktopShell;
 
 /** Creates the streaming program that forwards capture status updates through the app layer. */
 export function makeCaptureStatusStreamEffect(
   initialDelayMs = 0,
-): Effect.Effect<void, never, EngineTransport | DesktopCaptureStatusSink> {
+): Effect.Effect<void, never, EngineTransport | DesktopShell> {
   return Effect.gen(function* () {
     if (initialDelayMs > 0) {
       yield* Effect.sleep(`${Math.max(0, initialDelayMs)} millis`);
     }
 
     const transport = yield* EngineTransport;
-    const sink = yield* DesktopCaptureStatusSink;
+    const shell = yield* DesktopShell;
 
     const statusStream = transport["capture.statusStream"](undefined) as Stream.Stream<
       Schema.Schema.Type<typeof captureStatusResultSchema>,
@@ -60,9 +51,7 @@ export function makeCaptureStatusStreamEffect(
       Effect.exit(
         Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(captureStatus).pipe(
           Effect.flatMap((encodedCaptureStatus) =>
-            Effect.sync(() => {
-              sink.sendCaptureStatus(encodedCaptureStatus as CaptureStatusResult);
-            }),
+            shell.publishCaptureStatus(encodedCaptureStatus as CaptureStatusResult),
           ),
         ),
       ).pipe(
@@ -111,9 +100,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
     engineTransportLayer,
     options.reviewGatewayLayer ?? layerReviewGateway,
     options.mediaSourceServiceLayer ?? layerMediaSourceService,
-    Layer.succeed(DesktopCaptureStatusSink, {
-      sendCaptureStatus: options.sendCaptureStatus,
-    }),
+    options.desktopShellLayer,
   );
 
   if (options.enableCaptureStatusStream === false) {

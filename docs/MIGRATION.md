@@ -693,15 +693,17 @@ Most backend tests should run without Electrobun by providing test layers for `D
 
 - `apps/desktop-electrobun/src/bun/app/AppLayer.ts` composes the desktop app layer.
 - `apps/desktop-electrobun/src/bun/app/AppRuntime.ts` owns the single managed app runtime boundary.
-- Previous host runtime naming was removed in favor of v4-style app service/layer names such as `makeLayerDesktopApp`, `makeDesktopAppRuntime`, `DesktopAppRuntime`, and `DesktopCaptureStatusSink`.
+- Previous host runtime naming was removed in favor of v4-style app service/layer names such as `makeLayerDesktopApp`, `makeDesktopAppRuntime`, and `DesktopAppRuntime`.
 - `apps/desktop-electrobun/src/bun/runtime/hostRuntime.ts` was removed; no compatibility shim remains.
-- Shell resources remain in `app/index.ts` until Phase 3 so the shell does not own the runtime architecture.
 
-### Phase 3 — Shell as scoped service
+### Phase 3 — Shell as scoped service — complete
 
-- Wrap `BrowserWindow`, menu, tray, and host messages in `DesktopShell`.
-- Move globals into `Ref`s and scoped services.
-- Make close/focus/menu listeners managed resources.
+- `apps/desktop-electrobun/src/bun/shell/DesktopShell.ts` defines the shell service boundary without Electrobun side effects.
+- `apps/desktop-electrobun/src/bun/shell/DesktopShellElectrobun.ts` provides the Electrobun-backed scoped shell layer.
+- `BrowserWindow`, menu, tray, host messages, and runtime flag dispatch are owned by `DesktopShell`.
+- Previous shell globals moved into shell-scoped `Ref`s.
+- Window close/focus/menu/tray listeners are registered from the shell layer; finalizers perform best-effort tray cleanup and state clearing because Electrobun does not expose unregistration for these listeners.
+- `DesktopShell.start` is intentionally one-shot for each shell service instance to avoid duplicate non-unsubscribable Electrobun listeners.
 
 ### Phase 4 — Bridge as thin adapter
 

@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import { Effect, Layer } from "effect";
 import { beforeEach, describe, expect, test } from "bun:test";
 import { reviewIdSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 import {
@@ -21,6 +21,7 @@ import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
+import { DesktopShell } from "../src/bun/shell/DesktopShell";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -492,7 +493,11 @@ describe("renderer engine bridge", () => {
     delete process.env.VITE_CONVEX_URL;
 
     const runtime = await makeDesktopAppRuntime({
-      sendCaptureStatus: () => {},
+      desktopShellLayer: Layer.succeed(DesktopShell, {
+        start: () => Effect.void,
+        publishCaptureStatus: () => Effect.void,
+        dispose: Effect.void,
+      }),
       enableCaptureStatusStream: false,
       engineTransportLayer: Layer.succeed(EngineTransport, {} as never),
       mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),

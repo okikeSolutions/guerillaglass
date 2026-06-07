@@ -7,10 +7,8 @@ import {
 import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
-import {
-  DesktopCaptureStatusSink,
-  makeCaptureStatusStreamEffect,
-} from "../src/bun/app/AppLayer";
+import { makeCaptureStatusStreamEffect } from "../src/bun/app/AppLayer";
+import { DesktopShell } from "../src/bun/shell/DesktopShell";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): CaptureStatusResult {
@@ -57,10 +55,13 @@ describe("desktop app runtime capture status stream", () => {
             Layer.succeed(EngineTransport, {
               "capture.statusStream": () => Stream.make(decodeStatus(first), decodeStatus(second)),
             } as never),
-            Layer.succeed(DesktopCaptureStatusSink, {
-              sendCaptureStatus: (status: CaptureStatusResult) => {
-                delivered.push(status);
-              },
+            Layer.succeed(DesktopShell, {
+              start: () => Effect.void,
+              publishCaptureStatus: (status: CaptureStatusResult) =>
+                Effect.sync(() => {
+                  delivered.push(status);
+                }),
+              dispose: Effect.void,
             }),
           ),
         ),
@@ -80,10 +81,13 @@ describe("desktop app runtime capture status stream", () => {
             Layer.succeed(EngineTransport, {
               "capture.statusStream": () => Stream.fail("status probe failed"),
             } as never),
-            Layer.succeed(DesktopCaptureStatusSink, {
-              sendCaptureStatus: (status: CaptureStatusResult) => {
-                delivered.push(status);
-              },
+            Layer.succeed(DesktopShell, {
+              start: () => Effect.void,
+              publishCaptureStatus: (status: CaptureStatusResult) =>
+                Effect.sync(() => {
+                  delivered.push(status);
+                }),
+              dispose: Effect.void,
             }),
           ),
         ),
@@ -100,7 +104,11 @@ describe("desktop app runtime capture status stream", () => {
 
       const runtime = yield* Effect.promise(() =>
         makeDesktopAppRuntime({
-          sendCaptureStatus: () => {},
+          desktopShellLayer: Layer.succeed(DesktopShell, {
+            start: () => Effect.void,
+            publishCaptureStatus: () => Effect.void,
+            dispose: Effect.void,
+          }),
           engineTransportLayer: Layer.effect(
             EngineTransport,
             Effect.acquireRelease(

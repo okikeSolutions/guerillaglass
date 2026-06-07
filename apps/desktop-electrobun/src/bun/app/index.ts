@@ -1,362 +1,51 @@
-import Electrobun, {
-  ApplicationMenu,
-  BrowserView,
-  BrowserWindow,
-  Tray,
-  Updater,
-  Utils,
-} from "electrobun/bun";
-import { Effect, Schema } from "effect";
-import { constants as fsConstants } from "node:fs";
-import { access } from "node:fs/promises";
-import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { decodeUnknownWithSchemaSync } from "../../shared/errors";
-import {
-  hostReviewEventMessageSchema,
-  type DesktopBridgeRPC,
-  type HostMenuCommand,
-  type HostMenuState,
-  type DesktopRuntimeFlags,
-  type HostPathPickerMode,
-  type StudioDiagnosticsEntry,
-} from "../../shared/bridge";
-import {
-  appendCaptureBenchmarkQuery,
-  captureBenchmarkWindowTitle,
-} from "../../shared/captureBenchmark";
-import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
-import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
-import { extractMenuAction } from "../menu/actions";
-import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
-import { routeMenuAction } from "../menu/router";
-import { readAllowedTextFile } from "../security/fileAccess";
-import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
-import {
-  projectStateSchema,
-  type ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
-import { pickPathForMode } from "../path/picker";
+import { Utils } from "electrobun/bun";
+import { Effect } from "effect";
 import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
+import { DesktopShell } from "../shell/DesktopShell";
+import { makeLayerDesktopShell } from "../shell/DesktopShellElectrobun";
 
-const DEV_SERVER_PORT = 5173;
-const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
 const captureBenchmarkEnabled = process.env.GG_CAPTURE_BENCHMARK === "1";
 const studioDiagnosticsEnabled = process.env.GG_STUDIO_DIAGNOSTICS === "1";
-type BunRPC = ReturnType<typeof BrowserView.defineRPC<DesktopBridgeRPC>>;
 
-let mainWindow: BrowserWindow<BunRPC> | null = null;
-let linuxTray: Tray | null = null;
-let hostMenuState: HostMenuState = {
-  canSave: false,
-  canExport: false,
-  canTrimTimeline: false,
-  canToggleTimeline: true,
-  isRecording: false,
-  recordingURL: null,
-  locale: "en-US",
-  densityMode: "comfortable",
-  shortcutOverrides: {},
-};
-let currentProjectPath: string | null = null;
 let desktopAppRuntime: DesktopAppRuntime | null = null;
-const desktopRuntimeFlags: DesktopRuntimeFlags = {
-  captureBenchmarkEnabled,
-  studioDiagnosticsEnabled,
-};
 
-async function disposeHostShell() {
+async function disposeDesktopApp() {
   const runtime = desktopAppRuntime;
   desktopAppRuntime = null;
-  mainWindow = null;
-  linuxTray?.remove();
-  linuxTray = null;
   await runtime?.dispose();
 }
 
-function disposeHostShellOnProcessSignal() {
-  void disposeHostShell().finally(() => {
+function disposeDesktopAppOnProcessSignal() {
+  void disposeDesktopApp().finally(() => {
     Utils.quit();
   });
 }
 
-process.once("SIGINT", disposeHostShellOnProcessSignal);
-process.once("SIGTERM", disposeHostShellOnProcessSignal);
-
-async function getMainViewURL(): Promise<string> {
-  if (captureBenchmarkEnabled) {
-    return "views://mainview/index.html";
-  }
-
-  const channel = await Updater.localInfo.channel();
-  if (channel === "dev") {
-    try {
-      await fetch(DEV_SERVER_URL, { method: "HEAD" });
-      console.log(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`);
-      return appendCaptureBenchmarkQuery(
-        appendStudioDiagnosticsQuery(DEV_SERVER_URL, studioDiagnosticsEnabled),
-        captureBenchmarkEnabled,
-      );
-    } catch {
-      console.log("Vite dev server not running. Run 'bun run dev:hmr' for HMR support.");
-    }
-  }
-  return appendCaptureBenchmarkQuery(
-    appendStudioDiagnosticsQuery("views://mainview/index.html", studioDiagnosticsEnabled),
-    captureBenchmarkEnabled,
-  );
-}
-
-function logStudioDiagnostics(entry: StudioDiagnosticsEntry) {
-  const annotations = entry.annotations ? ` annotations=${JSON.stringify(entry.annotations)}` : "";
-  const spans = entry.spans ? ` spans=${JSON.stringify(entry.spans)}` : "";
-  console.info(
-    `[studio-diagnostics] ${entry.level} ${entry.message} timestamp=${entry.timestamp}${annotations}${spans}`,
-  );
-}
-
-async function pickPath(params: {
-  mode: HostPathPickerMode;
-  startingFolder?: string;
-}): Promise<string | null> {
-  const defaultPickerFolder = Utils.paths.videos ?? Utils.paths.documents;
-
-  return await pickPathForMode(params.mode, {
-    currentProjectPath,
-    startingFolder: params.startingFolder,
-    defaultFolder: defaultPickerFolder,
-    // Keep dialog calls bound to Utils to avoid runtime method-context issues.
-    openFileDialog: (options) => Utils.openFileDialog(options),
-    pathExists: async (filePath) => {
-      try {
-        await access(filePath, fsConstants.F_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    confirmOverwritePath: async (filePath) => {
-      const result = await Utils.showMessageBox({
-        type: "question",
-        title: "Replace Project?",
-        message: "A project already exists at this location.",
-        detail: filePath,
-        buttons: ["Replace", "Cancel"],
-        defaultId: 1,
-        cancelId: 1,
-      });
-      return result.response === 0;
-    },
-  });
-}
-
-async function readTextFile(filePath: string): Promise<string> {
-  return await readAllowedTextFile(filePath, {
-    currentProjectPath,
-    tempDirectory: process.env.TMPDIR,
-  });
-}
-
-function applyShellMenus() {
-  try {
-    ApplicationMenu.setApplicationMenu(buildApplicationMenu(hostMenuState));
-  } catch (error) {
-    console.warn("Application menu setup failed:", error);
-  }
-
-  if (process.platform !== "linux") {
-    return;
-  }
-
-  if (!linuxTray) {
-    linuxTray = new Tray({ title: "GG" });
-    linuxTray.on("tray-clicked", (event: unknown) => {
-      const action = extractMenuAction(event);
-      if (!action) {
-        return;
-      }
-      handleShellAction(action);
-    });
-  }
-
-  linuxTray.setMenu(buildLinuxTrayMenu(hostMenuState));
-}
-
-function updateHostMenuState(nextState: HostMenuState) {
-  const hasChange =
-    hostMenuState.canSave !== nextState.canSave ||
-    hostMenuState.canExport !== nextState.canExport ||
-    hostMenuState.canTrimTimeline !== nextState.canTrimTimeline ||
-    hostMenuState.canToggleTimeline !== nextState.canToggleTimeline ||
-    hostMenuState.isRecording !== nextState.isRecording ||
-    hostMenuState.recordingURL !== nextState.recordingURL ||
-    hostMenuState.locale !== nextState.locale ||
-    hostMenuState.densityMode !== nextState.densityMode ||
-    !studioShortcutOverridesEqual(hostMenuState.shortcutOverrides, nextState.shortcutOverrides);
-  if (!hasChange) {
-    return;
-  }
-  console.info(
-    `[host-menu] state changed canSave=${nextState.canSave} canExport=${nextState.canExport} canTrimTimeline=${nextState.canTrimTimeline} canToggleTimeline=${nextState.canToggleTimeline} isRecording=${nextState.isRecording} recordingURL=${nextState.recordingURL ?? "null"} locale=${nextState.locale ?? "en-US"} density=${nextState.densityMode ?? "comfortable"}`,
-  );
-  hostMenuState = nextState;
-  applyShellMenus();
-}
-
-function dispatchHostCommand(command: HostMenuCommand) {
-  if (!mainWindow) {
-    return;
-  }
-
-  try {
-    const rpcClient = mainWindow.webview.rpc;
-    rpcClient?.send.hostMenuCommand({ command });
-  } catch (error) {
-    console.warn("Failed to dispatch host menu command:", command, error);
-  }
-}
-
-function dispatchReviewEvent(event: ReviewBridgeEvent) {
-  if (!mainWindow) {
-    return;
-  }
-
-  try {
-    const payload = decodeUnknownWithSchemaSync(
-      hostReviewEventMessageSchema,
-      { event },
-      "host review event",
-    );
-    mainWindow.webview.rpc?.send.hostReviewEvent(payload);
-  } catch (error) {
-    console.warn("Failed to dispatch review bridge event:", event.type, error);
-  }
-}
-
-function dispatchDesktopRuntimeFlags() {
-  if (!mainWindow) {
-    return;
-  }
-
-  try {
-    mainWindow.webview.rpc?.send.desktopRuntimeFlags(desktopRuntimeFlags);
-  } catch (error) {
-    console.warn("Failed to dispatch desktop runtime flags:", error);
-  }
-}
-
-function handleShellAction(action: string) {
-  routeMenuAction(action, {
-    dispatchHostCommand,
-    toggleDevTools: () => mainWindow?.webview.toggleDevTools(),
-    openDocs: () => {
-      void Utils.openExternal("https://github.com/okikeSolutions/guerillaglass");
-    },
-    quit: () => Utils.quit(),
-  });
-}
+process.once("SIGINT", disposeDesktopAppOnProcessSignal);
+process.once("SIGTERM", disposeDesktopAppOnProcessSignal);
 
 async function bootstrapApp() {
   desktopAppRuntime = await makeDesktopAppRuntime({
-    sendCaptureStatus: (captureStatus) => {
-      mainWindow?.webview.rpc?.send.hostCaptureStatus({ captureStatus });
-    },
     enableCaptureStatusStream: !captureBenchmarkEnabled,
+    desktopShellLayer: makeLayerDesktopShell({
+      captureBenchmarkEnabled,
+      studioDiagnosticsEnabled,
+    }),
   });
 
   try {
-    if (!captureBenchmarkEnabled) {
-      try {
-        const initialProject = await desktopAppRuntime.runPromise(
-          Effect.flatMap(
-            EngineTransport,
-            (transport) =>
-              transport["project.current"](undefined).pipe(
-                Effect.flatMap(Schema.encodeUnknownEffect(Schema.toCodecJson(projectStateSchema))),
-              ) as Effect.Effect<ProjectState, unknown, never>,
-          ),
-        );
-        currentProjectPath = initialProject.projectPath;
-      } catch (error) {
-        console.warn("Failed to load initial project state for file-access policy", error);
-      }
-    }
-
-    const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
-      maxRequestTime: Infinity,
-      handlers: {
-        requests: createEngineBridgeHandlers({
-          runtime: desktopAppRuntime,
-          pickPath,
-          readTextFile,
-          getCurrentProjectPath: () => currentProjectPath,
-          setCurrentProjectPath: (projectPath) => {
-            currentProjectPath = projectPath;
-          },
-          emitReviewEvent: dispatchReviewEvent,
+    const runtime = desktopAppRuntime;
+    await runtime.runPromise(
+      Effect.flatMap(DesktopShell, (shell) =>
+        shell.start({
+          runtime,
+          onClose: disposeDesktopApp,
         }),
-        messages: {
-          hostMenuState: (nextState: HostMenuState) => {
-            updateHostMenuState({ ...hostMenuState, ...nextState });
-          },
-          studioDiagnostics: (entry: StudioDiagnosticsEntry) => {
-            logStudioDiagnostics(entry);
-          },
-        },
-      },
-    });
-
-    applyShellMenus();
-
-    mainWindow = new BrowserWindow({
-      title: captureBenchmarkEnabled ? captureBenchmarkWindowTitle : "Guerillaglass",
-      url: await getMainViewURL(),
-      preload: `window.__ggDesktopRuntimeFlags = ${JSON.stringify(desktopRuntimeFlags)};`,
-      rpc,
-      frame: {
-        width: 1320,
-        height: 860,
-        x: 180,
-        y: 100,
-      },
-    });
-
-    setTimeout(() => {
-      applyShellMenus();
-    }, 500);
-    setTimeout(() => {
-      dispatchDesktopRuntimeFlags();
-    }, 50);
-    setTimeout(() => {
-      dispatchDesktopRuntimeFlags();
-    }, 250);
-    setTimeout(() => {
-      dispatchDesktopRuntimeFlags();
-    }, 1000);
-
-    Electrobun.events.on("application-menu-clicked", (event: unknown) => {
-      const action = extractMenuAction(event);
-      if (!action) {
-        return;
-      }
-      handleShellAction(action);
-    });
-
-    mainWindow.on("close", async () => {
-      try {
-        await disposeHostShell();
-      } finally {
-        Utils.quit();
-      }
-    });
-
-    mainWindow.on("focus", () => {
-      applyShellMenus();
-      dispatchDesktopRuntimeFlags();
-    });
+      ),
+    );
   } catch (error) {
     try {
-      await disposeHostShell();
+      await disposeDesktopApp();
     } catch (disposeError) {
       console.warn("Failed to dispose desktop app runtime after bootstrap failure", disposeError);
     }
