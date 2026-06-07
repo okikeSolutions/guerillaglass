@@ -21,7 +21,8 @@
       "@/*": ["./src/mainview/*"],
       "@lib/*": ["./src/mainview/lib/*"],
       "@shared/*": ["./src/shared/*"],
-      "@studio/*": ["./src/mainview/app/studio/*"]
+      "@studio/*": ["./src/mainview/app/studio/*"],
+      "@guerillaglass/engine/*": ["../../packages/engine/src/*"]
     },
     "plugins": [
       {

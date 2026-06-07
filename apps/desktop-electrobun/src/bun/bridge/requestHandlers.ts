@@ -39,9 +39,9 @@ export function createEngineBridgeHandlers({
     ggEngineGetPermissions: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport["permissions.get"](undefined))),
     ggEngineAgentPreflight: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.preflight"](params as never))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.preflight"](params))),
     ggEngineAgentRun: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.run"](params as never))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.run"](params))),
     ggEngineAgentStatus: async ({ jobId }) =>
       run(Effect.flatMap(EngineTransport, (transport) => transport["agent.status"]({ jobId }))),
     ggEngineAgentApply: async (params) =>
@@ -111,9 +111,9 @@ export function createEngineBridgeHandlers({
     ggEngineExportInfo: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport["export.info"](undefined))),
     ggEngineRunExport: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["export.run"](params as never))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.run"](params))),
     ggEngineRunCutPlanExport: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["export.runCutPlan"](params as never))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.runCutPlan"](params))),
     ggEngineProjectCurrent: async () => {
       const projectState = await run(
         Effect.flatMap(EngineTransport, (transport) => transport["project.current"](undefined)),
@@ -123,16 +123,14 @@ export function createEngineBridgeHandlers({
     },
     ggEngineProjectOpen: async ({ projectPath }) => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) =>
-          transport["project.open"]({ projectPath } as never),
-        ),
+        Effect.flatMap(EngineTransport, (transport) => transport["project.open"]({ projectPath })),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectSave: async (params) => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) => transport["project.save"](params as never)),
+        Effect.flatMap(EngineTransport, (transport) => transport["project.save"](params)),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;

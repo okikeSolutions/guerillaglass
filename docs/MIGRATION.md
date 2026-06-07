@@ -2,7 +2,7 @@
 
 ## Status
 
-Living migration note. Phase 0 and most of Phase 1 are now complete: Effect v4 compatibility is stable enough for package and desktop typechecks, and `packages/engine` owns the TypeScript protocol plus the Bun engine transport. The remaining sections define the target desktop backend architecture, known boundaries, and migration direction.
+Living migration note. Phase 0 and Phase 1 are complete: Effect v4 compatibility is stable for package and desktop typechecks, and `packages/engine` owns the TypeScript protocol plus the Bun engine transport. The remaining sections define the target desktop backend architecture, known boundaries, and migration direction.
 
 ## Research inputs
 
@@ -237,7 +237,7 @@ Use explicit layers, named with v4 conventions:
 - `layerMock` for controllable mock implementation
 - `layerNoDeps` only when useful for composition
 
-Prefer `layer*` names for new app services. Existing package client exports such as `EngineTransportBunLive` may keep their current names until a deliberate naming cleanup; do not add additional compatibility aliases.
+Prefer `layer*` names for new app services and package client layers. Do not add `Live`/`Default` compatibility aliases.
 
 Compose the full app layer once. Effect v4 memoizes layer builds more safely than v3, but the docs still recommend explicit layer composition over scattered `Effect.provide` calls.
 
@@ -671,21 +671,23 @@ Most backend tests should run without Electrobun by providing test layers for `D
 
 ## Migration phases
 
-### Phase 0 — Stabilize Effect v4 compatibility — mostly complete
+### Phase 0 — Stabilize Effect v4 compatibility — complete
 
-- Effect v4 API migration is stable enough for `packages/engine` and desktop typechecks.
-- Keep direct Effect versions pinned exactly.
-- Adopt `@effect/platform-bun` for new backend/engine work where it fits.
-- Add `@effect/vitest` when converting backend tests.
+- Effect v4 API migration is stable for `packages/engine`, `packages/review-protocol`, and desktop typechecks.
+- Direct Effect versions are pinned exactly.
+- `@effect/platform-bun` is adopted for current backend/engine work where it fits.
+- `@effect/vitest` is installed and used for backend tests.
 - Do not broaden runtime architecture while package or desktop typecheck is red.
 
-### Phase 1 — Package consolidation first — mostly complete
+### Phase 1 — Package consolidation first — complete
 
 - `packages/engine` exists.
 - Engine protocol and schema primitives live in `packages/engine/src/protocol`.
-- The desktop engine client now uses explicit package-local client entry points: `client/service` for `EngineTransport` and `client/liveBun` for the Bun-backed layer.
-- Desktop and package imports use explicit `@guerillaglass/engine` exports rather than old desktop-local engine client paths.
-- Remaining Phase 1 work is documentation/API polishing, fixture/golden generation, and deciding whether any public package-level aliases are still necessary. Current preference: no barrels and no compatibility shims.
+- The desktop engine client uses explicit package-local client entry points: `client/service` for `EngineTransport` and `client/liveBun` for the Bun-backed layer.
+- Desktop, package, and benchmark imports use explicit `@guerillaglass/engine` exports rather than old desktop-local engine client paths.
+- Public client layer names follow v4-style `layer*` naming (`layerEngineTransportBun`, `makeLayerEngineTransportBun`).
+- Bridge handlers receive schema-decoded/branded params instead of using `as never` casts for engine RPC calls.
+- Current preference remains no barrels and no compatibility shims.
 
 ### Phase 2 — Establish composition root
 

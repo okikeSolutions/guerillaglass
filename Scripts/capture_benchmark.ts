@@ -12,19 +12,19 @@ import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Eff
 import * as Layer from "../apps/desktop-electrobun/node_modules/effect/dist/Layer.js";
 import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
 import * as Schema from "../apps/desktop-electrobun/node_modules/effect/dist/Schema.js";
-import { EngineTransport } from "../packages/engine/src/client/service";
-import { makeEngineTransportBunLive } from "../packages/engine/src/client/liveBun";
-import { resolveEnginePath } from "../packages/engine/src/client/config/paths";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
+import { makeLayerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
+import { resolveEnginePath } from "@guerillaglass/engine/client/config/paths";
 import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
 import {
   sourcesResultSchema,
   type CaptureFrameRate,
   type SourcesResult,
-} from "../packages/engine/src/protocol/domains/sources";
+} from "@guerillaglass/engine/protocol/domains/sources";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
-} from "../packages/engine/src/protocol/domains/capture";
+} from "@guerillaglass/engine/protocol/domains/capture";
 
 export type BenchmarkScenarioID =
   | "display-30-no-mic"
@@ -79,7 +79,7 @@ type WindowSource = SourceListing["windows"][number];
 type DisplaySource = SourceListing["displays"][number];
 
 function createBenchmarkEngineClient(enginePath: string) {
-  const runtime = ManagedRuntime.make(makeEngineTransportBunLive({ enginePath }));
+  const runtime = ManagedRuntime.make(makeLayerEngineTransportBun({ enginePath }));
   const run = <A>(effect: Effect.Effect<A, unknown, unknown>) =>
     runtime.runPromise(effect as Effect.Effect<A, unknown, EngineTransport>);
   const runJson = <S extends Schema.Top>(schema: S, effect: Effect.Effect<unknown, unknown, unknown>) =>

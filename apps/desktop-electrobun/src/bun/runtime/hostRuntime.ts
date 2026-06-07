@@ -9,7 +9,7 @@ import {
   EngineTransport,
   type EngineTransportError,
 } from "@guerillaglass/engine/client/service";
-import { EngineTransportBunLive } from "@guerillaglass/engine/client/liveBun";
+import { layerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
 import { MediaSourceService, MediaSourceServiceLive } from "../media/service";
 import { ReviewGateway, ReviewGatewayLive } from "../review/service";
 
@@ -138,7 +138,7 @@ function makeCaptureStatusStreamLayer(
 
 /** Composes the live host layer used by the managed Bun runtime. */
 export function makeHostLive(options: HostRuntimeOptions) {
-  const engineTransportLayer = options.engineTransportLayer ?? EngineTransportBunLive;
+  const engineTransportLayer = options.engineTransportLayer ?? layerEngineTransportBun;
 
   const servicesLayer = Layer.mergeAll(
     engineTransportLayer,

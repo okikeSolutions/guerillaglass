@@ -21,7 +21,7 @@ export type EngineTransportBunOptions = {
  * Guerillaglass wire protocol; Effect RPC serialization remains contained in
  * this TypeScript client boundary.
  */
-export function makeEngineTransportBunLive(options?: EngineTransportBunOptions) {
+export function makeLayerEngineTransportBun(options?: EngineTransportBunOptions) {
   const socketAndProtocolLive = Layer.unwrap(
     Effect.gen(function* () {
       const { address, authToken } = yield* makeEngineSocketProcess({
@@ -40,4 +40,4 @@ export function makeEngineTransportBunLive(options?: EngineTransportBunOptions) 
 }
 
 /** Default Bun-backed native engine transport layer. */
-export const EngineTransportBunLive = makeEngineTransportBunLive();
+export const layerEngineTransportBun = makeLayerEngineTransportBun();

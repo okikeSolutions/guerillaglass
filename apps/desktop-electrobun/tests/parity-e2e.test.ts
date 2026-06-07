@@ -2,7 +2,7 @@ import path from "node:path";
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import { Effect, Option } from "effect";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
-import { makeEngineTransportBunLive } from "@guerillaglass/engine/client/liveBun";
+import { makeLayerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
 import {
   outputUrlSchema,
   projectPathSchema,
@@ -90,7 +90,7 @@ describe("phase-1 parity e2e", () => {
 
           const stopped = yield* engine["capture.stop"](undefined);
           expect(stopped.isRunning).toBe(false);
-        }).pipe(Effect.provide(makeEngineTransportBunLive({ enginePath: fixture.path })), (effect) =>
+        }).pipe(Effect.provide(makeLayerEngineTransportBun({ enginePath: fixture.path })), (effect) =>
           Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
         );
       },

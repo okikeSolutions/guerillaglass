@@ -265,6 +265,22 @@ const reviewSetWorkflowStatusBridgeParamsSchema = Schema.Struct({
   status: reviewWorkflowStatusSchema,
 });
 
+type ProjectPath = Schema.Schema.Type<typeof projectPathSchema>;
+type OutputUrl = Schema.Schema.Type<typeof outputUrlSchema>;
+type ExportPresetId = Schema.Schema.Type<typeof exportPresetIdSchema>;
+
+function makeOptionalProjectPath(value: string | undefined): ProjectPath | undefined {
+  return value === undefined ? undefined : projectPathSchema.make(value);
+}
+
+function makeOutputUrl(value: string): OutputUrl {
+  return outputUrlSchema.make(value);
+}
+
+function makeExportPresetId(value: string): ExportPresetId {
+  return exportPresetIdSchema.make(value);
+}
+
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
   responseType: Response;
@@ -323,7 +339,7 @@ export const bridgeRequestDefinitions = {
     {
       runtimeBudgetMinutes?: number;
       transcriptionProvider?: "none" | "imported_transcript";
-      importedTranscriptPath?: string;
+      importedTranscriptPath?: ProjectPath;
     },
     AgentPreflightResult,
     [
@@ -333,13 +349,20 @@ export const bridgeRequestDefinitions = {
         importedTranscriptPath?: string;
       },
     ]
-  >((params) => params ?? {}, engineAgentPreflightBridgeParamsSchema, agentPreflightResultSchema),
+  >(
+    (params) => ({
+      ...params,
+      importedTranscriptPath: makeOptionalProjectPath(params?.importedTranscriptPath),
+    }),
+    engineAgentPreflightBridgeParamsSchema,
+    agentPreflightResultSchema,
+  ),
   ggEngineAgentRun: defineValidatedBridgeRequest<
     {
       preflightToken: string;
       runtimeBudgetMinutes?: number;
       transcriptionProvider?: "none" | "imported_transcript";
-      importedTranscriptPath?: string;
+      importedTranscriptPath?: ProjectPath;
       force?: boolean;
     },
     AgentRunResult,
@@ -352,7 +375,14 @@ export const bridgeRequestDefinitions = {
         force?: boolean;
       },
     ]
-  >((params) => params, engineAgentRunBridgeParamsSchema, agentRunResultSchema),
+  >(
+    (params) => ({
+      ...params,
+      importedTranscriptPath: makeOptionalProjectPath(params.importedTranscriptPath),
+    }),
+    engineAgentRunBridgeParamsSchema,
+    agentRunResultSchema,
+  ),
   ggEngineAgentStatus: defineValidatedBridgeRequest<
     { jobId: string },
     AgentStatusResult,
@@ -466,8 +496,8 @@ export const bridgeRequestDefinitions = {
   ),
   ggEngineRunExport: defineValidatedBridgeRequest<
     {
-      outputURL: string;
-      presetId: string;
+      outputURL: OutputUrl;
+      presetId: ExportPresetId;
       trimStartSeconds?: number;
       trimEndSeconds?: number;
     },
@@ -480,31 +510,58 @@ export const bridgeRequestDefinitions = {
         trimEndSeconds?: number;
       },
     ]
-  >((params) => params, engineRunExportBridgeParamsSchema, exportRunResultSchema),
+  >(
+    (params) => ({
+      ...params,
+      outputURL: makeOutputUrl(params.outputURL),
+      presetId: makeExportPresetId(params.presetId),
+    }),
+    engineRunExportBridgeParamsSchema,
+    exportRunResultSchema,
+  ),
   ggEngineRunCutPlanExport: defineValidatedBridgeRequest<
     {
-      outputURL: string;
-      presetId: string;
+      outputURL: OutputUrl;
+      presetId: ExportPresetId;
       jobId: string;
     },
     ExportRunCutPlanResult,
     [params: { outputURL: string; presetId: string; jobId: string }]
-  >((params) => params, engineRunCutPlanExportBridgeParamsSchema, exportRunCutPlanResultSchema),
+  >(
+    (params) => ({
+      ...params,
+      outputURL: makeOutputUrl(params.outputURL),
+      presetId: makeExportPresetId(params.presetId),
+    }),
+    engineRunCutPlanExportBridgeParamsSchema,
+    exportRunCutPlanResultSchema,
+  ),
   ggEngineProjectCurrent: defineValidatedBridgeRequest<undefined, ProjectState, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
     projectStateSchema,
   ),
   ggEngineProjectOpen: defineValidatedBridgeRequest<
-    { projectPath: string },
+    { projectPath: ProjectPath },
     ProjectState,
     [projectPath: string]
-  >((projectPath) => ({ projectPath }), engineProjectOpenBridgeParamsSchema, projectStateSchema),
+  >(
+    (projectPath) => ({ projectPath: projectPathSchema.make(projectPath) }),
+    engineProjectOpenBridgeParamsSchema,
+    projectStateSchema,
+  ),
   ggEngineProjectSave: defineValidatedBridgeRequest<
-    { projectPath?: string; autoZoom?: AutoZoomSettings },
+    { projectPath?: ProjectPath; autoZoom?: AutoZoomSettings },
     ProjectState,
     [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
-  >((params) => params, engineProjectSaveBridgeParamsSchema, projectStateSchema),
+  >(
+    (params) => ({
+      ...params,
+      projectPath: makeOptionalProjectPath(params.projectPath),
+    }),
+    engineProjectSaveBridgeParamsSchema,
+    projectStateSchema,
+  ),
   ggEngineProjectRecents: defineValidatedBridgeRequest<
     { limit?: number },
     ProjectRecentsResult,
