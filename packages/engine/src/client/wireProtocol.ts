@@ -143,7 +143,10 @@ export function makeEngineWireRpcClientProtocol(options: {
   readonly authToken: string;
 }) {
   return RpcClient.Protocol.make(
-    Effect.fnUntraced(function* (writeResponse, clientIds) {
+    Effect.fnUntraced(function* (
+      writeResponse: (clientId: number, response: FromServerEncoded) => Effect.Effect<void>,
+      clientIds: ReadonlySet<number>,
+    ) {
       const socket = yield* Socket.Socket;
       const writeRaw = yield* socket.writer;
       const parse = makeLineParser();
@@ -164,11 +167,27 @@ export function makeEngineWireRpcClientProtocol(options: {
               },
             ],
           }).pipe(
+            Effect.tap((responses) =>
+              Effect.forEach(
+                responses,
+                (response) =>
+                  Effect.logDebug("engine rpc received", {
+                    messageType: response._tag,
+                    rpcId: "requestId" in response ? response.requestId : undefined,
+                  }),
+                { discard: true },
+              ),
+            ),
             Effect.flatMap((responses) =>
               Effect.forEach(
                 responses,
                 (response) => {
                   if (response._tag === "Pong") return Effect.void;
+                  if (response._tag === "ClientProtocolError") {
+                    return Effect.logWarning("engine protocol error", {
+                      message: response.error.message,
+                    }).pipe(Effect.andThen(broadcast(response)));
+                  }
                   if ("requestId" in response) {
                     const clientId = requestClientMap.get(response.requestId);
                     if (clientId !== undefined) {
@@ -186,20 +205,34 @@ export function makeEngineWireRpcClientProtocol(options: {
         .pipe(
           Effect.catch((cause: unknown) => {
             currentError = protocolDefect("Engine socket closed", cause);
-            return broadcast({ _tag: "ClientProtocolError", error: currentError });
+            return Effect.logWarning("engine socket closed", { cause }).pipe(
+              Effect.andThen(broadcast({ _tag: "ClientProtocolError", error: currentError })),
+            );
           }),
+          Effect.withSpan("engine.rpc.receive"),
           Effect.forkScoped,
         );
 
       return {
-        send(clientId, request) {
+        send(clientId: number, request: FromClientEncoded) {
           if (currentError) return Effect.fail(currentError);
           if (request._tag === "Request") requestClientMap.set(request.id, clientId);
           if (request._tag === "Interrupt") requestClientMap.delete(request.requestId);
           const wireMessage = toEngineWireClientMessage(request, options.authToken);
           if (!wireMessage) return Effect.void;
-          return writeRaw(encodeLine(wireMessage)).pipe(
+          return Effect.logDebug("engine rpc sending", {
+            messageType: wireMessage.type,
+            rpcId: "id" in wireMessage ? wireMessage.id : undefined,
+            method: wireMessage.type === "request" ? wireMessage.method : undefined,
+          }).pipe(
+            Effect.andThen(writeRaw(encodeLine(wireMessage))),
             Effect.mapError((cause) => protocolDefect("Failed to write engine wire message", cause)),
+            Effect.withSpan("engine.rpc.send", {
+              attributes: {
+                "engine.rpc.message_type": wireMessage.type,
+                "engine.rpc.method": wireMessage.type === "request" ? wireMessage.method : undefined,
+              },
+            }),
           );
         },
         supportsAck: false,

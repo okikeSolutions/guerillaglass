@@ -563,12 +563,21 @@ Responsibilities:
 
 It intentionally does not expose Effect RPC wire internals to Swift/Rust/native engines.
 
-### Remaining engine hardening
+### Engine hardening status
 
-- Replace remaining ad-hoc process/readiness code with Effect platform primitives where feasible.
-- Add spans and structured logs around process spawn, socket connect, RPC send/receive, and protocol errors.
-- Add retry/restart policy using `Schedule` only where product-safe.
-- Keep `processBun` and `wireProtocol` private implementation modules unless a real public use case appears.
+Phase 5 completed the first hardening pass:
+
+- `processBun.ts` now uses Effect process primitives from `effect/unstable/process` with the Bun child-process spawner layer instead of raw `Bun.spawn`.
+- Process stdout/stderr handling uses `Stream.decodeText`, `Stream.splitLines`, `Stream.runHead`, and `Stream.runForEach` instead of manual reader loops.
+- `liveBun.ts` wires the narrow Bun platform layers explicitly:
+  - `@effect/platform-bun/BunChildProcessSpawner`
+  - `@effect/platform-bun/BunFileSystem`
+  - `@effect/platform-bun/BunPath`
+  - `@effect/platform-bun/BunSocket`
+- Socket startup has a small bounded `Schedule` retry only for the post-readiness connect race.
+- There is no generic RPC retry and no automatic process restart policy.
+- Spans and structured logs cover process spawn, readiness, shutdown, socket connect, RPC send/receive, socket close, and protocol errors.
+- `processBun` and `wireProtocol` remain private implementation modules unless a real public use case appears.
 
 ## Media goal
 
@@ -713,14 +722,16 @@ Most backend tests should run without Electrobun by providing test layers for `D
 - `apps/desktop-electrobun/src/bun/session/ProjectSessionElectrobun.ts` provides the Electrobun-backed project-session layer, owns current project path state, project path-aware picker/file policy, and initial project-state loading.
 - `DesktopShell` no longer owns current project path state or project/session bridge callbacks.
 
-### Phase 5 — Engine client hardening inside `packages/engine`
+### Phase 5 — Engine client hardening inside `packages/engine` — complete
 
-- Keep native engines on the stable Guerillaglass socket wire protocol.
-- Keep Effect RPC serialization details inside TypeScript `wireProtocol`.
-- Do not export `processBun` or `wireProtocol` unless a real public use case appears.
-- Replace remaining ad-hoc process/readiness handling with Effect platform primitives where feasible.
-- Use `Schedule` for retry/restart policy only where product-safe.
-- Add spans and structured logs around process spawn, socket connect, RPC send/receive, protocol errors, and shutdown.
+- Native engines remain on the stable Guerillaglass socket wire protocol.
+- Effect RPC serialization details remain inside TypeScript `wireProtocol`.
+- `processBun` and `wireProtocol` remain unexported private implementation modules.
+- Raw `Bun.spawn` and manual process stdout/stderr readers were replaced with Effect `ChildProcess` and `Stream` primitives.
+- `@effect/platform-bun` is used through subpath imports only; the engine client uses narrow platform layers instead of the package barrel.
+- A bounded `Schedule` retry exists only for socket connect immediately after readiness, where it is product-safe.
+- Generic RPC retry and automatic process restart were intentionally not added because many engine operations are not idempotent and engine process state is user-visible.
+- Spans and structured logs now cover process spawn, readiness, shutdown, socket connect, RPC send/receive, socket close, and protocol errors.
 
 ### Phase 6 — Media/session cleanup
 
@@ -777,10 +788,10 @@ Native stdio transport has been removed from the real native engine path. The si
 
 Current TypeScript-side shape:
 
-- `processBun.ts` resolves the engine executable, spawns it, passes `GG_ENGINE_RPC_TRANSPORT=socket` and `GG_ENGINE_RPC_AUTH_TOKEN`, drains stderr, and reads the stdout readiness line.
+- `processBun.ts` resolves the engine executable, starts it through Effect `ChildProcess`, passes `GG_ENGINE_RPC_TRANSPORT=socket` and `GG_ENGINE_RPC_AUTH_TOKEN`, drains stderr with `Stream`, and reads the stdout readiness line with `Stream`.
 - Native engines print a readiness envelope containing host/port, then serve the socket protocol.
-- `liveBun.ts` connects with `BunSocket.layerNet` and provides `RpcClient.Protocol`.
-- `wireProtocol.ts` maps Effect RPC encoded messages to/from stable Guerillaglass wire messages.
+- `liveBun.ts` connects with Bun socket platform primitives and provides `RpcClient.Protocol`.
+- `wireProtocol.ts` maps Effect RPC encoded messages to/from stable Guerillaglass wire messages and owns protocol send/receive logging.
 
 Stable client-to-native messages:
 
@@ -802,12 +813,13 @@ Stable native-to-client messages:
 
 Effect RPC internals must remain contained in TypeScript. Swift/Rust/native code should depend on generated Guerillaglass protocol bindings and fixtures, not on `effect/unstable/rpc` wire shapes.
 
-Remaining research/hardening:
+Phase 5 hardening decisions:
 
-- Evaluate replacing the current `Bun.spawn` wrapper with `@effect/platform-bun` child-process services where that improves lifecycle/readiness handling.
-- Keep stdout for readiness and stderr for logging; do not reintroduce stdio request transport.
-- Add structured logging/spans around process spawn, readiness, socket connect, send/receive, and protocol errors.
-- Add restart/retry with `Schedule` only where product-safe.
+- Use `effect/unstable/process` `ChildProcess` with `@effect/platform-bun/BunChildProcessSpawner` for native sidecar lifecycle.
+- Wire `BunChildProcessSpawner.layer` with `BunFileSystem.layer` and `BunPath.layer` using `Layer.provideMerge`; plain sibling `Layer.mergeAll` is insufficient because the child-process spawner requires filesystem and path services.
+- Keep stdout only for readiness and stderr only for logging; do not reintroduce stdio request transport.
+- Use `Schedule` only for bounded socket connect retry immediately after readiness.
+- Do not add generic RPC retry or automatic process restart until product semantics for in-flight capture/recording/export/project operations are explicit.
 
 ### `BunHttpServer` / Effect HTTP route shape for media byte ranges, signed preview URLs, and cache headers
 
