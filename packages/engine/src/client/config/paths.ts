@@ -1,5 +1,4 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
+import { Effect, FileSystem, Path, PlatformError } from "effect";
 import {
   LINUX_NATIVE_BINARY,
   WINDOWS_NATIVE_BINARY,
@@ -7,26 +6,36 @@ import {
 } from "@guerillaglass/engine/client/config/targets";
 
 /** Finds the repository root that owns the native engines and package workspaces. */
-export function findWorkspaceRoot(startDir: string): string | null {
-  let current = path.resolve(startDir);
-  while (true) {
-    const hasPackage = existsSync(path.join(current, "Package.swift"));
-    const hasDesktopApp = existsSync(path.join(current, "apps/desktop-electrobun"));
-    const hasEngines = existsSync(path.join(current, "engines"));
-    if (hasPackage && hasDesktopApp && hasEngines) {
-      return current;
-    }
+export function findWorkspaceRoot(
+  startDir: string,
+): Effect.Effect<string | null, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    let current = path.resolve(startDir);
+    while (true) {
+      const hasPackage = yield* fs.exists(path.join(current, "Package.swift"));
+      const hasDesktopApp = yield* fs.exists(path.join(current, "apps/desktop-electrobun"));
+      const hasEngines = yield* fs.exists(path.join(current, "engines"));
+      if (hasPackage && hasDesktopApp && hasEngines) {
+        return current;
+      }
 
-    const parent = path.dirname(current);
-    if (parent === current) {
-      return null;
+      const parent = path.dirname(current);
+      if (parent === current) {
+        return null;
+      }
+      current = parent;
     }
-    current = parent;
-  }
+  });
 }
 
-function resolveByTarget(engineTarget: EngineTarget, baseDir: string): string {
-  const workspaceRoot = findWorkspaceRoot(baseDir);
+function resolveByTarget(
+  path: Path.Path,
+  engineTarget: EngineTarget,
+  baseDir: string,
+  workspaceRoot: string | null,
+): string {
   switch (engineTarget) {
     case "macos-swift":
       if (workspaceRoot) {
@@ -65,13 +74,18 @@ function resolveByTarget(engineTarget: EngineTarget, baseDir: string): string {
   }
 }
 
-function firstExisting(...paths: string[]): string {
-  for (const candidate of paths) {
-    if (existsSync(candidate)) {
-      return candidate;
+function firstExisting(
+  ...paths: string[]
+): Effect.Effect<string, PlatformError.PlatformError, FileSystem.FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    for (const candidate of paths) {
+      if (yield* fs.exists(candidate)) {
+        return candidate;
+      }
     }
-  }
-  return paths[0] ?? "";
+    return paths[0] ?? "";
+  });
 }
 
 /** Resolves the engine executable path for the current environment. */
@@ -79,32 +93,36 @@ export function resolveEnginePath(options?: {
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
   baseDir?: string;
-}): string {
-  const env = options?.env ?? process.env;
-  const platform = options?.platform ?? process.platform;
-  const baseDir = options?.baseDir ?? import.meta.dir;
+}): Effect.Effect<string, PlatformError.PlatformError, FileSystem.FileSystem | Path.Path> {
+  return Effect.gen(function* () {
+    const path = yield* Path.Path;
+    const env = options?.env ?? process.env;
+    const platform = options?.platform ?? process.platform;
+    const baseDir = options?.baseDir ?? import.meta.dir;
 
-  if (env.GG_ENGINE_PATH) {
-    return env.GG_ENGINE_PATH;
-  }
+    if (env.GG_ENGINE_PATH) {
+      return env.GG_ENGINE_PATH;
+    }
 
-  const engineTarget = (env.GG_ENGINE_TARGET ?? "").trim() as EngineTarget | "";
-  if (engineTarget) {
-    return resolveByTarget(engineTarget, baseDir);
-  }
+    const workspaceRoot = yield* findWorkspaceRoot(baseDir);
+    const engineTarget = (env.GG_ENGINE_TARGET ?? "").trim() as EngineTarget | "";
+    if (engineTarget) {
+      return resolveByTarget(path, engineTarget, baseDir, workspaceRoot);
+    }
 
-  if (platform === "win32") {
-    return firstExisting(
-      resolveByTarget("windows-native", baseDir),
-      resolveByTarget("windows-stub", baseDir),
-    );
-  }
-  if (platform === "linux") {
-    return firstExisting(
-      resolveByTarget("linux-native", baseDir),
-      resolveByTarget("linux-stub", baseDir),
-    );
-  }
+    if (platform === "win32") {
+      return yield* firstExisting(
+        resolveByTarget(path, "windows-native", baseDir, workspaceRoot),
+        resolveByTarget(path, "windows-stub", baseDir, workspaceRoot),
+      );
+    }
+    if (platform === "linux") {
+      return yield* firstExisting(
+        resolveByTarget(path, "linux-native", baseDir, workspaceRoot),
+        resolveByTarget(path, "linux-stub", baseDir, workspaceRoot),
+      );
+    }
 
-  return resolveByTarget("macos-swift", baseDir);
+    return resolveByTarget(path, "macos-swift", baseDir, workspaceRoot);
+  });
 }

@@ -77,11 +77,13 @@ import type { StudioShortcutOverrides } from "../shortcuts";
 import type { StudioDiagnosticsValue } from "../studioDiagnostics";
 
 function greaterThanOrEqualTo(minimum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isGreaterThanOrEqualTo(minimum));
 }
 
 function lessThanOrEqualTo(maximum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isLessThanOrEqualTo(maximum));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isLessThanOrEqualTo(maximum));
 }
 
 export const hostMenuCommands = {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Fiber, Layer, Stream } from "effect";
 import { type CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
-import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
 import {
@@ -127,11 +127,11 @@ describe("host runtime capture status stream", () => {
           engineTransportLayer: Layer.effect(
             EngineTransport,
             Effect.acquireRelease(
-              Effect.sync(() => {
+              Effect.suspend(() => {
                 acquisitions += 1;
-                return {
+                return Effect.succeed({
                   "capture.statusStream": () => Stream.never,
-                } as never;
+                } as never);
               }),
               () =>
                 Effect.sync(() => {

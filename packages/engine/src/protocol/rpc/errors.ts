@@ -30,4 +30,4 @@ export class EngineRpcError extends Schema.TaggedErrorClass<EngineRpcError>()("E
 export const engineRpcErrorSchema = EngineRpcError;
 
 /** Type alias for EngineErrorCode. */
-export type EngineErrorCode = Schema.Schema.Type<typeof engineErrorCodeSchema>;
+export type EngineErrorCode = Schema.Codec.Encoded<typeof engineErrorCodeSchema>;

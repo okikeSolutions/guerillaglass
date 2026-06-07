@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Option, Schema } from "effect";
 import {
   NonEmptyString,
   NonNegativeInt,
@@ -13,9 +13,9 @@ const createDefaultCaptureTelemetry = () => ({
   writerDroppedFrames: 0,
   writerBackpressureDrops: 0,
   achievedFps: 0,
-  cpuPercent: null,
-  memoryBytes: null,
-  recordingBitrateMbps: null,
+  cpuPercent: Option.none(),
+  memoryBytes: Option.none(),
+  recordingBitrateMbps: Option.none(),
   captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
@@ -28,11 +28,9 @@ export const captureTelemetrySchema = Schema.Struct({
   writerDroppedFrames: optionalWith(NonNegativeInt, { default: () => 0 }),
   writerBackpressureDrops: optionalWith(NonNegativeInt, { default: () => 0 }),
   achievedFps: optionalWith(NonNegativeNumber, { default: () => 0 }),
-  cpuPercent: optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
-  memoryBytes: optionalWith(Schema.NullOr(NonNegativeNumber), { default: () => null }),
-  recordingBitrateMbps: optionalWith(Schema.NullOr(NonNegativeNumber), {
-    default: () => null,
-  }),
+  cpuPercent: Schema.OptionFromOptionalNullOr(NonNegativeNumber),
+  memoryBytes: Schema.OptionFromOptionalNullOr(NonNegativeNumber),
+  recordingBitrateMbps: Schema.OptionFromOptionalNullOr(NonNegativeNumber),
   captureCallbackMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
   recordQueueLagMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
   writerAppendMs: optionalWith(NonNegativeNumber, { default: () => 0 }),
@@ -49,30 +47,52 @@ export const capturePreviewFrameSchema = Schema.Struct({
 export const captureStatusResultSchema = Schema.Struct({
   isRunning: Schema.Boolean,
   isRecording: Schema.Boolean,
-  captureSessionId: optionalWith(Schema.NullOr(captureSessionIdSchema), {
-    default: () => null,
-  }),
+  captureSessionId: Schema.OptionFromOptionalNullOr(captureSessionIdSchema),
   recordingDurationSeconds: NonNegativeNumber,
-  recordingURL: Schema.NullOr(Schema.String),
-  captureMetadata: optionalWith(captureMetadataSchema, { default: () => null }),
-  lastError: Schema.NullOr(Schema.String),
-  eventsURL: Schema.NullOr(Schema.String),
-  lastRecordingTelemetry: optionalWith(Schema.NullOr(captureTelemetrySchema), {
-    default: () => null,
-  }),
+  recordingURL: Schema.OptionFromNullOr(Schema.String),
+  captureMetadata: optionalWith(captureMetadataSchema, { default: () => Option.none() }),
+  lastError: Schema.OptionFromNullOr(Schema.String),
+  eventsURL: Schema.OptionFromNullOr(Schema.String),
+  lastRecordingTelemetry: Schema.OptionFromOptionalNullOr(captureTelemetrySchema),
   telemetry: optionalWith(captureTelemetrySchema, {
     default: createDefaultCaptureTelemetry,
   }),
 });
 
 /** Result payload for the latest cached live preview frame. */
-export const capturePreviewFrameResultSchema = Schema.NullOr(capturePreviewFrameSchema);
+export const capturePreviewFrameResultSchema = Schema.OptionFromNullOr(capturePreviewFrameSchema);
 
-/** Type alias for CaptureTelemetry. */
-export type CaptureTelemetry = Schema.Schema.Type<typeof captureTelemetrySchema>;
+type CaptureTelemetryEncoded = Schema.Codec.Encoded<typeof captureTelemetrySchema>;
+type CaptureStatusResultEncoded = Schema.Codec.Encoded<typeof captureStatusResultSchema>;
+
+/** Type alias for CaptureTelemetry values emitted by engine clients after defaults are applied. */
+export type CaptureTelemetry = Omit<
+  CaptureTelemetryEncoded,
+  | "sourceDroppedFrames"
+  | "writerDroppedFrames"
+  | "writerBackpressureDrops"
+  | "achievedFps"
+  | "captureCallbackMs"
+  | "recordQueueLagMs"
+  | "writerAppendMs"
+> & {
+  readonly sourceDroppedFrames: number;
+  readonly writerDroppedFrames: number;
+  readonly writerBackpressureDrops: number;
+  readonly achievedFps: number;
+  readonly captureCallbackMs: number;
+  readonly recordQueueLagMs: number;
+  readonly writerAppendMs: number;
+};
 /** Type alias for CapturePreviewFrame. */
-export type CapturePreviewFrame = Schema.Schema.Type<typeof capturePreviewFrameSchema>;
-/** Type alias for CaptureStatusResult. */
-export type CaptureStatusResult = Schema.Schema.Type<typeof captureStatusResultSchema>;
+export type CapturePreviewFrame = Schema.Codec.Encoded<typeof capturePreviewFrameSchema>;
+/** Type alias for CaptureStatusResult values emitted by engine clients after defaults are applied. */
+export type CaptureStatusResult = Omit<
+  CaptureStatusResultEncoded,
+  "telemetry" | "lastRecordingTelemetry"
+> & {
+  readonly telemetry: CaptureTelemetry;
+  readonly lastRecordingTelemetry?: CaptureTelemetry | null;
+};
 /** Type alias for CapturePreviewFrameResult. */
-export type CapturePreviewFrameResult = Schema.Schema.Type<typeof capturePreviewFrameResultSchema>;
+export type CapturePreviewFrameResult = Schema.Codec.Encoded<typeof capturePreviewFrameResultSchema>;

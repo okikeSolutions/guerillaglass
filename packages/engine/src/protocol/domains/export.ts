@@ -36,10 +36,10 @@ export const exportRunCutPlanResultSchema = Schema.Struct({
 });
 
 /** Type alias for ExportPreset. */
-export type ExportPreset = Schema.Schema.Type<typeof exportPresetSchema>;
+export type ExportPreset = Schema.Codec.Encoded<typeof exportPresetSchema>;
 /** Type alias for ExportInfoResult. */
-export type ExportInfoResult = Schema.Schema.Type<typeof exportInfoResultSchema>;
+export type ExportInfoResult = Schema.Codec.Encoded<typeof exportInfoResultSchema>;
 /** Type alias for ExportRunResult. */
-export type ExportRunResult = Schema.Schema.Type<typeof exportRunResultSchema>;
+export type ExportRunResult = Schema.Codec.Encoded<typeof exportRunResultSchema>;
 /** Type alias for ExportRunCutPlanResult. */
-export type ExportRunCutPlanResult = Schema.Schema.Type<typeof exportRunCutPlanResultSchema>;
+export type ExportRunCutPlanResult = Schema.Codec.Encoded<typeof exportRunCutPlanResultSchema>;

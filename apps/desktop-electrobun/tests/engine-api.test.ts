@@ -18,7 +18,7 @@ import {
   MediaServerError,
 } from "@shared/errors";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
-import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { createHostRuntime } from "../src/bun/runtime/hostRuntime";
 

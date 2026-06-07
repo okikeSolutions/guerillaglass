@@ -28,7 +28,10 @@ fn parse_rpcs(source: &str) -> Vec<(String, String)> {
     for line in source.lines() {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("export class ") {
-            let Some((variant, after_variant)) = rest.split_once(" extends rpc(") else {
+            let Some((variant, after_variant)) = rest
+                .split_once(" extends rpc(")
+                .or_else(|| rest.split_once(" extends streamRpc("))
+            else {
                 continue;
             };
             pending_variant = Some(variant.trim().to_string());

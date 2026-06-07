@@ -15,6 +15,6 @@ export const actionResultSchema = Schema.Struct({
 });
 
 /** Type alias for PermissionsResult. */
-export type PermissionsResult = Schema.Schema.Type<typeof permissionsResultSchema>;
+export type PermissionsResult = Schema.Codec.Encoded<typeof permissionsResultSchema>;
 /** Type alias for ActionResult. */
-export type ActionResult = Schema.Schema.Type<typeof actionResultSchema>;
+export type ActionResult = Schema.Codec.Encoded<typeof actionResultSchema>;

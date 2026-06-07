@@ -5,6 +5,7 @@ import Foundation
 import InputTracking
 import Project
 
+@MainActor
 final class EngineService {
     let captureEngine = CaptureEngine()
     let exportPipeline = ExportPipeline()

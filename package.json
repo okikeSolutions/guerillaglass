@@ -40,6 +40,7 @@
     "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
     "capture:benchmark": "bun ./Scripts/capture_benchmark.ts",
     "capture:benchmark:check": "bun ./Scripts/capture_benchmark.ts --assert",
+    "protocol:generate-bindings": "node Scripts/generate_engine_bindings.mjs",
     "protocol:typecheck": "(cd packages/engine && bun run typecheck) && (cd packages/review-protocol && bun run typecheck)",
     "docs:check": "bun ./Scripts/docs_gate.mjs",
     "docs:check:ts": "bun ./Scripts/docs_gate.mjs --scope=ts",

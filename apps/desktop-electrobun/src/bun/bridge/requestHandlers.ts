@@ -3,7 +3,7 @@ import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { isoDateTimeSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 import { createBunBridgeHandlers } from "../../shared/bridge";
 import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridge";
-import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
 import { MediaSourceService } from "../media/service";
 import { ReviewGateway } from "../review/service";
 import type { HostRuntime, HostRuntimeServices } from "../runtime/hostRuntime";
@@ -39,9 +39,9 @@ export function createEngineBridgeHandlers({
     ggEngineGetPermissions: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport["permissions.get"](undefined))),
     ggEngineAgentPreflight: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.preflight"](params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.preflight"](params as never))),
     ggEngineAgentRun: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.run"](params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.run"](params as never))),
     ggEngineAgentStatus: async ({ jobId }) =>
       run(Effect.flatMap(EngineTransport, (transport) => transport["agent.status"]({ jobId }))),
     ggEngineAgentApply: async (params) =>
@@ -111,9 +111,9 @@ export function createEngineBridgeHandlers({
     ggEngineExportInfo: async () =>
       run(Effect.flatMap(EngineTransport, (transport) => transport["export.info"](undefined))),
     ggEngineRunExport: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["export.run"](params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.run"](params as never))),
     ggEngineRunCutPlanExport: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport["export.runCutPlan"](params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.runCutPlan"](params as never))),
     ggEngineProjectCurrent: async () => {
       const projectState = await run(
         Effect.flatMap(EngineTransport, (transport) => transport["project.current"](undefined)),
@@ -123,14 +123,16 @@ export function createEngineBridgeHandlers({
     },
     ggEngineProjectOpen: async ({ projectPath }) => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) => transport["project.open"]({ projectPath })),
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["project.open"]({ projectPath } as never),
+        ),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectSave: async (params) => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) => transport["project.save"](params)),
+        Effect.flatMap(EngineTransport, (transport) => transport["project.save"](params as never)),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;

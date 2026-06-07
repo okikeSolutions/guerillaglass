@@ -261,14 +261,13 @@ export class MediaServer {
   private bindReservedServerEffect(
     host: string,
   ): Effect.Effect<StartedMediaServer, MediaServerError> {
-    return Effect.catch(reserveLoopbackPortEffect(host), () => Effect.sync(randomLoopbackPort))
-      .pipe(Effect.flatMap((port) => this.startServerEffect(host, port)))
-      .pipe(
-        Effect.retry({
-          times: mediaServerMaxBindAttempts - 1,
-          while: (error) => isAddressInUse(error),
-        }),
-      );
+    return Effect.catch(reserveLoopbackPortEffect(host), () => Effect.sync(randomLoopbackPort)).pipe(
+      Effect.flatMap((port) => this.startServerEffect(host, port)),
+      Effect.retry({
+        times: mediaServerMaxBindAttempts - 1,
+        while: (error) => isAddressInUse(error),
+      }),
+    );
   }
 
   private ensureServerEffect(): Effect.Effect<void, MediaServerError> {
@@ -542,32 +541,26 @@ export class MediaServer {
   private resolveMediaPathEffect(filePath: string): Effect.Effect<string, MediaServerError> {
     return Effect.gen(function* () {
       if (typeof filePath !== "string" || filePath.trim().length === 0) {
-        return yield* Effect.fail(
-          new MediaServerError({
-            code: "MEDIA_PATH_REQUIRED",
-            description: "A media file path is required.",
-          }),
-        );
+        return yield* new MediaServerError({
+          code: "MEDIA_PATH_REQUIRED",
+          description: "A media file path is required.",
+        });
       }
 
       const trimmedPath = filePath.trim();
       if (!path.isAbsolute(trimmedPath)) {
-        return yield* Effect.fail(
-          new MediaServerError({
-            code: "MEDIA_PATH_NOT_ABSOLUTE",
-            description: "Media source path must be an absolute local file path.",
-          }),
-        );
+        return yield* new MediaServerError({
+          code: "MEDIA_PATH_NOT_ABSOLUTE",
+          description: "Media source path must be an absolute local file path.",
+        });
       }
 
       const normalizedPath = path.resolve(trimmedPath);
       if (!isSupportedMediaPath(normalizedPath)) {
-        return yield* Effect.fail(
-          new MediaServerError({
-            code: "MEDIA_TYPE_UNSUPPORTED",
-            description: "Unsupported media file format.",
-          }),
-        );
+        return yield* new MediaServerError({
+          code: "MEDIA_TYPE_UNSUPPORTED",
+          description: "Unsupported media file format.",
+        });
       }
 
       const mediaFile = Bun.file(normalizedPath);
@@ -581,12 +574,10 @@ export class MediaServer {
           }),
       });
       if (!exists) {
-        return yield* Effect.fail(
-          new MediaServerError({
-            code: "MEDIA_FILE_MISSING",
-            description: "Media file not found.",
-          }),
-        );
+        return yield* new MediaServerError({
+          code: "MEDIA_FILE_MISSING",
+          description: "Media file not found.",
+        });
       }
 
       return normalizedPath;

@@ -1,19 +1,13 @@
-import { createInterface } from "node:readline";
 import { existsSync, readFileSync } from "node:fs";
 
-type Json =
-  | null
-  | boolean
-  | number
-  | string
-  | Json[]
-  | { [key: string]: Json };
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 type Request = {
-  jsonrpc: "2.0";
+  type: "request";
   id: string | number;
   method: string;
   params?: Record<string, Json>;
+  authToken?: string;
 };
 
 type EngineErrorCode =
@@ -29,18 +23,16 @@ type EngineErrorCode =
 
 type Response =
   | {
-      jsonrpc: "2.0";
+      type: "response";
       id: string | number;
       result: Json;
     }
   | {
-      jsonrpc: "2.0";
+      type: "error";
       id: string | number;
       error: {
-        _tag: "Cause";
-        code: number;
+        code: EngineErrorCode;
         message: string;
-        data: [{ _tag: "Fail"; error: { _tag: "EngineRpcError"; code: EngineErrorCode; message: string } }];
       };
     };
 
@@ -165,8 +157,14 @@ const state: State = {
 const preflightTokenTTLms = 60_000;
 const defaultCaptureFrameRates = [24, 30, 60] as const;
 
-function isSupportedCaptureFrameRate(value: unknown): value is (typeof defaultCaptureFrameRates)[number] {
-  return typeof value === "number" && Number.isFinite(value) && defaultCaptureFrameRates.includes(value as (typeof defaultCaptureFrameRates)[number]);
+function isSupportedCaptureFrameRate(
+  value: unknown,
+): value is (typeof defaultCaptureFrameRates)[number] {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    defaultCaptureFrameRates.includes(value as (typeof defaultCaptureFrameRates)[number])
+  );
 }
 
 function unsupportedCaptureFrameRateMessage(requestedCaptureFrameRate: unknown): string {
@@ -274,7 +272,9 @@ function normalizeSegment(entry: unknown): ImportedTranscriptSegment | null {
     asNumber(candidate.start) ??
     asNumber(candidate.start_time_seconds);
   const end =
-    asNumber(candidate.endSeconds) ?? asNumber(candidate.end) ?? asNumber(candidate.end_time_seconds);
+    asNumber(candidate.endSeconds) ??
+    asNumber(candidate.end) ??
+    asNumber(candidate.end_time_seconds);
   if (!text || start == null || end == null || start < 0 || end <= start) {
     return null;
   }
@@ -292,7 +292,9 @@ function normalizeWord(entry: unknown): ImportedTranscriptWord | null {
     asNumber(candidate.start) ??
     asNumber(candidate.start_time_seconds);
   const end =
-    asNumber(candidate.endSeconds) ?? asNumber(candidate.end) ?? asNumber(candidate.end_time_seconds);
+    asNumber(candidate.endSeconds) ??
+    asNumber(candidate.end) ??
+    asNumber(candidate.end_time_seconds);
   if (!word || start == null || end == null || start < 0 || end <= start) {
     return null;
   }
@@ -309,10 +311,14 @@ function parseImportedTranscript(path: string): ImportedTranscript | null {
       words?: unknown[];
     };
     const segments = Array.isArray(parsed.segments)
-      ? parsed.segments.map(normalizeSegment).filter((entry): entry is ImportedTranscriptSegment => entry != null)
+      ? parsed.segments
+          .map(normalizeSegment)
+          .filter((entry): entry is ImportedTranscriptSegment => entry != null)
       : [];
     const words = Array.isArray(parsed.words)
-      ? parsed.words.map(normalizeWord).filter((entry): entry is ImportedTranscriptWord => entry != null)
+      ? parsed.words
+          .map(normalizeWord)
+          .filter((entry): entry is ImportedTranscriptWord => entry != null)
       : [];
     if (segments.length === 0 && words.length === 0) {
       return null;
@@ -341,9 +347,10 @@ function hasAny(tokens: Set<string>, candidates: readonly string[]): boolean {
 }
 
 function transcriptText(transcript: ImportedTranscript): string {
-  return [...transcript.segments.map((segment) => segment.text), ...transcript.words.map((word) => word.word)].join(
-    " ",
-  );
+  return [
+    ...transcript.segments.map((segment) => segment.text),
+    ...transcript.words.map((word) => word.word),
+  ].join(" ");
 }
 
 function inferBeatCoverage(transcript: ImportedTranscript) {
@@ -430,7 +437,10 @@ function recordRecentProject(projectPath: string): void {
     return;
   }
   const displayName =
-    normalizedPath.split(/[\\/]/).pop()?.replace(/\.gglassproj$/i, "") || normalizedPath;
+    normalizedPath
+      .split(/[\\/]/)
+      .pop()
+      ?.replace(/\.gglassproj$/i, "") || normalizedPath;
   state.recentProjects = [
     {
       projectPath: normalizedPath,
@@ -442,24 +452,15 @@ function recordRecentProject(projectPath: string): void {
 }
 
 function success(id: string | number, result: Json): Response {
-  return { jsonrpc: "2.0", id, result };
+  return { type: "response", id, result };
 }
 
 function failure(id: string | number, code: EngineErrorCode, message: string): Response {
   return {
-    jsonrpc: "2.0",
+    type: "error",
     id,
-    error: {
-      _tag: "Cause",
-      code: 0,
-      message,
-      data: [{ _tag: "Fail", error: { _tag: "EngineRpcError", code, message } }],
-    },
+    error: { code, message },
   };
-}
-
-function writeResponse(response: Response): void {
-  process.stdout.write(`${JSON.stringify(response)}\n`);
 }
 
 function handleRequest(platform: string, request: Request): Response {
@@ -552,7 +553,8 @@ function handleRequest(platform: string, request: Request): Response {
       delete state.preflightSessions[preflightToken];
 
       const runtimeBudgetMinutes =
-        typeof params.runtimeBudgetMinutes === "number" && Number.isFinite(params.runtimeBudgetMinutes)
+        typeof params.runtimeBudgetMinutes === "number" &&
+        Number.isFinite(params.runtimeBudgetMinutes)
           ? Math.floor(params.runtimeBudgetMinutes)
           : 10;
       if (runtimeBudgetMinutes < 1 || runtimeBudgetMinutes > 10) {
@@ -578,7 +580,9 @@ function handleRequest(platform: string, request: Request): Response {
         transcriptionProvider === "imported_transcript"
           ? parseImportedTranscript(importedTranscriptPath)
           : null;
-      const transcriptTokenCount = transcript ? tokenizeTranscript(transcriptText(transcript)).size : 0;
+      const transcriptTokenCount = transcript
+        ? tokenizeTranscript(transcriptText(transcript)).size
+        : 0;
       const coverage = forceRequested
         ? { hook: true, action: true, payoff: true, takeaway: true }
         : transcript
@@ -693,10 +697,7 @@ function handleRequest(platform: string, request: Request): Response {
       });
 
     case "capture.startDisplay":
-      if (
-        Object.hasOwn(params, "captureFps") &&
-        !isSupportedCaptureFrameRate(params.captureFps)
-      ) {
+      if (Object.hasOwn(params, "captureFps") && !isSupportedCaptureFrameRate(params.captureFps)) {
         return failure(
           request.id,
           "invalid_params",
@@ -714,10 +715,7 @@ function handleRequest(platform: string, request: Request): Response {
       return success(request.id, statusResult());
 
     case "capture.startCurrentWindow":
-      if (
-        Object.hasOwn(params, "captureFps") &&
-        !isSupportedCaptureFrameRate(params.captureFps)
-      ) {
+      if (Object.hasOwn(params, "captureFps") && !isSupportedCaptureFrameRate(params.captureFps)) {
         return failure(
           request.id,
           "invalid_params",
@@ -739,10 +737,7 @@ function handleRequest(platform: string, request: Request): Response {
       return success(request.id, statusResult());
 
     case "capture.startWindow": {
-      if (
-        Object.hasOwn(params, "captureFps") &&
-        !isSupportedCaptureFrameRate(params.captureFps)
-      ) {
+      if (Object.hasOwn(params, "captureFps") && !isSupportedCaptureFrameRate(params.captureFps)) {
         return failure(
           request.id,
           "invalid_params",
@@ -784,7 +779,8 @@ function handleRequest(platform: string, request: Request): Response {
       state.isRecording = true;
       state.recordingStartedAt = Date.now();
       state.recordingURL = "stub://recordings/session.mp4";
-      state.eventsURL = params.trackInputEvents === true ? "stub://events/session-events.json" : null;
+      state.eventsURL =
+        params.trackInputEvents === true ? "stub://events/session-events.json" : null;
       state.lastError = null;
       return success(request.id, statusResult());
 
@@ -903,38 +899,165 @@ function handleRequest(platform: string, request: Request): Response {
 }
 
 export function runStubEngine(platform: string): void {
-  const rl = createInterface({
-    input: process.stdin,
-    crlfDelay: Infinity,
-  });
+  type ActiveStream = {
+    stopped: boolean;
+    timeout: Timer | null;
+    ack: (() => void) | null;
+  };
+  const maxSocketFrameBytes = 1024 * 1024;
+  const activeStreams = new Map<string, ActiveStream>();
 
-  rl.on("line", (line) => {
-    const raw = line.trim();
-    if (!raw) {
-      return;
+  const stopStream = (requestId: string): void => {
+    const stream = activeStreams.get(requestId);
+    if (stream) {
+      stream.stopped = true;
+      if (stream.timeout) clearTimeout(stream.timeout);
+      stream.ack?.();
+      activeStreams.delete(requestId);
     }
+  };
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      writeResponse(failure("unknown", "invalid_request", "Invalid JSON"));
-      return;
-    }
+  const makeLineHandler = (writeLine: (line: string) => void, requireAuth = false) => {
+    const writeJson = (value: Json): void => writeLine(JSON.stringify(value));
+    const hasExpectedAuthToken = (value: unknown): boolean => {
+      if (!requireAuth) return true;
+      const expectedToken = process.env.GG_ENGINE_RPC_AUTH_TOKEN;
+      return (
+        !!expectedToken &&
+        typeof value === "object" &&
+        value !== null &&
+        (value as { authToken?: unknown }).authToken === expectedToken
+      );
+    };
 
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      !("id" in parsed) ||
-      !("method" in parsed) ||
-      !["string", "number"].includes(typeof (parsed as { id?: unknown }).id) ||
-      typeof (parsed as { method?: unknown }).method !== "string"
-    ) {
-      writeResponse(failure("unknown", "invalid_request", "Malformed JSON-RPC request envelope"));
-      return;
-    }
+    const writeChunk = (id: string | number, values: Json[]): void => {
+      writeJson({ type: "chunk", id, values });
+    };
 
-    const request = parsed as Request;
-    writeResponse(handleRequest(platform, request));
-  });
+    const startStream = (request: Request): void => {
+      const requestId = String(request.id);
+      stopStream(requestId);
+      const stream: ActiveStream = { stopped: false, timeout: null, ack: null };
+      activeStreams.set(requestId, stream);
+
+      const emitLoop = async () => {
+        while (!stream.stopped) {
+          if (request.method === "capture.statusStream") {
+            writeChunk(request.id, [statusResult()]);
+          } else {
+            writeChunk(request.id, [state.previewFrame]);
+          }
+          await new Promise<void>((resolve) => {
+            stream.timeout = setTimeout(() => {
+              stream.timeout = null;
+              resolve();
+            }, 250);
+          });
+        }
+      };
+      void emitLoop();
+    };
+
+    return (line: string): void => {
+      const raw = line.trim();
+      if (!raw) {
+        return;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        writeJson(failure("unknown", "invalid_request", "Invalid JSON"));
+        return;
+      }
+
+      if (typeof parsed === "object" && parsed !== null) {
+        const type = (parsed as { type?: unknown }).type;
+        if (type === "ping") {
+          writeJson({ type: "pong" });
+          return;
+        }
+        if (type === "interrupt") {
+          const requestId = (parsed as { id?: unknown }).id;
+          if (typeof requestId === "string" || typeof requestId === "number") {
+            stopStream(String(requestId));
+          }
+          return;
+        }
+      }
+
+      if (!hasExpectedAuthToken(parsed)) {
+        writeJson(failure("unknown", "permission_denied", "Missing or invalid engine socket auth token"));
+        return;
+      }
+
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        !("id" in parsed) ||
+        !("method" in parsed) ||
+        !["string", "number"].includes(typeof (parsed as { id?: unknown }).id) ||
+        typeof (parsed as { method?: unknown }).method !== "string"
+      ) {
+        writeJson(failure("unknown", "invalid_request", "Malformed engine wire request envelope"));
+        return;
+      }
+
+      const request = parsed as Request;
+      if (
+        request.method === "capture.statusStream" ||
+        request.method === "capture.previewFrameStream"
+      ) {
+        startStream(request);
+        return;
+      }
+      writeJson(handleRequest(platform, request));
+    };
+  };
+
+  {
+    const server = Bun.listen<{
+      buffer: string;
+      decoder: TextDecoder;
+      handleLine: (line: string) => void;
+    }>({
+      hostname: "127.0.0.1",
+      port: 0,
+      socket: {
+        open(socket) {
+          socket.data = {
+            buffer: "",
+            decoder: new TextDecoder(),
+            handleLine: makeLineHandler((line) => socket.write(`${line}\n`), true),
+          };
+        },
+        data(socket, data) {
+          socket.data.buffer += socket.data.decoder.decode(data, { stream: true });
+          if (socket.data.buffer.length > maxSocketFrameBytes) {
+            socket.end();
+            return;
+          }
+          while (true) {
+            const newline = socket.data.buffer.indexOf("\n");
+            if (newline === -1) {
+              break;
+            }
+            const line = socket.data.buffer.slice(0, newline);
+            socket.data.buffer = socket.data.buffer.slice(newline + 1);
+            socket.data.handleLine(line);
+          }
+        },
+        close() {
+          for (const requestId of activeStreams.keys()) {
+            stopStream(requestId);
+          }
+        },
+      },
+    });
+    process.stdout.write(
+      `${JSON.stringify({ type: "guerillaglass.engine.ready", host: server.hostname, port: server.port })}\n`,
+    );
+    return;
+  }
 }

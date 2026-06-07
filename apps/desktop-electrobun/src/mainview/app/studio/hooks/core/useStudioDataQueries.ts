@@ -14,7 +14,7 @@ import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sourc
 import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
 import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
 import { hostBridgeEventNames } from "@shared/bridge";
-import { decodeUnknownWithSchemaSync } from "@shared/errors";
+import { validateEncodedUnknownWithSchemaSync } from "@shared/errors";
 import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
@@ -43,7 +43,7 @@ export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | nul
   }
 
   try {
-    return decodeUnknownWithSchemaSync(
+    return validateEncodedUnknownWithSchemaSync(
       captureStatusResultSchema,
       payload,
       "capture status event",

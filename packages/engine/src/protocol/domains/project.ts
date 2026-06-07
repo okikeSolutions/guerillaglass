@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Option, Schema } from "effect";
 import {
   IsoDateTime,
   NonEmptyString,
@@ -11,25 +11,26 @@ import {
   captureMetadataSchema,
   timelineDocumentSchema,
 } from "@guerillaglass/engine/protocol/shared/valueObjects";
-import { captureTelemetrySchema } from "@guerillaglass/engine/protocol/domains/capture";
+import {
+  captureTelemetrySchema,
+  type CaptureTelemetry,
+} from "@guerillaglass/engine/protocol/domains/capture";
 import { agentJobStatusSchema } from "@guerillaglass/engine/protocol/domains/agent";
 
 /** Project-level summary for the latest agent run metadata. */
 export const projectAgentAnalysisSummarySchema = Schema.Struct({
-  latestJobId: Schema.NullOr(agentJobIdSchema),
-  latestStatus: Schema.NullOr(agentJobStatusSchema),
-  qaPassed: Schema.NullOr(Schema.Boolean),
-  updatedAt: Schema.NullOr(IsoDateTime),
+  latestJobId: Schema.OptionFromNullOr(agentJobIdSchema),
+  latestStatus: Schema.OptionFromNullOr(agentJobStatusSchema),
+  qaPassed: Schema.OptionFromNullOr(Schema.Boolean),
+  updatedAt: Schema.OptionFromNullOr(IsoDateTime),
 });
 
 /** Engine protocol schema for projectStateSchema. */
 export const projectStateSchema = Schema.Struct({
-  projectPath: Schema.NullOr(projectPathSchema),
-  recordingURL: Schema.NullOr(Schema.String),
-  eventsURL: Schema.NullOr(Schema.String),
-  lastRecordingTelemetry: optionalWith(Schema.NullOr(captureTelemetrySchema), {
-    default: () => null,
-  }),
+  projectPath: Schema.OptionFromNullOr(projectPathSchema),
+  recordingURL: Schema.OptionFromNullOr(Schema.String),
+  eventsURL: Schema.OptionFromNullOr(Schema.String),
+  lastRecordingTelemetry: Schema.OptionFromOptionalNullOr(captureTelemetrySchema),
   autoZoom: autoZoomSettingsSchema,
   timeline: optionalWith(timelineDocumentSchema, {
     default: () => ({
@@ -40,10 +41,10 @@ export const projectStateSchema = Schema.Struct({
   captureMetadata: captureMetadataSchema,
   agentAnalysis: optionalWith(projectAgentAnalysisSummarySchema, {
     default: () => ({
-      latestJobId: null,
-      latestStatus: null,
-      qaPassed: null,
-      updatedAt: null,
+      latestJobId: Option.none(),
+      latestStatus: Option.none(),
+      qaPassed: Option.none(),
+      updatedAt: Option.none(),
     }),
   }),
 });
@@ -64,9 +65,12 @@ export const projectRecentsResultSchema = Schema.Struct({
 export type ProjectAgentAnalysisSummary = Schema.Schema.Type<
   typeof projectAgentAnalysisSummarySchema
 >;
-/** Type alias for ProjectState. */
-export type ProjectState = Schema.Schema.Type<typeof projectStateSchema>;
+type ProjectStateEncoded = Schema.Codec.Encoded<typeof projectStateSchema>;
+/** Type alias for ProjectState values emitted by engine clients after defaults are applied. */
+export type ProjectState = Omit<ProjectStateEncoded, "lastRecordingTelemetry"> & {
+  readonly lastRecordingTelemetry?: CaptureTelemetry | null;
+};
 /** Type alias for ProjectRecentItem. */
-export type ProjectRecentItem = Schema.Schema.Type<typeof projectRecentItemSchema>;
+export type ProjectRecentItem = Schema.Codec.Encoded<typeof projectRecentItemSchema>;
 /** Type alias for ProjectRecentsResult. */
-export type ProjectRecentsResult = Schema.Schema.Type<typeof projectRecentsResultSchema>;
+export type ProjectRecentsResult = Schema.Codec.Encoded<typeof projectRecentsResultSchema>;

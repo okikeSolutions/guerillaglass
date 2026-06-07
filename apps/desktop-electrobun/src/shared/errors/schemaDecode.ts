@@ -83,6 +83,42 @@ export function decodeUnknownWithSchemaSync<S extends Schema.Top>(
   return runEffectSync(decodeUnknownWithSchema(schema, raw, contract));
 }
 
+/** Encodes a decoded schema value into its canonical JSON/wire representation. */
+export function encodeUnknownWithSchema<S extends Schema.Top>(
+  schema: S,
+  raw: unknown,
+  contract: string,
+): Effect.Effect<MutableDeep<Schema.Codec.Encoded<S>>, ContractDecodeError> {
+  return Effect.mapError(
+    Schema.encodeUnknownEffect(Schema.toCodecJson(schema), decodeAllIssuesOptions)(raw),
+    (error) =>
+      new ContractDecodeError({
+        contract,
+        issues: extractValidationIssues(error),
+        cause: error,
+      }),
+  ) as Effect.Effect<MutableDeep<Schema.Codec.Encoded<S>>, ContractDecodeError>;
+}
+
+/** Validates an unknown JSON/wire value and returns it in canonical encoded form. */
+export function validateEncodedUnknownWithSchema<S extends Schema.Top>(
+  schema: S,
+  raw: unknown,
+  contract: string,
+): Effect.Effect<MutableDeep<Schema.Codec.Encoded<S>>, ContractDecodeError> {
+  return Effect.flatMap(decodeUnknownWithSchema(schema, raw, contract), (decoded) =>
+    encodeUnknownWithSchema(schema, decoded, contract),
+  );
+}
+
+export function validateEncodedUnknownWithSchemaSync<S extends Schema.Top>(
+  schema: S,
+  raw: unknown,
+  contract: string,
+): MutableDeep<Schema.Codec.Encoded<S>> {
+  return runEffectSync(validateEncodedUnknownWithSchema(schema, raw, contract));
+}
+
 export function decodeJsonStringWithSchemaSync<S extends Schema.Top>(
   schema: S,
   raw: string,

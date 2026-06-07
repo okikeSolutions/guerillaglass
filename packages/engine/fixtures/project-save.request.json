@@ -1,13 +1,8 @@
 {
-  "jsonrpc": "2.0",
-  "id": 3,
+  "type": "request",
+  "id": "1",
   "method": "project.save",
   "params": {
-    "projectPath": "/tmp/fixture.gglassproj",
-    "autoZoom": {
-      "isEnabled": true,
-      "intensity": 0.65,
-      "minimumKeyframeInterval": 0.2
-    }
+    "projectPath": "/tmp/fixture.gglassproj"
   }
 }

@@ -9,8 +9,9 @@ import type {
   WindowBridgeBindings,
 } from "./bridgeRpc";
 import {
-  decodeUnknownWithSchema,
   decodeUnknownWithSchemaSync,
+  encodeUnknownWithSchema,
+  validateEncodedUnknownWithSchema,
   deserializeBridgeError,
   runEffectPromise,
   serializeBridgeError,
@@ -40,7 +41,7 @@ export function createWindowBridgeBindings(
           return response.data;
         }
         return await runEffectPromise(
-          decodeUnknownWithSchema(
+          validateEncodedUnknownWithSchema(
             definition.responseSchema,
             response.data,
             `${name} bridge response`,
@@ -88,7 +89,7 @@ export function createBunBridgeHandlers(
             const data = await handler(validatedParams);
             const validatedData = definition.responseSchema
               ? await runEffectPromise(
-                  decodeUnknownWithSchema(
+                  encodeUnknownWithSchema(
                     definition.responseSchema,
                     data,
                     `${name} bridge response`,

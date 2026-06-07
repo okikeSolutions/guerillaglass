@@ -3,7 +3,7 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 import {
   EngineTransport,
   type EngineTransportService,
-} from "@guerillaglass/engine/client/EngineTransport";
+} from "@guerillaglass/engine/client/service";
 
 const testEngine: EngineTransportService = {
   "system.ping": () =>

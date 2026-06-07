@@ -56,6 +56,6 @@ export const capabilitiesResultSchema = Schema.Struct({
 });
 
 /** Type alias for PingResult. */
-export type PingResult = Schema.Schema.Type<typeof pingResultSchema>;
+export type PingResult = Schema.Codec.Encoded<typeof pingResultSchema>;
 /** Type alias for CapabilitiesResult. */
-export type CapabilitiesResult = Schema.Schema.Type<typeof capabilitiesResultSchema>;
+export type CapabilitiesResult = Schema.Codec.Encoded<typeof capabilitiesResultSchema>;

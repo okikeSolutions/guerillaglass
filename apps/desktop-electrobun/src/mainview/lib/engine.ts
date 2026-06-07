@@ -56,8 +56,8 @@ import {
   CaptureWindowPickerUnsupportedError,
   EngineResponseError,
   PathPickerError,
-  decodeUnknownWithSchema,
   decodeUnknownWithSchemaSync,
+  validateEncodedUnknownWithSchema,
   isKnownTaggedError,
   parseJsonStringSync,
   runEffectPromise,
@@ -101,9 +101,30 @@ async function invokeBridgeDecoded<
   schema: S,
   contract: string,
   ...args: unknown[]
-): Promise<MutableDeep<import("effect").Schema.Schema.Type<S>>> {
+): Promise<MutableDeep<import("effect").Schema.Codec.Encoded<S>>> {
   const raw = await invokeBridge(name, ...args);
-  return await runEffectPromise(decodeUnknownWithSchema(schema, raw, contract));
+  return await runEffectPromise(validateEncodedUnknownWithSchema(schema, raw, contract));
+}
+
+async function invokeCaptureStatus<K extends keyof WindowBridgeBindings>(
+  name: K,
+  contract: string,
+  ...args: unknown[]
+): Promise<CaptureStatusResult> {
+  return (await invokeBridgeDecoded(
+    name,
+    captureStatusResultSchema,
+    contract,
+    ...args,
+  )) as CaptureStatusResult;
+}
+
+async function invokeProjectState<K extends keyof WindowBridgeBindings>(
+  name: K,
+  contract: string,
+  ...args: unknown[]
+): Promise<ProjectState> {
+  return (await invokeBridgeDecoded(name, projectStateSchema, contract, ...args)) as ProjectState;
 }
 
 function isMacOS13WindowPickerUnsupported(error: unknown): boolean {
@@ -218,9 +239,8 @@ export const engineApi = {
     displayId?: number,
     enablePreview = true,
   ): Promise<CaptureStatusResult> {
-    return await invokeBridgeDecoded(
+    return await invokeCaptureStatus(
       "ggEngineStartDisplayCapture",
-      captureStatusResultSchema,
       "capture status result",
       enableMic,
       captureFps,
@@ -234,9 +254,8 @@ export const engineApi = {
     captureFps: CaptureFrameRate = defaultCaptureFrameRate,
     enablePreview = true,
   ): Promise<CaptureStatusResult> {
-    return await invokeBridgeDecoded(
+    return await invokeCaptureStatus(
       "ggEngineStartCurrentWindowCapture",
-      captureStatusResultSchema,
       "capture status result",
       enableMic,
       captureFps,
@@ -251,9 +270,8 @@ export const engineApi = {
     enablePreview = true,
   ): Promise<CaptureStatusResult> {
     try {
-      return await invokeBridgeDecoded(
+      return await invokeCaptureStatus(
         "ggEngineStartWindowCapture",
-        captureStatusResultSchema,
         "capture status result",
         windowId,
         enableMic,
@@ -269,36 +287,23 @@ export const engineApi = {
   },
 
   async stopCapture(): Promise<CaptureStatusResult> {
-    return await invokeBridgeDecoded(
-      "ggEngineStopCapture",
-      captureStatusResultSchema,
-      "capture status result",
-    );
+    return await invokeCaptureStatus("ggEngineStopCapture", "capture status result");
   },
 
   async startRecording(trackInputEvents: boolean): Promise<CaptureStatusResult> {
-    return await invokeBridgeDecoded(
+    return await invokeCaptureStatus(
       "ggEngineStartRecording",
-      captureStatusResultSchema,
       "capture status result",
       trackInputEvents,
     );
   },
 
   async stopRecording(): Promise<CaptureStatusResult> {
-    return await invokeBridgeDecoded(
-      "ggEngineStopRecording",
-      captureStatusResultSchema,
-      "capture status result",
-    );
+    return await invokeCaptureStatus("ggEngineStopRecording", "capture status result");
   },
 
   async captureStatus(): Promise<CaptureStatusResult> {
-    return await invokeBridgeDecoded(
-      "ggEngineCaptureStatus",
-      captureStatusResultSchema,
-      "capture status result",
-    );
+    return await invokeCaptureStatus("ggEngineCaptureStatus", "capture status result");
   },
 
   async capturePreviewFrame(): Promise<CapturePreviewFrameResult> {
@@ -342,16 +347,11 @@ export const engineApi = {
   },
 
   async projectCurrent(): Promise<ProjectState> {
-    return await invokeBridgeDecoded("ggEngineProjectCurrent", projectStateSchema, "project state");
+    return await invokeProjectState("ggEngineProjectCurrent", "project state");
   },
 
   async projectOpen(projectPath: string): Promise<ProjectState> {
-    return await invokeBridgeDecoded(
-      "ggEngineProjectOpen",
-      projectStateSchema,
-      "project state",
-      projectPath,
-    );
+    return await invokeProjectState("ggEngineProjectOpen", "project state", projectPath);
   },
 
   async projectSave(params: {
@@ -359,12 +359,7 @@ export const engineApi = {
     autoZoom?: AutoZoomSettings;
     timeline?: TimelineDocument;
   }): Promise<ProjectState> {
-    return await invokeBridgeDecoded(
-      "ggEngineProjectSave",
-      projectStateSchema,
-      "project state",
-      params,
-    );
+    return await invokeProjectState("ggEngineProjectSave", "project state", params);
   },
 
   async projectRecents(limit?: number): Promise<ProjectRecentsResult> {

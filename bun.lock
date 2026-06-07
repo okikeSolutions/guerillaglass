@@ -128,6 +128,7 @@
       "name": "@guerillaglass/engine",
       "version": "0.1.0",
       "dependencies": {
+        "@effect/platform-bun": "4.0.0-beta.78",
         "effect": "4.0.0-beta.78",
       },
       "devDependencies": {

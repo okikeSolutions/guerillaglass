@@ -21,7 +21,7 @@ export const displaySourceSchema = Schema.Struct({
   width: PositiveInt,
   height: PositiveInt,
   pixelScale: Schema.optionalKey(PositiveNumber),
-  refreshHz: Schema.NullOr(PositiveNumber),
+  refreshHz: Schema.OptionFromNullOr(PositiveNumber),
   supportedCaptureFrameRates: Schema.Array(captureFrameRateSchema),
 });
 
@@ -34,7 +34,7 @@ export const windowSourceSchema = Schema.Struct({
   height: PositiveNumber,
   isOnScreen: Schema.Boolean,
   pixelScale: Schema.optionalKey(PositiveNumber),
-  refreshHz: Schema.NullOr(PositiveNumber),
+  refreshHz: Schema.OptionFromNullOr(PositiveNumber),
   supportedCaptureFrameRates: Schema.Array(captureFrameRateSchema),
 });
 
@@ -45,6 +45,6 @@ export const sourcesResultSchema = Schema.Struct({
 });
 
 /** Type alias for CaptureFrameRate. */
-export type CaptureFrameRate = Schema.Schema.Type<typeof captureFrameRateSchema>;
+export type CaptureFrameRate = Schema.Codec.Encoded<typeof captureFrameRateSchema>;
 /** Type alias for SourcesResult. */
-export type SourcesResult = Schema.Schema.Type<typeof sourcesResultSchema>;
+export type SourcesResult = Schema.Codec.Encoded<typeof sourcesResultSchema>;

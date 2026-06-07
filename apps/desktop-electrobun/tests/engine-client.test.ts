@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { EngineTransportLive } from "@guerillaglass/engine/client/EngineTransport";
+import { EngineTransportBunLive } from "@guerillaglass/engine/client/liveBun";
 
 describe("engine client package surface", () => {
-  test("exposes Effect-native transport layer only", () => {
-    expect(EngineTransportLive).toBeDefined();
+  test("exposes Bun-backed native transport layer", () => {
+    expect(EngineTransportBunLive).toBeDefined();
   });
 });

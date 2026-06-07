@@ -1,10 +1,12 @@
 import path from "node:path";
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
+import { makeEngineTransportBunLive } from "@guerillaglass/engine/client/liveBun";
 import {
-  EngineTransport,
-  makeEngineTransportLive,
-} from "@guerillaglass/engine/client/EngineTransport";
+  outputUrlSchema,
+  projectPathSchema,
+} from "@guerillaglass/engine/protocol/schema-primitives";
 
 type EngineFixture = {
   name: string;
@@ -63,16 +65,16 @@ describe("phase-1 parity e2e", () => {
           const exportInfo = yield* engine["export.info"](undefined);
           const exportPreset = exportInfo.presets[0]!;
           const exportResult = yield* engine["export.run"]({
-            outputURL: `/tmp/${fixture.name}-e2e.mp4`,
+            outputURL: outputUrlSchema.make(`/tmp/${fixture.name}-e2e.mp4`),
             presetId: exportPreset.id,
             trimStartSeconds: 0,
             trimEndSeconds: 3,
           });
           expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
 
-          const projectPath = `/tmp/${fixture.name}.gglassproj`;
+          const projectPath = projectPathSchema.make(`/tmp/${fixture.name}.gglassproj`);
           const opened = yield* engine["project.open"]({ projectPath });
-          expect(opened.projectPath).toBe(projectPath);
+          expect(Option.getOrNull(opened.projectPath)).toBe(projectPath);
 
           const saved = yield* engine["project.save"]({
             projectPath,
@@ -88,7 +90,7 @@ describe("phase-1 parity e2e", () => {
 
           const stopped = yield* engine["capture.stop"](undefined);
           expect(stopped.isRunning).toBe(false);
-        }).pipe(Effect.provide(makeEngineTransportLive({ enginePath: fixture.path })), (effect) =>
+        }).pipe(Effect.provide(makeEngineTransportBunLive({ enginePath: fixture.path })), (effect) =>
           Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
         );
       },

@@ -24,22 +24,26 @@ const decodeAllIssuesOptions = {
 
 /** Builds an Effect Schema numeric check for values greater than or equal to a minimum. */
 export function greaterThanOrEqualTo(minimum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isGreaterThanOrEqualTo(minimum));
 }
 
 /** Builds an Effect Schema numeric check for values greater than a minimum. */
 export function greaterThan(minimum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThan(minimum));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isGreaterThan(minimum));
 }
 
 /** Builds an Effect Schema numeric check for values less than or equal to a maximum. */
 export function lessThanOrEqualTo(maximum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isLessThanOrEqualTo(maximum));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isLessThanOrEqualTo(maximum));
 }
 
 /** Builds an Effect Schema numeric check for values inside an inclusive range. */
 export function between(minimum: number, maximum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isBetween({ minimum, maximum }));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isBetween({ minimum, maximum }));
 }
 
 /** Adds a decoding default to an optional protocol field. */
@@ -52,9 +56,8 @@ export function optionalWith<S extends Schema.Top>(
 
 /** Builds a typed refinement schema with a stable protocol validation message. */
 export function refineSchema<T>(predicate: (value: T) => boolean, message: string) {
-  return Schema.check<Schema.Schema<T>>(
-    Schema.makeFilter((value: T) => (predicate(value) ? undefined : message)),
-  );
+  return <S extends Schema.Top & { readonly Type: T }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.makeFilter((value: T) => (predicate(value) ? undefined : message)));
 }
 
 /** Effectfully decodes an unknown value with all schema issues collected. */

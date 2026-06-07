@@ -4,7 +4,6 @@ import {
   NonNegativeNumber,
   PositiveNumber,
   between,
-  optionalWith,
 } from "@guerillaglass/engine/protocol/shared/helpers";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 
@@ -18,7 +17,7 @@ export const inputMonitoringStatusSchema = Schema.Literals([
 /** Auto-zoom project settings shared between renderer and native engine. */
 export const autoZoomSettingsSchema = Schema.Struct({
   isEnabled: Schema.Boolean,
-  intensity: Schema.Number.pipe(between(0, 1)),
+  intensity: Schema.Finite.pipe(between(0, 1)),
   minimumKeyframeInterval: PositiveNumber,
 });
 
@@ -29,20 +28,20 @@ const captureWindowSchema = Schema.Struct({
 });
 
 const captureContentRectSchema = Schema.Struct({
-  x: Schema.Number,
-  y: Schema.Number,
+  x: Schema.Finite,
+  y: Schema.Finite,
   width: PositiveNumber,
   height: PositiveNumber,
 });
 
 /** Optional capture metadata embedded in capture status and project state. */
-export const captureMetadataSchema = Schema.NullOr(
+export const captureMetadataSchema = Schema.OptionFromNullOr(
   Schema.Struct({
-    window: optionalWith(Schema.NullOr(captureWindowSchema), { default: () => null }),
+    window: Schema.OptionFromOptionalNullOr(captureWindowSchema),
     source: Schema.Literals(["display", "window"]),
     contentRect: captureContentRectSchema,
     pixelScale: PositiveNumber,
-    fps: Schema.optionalKey(Schema.NullOr(PositiveNumber)),
+    fps: Schema.OptionFromOptionalNullOr(PositiveNumber),
   }),
 );
 
@@ -51,8 +50,8 @@ export const inputEventSchema = Schema.Struct({
   type: Schema.Literals(["cursorMoved", "mouseDown", "mouseUp"]),
   timestamp: NonNegativeNumber,
   position: Schema.Struct({
-    x: Schema.Number,
-    y: Schema.Number,
+    x: Schema.Finite,
+    y: Schema.Finite,
   }),
   button: Schema.optionalKey(Schema.Literals(["left", "right", "other"])),
 });
@@ -94,18 +93,18 @@ export const timelineDocumentSchema = Schema.Struct({
 });
 
 /** Type alias for AutoZoomSettings. */
-export type AutoZoomSettings = Schema.Schema.Type<typeof autoZoomSettingsSchema>;
+export type AutoZoomSettings = Schema.Codec.Encoded<typeof autoZoomSettingsSchema>;
 /** Type alias for InputEvent. */
-export type InputEvent = Schema.Schema.Type<typeof inputEventSchema>;
+export type InputEvent = Schema.Codec.Encoded<typeof inputEventSchema>;
 /** Type alias for InputEventLog. */
-export type InputEventLog = Schema.Schema.Type<typeof inputEventLogSchema>;
+export type InputEventLog = Schema.Codec.Encoded<typeof inputEventLogSchema>;
 /** Type alias for TimelineClipItem. */
-export type TimelineClipItem = Schema.Schema.Type<typeof timelineClipItemSchema>;
+export type TimelineClipItem = Schema.Codec.Encoded<typeof timelineClipItemSchema>;
 /** Type alias for TimelineGapItem. */
-export type TimelineGapItem = Schema.Schema.Type<typeof timelineGapItemSchema>;
+export type TimelineGapItem = Schema.Codec.Encoded<typeof timelineGapItemSchema>;
 /** Type alias for TimelineItem. */
-export type TimelineItem = Schema.Schema.Type<typeof timelineItemSchema>;
+export type TimelineItem = Schema.Codec.Encoded<typeof timelineItemSchema>;
 /** Type alias for TimelineSegment. */
-export type TimelineSegment = Schema.Schema.Type<typeof timelineSegmentSchema>;
+export type TimelineSegment = Schema.Codec.Encoded<typeof timelineSegmentSchema>;
 /** Type alias for TimelineDocument. */
-export type TimelineDocument = Schema.Schema.Type<typeof timelineDocumentSchema>;
+export type TimelineDocument = Schema.Codec.Encoded<typeof timelineDocumentSchema>;

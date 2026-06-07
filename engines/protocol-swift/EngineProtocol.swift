@@ -88,25 +88,29 @@ public enum JSONValue: Codable, Equatable {
 
 /// Request envelope sent from the desktop shell to the native engine.
 public struct EngineRequest: Codable, Equatable {
-    public let jsonrpc: String
+    public let type: String
     public let id: String
     public let method: String
     public let params: [String: JSONValue]
 
     public init(id: String, method: String, params: [String: JSONValue]) {
-        jsonrpc = "2.0"
+        type = "request"
         self.id = id
         self.method = method
         self.params = params
     }
 
     private enum CodingKeys: String, CodingKey {
-        case jsonrpc, id, method, params
+        case type, id, method, params
+    }
+
+    public var methodKind: EngineMethod? {
+        EngineMethod(method: method)
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        jsonrpc = try container.decodeIfPresent(String.self, forKey: .jsonrpc) ?? "2.0"
+        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "request"
         if let stringId = try? container.decode(String.self, forKey: .id) {
             id = stringId
         } else if let intId = try? container.decode(Int.self, forKey: .id) {
@@ -119,59 +123,21 @@ public struct EngineRequest: Codable, Equatable {
     }
 }
 
-/// Effect RPC typed failure payload returned inside JSON-RPC error causes.
-public struct EngineRpcErrorPayload: Codable, Equatable {
-    public let tag: String
+public struct EngineError: Codable, Equatable {
     public let code: String
     public let message: String
-
-    private enum CodingKeys: String, CodingKey {
-        case tag = "_tag"
-        case code
-        case message
-    }
-}
-
-public struct EngineRpcFailCause: Codable, Equatable {
-    public let tag = "Fail"
-    public let error: EngineRpcErrorPayload
-
-    private enum CodingKeys: String, CodingKey {
-        case tag = "_tag"
-        case error
-    }
-}
-
-/// JSON-RPC error payload encoded as an Effect Cause.
-public struct EngineError: Codable, Equatable {
-    public let tag = "Cause"
-    public let code = 0
-    public let message: String
-    public let data: [EngineRpcFailCause]
-
-    private enum CodingKeys: String, CodingKey {
-        case tag = "_tag"
-        case code
-        case message
-        case data
-    }
-
-    public init(code: String, message: String) {
-        self.message = message
-        data = [EngineRpcFailCause(error: EngineRpcErrorPayload(tag: "EngineRpcError", code: code, message: message))]
-    }
 }
 
 // swiftlint:disable identifier_name
-/// Response envelope returned by the native engine using Effect JSON-RPC serialization.
+/// Response envelope returned by the native engine using the stable Guerillaglass wire protocol.
 public struct EngineResponse: Codable, Equatable {
-    public let jsonrpc: String
+    public let type: String
     public let id: String
     public let result: JSONValue?
     public let error: EngineError?
 
     public init(id: String, result: JSONValue?, error: EngineError?) {
-        jsonrpc = "2.0"
+        type = error == nil ? "response" : "error"
         self.id = id
         self.result = result
         self.error = error
@@ -183,6 +149,19 @@ public struct EngineResponse: Codable, Equatable {
 
     public static func failure(id: String, code: String, message: String) -> EngineResponse {
         EngineResponse(id: id, result: nil, error: EngineError(code: code, message: message))
+    }
+}
+
+/// Streaming chunk envelope emitted by the stable Guerillaglass wire protocol.
+public struct EngineChunkResponse: Codable, Equatable {
+    public let type: String
+    public let id: String
+    public let values: [JSONValue]
+
+    public init(id: String, values: [JSONValue]) {
+        type = "chunk"
+        self.id = id
+        self.values = values
     }
 }
 
@@ -206,6 +185,14 @@ public enum EngineLineCodec {
     }
 
     public static func encodeResponse(_ response: EngineResponse) throws -> String {
+        let data = try encoder.encode(response)
+        guard let line = String(data: data, encoding: .utf8) else {
+            throw EngineProtocolError.invalidLine
+        }
+        return line
+    }
+
+    public static func encodeChunk(_ response: EngineChunkResponse) throws -> String {
         let data = try encoder.encode(response)
         guard let line = String(data: data, encoding: .utf8) else {
             throw EngineProtocolError.invalidLine

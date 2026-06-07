@@ -6,7 +6,6 @@ import {
   PositiveInt,
   between,
   optionalWith,
-  refineSchema,
 } from "@guerillaglass/engine/protocol/shared/helpers";
 import {
   agentJobIdSchema,
@@ -48,11 +47,14 @@ export const importedTranscriptSegmentSchema = Schema.Struct({
   text: NonEmptyString,
   startSeconds: NonNegativeNumber,
   endSeconds: NonNegativeNumber,
-}).pipe(
-  refineSchema(
-    (segment: { endSeconds: number; startSeconds: number }) =>
-      segment.endSeconds > segment.startSeconds,
-    "Imported transcript segment endSeconds must be greater than startSeconds.",
+}).check(
+  Schema.makeFilter((segment) =>
+    segment.endSeconds > segment.startSeconds
+      ? undefined
+      : {
+          path: ["endSeconds"],
+          issue: "Imported transcript segment endSeconds must be greater than startSeconds.",
+        },
   ),
 );
 
@@ -61,10 +63,14 @@ export const importedTranscriptWordSchema = Schema.Struct({
   word: NonEmptyString,
   startSeconds: NonNegativeNumber,
   endSeconds: NonNegativeNumber,
-}).pipe(
-  refineSchema(
-    (word: { endSeconds: number; startSeconds: number }) => word.endSeconds > word.startSeconds,
-    "Imported transcript word endSeconds must be greater than startSeconds.",
+}).check(
+  Schema.makeFilter((word) =>
+    word.endSeconds > word.startSeconds
+      ? undefined
+      : {
+          path: ["endSeconds"],
+          issue: "Imported transcript word endSeconds must be greater than startSeconds.",
+        },
   ),
 );
 
@@ -76,11 +82,20 @@ export const importedTranscriptSchema = Schema.Struct({
   words: optionalWith(Schema.Array(importedTranscriptWordSchema), {
     default: () => [],
   }),
-}).pipe(
-  refineSchema(
-    (transcript: { segments: ReadonlyArray<unknown>; words: ReadonlyArray<unknown> }) =>
-      transcript.segments.length > 0 || transcript.words.length > 0,
-    "Imported transcript must contain at least one segment or one word entry.",
+}).check(
+  Schema.makeFilter((transcript) =>
+    transcript.segments.length > 0 || transcript.words.length > 0
+      ? undefined
+      : [
+          {
+            path: ["segments"],
+            issue: "Imported transcript must contain at least one segment or one word entry.",
+          },
+          {
+            path: ["words"],
+            issue: "Imported transcript must contain at least one segment or one word entry.",
+          },
+        ],
   ),
 );
 
@@ -119,7 +134,7 @@ const agentBeatSchema = Schema.Literals(["hook", "action", "payoff", "takeaway"]
 /** Narrative QA gate report produced by `agent.run`. */
 export const agentQAReportSchema = Schema.Struct({
   passed: Schema.Boolean,
-  score: Schema.Number.pipe(between(0, 1)),
+  score: Schema.Finite.pipe(between(0, 1)),
   coverage: Schema.Struct({
     hook: Schema.Boolean,
     action: Schema.Boolean,
@@ -134,8 +149,8 @@ export const agentRunSummarySchema = Schema.Struct({
   jobId: agentJobIdSchema,
   status: agentJobStatusSchema,
   runtimeBudgetMinutes: PositiveInt,
-  qaReport: Schema.NullOr(agentQAReportSchema),
-  blockingReason: Schema.NullOr(agentRunBlockingReasonSchema),
+  qaReport: Schema.OptionFromNullOr(agentQAReportSchema),
+  blockingReason: Schema.OptionFromNullOr(agentRunBlockingReasonSchema),
   updatedAt: IsoDateTime,
 });
 
@@ -145,7 +160,7 @@ export const agentPreflightResultSchema = Schema.Struct({
   blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema),
   canApplyDestructive: Schema.Boolean,
   transcriptionProvider: transcriptionProviderSchema,
-  preflightToken: Schema.NullOr(agentPreflightTokenSchema),
+  preflightToken: Schema.OptionFromNullOr(agentPreflightTokenSchema),
 });
 
 /** Result payload for `agent.run`. */
@@ -158,32 +173,32 @@ export const agentRunResultSchema = Schema.Struct({
 export const agentStatusResultSchema = agentRunSummarySchema;
 
 /** Type alias for AgentJobStatus. */
-export type AgentJobStatus = Schema.Schema.Type<typeof agentJobStatusSchema>;
+export type AgentJobStatus = Schema.Codec.Encoded<typeof agentJobStatusSchema>;
 /** Type alias for AgentArtifactKind. */
-export type AgentArtifactKind = Schema.Schema.Type<typeof agentArtifactKindSchema>;
+export type AgentArtifactKind = Schema.Codec.Encoded<typeof agentArtifactKindSchema>;
 /** Type alias for AgentArtifact. */
-export type AgentArtifact = Schema.Schema.Type<typeof agentArtifactSchema>;
+export type AgentArtifact = Schema.Codec.Encoded<typeof agentArtifactSchema>;
 /** Type alias for TranscriptionProvider. */
-export type TranscriptionProvider = Schema.Schema.Type<typeof transcriptionProviderSchema>;
+export type TranscriptionProvider = Schema.Codec.Encoded<typeof transcriptionProviderSchema>;
 /** Type alias for ImportedTranscriptSegment. */
-export type ImportedTranscriptSegment = Schema.Schema.Type<typeof importedTranscriptSegmentSchema>;
+export type ImportedTranscriptSegment = Schema.Codec.Encoded<typeof importedTranscriptSegmentSchema>;
 /** Type alias for ImportedTranscriptWord. */
-export type ImportedTranscriptWord = Schema.Schema.Type<typeof importedTranscriptWordSchema>;
+export type ImportedTranscriptWord = Schema.Codec.Encoded<typeof importedTranscriptWordSchema>;
 /** Type alias for ImportedTranscript. */
-export type ImportedTranscript = Schema.Schema.Type<typeof importedTranscriptSchema>;
+export type ImportedTranscript = Schema.Codec.Encoded<typeof importedTranscriptSchema>;
 /** Type alias for AgentPreflightBlockingReason. */
 export type AgentPreflightBlockingReason = Schema.Schema.Type<
   typeof agentPreflightBlockingReasonSchema
 >;
 /** Type alias for AgentRunBlockingReason. */
-export type AgentRunBlockingReason = Schema.Schema.Type<typeof agentRunBlockingReasonSchema>;
+export type AgentRunBlockingReason = Schema.Codec.Encoded<typeof agentRunBlockingReasonSchema>;
 /** Type alias for AgentQAReport. */
-export type AgentQAReport = Schema.Schema.Type<typeof agentQAReportSchema>;
+export type AgentQAReport = Schema.Codec.Encoded<typeof agentQAReportSchema>;
 /** Type alias for AgentRunSummary. */
-export type AgentRunSummary = Schema.Schema.Type<typeof agentRunSummarySchema>;
+export type AgentRunSummary = Schema.Codec.Encoded<typeof agentRunSummarySchema>;
 /** Type alias for AgentPreflightResult. */
-export type AgentPreflightResult = Schema.Schema.Type<typeof agentPreflightResultSchema>;
+export type AgentPreflightResult = Schema.Codec.Encoded<typeof agentPreflightResultSchema>;
 /** Type alias for AgentRunResult. */
-export type AgentRunResult = Schema.Schema.Type<typeof agentRunResultSchema>;
+export type AgentRunResult = Schema.Codec.Encoded<typeof agentRunResultSchema>;
 /** Type alias for AgentStatusResult. */
-export type AgentStatusResult = Schema.Schema.Type<typeof agentStatusResultSchema>;
+export type AgentStatusResult = Schema.Codec.Encoded<typeof agentStatusResultSchema>;

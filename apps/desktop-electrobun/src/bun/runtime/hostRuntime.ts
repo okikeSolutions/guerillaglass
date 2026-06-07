@@ -1,11 +1,15 @@
-import { type CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
-import { Cause, Context, Effect, Exit, Layer, ManagedRuntime, Option, Stream } from "effect";
+import {
+  captureStatusResultSchema,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine/protocol/domains/capture";
+import { Cause, Context, Effect, Exit, Layer, ManagedRuntime, Option, Schema, Stream } from "effect";
+import { Socket } from "effect/unstable/socket";
 import { EngineClientError, messageFromUnknownError } from "../../shared/errors";
 import {
   EngineTransport,
-  EngineTransportLive,
   type EngineTransportError,
-} from "@guerillaglass/engine/client/EngineTransport";
+} from "@guerillaglass/engine/client/service";
+import { EngineTransportBunLive } from "@guerillaglass/engine/client/liveBun";
 import { MediaSourceService, MediaSourceServiceLive } from "../media/service";
 import { ReviewGateway, ReviewGatewayLive } from "../review/service";
 
@@ -29,7 +33,7 @@ export type HostRuntimeServices =
   | MediaSourceService
   | HostCaptureStatusSink;
 /** Failures that can occur while constructing the Bun host runtime. */
-export type HostRuntimeError = EngineClientError | EngineTransportError;
+export type HostRuntimeError = EngineClientError | EngineTransportError | Socket.SocketError;
 
 /** Service tag for pushing capture status events from the runtime back to the app shell. */
 export class HostCaptureStatusSink extends Context.Service<
@@ -80,16 +84,20 @@ export function makeCaptureStatusStreamEffect(
     const sink = yield* HostCaptureStatusSink;
 
     const statusStream = transport["capture.statusStream"](undefined) as Stream.Stream<
-      CaptureStatusResult,
+      Schema.Schema.Type<typeof captureStatusResultSchema>,
       unknown,
       never
     >;
 
-    yield* Stream.runForEach(statusStream, (captureStatus: CaptureStatusResult) =>
+    yield* Stream.runForEach(statusStream, (captureStatus) =>
       Effect.exit(
-        Effect.sync(() => {
-          sink.sendCaptureStatus(captureStatus);
-        }),
+        Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(captureStatus).pipe(
+          Effect.flatMap((encodedCaptureStatus) =>
+            Effect.sync(() => {
+              sink.sendCaptureStatus(encodedCaptureStatus as CaptureStatusResult);
+            }),
+          ),
+        ),
       ).pipe(
         Effect.flatMap((sendResult) => {
           if (Exit.isSuccess(sendResult)) {
@@ -130,8 +138,10 @@ function makeCaptureStatusStreamLayer(
 
 /** Composes the live host layer used by the managed Bun runtime. */
 export function makeHostLive(options: HostRuntimeOptions) {
+  const engineTransportLayer = options.engineTransportLayer ?? EngineTransportBunLive;
+
   const servicesLayer = Layer.mergeAll(
-    options.engineTransportLayer ?? EngineTransportLive,
+    engineTransportLayer,
     options.reviewGatewayLayer ?? ReviewGatewayLive,
     options.mediaSourceServiceLayer ?? MediaSourceServiceLive,
     Layer.succeed(HostCaptureStatusSink, {

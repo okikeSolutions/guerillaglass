@@ -6,7 +6,7 @@ import Electrobun, {
   Updater,
   Utils,
 } from "electrobun/bun";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
@@ -30,8 +30,11 @@ import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
 import { readAllowedTextFile } from "../security/fileAccess";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
-import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
-import type { ProjectState } from "@guerillaglass/engine/protocol/domains/project";
+import { EngineTransport } from "@guerillaglass/engine/client/service";
+import {
+  projectStateSchema,
+  type ProjectState,
+} from "@guerillaglass/engine/protocol/domains/project";
 import { pickPathForMode } from "../path/picker";
 import type { HostPathPickerMode } from "../../shared/bridge";
 import { createHostRuntime, type HostRuntime } from "../runtime/hostRuntime";
@@ -259,11 +262,9 @@ async function bootstrapApp() {
           Effect.flatMap(
             EngineTransport,
             (transport) =>
-              transport["project.current"](undefined) as Effect.Effect<
-                ProjectState,
-                unknown,
-                never
-              >,
+              transport["project.current"](undefined).pipe(
+                Effect.flatMap(Schema.encodeUnknownEffect(Schema.toCodecJson(projectStateSchema))),
+              ) as Effect.Effect<ProjectState, unknown, never>,
           ),
         );
         currentProjectPath = initialProject.projectPath;
