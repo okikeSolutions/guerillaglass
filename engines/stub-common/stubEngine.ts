@@ -10,32 +10,37 @@ type Json =
   | { [key: string]: Json };
 
 type Request = {
-  id: string;
+  jsonrpc: "2.0";
+  id: string | number;
   method: string;
   params?: Record<string, Json>;
 };
 
+type EngineErrorCode =
+  | "invalid_request"
+  | "invalid_params"
+  | "unsupported_method"
+  | "permission_denied"
+  | "needs_confirmation"
+  | "qa_failed"
+  | "missing_local_model"
+  | "invalid_cut_plan"
+  | "runtime_error";
+
 type Response =
   | {
-      id: string;
-      ok: true;
+      jsonrpc: "2.0";
+      id: string | number;
       result: Json;
     }
   | {
-      id: string;
-      ok: false;
+      jsonrpc: "2.0";
+      id: string | number;
       error: {
-        code:
-          | "invalid_request"
-          | "invalid_params"
-          | "unsupported_method"
-          | "permission_denied"
-          | "needs_confirmation"
-          | "qa_failed"
-          | "missing_local_model"
-          | "invalid_cut_plan"
-          | "runtime_error";
+        _tag: "Cause";
+        code: number;
         message: string;
+        data: [{ _tag: "Fail"; error: { _tag: "EngineRpcError"; code: EngineErrorCode; message: string } }];
       };
     };
 
@@ -436,19 +441,20 @@ function recordRecentProject(projectPath: string): void {
   ].slice(0, 20);
 }
 
-function success(id: string, result: Json): Response {
-  return { id, ok: true, result };
+function success(id: string | number, result: Json): Response {
+  return { jsonrpc: "2.0", id, result };
 }
 
-function failure(
-  id: string,
-  code: Response extends { ok: false; error: { code: infer C } } ? C : never,
-  message: string,
-): Response {
+function failure(id: string | number, code: EngineErrorCode, message: string): Response {
   return {
+    jsonrpc: "2.0",
     id,
-    ok: false,
-    error: { code, message },
+    error: {
+      _tag: "Cause",
+      code: 0,
+      message,
+      data: [{ _tag: "Fail", error: { _tag: "EngineRpcError", code, message } }],
+    },
   };
 }
 
@@ -921,10 +927,10 @@ export function runStubEngine(platform: string): void {
       parsed === null ||
       !("id" in parsed) ||
       !("method" in parsed) ||
-      typeof (parsed as { id?: unknown }).id !== "string" ||
+      !["string", "number"].includes(typeof (parsed as { id?: unknown }).id) ||
       typeof (parsed as { method?: unknown }).method !== "string"
     ) {
-      writeResponse(failure("unknown", "invalid_request", "Malformed request envelope"));
+      writeResponse(failure("unknown", "invalid_request", "Malformed JSON-RPC request envelope"));
       return;
     }
 

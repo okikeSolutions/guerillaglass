@@ -11,21 +11,22 @@
     "build": "vite build && electrobun build",
     "build:prod": "vite build && electrobun build --channel prod",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test",
+    "test": "bun run test:bun && bun run test:vitest",
     "test:coverage": "bun test --coverage",
     "test:ui": "playwright test -c playwright.config.ts",
     "test:ui:headed": "playwright test -c playwright.config.ts --headed",
     "test:ui:install": "playwright install chromium",
-    "start": "bun run dev"
+    "start": "bun run dev",
+    "test:bun": "bun test",
+    "test:vitest": "vitest -c vitest.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@effect/platform-bun": "4.0.0-beta.78",
     "@fontsource-variable/inter": "^5.2.8",
-    "@guerillaglass/engine-protocol": "workspace:*",
+    "@guerillaglass/engine": "workspace:*",
     "@guerillaglass/localization": "workspace:*",
     "@guerillaglass/review-protocol": "workspace:*",
-    "@guerillaglass/schema-primitives": "workspace:*",
     "@guerillaglass/ui": "workspace:*",
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/react-form": "^1.33.0",
@@ -53,6 +54,7 @@
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "@effect/vitest": "4.0.0-beta.78",
     "@playwright/test": "^1.60.0",
     "@types/bun": "latest",
     "@types/node": "^25.9.2",
@@ -64,6 +66,7 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
   }
 }

@@ -1,6 +1,6 @@
 {
-  "id": "fixture-project-recents",
-  "ok": true,
+  "jsonrpc": "2.0",
+  "id": 2,
   "result": {
     "items": [
       {

@@ -1,9 +1,9 @@
 import { Effect } from "effect";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { isoDateTimeSchema } from "@guerillaglass/schema-primitives";
+import { isoDateTimeSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 import { createBunBridgeHandlers } from "../../shared/bridge";
 import type { BunBridgeRequestHandlerMap, HostPathPickerMode } from "../../shared/bridge";
-import { EngineTransport } from "../engine/service";
+import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
 import { MediaSourceService } from "../media/service";
 import { ReviewGateway } from "../review/service";
 import type { HostRuntime, HostRuntimeServices } from "../runtime/hostRuntime";
@@ -30,94 +30,113 @@ export function createEngineBridgeHandlers({
   setCurrentProjectPath,
   emitReviewEvent,
 }: BridgeHandlerDependencies): BunBridgeRequestHandlerMap {
-  const run = <A, E, R extends HostRuntimeServices>(effect: Effect.Effect<A, E, R>) =>
-    runtime.runPromise(effect);
+  const run = (effect: Effect.Effect<unknown, unknown, unknown>): Promise<any> =>
+    runtime.runPromise(effect as Effect.Effect<unknown, unknown, HostRuntimeServices>);
 
   return createBunBridgeHandlers({
-    ggEnginePing: async () => run(Effect.flatMap(EngineTransport, (transport) => transport.ping)),
+    ggEnginePing: async () =>
+      run(Effect.flatMap(EngineTransport, (transport) => transport["system.ping"](undefined))),
     ggEngineGetPermissions: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.getPermissions)),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["permissions.get"](undefined))),
     ggEngineAgentPreflight: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.agentPreflight(params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.preflight"](params))),
     ggEngineAgentRun: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.agentRun(params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.run"](params))),
     ggEngineAgentStatus: async ({ jobId }) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.agentStatus(jobId))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.status"]({ jobId }))),
     ggEngineAgentApply: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.agentApply(params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["agent.apply"](params))),
     ggEngineRequestScreenRecordingPermission: async () =>
       run(
-        Effect.flatMap(EngineTransport, (transport) => transport.requestScreenRecordingPermission),
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["permissions.requestScreenRecording"](undefined),
+        ),
       ),
     ggEngineRequestMicrophonePermission: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.requestMicrophonePermission)),
+      run(
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["permissions.requestMicrophone"](undefined),
+        ),
+      ),
     ggEngineRequestInputMonitoringPermission: async () =>
       run(
-        Effect.flatMap(EngineTransport, (transport) => transport.requestInputMonitoringPermission),
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["permissions.requestInputMonitoring"](undefined),
+        ),
       ),
     ggEngineOpenInputMonitoringSettings: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.openInputMonitoringSettings)),
+      run(
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["permissions.openInputMonitoringSettings"](undefined),
+        ),
+      ),
     ggEngineListSources: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.listSources)),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["sources.list"](undefined))),
     ggEngineStartDisplayCapture: async ({ displayId, enableMic, enablePreview, captureFps }) =>
       run(
         Effect.flatMap(EngineTransport, (transport) =>
-          transport.startDisplayCapture(enableMic, captureFps, displayId, enablePreview),
+          transport["capture.startDisplay"]({ displayId, enableMic, enablePreview, captureFps }),
         ),
       ),
     ggEngineStartCurrentWindowCapture: async ({ enableMic, enablePreview, captureFps }) =>
       run(
         Effect.flatMap(EngineTransport, (transport) =>
-          transport.startCurrentWindowCapture(enableMic, captureFps, enablePreview),
+          transport["capture.startCurrentWindow"]({ enableMic, enablePreview, captureFps }),
         ),
       ),
     ggEngineStartWindowCapture: async ({ windowId, enableMic, enablePreview, captureFps }) =>
       run(
         Effect.flatMap(EngineTransport, (transport) =>
-          transport.startWindowCapture(windowId, enableMic, captureFps, enablePreview),
+          transport["capture.startWindow"]({ windowId, enableMic, enablePreview, captureFps }),
         ),
       ),
     ggEngineStopCapture: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.stopCapture)),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["capture.stop"](undefined))),
     ggEngineStartRecording: async ({ trackInputEvents }) =>
       run(
-        Effect.flatMap(EngineTransport, (transport) => transport.startRecording(trackInputEvents)),
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["recording.start"]({ trackInputEvents }),
+        ),
       ),
     ggEngineStopRecording: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.stopRecording)),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["recording.stop"](undefined))),
     ggEngineCaptureStatus: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.captureStatus)),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["capture.status"](undefined))),
     ggEngineCapturePreviewFrame: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.capturePreviewFrame)),
+      run(
+        Effect.flatMap(EngineTransport, (transport) =>
+          transport["capture.previewFrame"](undefined),
+        ),
+      ),
     ggEngineExportInfo: async () =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.exportInfo)),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.info"](undefined))),
     ggEngineRunExport: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.runExport(params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.run"](params))),
     ggEngineRunCutPlanExport: async (params) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.runCutPlanExport(params))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["export.runCutPlan"](params))),
     ggEngineProjectCurrent: async () => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) => transport.projectCurrent),
+        Effect.flatMap(EngineTransport, (transport) => transport["project.current"](undefined)),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectOpen: async ({ projectPath }) => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) => transport.projectOpen(projectPath)),
+        Effect.flatMap(EngineTransport, (transport) => transport["project.open"]({ projectPath })),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectSave: async (params) => {
       const projectState = await run(
-        Effect.flatMap(EngineTransport, (transport) => transport.projectSave(params)),
+        Effect.flatMap(EngineTransport, (transport) => transport["project.save"](params)),
       );
       setCurrentProjectPath(projectState.projectPath);
       return projectState;
     },
     ggEngineProjectRecents: async ({ limit }) =>
-      run(Effect.flatMap(EngineTransport, (transport) => transport.projectRecents(limit))),
+      run(Effect.flatMap(EngineTransport, (transport) => transport["project.recents"]({ limit }))),
     ggReviewSessionSnapshot: async ({ authToken, reviewId }) =>
       run(
         Effect.flatMap(ReviewGateway, (reviewGateway) =>
@@ -171,7 +190,11 @@ export function createEngineBridgeHandlers({
       run(
         Effect.flatMap(MediaSourceService, (mediaSourceService) =>
           mediaSourceService.resolveCapturePreviewURL(() =>
-            run(Effect.flatMap(EngineTransport, (transport) => transport.capturePreviewFrame)),
+            run(
+              Effect.flatMap(EngineTransport, (transport) =>
+                transport["capture.previewFrame"](undefined),
+              ),
+            ),
           ),
         ),
       ),

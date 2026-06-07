@@ -1,5 +1,6 @@
 {
-  "id": "fixture-project-save",
+  "jsonrpc": "2.0",
+  "id": 3,
   "method": "project.save",
   "params": {
     "projectPath": "/tmp/fixture.gglassproj",

@@ -145,7 +145,7 @@ Exports should keep protocol and runtime entry points explicit:
 }
 ```
 
-This replaces the current split between `packages/engine-protocol`, `packages/schema-primitives`, and desktop-local `src/bun/engine/*` code.
+This consolidates the previous protocol, schema primitive, and desktop-local engine client split into one TypeScript engine package.
 
 Native sidecars remain in `engines/`; `packages/engine` is the TypeScript Effect-native client/protocol package that talks to those sidecars.
 
@@ -195,7 +195,7 @@ This migration is a breaking architecture change. When it lands, all versioned w
 Version-alignment rules:
 
 - `packages/engine`, `packages/ui`, future `packages/review`, and versioned apps should share the release semver.
-- Package rename/removal changes such as `engine-protocol` -> `engine` are breaking changes and need changelog/release notes.
+- Package rename/removal changes are breaking changes and need changelog/release notes.
 - Internal/private packages still need version consistency if they are published, packaged, or used in release metadata.
 - Do not change versions opportunistically during exploratory refactors; update versions as part of the approved breaking migration landing plan.
 
@@ -668,8 +668,8 @@ Most backend tests should run without Electrobun by providing test layers for `D
 
 - Create `packages/engine`.
 - Move engine protocol and schema primitives into `packages/engine/src/protocol`.
-- Move or wrap current desktop engine client behind package-local `EngineService` facade.
-- Update imports from `@guerillaglass/engine-protocol` to `@guerillaglass/engine/protocol` or package exports.
+- Move the desktop engine client behind the package-local `EngineService` facade.
+- Update desktop and package imports to use `@guerillaglass/engine`, `@guerillaglass/engine/client`, or `@guerillaglass/engine/protocol`.
 
 ### Phase 2 — Establish composition root
 

@@ -1,4 +1,4 @@
-import type { CaptureTelemetry } from "@guerillaglass/engine-protocol";
+import type { CaptureTelemetry } from "@guerillaglass/engine/protocol/domains/capture";
 
 export type TechnicalFeedbackTelemetrySource = {
   activeMode: "capture" | "edit" | "deliver";

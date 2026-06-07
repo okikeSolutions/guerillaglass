@@ -1,6 +1,10 @@
 import path from "node:path";
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
-import { createEngineClientPromiseFacade, EngineClient } from "../src/bun/engine/client";
+import { Effect } from "effect";
+import {
+  EngineTransport,
+  makeEngineTransportLive,
+} from "@guerillaglass/engine/client/EngineTransport";
 
 type EngineFixture = {
   name: string;
@@ -27,7 +31,6 @@ const fixtures: EngineFixture[] = [
   },
 ];
 
-// GitHub's Windows runners can take longer than Bun's 5s default for stub-backed integration flows.
 setDefaultTimeout(15_000);
 
 describe("phase-1 parity e2e", () => {
@@ -35,31 +38,31 @@ describe("phase-1 parity e2e", () => {
     test(
       `runs capture->record->export->project flow (${fixture.name})`,
       async () => {
-        const client = createEngineClientPromiseFacade(new EngineClient(fixture.path, 2000));
-        try {
-          const ping = await client.ping();
+        await Effect.gen(function* () {
+          const engine = yield* EngineTransport;
+          const ping = yield* engine["system.ping"](undefined);
           expect(ping.platform).toBe(fixture.expectedPlatform);
 
-          const capabilities = await client.capabilities();
+          const capabilities = yield* engine["engine.capabilities"](undefined);
           expect(capabilities.platform).toBe(fixture.expectedPlatform);
 
-          const sources = await client.listSources();
+          const sources = yield* engine["sources.list"](undefined);
           expect(sources.displays.length).toBeGreaterThan(0);
           expect(sources.displays[0]?.pixelScale).toBe(1);
           expect(sources.windows[0]?.pixelScale).toBe(1);
 
-          await client.startDisplayCapture(true);
-          await client.startRecording(true);
-          const afterStart = await client.captureStatus();
+          yield* engine["capture.startDisplay"]({ enableMic: true });
+          yield* engine["recording.start"]({ trackInputEvents: true });
+          const afterStart = yield* engine["capture.status"](undefined);
           expect(afterStart.isRunning).toBe(true);
           expect(afterStart.isRecording).toBe(true);
 
-          const afterStop = await client.stopRecording();
+          const afterStop = yield* engine["recording.stop"](undefined);
           expect(afterStop.isRecording).toBe(false);
 
-          const exportInfo = await client.exportInfo();
+          const exportInfo = yield* engine["export.info"](undefined);
           const exportPreset = exportInfo.presets[0]!;
-          const exportResult = await client.runExport({
+          const exportResult = yield* engine["export.run"]({
             outputURL: `/tmp/${fixture.name}-e2e.mp4`,
             presetId: exportPreset.id,
             trimStartSeconds: 0,
@@ -68,10 +71,10 @@ describe("phase-1 parity e2e", () => {
           expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
 
           const projectPath = `/tmp/${fixture.name}.gglassproj`;
-          const opened = await client.projectOpen(projectPath);
+          const opened = yield* engine["project.open"]({ projectPath });
           expect(opened.projectPath).toBe(projectPath);
 
-          const saved = await client.projectSave({
+          const saved = yield* engine["project.save"]({
             projectPath,
             autoZoom: {
               isEnabled: true,
@@ -80,14 +83,14 @@ describe("phase-1 parity e2e", () => {
             },
           });
           expect(saved.autoZoom.intensity).toBe(0.6);
-          const recents = await client.projectRecents(5);
+          const recents = yield* engine["project.recents"]({ limit: 5 });
           expect(recents.items[0]?.projectPath).toBe(projectPath);
 
-          const stopped = await client.stopCapture();
+          const stopped = yield* engine["capture.stop"](undefined);
           expect(stopped.isRunning).toBe(false);
-        } finally {
-          await client.stop();
-        }
+        }).pipe(Effect.provide(makeEngineTransportLive({ enginePath: fixture.path })), (effect) =>
+          Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
+        );
       },
       { timeout: 15_000 },
     );

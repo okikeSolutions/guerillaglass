@@ -2,31 +2,42 @@ import {
   agentPreflightResultSchema,
   agentRunResultSchema,
   agentStatusResultSchema,
-  actionResultSchema,
+} from "@guerillaglass/engine/protocol/domains/agent";
+import {
   capturePreviewFrameResultSchema,
   captureStatusResultSchema,
-  defaultCaptureFrameRate,
+  type CapturePreviewFrameResult,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine/protocol/domains/capture";
+import {
   exportInfoResultSchema,
   exportRunCutPlanResultSchema,
   exportRunResultSchema,
-  inputEventLogSchema,
+} from "@guerillaglass/engine/protocol/domains/export";
+import {
+  actionResultSchema,
   permissionsResultSchema,
-  pingResultSchema,
+  type PermissionsResult,
+} from "@guerillaglass/engine/protocol/domains/permissions";
+import {
   projectRecentsResultSchema,
   projectStateSchema,
-  sourcesResultSchema,
-  type TimelineDocument,
-  type AutoZoomSettings,
-  type CaptureFrameRate,
-  type CapturePreviewFrameResult,
-  type CaptureStatusResult,
-  type InputEvent,
-  type PermissionsResult,
-  type PingResult,
   type ProjectRecentsResult,
   type ProjectState,
+} from "@guerillaglass/engine/protocol/domains/project";
+import {
+  defaultCaptureFrameRate,
+  sourcesResultSchema,
+  type CaptureFrameRate,
   type SourcesResult,
-} from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/domains/sources";
+import { pingResultSchema, type PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import {
+  inputEventLogSchema,
+  type AutoZoomSettings,
+  type InputEvent,
+  type TimelineDocument,
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 import type {
   HostMenuState,
   HostPathPickerMode,

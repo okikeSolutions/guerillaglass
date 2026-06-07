@@ -1210,7 +1210,8 @@ mod tests {
 
     fn request(id: &str, method: &str, params: Value) -> EngineRequest {
         EngineRequest {
-            id: id.to_string(),
+            jsonrpc: "2.0".to_string(),
+            id: id.to_string().into(),
             method: method.to_string(),
             params,
         }
@@ -1306,7 +1307,7 @@ mod tests {
                 panic!("expected error response, got success: {:?}", success.result)
             }
             EngineResponse::Error(error) => {
-                assert_eq!(error.error.code, code);
+                assert_eq!(error.error.data[0].error.code, code);
                 error.error.message
             }
         }

@@ -1,20 +1,37 @@
 import { Data, type Types } from "effect";
+import {
+  ContractDecodeError,
+  EngineClientError,
+  EngineOperationError,
+  EngineRequestValidationError,
+  EngineResponseError,
+  JsonParseError,
+  messageFromUnknownError,
+  type EngineClientErrorCode,
+} from "@guerillaglass/engine/client/errors/clientErrors";
 
 export type MutableDeep<T> = Types.DeepMutable<T>;
 
 export type ValidationIssue = {
-  path: Array<string | number>;
-  message: string;
+  readonly path: ReadonlyArray<string | number>;
+  readonly message: string;
 };
 
-export type EngineClientErrorCode =
-  | "ENGINE_CLIENT_STOPPED"
-  | "ENGINE_PROCESS_UNAVAILABLE"
-  | "ENGINE_REQUEST_TIMEOUT"
-  | "ENGINE_STDIO_WRITE_FAILED"
-  | "ENGINE_PROCESS_EXITED"
-  | "ENGINE_PROCESS_FAILED"
-  | "ENGINE_RESTART_CIRCUIT_OPEN";
+export function formatValidationIssue(issue: ValidationIssue, fallbackPath = "payload"): string {
+  const path = issue.path.length > 0 ? issue.path.join(".") : fallbackPath;
+  return `${path}: ${issue.message}`;
+}
+
+export {
+  ContractDecodeError,
+  EngineClientError,
+  EngineOperationError,
+  EngineRequestValidationError,
+  EngineResponseError,
+  JsonParseError,
+  messageFromUnknownError,
+  type EngineClientErrorCode,
+};
 
 export type FileAccessPolicyErrorCode =
   | "FILE_PATH_REQUIRED"
@@ -89,66 +106,6 @@ export class BridgeInvocationError extends Data.TaggedError("BridgeInvocationErr
   }
 }
 
-export class ContractDecodeError extends Data.TaggedError("ContractDecodeError")<{
-  contract: string;
-  issues: ReadonlyArray<ValidationIssue>;
-  cause: unknown;
-}> {
-  get message(): string {
-    if (this.issues.length === 0) {
-      return `Invalid ${this.contract} payload.`;
-    }
-    const details = this.issues
-      .slice(0, 3)
-      .map((issue) => formatValidationIssue(issue, this.contract))
-      .join("; ");
-    return `Invalid ${this.contract} payload (${details}).`;
-  }
-}
-
-export class EngineRequestValidationError extends Data.TaggedError("EngineRequestValidationError")<{
-  method: string;
-  issues: ReadonlyArray<ValidationIssue>;
-  hint: string;
-  cause?: unknown;
-}> {
-  get message(): string {
-    const details = this.issues
-      .slice(0, 3)
-      .map((issue) => formatValidationIssue(issue))
-      .join("; ");
-    return `invalid_params: ${this.method} request validation failed (${details}). ${this.hint}`;
-  }
-}
-
-export class EngineResponseError extends Data.TaggedError("EngineResponseError")<{
-  code: string;
-  description: string;
-}> {
-  get message(): string {
-    return `${this.code}: ${this.description}`;
-  }
-}
-
-export class EngineClientError extends Data.TaggedError("EngineClientError")<{
-  code: EngineClientErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
-  get message(): string {
-    return this.description;
-  }
-}
-
-export class EngineOperationError extends Data.TaggedError("EngineOperationError")<{
-  operation: string;
-  description: string;
-}> {
-  get message(): string {
-    return this.description;
-  }
-}
-
 export class StudioActionError extends Data.TaggedError("StudioActionError")<{
   reason: StudioActionReason;
 }> {
@@ -207,15 +164,6 @@ export class ReviewBridgeError extends Data.TaggedError("ReviewBridgeError")<{
   }
 }
 
-export class JsonParseError extends Data.TaggedError("JsonParseError")<{
-  source: string;
-  cause?: unknown;
-}> {
-  get message(): string {
-    return `Invalid ${this.source} JSON.`;
-  }
-}
-
 export class StudioContextUnavailableError extends Data.TaggedError(
   "StudioContextUnavailableError",
 )<{ readonly _unused?: never }> {
@@ -271,16 +219,4 @@ export function isKnownTaggedError(error: unknown): error is KnownTaggedError {
     error instanceof StudioContextUnavailableError ||
     error instanceof CaptureWindowPickerUnsupportedError
   );
-}
-
-export function formatValidationIssue(issue: ValidationIssue, root = "params"): string {
-  const path = issue.path.length > 0 ? issue.path.join(".") : root;
-  return `${path}: ${issue.message}`;
-}
-
-export function messageFromUnknownError(error: unknown, fallbackMessage: string): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-  return fallbackMessage;
 }

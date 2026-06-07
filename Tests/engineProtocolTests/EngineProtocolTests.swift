@@ -4,7 +4,7 @@ import Testing
 struct EngineProtocolTests {
     @Test
     func decodesAndEncodesRoundTrip() throws {
-        let line = #"{"id":"1","method":"system.ping","params":{}}"#
+        let line = #"{"jsonrpc":"2.0","id":1,"method":"system.ping","params":{}}"#
 
         let request = try EngineLineCodec.decodeRequest(from: line)
         #expect(request.method == "system.ping")
@@ -17,7 +17,8 @@ struct EngineProtocolTests {
         )
 
         let encoded = try EngineLineCodec.encodeResponse(response)
-        #expect(encoded.contains("\"ok\":true"))
+        #expect(encoded.contains("\"jsonrpc\":\"2.0\""))
+        #expect(encoded.contains("\"result\""))
     }
 
     @Test

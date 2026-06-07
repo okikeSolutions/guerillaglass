@@ -88,49 +88,101 @@ public enum JSONValue: Codable, Equatable {
 
 /// Request envelope sent from the desktop shell to the native engine.
 public struct EngineRequest: Codable, Equatable {
+    public let jsonrpc: String
     public let id: String
     public let method: String
     public let params: [String: JSONValue]
 
     public init(id: String, method: String, params: [String: JSONValue]) {
+        jsonrpc = "2.0"
         self.id = id
         self.method = method
         self.params = params
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case jsonrpc, id, method, params
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        jsonrpc = try container.decodeIfPresent(String.self, forKey: .jsonrpc) ?? "2.0"
+        if let stringId = try? container.decode(String.self, forKey: .id) {
+            id = stringId
+        } else if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = String(intId)
+        } else {
+            id = try String(container.decode(Double.self, forKey: .id))
+        }
+        method = try container.decode(String.self, forKey: .method)
+        params = try container.decodeIfPresent([String: JSONValue].self, forKey: .params) ?? [:]
+    }
 }
 
-/// Error payload returned for failed engine responses.
-public struct EngineError: Codable, Equatable {
+/// Effect RPC typed failure payload returned inside JSON-RPC error causes.
+public struct EngineRpcErrorPayload: Codable, Equatable {
+    public let tag: String
     public let code: String
     public let message: String
 
+    private enum CodingKeys: String, CodingKey {
+        case tag = "_tag"
+        case code
+        case message
+    }
+}
+
+public struct EngineRpcFailCause: Codable, Equatable {
+    public let tag = "Fail"
+    public let error: EngineRpcErrorPayload
+
+    private enum CodingKeys: String, CodingKey {
+        case tag = "_tag"
+        case error
+    }
+}
+
+/// JSON-RPC error payload encoded as an Effect Cause.
+public struct EngineError: Codable, Equatable {
+    public let tag = "Cause"
+    public let code = 0
+    public let message: String
+    public let data: [EngineRpcFailCause]
+
+    private enum CodingKeys: String, CodingKey {
+        case tag = "_tag"
+        case code
+        case message
+        case data
+    }
+
     public init(code: String, message: String) {
-        self.code = code
         self.message = message
+        data = [EngineRpcFailCause(error: EngineRpcErrorPayload(tag: "EngineRpcError", code: code, message: message))]
     }
 }
 
 // swiftlint:disable identifier_name
-/// Response envelope returned by the native engine.
+/// Response envelope returned by the native engine using Effect JSON-RPC serialization.
 public struct EngineResponse: Codable, Equatable {
+    public let jsonrpc: String
     public let id: String
-    public let ok: Bool
     public let result: JSONValue?
     public let error: EngineError?
 
-    public init(id: String, ok: Bool, result: JSONValue?, error: EngineError?) {
+    public init(id: String, result: JSONValue?, error: EngineError?) {
+        jsonrpc = "2.0"
         self.id = id
-        self.ok = ok
         self.result = result
         self.error = error
     }
 
     public static func success(id: String, result: JSONValue) -> EngineResponse {
-        EngineResponse(id: id, ok: true, result: result, error: nil)
+        EngineResponse(id: id, result: result, error: nil)
     }
 
     public static func failure(id: String, code: String, message: String) -> EngineResponse {
-        EngineResponse(id: id, ok: false, result: nil, error: EngineError(code: code, message: message))
+        EngineResponse(id: id, result: nil, error: EngineError(code: code, message: message))
     }
 }
 

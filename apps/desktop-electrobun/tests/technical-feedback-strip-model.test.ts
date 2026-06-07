@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CaptureTelemetry } from "@guerillaglass/engine-protocol";
+import type { CaptureTelemetry } from "@guerillaglass/engine/protocol/domains/capture";
 import {
   buildTechnicalFeedbackMetrics,
   formatTelemetryMemoryBytes,

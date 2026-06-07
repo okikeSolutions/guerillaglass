@@ -11,7 +11,7 @@ import {
   type BenchmarkReport,
   type BenchmarkScenarioID,
   type ScenarioSeriesReport,
-} from "../../../Scripts/capture_benchmark.ts";
+} from "../../../Scripts/capture_benchmark";
 
 function makeScenario(
   id: BenchmarkScenarioID,

@@ -4,13 +4,19 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
+import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
 import {
-  createEngineClientPromiseFacade,
-  EngineClient,
-  resolveEnginePath,
-} from "../apps/desktop-electrobun/src/bun/engine/client.ts";
-import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark.ts";
-import type { CaptureFrameRate } from "../packages/engine-protocol/src/index.ts";
+  EngineTransport,
+  makeEngineTransportLive,
+} from "../packages/engine/src/client/EngineTransport";
+import { resolveEnginePath } from "../packages/engine/src/client/config/paths";
+import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
+import type {
+  CaptureFrameRate,
+  SourcesResult,
+} from "../packages/engine/src/protocol/domains/sources";
+import type { CaptureStatusResult } from "../packages/engine/src/protocol/domains/capture";
 
 export type BenchmarkScenarioID =
   | "display-30-no-mic"
@@ -60,12 +66,77 @@ export type ScenarioConfig = {
   displaySelection?: DisplaySelectionStrategy;
 };
 
-type EngineClientPromise = ReturnType<typeof createEngineClientPromiseFacade>;
-type CaptureTelemetry = Awaited<ReturnType<EngineClientPromise["captureStatus"]>>["telemetry"];
-type CaptureStatus = Awaited<ReturnType<EngineClientPromise["captureStatus"]>>;
-type SourceListing = Awaited<ReturnType<EngineClientPromise["listSources"]>>;
+type EngineClientPromise = ReturnType<typeof createBenchmarkEngineClient>;
+type CaptureTelemetry = CaptureStatusResult["telemetry"];
+type CaptureStatus = CaptureStatusResult;
+type SourceListing = SourcesResult;
 type WindowSource = SourceListing["windows"][number];
 type DisplaySource = SourceListing["displays"][number];
+
+function createBenchmarkEngineClient(enginePath: string) {
+  const runtime = ManagedRuntime.make(makeEngineTransportLive({ enginePath }));
+  const run = <A>(effect: Effect.Effect<A, unknown, unknown>) =>
+    runtime.runPromise(effect as Effect.Effect<A, unknown, EngineTransport>);
+  return {
+    stop: () => runtime.dispose(),
+    getPermissions: () =>
+      run(Effect.flatMap(EngineTransport, (engine) => engine["permissions.get"](undefined))),
+    requestScreenRecordingPermission: () =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["permissions.requestScreenRecording"](undefined),
+        ),
+      ),
+    requestMicrophonePermission: () =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) => engine["permissions.requestMicrophone"](undefined)),
+      ),
+    requestInputMonitoringPermission: () =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["permissions.requestInputMonitoring"](undefined),
+        ),
+      ),
+    listSources: () =>
+      run(Effect.flatMap(EngineTransport, (engine) => engine["sources.list"](undefined))).then(
+        (sources) => sources as SourceListing,
+      ),
+    startDisplayCapture: (
+      enableMic: boolean,
+      captureFps: CaptureFrameRate,
+      displayId?: number,
+      enablePreview?: boolean,
+    ) =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["capture.startDisplay"]({ enableMic, captureFps, displayId, enablePreview }),
+        ),
+      ),
+    startWindowCapture: (
+      windowId: number,
+      enableMic: boolean,
+      captureFps: CaptureFrameRate,
+      enablePreview?: boolean,
+    ) =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["capture.startWindow"]({ windowId, enableMic, captureFps, enablePreview }),
+        ),
+      ),
+    stopCapture: () =>
+      run(Effect.flatMap(EngineTransport, (engine) => engine["capture.stop"](undefined))),
+    startRecording: (trackInputEvents: boolean) =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["recording.start"]({ trackInputEvents }),
+        ),
+      ),
+    stopRecording: () =>
+      run(Effect.flatMap(EngineTransport, (engine) => engine["recording.stop"](undefined))),
+    captureStatus: () =>
+      run(Effect.flatMap(EngineTransport, (engine) => engine["capture.status"](undefined))),
+  };
+}
 
 export const benchmarkSceneWindow = Object.freeze<BenchmarkSceneWindow>({
   appNames: ["Guerillaglass", "Guerillaglass-dev"],
@@ -133,7 +204,7 @@ export type ScenarioReport = {
     height: number;
     pixelScale: number | null;
     refreshHz: number | null;
-    supportedCaptureFrameRates: CaptureFrameRate[];
+    supportedCaptureFrameRates: ReadonlyArray<CaptureFrameRate>;
   } | null;
   effectivePixelCount: number | null;
   inputTracking: InputTrackingDiagnostics;
@@ -1333,7 +1404,7 @@ async function runScenarioRun(
     }
 
     finalStatus = await withTimeout(engine.stopRecording(), 15_000, "stopRecording");
-    const recordingStatus = finalStatus;
+    const recordingStatus = finalStatus!;
     await withTimeout(engine.stopCapture(), 15_000, "stopCapture");
     const inputTracking = await loadInputTrackingDiagnostics(recordingStatus.eventsURL);
 
@@ -1970,7 +2041,7 @@ export function compareBenchmarkReports(
 async function main() {
   const config = parseArgs(process.argv.slice(2));
   const enginePath = resolveEnginePath();
-  const engine = createEngineClientPromiseFacade(new EngineClient(enginePath));
+  const engine = createBenchmarkEngineClient(enginePath);
   const scenarioReports: ScenarioSeriesReport[] = [];
   const baselineReport =
     config.baselineReportPath === null ? null : await readBenchmarkReport(config.baselineReportPath);

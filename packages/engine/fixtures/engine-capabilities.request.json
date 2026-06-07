@@ -1,5 +1,6 @@
 {
-  "id": "fixture-capabilities",
+  "jsonrpc": "2.0",
+  "id": 1,
   "method": "engine.capabilities",
   "params": {}
 }

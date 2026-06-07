@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import path from "node:path";
 import { Effect } from "effect";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine-protocol";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
 import {
   MediaServerError,
   messageFromUnknownError,

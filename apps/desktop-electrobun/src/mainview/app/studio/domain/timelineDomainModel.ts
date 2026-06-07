@@ -5,7 +5,7 @@ import type {
   TimelineGapItem,
   TimelineItem,
   TimelineSegment,
-} from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 
 export type TimelineClipSemantic = "screen" | "mix" | "gap";
 

@@ -1,4 +1,4 @@
-import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
+import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
 
 type CaptureTargetLabelOptions = {
   metadata: CaptureStatusResult["captureMetadata"];

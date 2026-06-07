@@ -33,7 +33,7 @@ The current implementation already has:
 
 Relevant files:
 
-- `packages/engine-protocol/src/index.ts`
+- `packages/engine/src/protocol/index.ts`
 - `apps/desktop-electrobun/src/mainview/app/studio/domain/timelineDomainModel.ts`
 - `apps/desktop-electrobun/src/mainview/app/studio/panels/TimelineDock.tsx`
 - `apps/desktop-electrobun/src/mainview/app/studio/panels/TimelineSurface.tsx`
@@ -527,7 +527,7 @@ Suggested locations:
 
 - `Tests/projectMigrationTests/`
 - `apps/desktop-electrobun/tests/`
-- `packages/engine-protocol` tests if needed
+- `packages/engine` tests if needed
 
 ### 15.3) Playback tests
 

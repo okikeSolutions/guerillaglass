@@ -2,7 +2,7 @@
 
 This app is the new desktop shell for Guerilla Glass using Electrobun + React + Tailwind + shadcn base components.
 
-It talks to the native Swift engine (`guerillaglass-engine`) over stdio with a typed protocol defined in `/packages/engine-protocol`.
+It talks to the native Swift engine (`guerillaglass-engine`) over stdio with a typed protocol defined in `/packages/engine`.
 
 ## Prerequisites
 
@@ -73,7 +73,7 @@ bun run desktop:build
 
 - UI shell: `/apps/desktop-electrobun/src/mainview`
 - Bun main process bridge: `/apps/desktop-electrobun/src/bun`
-- Shared Effect Schema protocol: `/packages/engine-protocol/src/index.ts`
+- Shared Effect Schema protocol: `/packages/engine/src/protocol/contract.ts`
 - Shared Rust protocol: `/engines/protocol-rust`
 - Native engine target: `/engines/macos-swift`
 - Native engine foundations: `/engines/windows-native`, `/engines/linux-native`

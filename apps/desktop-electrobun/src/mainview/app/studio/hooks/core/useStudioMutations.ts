@@ -1,18 +1,22 @@
 import { useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
+import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
+import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
 import type {
-  AutoZoomSettings,
-  CaptureFrameRate,
-  CaptureStatusResult,
-  ExportPreset,
-  PingResult,
-  PermissionsResult,
   ProjectRecentsResult,
   ProjectState,
+} from "@guerillaglass/engine/protocol/domains/project";
+import type {
+  CaptureFrameRate,
   SourcesResult,
+} from "@guerillaglass/engine/protocol/domains/sources";
+import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import type {
+  AutoZoomSettings,
   TimelineDocument,
-} from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 import type { StudioMessages } from "@guerillaglass/localization";
 import { engineApi } from "@lib/engine";
 import type { HostPathPickerMode } from "@shared/bridge";

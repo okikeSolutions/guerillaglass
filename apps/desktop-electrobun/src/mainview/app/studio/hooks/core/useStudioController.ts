@@ -1,13 +1,15 @@
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
 import {
   defaultCaptureFrameRate,
-  type AutoZoomSettings,
   type CaptureFrameRate,
-  type ExportPreset,
+} from "@guerillaglass/engine/protocol/domains/sources";
+import {
+  type AutoZoomSettings,
   type TimelineDocument,
-} from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 import { getStudioMessages, type StudioMessages } from "@guerillaglass/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
 import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
@@ -347,7 +349,7 @@ export function useStudioController() {
   const selectedWindowSource = useMemo(() => {
     return windowChoices.find((windowItem) => windowItem.id === selectedWindowId) ?? null;
   }, [selectedWindowId, windowChoices]);
-  const supportedCaptureFrameRates = useMemo<CaptureFrameRate[]>(() => {
+  const supportedCaptureFrameRates = useMemo<ReadonlyArray<CaptureFrameRate>>(() => {
     const source =
       settingsForm.state.values.captureSource === "display"
         ? selectedDisplaySource

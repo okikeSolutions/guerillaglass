@@ -103,19 +103,19 @@ export const agentJobIdSchema = brandedNonEmptyString("AgentJobId");
 /** Agent preflight token returned by successful preflight checks. */
 export const agentPreflightTokenSchema = brandedNonEmptyString("AgentPreflightToken");
 /** Timeline segment identifier persisted in project documents. */
-export const timelineSegmentIdSchema = Schema.NonEmptyString;
+export const timelineSegmentIdSchema = brandedNonEmptyString("TimelineSegmentId");
 /** Capture session identifier returned while preview/capture is active. */
-export const captureSessionIdSchema = Schema.NonEmptyString;
+export const captureSessionIdSchema = brandedNonEmptyString("CaptureSessionId");
 /** Export preset identifier accepted by export requests. */
-export const exportPresetIdSchema = Schema.NonEmptyString;
+export const exportPresetIdSchema = brandedNonEmptyString("ExportPresetId");
 /** Absolute project path used by project open/save surfaces. */
-export const projectPathSchema = Schema.NonEmptyString;
+export const projectPathSchema = brandedNonEmptyString("ProjectPath");
 /** Generic absolute file path used by desktop bridge file APIs. */
-export const filePathSchema = Schema.NonEmptyString;
+export const filePathSchema = brandedNonEmptyString("FilePath");
 /** Output URL/path returned or accepted by export/media bridge surfaces. */
-export const outputUrlSchema = Schema.NonEmptyString;
+export const outputUrlSchema = brandedNonEmptyString("OutputUrl");
 /** Persisted artifact path emitted by Agent Mode artifacts. */
-export const artifactPathSchema = Schema.NonEmptyString;
+export const artifactPathSchema = brandedNonEmptyString("ArtifactPath");
 
 /** Effect Schema primitive for canonical ISO 8601 datetime strings. */
 export const isoDateTimeSchema = Schema.String.pipe(

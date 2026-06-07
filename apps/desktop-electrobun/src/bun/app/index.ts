@@ -30,7 +30,8 @@ import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
 import { readAllowedTextFile } from "../security/fileAccess";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
-import { EngineTransport } from "../engine/service";
+import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
+import type { ProjectState } from "@guerillaglass/engine/protocol/domains/project";
 import { pickPathForMode } from "../path/picker";
 import type { HostPathPickerMode } from "../../shared/bridge";
 import { createHostRuntime, type HostRuntime } from "../runtime/hostRuntime";
@@ -255,7 +256,15 @@ async function bootstrapApp() {
     if (!captureBenchmarkEnabled) {
       try {
         const initialProject = await hostRuntime.runPromise(
-          Effect.flatMap(EngineTransport, (transport) => transport.projectCurrent),
+          Effect.flatMap(
+            EngineTransport,
+            (transport) =>
+              transport["project.current"](undefined) as Effect.Effect<
+                ProjectState,
+                unknown,
+                never
+              >,
+          ),
         );
         currentProjectPath = initialProject.projectPath;
       } catch (error) {

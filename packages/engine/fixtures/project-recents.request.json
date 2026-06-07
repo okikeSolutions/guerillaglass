@@ -1,5 +1,6 @@
 {
-  "id": "fixture-project-recents",
+  "jsonrpc": "2.0",
+  "id": 2,
   "method": "project.recents",
   "params": {
     "limit": 5

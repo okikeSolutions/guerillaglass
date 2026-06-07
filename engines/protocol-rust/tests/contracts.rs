@@ -7,7 +7,7 @@ fn fixture_path(name: &str) -> PathBuf {
     path.pop();
     path.pop();
     path.push("packages");
-    path.push("engine-protocol");
+    path.push("engine");
     path.push("fixtures");
     path.push(name);
     path

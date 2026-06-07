@@ -1,4 +1,4 @@
-import type { ExportPreset } from "@guerillaglass/engine-protocol";
+import type { ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
 import type { TimelineEventMarkerKind } from "./timelineDomainModel";
 
 export type StudioMode = "capture" | "edit" | "deliver";

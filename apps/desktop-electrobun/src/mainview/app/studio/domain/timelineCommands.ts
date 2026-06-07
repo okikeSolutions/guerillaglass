@@ -3,7 +3,7 @@ import type {
   TimelineDocument,
   TimelineGapItem,
   TimelineItem,
-} from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 import { compileTimelineItems } from "./timelineDomainModel";
 
 type TimelineIdFactory = () => string;
@@ -49,7 +49,10 @@ export function normalizeTimelineDocument(timeline: TimelineDocument): TimelineD
     if (item.kind === "gap") {
       const previousItem = normalizedItems[normalizedItems.length - 1];
       if (previousItem?.kind === "gap") {
-        previousItem.durationSeconds += durationSeconds;
+        normalizedItems.splice(normalizedItems.length - 1, 1, {
+          ...previousItem,
+          durationSeconds: previousItem.durationSeconds + durationSeconds,
+        });
         continue;
       }
 
@@ -70,10 +73,10 @@ export function normalizeTimelineDocument(timeline: TimelineDocument): TimelineD
 }
 
 function replaceItemRange(
-  items: TimelineItem[],
+  items: ReadonlyArray<TimelineItem>,
   startIndex: number,
   deleteCount: number,
-  nextItems: TimelineItem[],
+  nextItems: ReadonlyArray<TimelineItem>,
 ): TimelineItem[] {
   const clone = [...items];
   clone.splice(startIndex, deleteCount, ...nextItems);
@@ -81,7 +84,7 @@ function replaceItemRange(
 }
 
 function selectedIndexRuns(
-  items: TimelineItem[],
+  items: ReadonlyArray<TimelineItem>,
   selectedItemIds: Set<string>,
 ): Array<[number, number]> {
   const runs: Array<[number, number]> = [];

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { InputEvent, TimelineDocument } from "@guerillaglass/engine-protocol";
+import type {
+  InputEvent,
+  TimelineDocument,
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 import {
   buildTimelineLanes,
   compileTimelineItems,

@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine-protocol";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
 import { MediaServer } from "./server";
 
 type MediaServerLike = Pick<

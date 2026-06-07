@@ -13,7 +13,7 @@ Guerilla Glass now follows a hybrid multiplatform architecture with strict local
 3. Native engine (`/engines/macos-swift`)
    - Uses existing Swift capture/render/export modules
    - Exposed as `guerillaglass-engine` executable target
-4. Protocol layer (`/packages/engine-protocol`)
+4. Protocol layer (`/packages/engine`)
    - Effect Schema runtime schemas + TypeScript types
    - Wire contracts for request/response envelopes
 5. Rust protocol layer (`/engines/protocol-rust`)
@@ -84,7 +84,7 @@ Billing flow (Phase 2.6+):
 - Auth rule: unauthenticated clients cannot access protected cloud review/collaboration data.
 - Monetization rule: subscription/billing failures cannot block local `Capture`/`Edit`/deterministic `Export`; only paid cloud features are gated.
 - Contract rule:
-  - Local media RPC remains in `packages/engine-protocol`.
+  - Local media RPC remains in `packages/engine`.
   - Review payload contracts live in `packages/review-protocol` and must not expand native engine media responsibilities.
 
 Renderer hardening (current):

@@ -1,38 +1,49 @@
 import {
-  actionResultSchema,
   agentPreflightResultSchema,
   agentRunResultSchema,
   agentStatusResultSchema,
-  autoZoomSettingsSchema,
-  captureFrameRateSchema,
-  capturePreviewFrameResultSchema,
-  captureStatusResultSchema,
-  exportInfoResultSchema,
-  exportRunCutPlanResultSchema,
-  exportRunResultSchema,
-  permissionsResultSchema,
-  pingResultSchema,
-  projectRecentsResultSchema,
-  projectStateSchema,
-  sourcesResultSchema,
-  timelineDocumentSchema,
   type AgentPreflightResult,
   type AgentRunResult,
   type AgentStatusResult,
-  type ActionResult,
-  type AutoZoomSettings,
-  type CaptureFrameRate,
+} from "@guerillaglass/engine/protocol/domains/agent";
+import {
+  capturePreviewFrameResultSchema,
+  captureStatusResultSchema,
   type CapturePreviewFrameResult,
   type CaptureStatusResult,
+} from "@guerillaglass/engine/protocol/domains/capture";
+import {
+  exportInfoResultSchema,
+  exportRunCutPlanResultSchema,
+  exportRunResultSchema,
   type ExportInfoResult,
   type ExportRunCutPlanResult,
   type ExportRunResult,
+} from "@guerillaglass/engine/protocol/domains/export";
+import {
+  actionResultSchema,
+  permissionsResultSchema,
+  type ActionResult,
   type PermissionsResult,
-  type PingResult,
+} from "@guerillaglass/engine/protocol/domains/permissions";
+import {
+  projectRecentsResultSchema,
+  projectStateSchema,
   type ProjectRecentsResult,
   type ProjectState,
+} from "@guerillaglass/engine/protocol/domains/project";
+import {
+  captureFrameRateSchema,
+  sourcesResultSchema,
+  type CaptureFrameRate,
   type SourcesResult,
-} from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/domains/sources";
+import { pingResultSchema, type PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import {
+  autoZoomSettingsSchema,
+  timelineDocumentSchema,
+  type AutoZoomSettings,
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
 import {
   reviewBridgeEventSchema,
   reviewCommentSchema,
@@ -58,7 +69,7 @@ import {
   reviewAuthTokenSchema,
   reviewCommentIdSchema,
   reviewIdSchema,
-} from "@guerillaglass/schema-primitives";
+} from "@guerillaglass/engine/protocol/schema-primitives";
 import { Schema } from "effect";
 import type { RPCSchema } from "electrobun/bun";
 import type { SerializedBridgeError } from "../errors";

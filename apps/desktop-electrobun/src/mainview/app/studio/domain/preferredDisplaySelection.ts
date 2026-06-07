@@ -1,8 +1,8 @@
-import type { SourcesResult } from "@guerillaglass/engine-protocol";
+import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
 
 type SourceDisplay = SourcesResult["displays"][number];
 
-function choosePreferredDisplay(displays: SourceDisplay[]): SourceDisplay | null {
+function choosePreferredDisplay(displays: ReadonlyArray<SourceDisplay>): SourceDisplay | null {
   if (displays.length === 0) {
     return null;
   }
@@ -20,12 +20,12 @@ function choosePreferredDisplay(displays: SourceDisplay[]): SourceDisplay | null
   });
 }
 
-export function pickPreferredDisplayId(displays: SourceDisplay[]): number {
+export function pickPreferredDisplayId(displays: ReadonlyArray<SourceDisplay>): number {
   return choosePreferredDisplay(displays)?.id ?? 0;
 }
 
 export function resolveSelectedDisplayId(
-  displays: SourceDisplay[],
+  displays: ReadonlyArray<SourceDisplay>,
   selectedDisplayId: number,
 ): number {
   if (displays.some((display) => display.id === selectedDisplayId)) {

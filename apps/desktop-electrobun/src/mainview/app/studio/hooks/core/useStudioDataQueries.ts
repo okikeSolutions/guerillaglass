@@ -1,16 +1,18 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  captureStatusResultSchema,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine/protocol/domains/capture";
+import type { ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
+import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
 import type {
-  CaptureStatusResult,
-  ExportPreset,
-  InputEvent,
-  PermissionsResult,
-  PingResult,
   ProjectRecentsResult,
   ProjectState,
-  SourcesResult,
-} from "@guerillaglass/engine-protocol";
-import { captureStatusResultSchema } from "@guerillaglass/engine-protocol";
+} from "@guerillaglass/engine/protocol/domains/project";
+import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
+import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
 import { hostBridgeEventNames } from "@shared/bridge";
 import { decodeUnknownWithSchemaSync } from "@shared/errors";
 import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";

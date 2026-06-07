@@ -1,5 +1,5 @@
 import { Electroview } from "electrobun/view";
-import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
+import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createWindowBridgeBindings } from "@shared/bridge";
 import { decodeUnknownWithSchemaSync } from "@shared/errors";

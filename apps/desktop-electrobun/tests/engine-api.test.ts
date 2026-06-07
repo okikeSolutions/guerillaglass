@@ -1,6 +1,6 @@
 import { Layer } from "effect";
 import { beforeEach, describe, expect, test } from "bun:test";
-import { reviewIdSchema } from "@guerillaglass/schema-primitives";
+import { reviewIdSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 import {
   desktopApi,
   engineApi,
@@ -18,7 +18,7 @@ import {
   MediaServerError,
 } from "@shared/errors";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
-import { EngineTransport } from "../src/bun/engine/service";
+import { EngineTransport } from "@guerillaglass/engine/client/EngineTransport";
 import { MediaSourceService } from "../src/bun/media/service";
 import { createHostRuntime } from "../src/bun/runtime/hostRuntime";
 

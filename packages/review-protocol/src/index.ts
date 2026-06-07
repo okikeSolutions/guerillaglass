@@ -14,7 +14,7 @@ import {
   reviewCommentIdSchema,
   reviewIdSchema,
   reviewUserIdSchema,
-} from "@guerillaglass/schema-primitives";
+} from "@guerillaglass/engine/protocol/schema-primitives";
 
 /** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */

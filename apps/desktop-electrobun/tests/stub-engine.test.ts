@@ -2,11 +2,12 @@ import path from "node:path";
 import { describe, expect, test } from "bun:test";
 
 type WireResponse = {
-  id: string;
-  ok: boolean;
+  jsonrpc: "2.0";
+  id: string | number;
   error?: {
-    code: string;
+    _tag: "Cause";
     message: string;
+    data: Array<{ _tag: "Fail"; error: { _tag: "EngineRpcError"; code: string } }>;
   };
 };
 
@@ -66,9 +67,9 @@ describe("stub engine process", () => {
     const client = createLineClient(linuxStubPath);
     try {
       const response = await client.send("not-json");
-      expect(response.ok).toBe(false);
+      expect(response.jsonrpc).toBe("2.0");
       expect(response.id).toBe("unknown");
-      expect(response.error?.code).toBe("invalid_request");
+      expect(response.error?.data[0]?.error.code).toBe("invalid_request");
     } finally {
       await client.close();
     }
@@ -78,11 +79,11 @@ describe("stub engine process", () => {
     const client = createLineClient(linuxStubPath);
     try {
       const response = await client.send(
-        JSON.stringify({ id: "abc", method: "capture.flyToMoon", params: {} }),
+        JSON.stringify({ jsonrpc: "2.0", id: 1, method: "capture.flyToMoon", params: {} }),
       );
-      expect(response.ok).toBe(false);
-      expect(response.id).toBe("abc");
-      expect(response.error?.code).toBe("unsupported_method");
+      expect(response.jsonrpc).toBe("2.0");
+      expect(response.id).toBe(1);
+      expect(response.error?.data[0]?.error.code).toBe("unsupported_method");
     } finally {
       await client.close();
     }

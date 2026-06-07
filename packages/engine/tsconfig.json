@@ -1,0 +1,15 @@
+{
+  "extends": "@guerillaglass/typescript-config/react-library.json",
+  "compilerOptions": {
+    "types": ["bun", "node"],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": true,
+        "ignoreEffectSuggestionsInTscExitCode": true
+      }
+    ]
+  },
+  "include": ["src"]
+}

@@ -13,7 +13,7 @@ GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 ## Purpose
 
 - Unblock UI and protocol workflow development before native Linux capture implementation.
-- Keep method/result envelope behavior aligned with `packages/engine-protocol`.
+- Keep method/result envelope behavior aligned with `packages/engine`.
 
 ## Not Implemented
 

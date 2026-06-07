@@ -1,7 +1,11 @@
-import { type CaptureStatusResult } from "@guerillaglass/engine-protocol";
-import { Cause, Context, Effect, Exit, Layer, ManagedRuntime, Option } from "effect";
+import { type CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import { Cause, Context, Effect, Exit, Layer, ManagedRuntime, Option, Stream } from "effect";
 import { EngineClientError, messageFromUnknownError } from "../../shared/errors";
-import { EngineTransport, EngineTransportLive } from "../engine/service";
+import {
+  EngineTransport,
+  EngineTransportLive,
+  type EngineTransportError,
+} from "@guerillaglass/engine/client/EngineTransport";
 import { MediaSourceService, MediaSourceServiceLive } from "../media/service";
 import { ReviewGateway, ReviewGatewayLive } from "../review/service";
 
@@ -11,7 +15,7 @@ type HostCaptureStatusSinkService = {
 
 type HostRuntimeOptions = {
   sendCaptureStatus: (captureStatus: CaptureStatusResult) => void;
-  engineTransportLayer?: Layer.Layer<EngineTransport, EngineClientError, never>;
+  engineTransportLayer?: Layer.Layer<EngineTransport, EngineTransportError, never>;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, never>;
   mediaSourceServiceLayer?: Layer.Layer<MediaSourceService, never, never>;
   enableCaptureStatusStream?: boolean;
@@ -25,7 +29,7 @@ export type HostRuntimeServices =
   | MediaSourceService
   | HostCaptureStatusSink;
 /** Failures that can occur while constructing the Bun host runtime. */
-export type HostRuntimeError = EngineClientError;
+export type HostRuntimeError = EngineClientError | EngineTransportError;
 
 /** Service tag for pushing capture status events from the runtime back to the app shell. */
 export class HostCaptureStatusSink extends Context.Service<
@@ -63,48 +67,52 @@ export function captureStatusStreamInterval(status: CaptureStatusResult): number
   return 1000;
 }
 
-/** Creates the polling program that forwards capture status updates through the host runtime. */
+/** Creates the streaming program that forwards capture status updates through the host runtime. */
 export function makeCaptureStatusStreamEffect(
   initialDelayMs = 0,
 ): Effect.Effect<void, never, EngineTransport | HostCaptureStatusSink> {
   return Effect.gen(function* () {
+    if (initialDelayMs > 0) {
+      yield* Effect.sleep(`${Math.max(0, initialDelayMs)} millis`);
+    }
+
     const transport = yield* EngineTransport;
     const sink = yield* HostCaptureStatusSink;
-    let nextDelay = Math.max(0, initialDelayMs);
 
-    while (true) {
-      if (nextDelay > 0) {
-        yield* Effect.sleep(`${nextDelay} millis`);
-      }
+    const statusStream = transport["capture.statusStream"](undefined) as Stream.Stream<
+      CaptureStatusResult,
+      unknown,
+      never
+    >;
 
-      const result = yield* Effect.exit(transport.captureStatus);
-      if (Exit.isFailure(result)) {
-        nextDelay = 1000;
-        yield* Effect.logWarning(
-          `capture status stream tick failed: ${messageFromUnknownError(
-            Cause.squash(result.cause),
+    yield* Stream.runForEach(statusStream, (captureStatus: CaptureStatusResult) =>
+      Effect.exit(
+        Effect.sync(() => {
+          sink.sendCaptureStatus(captureStatus);
+        }),
+      ).pipe(
+        Effect.flatMap((sendResult) => {
+          if (Exit.isSuccess(sendResult)) {
+            return Effect.void;
+          }
+          return Effect.logWarning(
+            `capture status delivery failed: ${messageFromUnknownError(
+              Cause.squash(sendResult.cause),
+              "capture status delivery failed",
+            )}`,
+          );
+        }),
+      ),
+    ).pipe(
+      Effect.catch((error) =>
+        Effect.logWarning(
+          `capture status stream failed: ${messageFromUnknownError(
+            error,
             "capture status stream failed",
           )}`,
-        );
-        continue;
-      }
-
-      nextDelay = captureStatusStreamInterval(result.value);
-      const sendResult = yield* Effect.exit(
-        Effect.sync(() => {
-          sink.sendCaptureStatus(result.value);
-        }),
-      );
-      if (Exit.isFailure(sendResult)) {
-        nextDelay = 1000;
-        yield* Effect.logWarning(
-          `capture status delivery failed: ${messageFromUnknownError(
-            Cause.squash(sendResult.cause),
-            "capture status delivery failed",
-          )}`,
-        );
-      }
-    }
+        ),
+      ),
+    );
   });
 }
 

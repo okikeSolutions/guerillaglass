@@ -82,7 +82,7 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 30, 60, and 120 fps against an animated benchmark scene and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
   - `bun run capture:benchmark:check` is the local regression command for native capture changes; it can compare against the previous machine-local run via `--baseline-report=.tmp/capture-benchmarks/latest/report.json`.
-- **Shared contract primitives:** reusable Effect Schema helpers that must stay aligned across protocol packages live in `packages/schema-primitives`.
+- **Shared engine package:** local engine Effect Schema helpers, protocol types, fixtures, shared schema primitives, and TypeScript engine client/runtime façade live in `packages/engine`.
 - **Hosted delivery plane (deferred until editor core is strong):**
   - Hosted review/collaboration lives in web/Convex surfaces and must remain downstream of the local editor.
   - The hosted plane can own share links, comments, presence, workflow state, analytics, and billing without polluting the local media contract.
@@ -355,8 +355,8 @@ Imported transcript contract (`imported_transcript` provider):
   - `endSeconds > startSeconds`
 - At least one valid segment or one valid word is required.
 - Reference fixtures:
-  - `packages/engine-protocol/fixtures/imported-transcript.valid.json`
-  - `packages/engine-protocol/fixtures/imported-transcript.invalid.json`
+  - `packages/engine/fixtures/imported-transcript.valid.json`
+  - `packages/engine/fixtures/imported-transcript.invalid.json`
 
 Error model additions:
 
@@ -646,14 +646,13 @@ guerillaglass/
 │     ├─ convex/
 │     └─ vite.config.ts
 ├─ packages/
-│  ├─ engine-protocol/
-│  │  ├─ src/
+│  ├─ engine/
+│  │  ├─ src/client/
+│  │  ├─ src/protocol/
 │  │  └─ fixtures/
 │  ├─ review-protocol/
 │  │  ├─ src/
 │  │  └─ fixtures/
-│  ├─ schema-primitives/
-│  │  └─ src/
 │  └─ localization/
 │     └─ src/
 ├─ engines/
