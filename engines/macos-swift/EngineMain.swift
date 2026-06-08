@@ -14,7 +14,7 @@ actor EngineConnectionWriter {
             content: Data((line + "\n").utf8),
             completion: .contentProcessed { error in
                 if let error {
-                    FileHandle.standardError.write(Data(("engine socket write failed: \(error)\n").utf8))
+                    FileHandle.standardError.write(Data("engine socket write failed: \(error)\n".utf8))
                 }
             }
         )
@@ -22,7 +22,7 @@ actor EngineConnectionWriter {
 
     func writeResponse(_ response: EngineResponse) {
         do {
-            writeLine(try EngineLineCodec.encodeResponse(response))
+            try writeLine(EngineLineCodec.encodeResponse(response))
         } catch {
             writeLine("{\"type\":\"error\",\"id\":\"\(response.id)\",\"error\":{\"code\":\"runtime_error\",\"message\":\"Failed to encode response\"}}")
         }
@@ -30,7 +30,7 @@ actor EngineConnectionWriter {
 
     func writeChunk(id: String, value: JSONValue) {
         do {
-            writeLine(try EngineLineCodec.encodeChunk(EngineChunkResponse(id: id, values: [value])))
+            try writeLine(EngineLineCodec.encodeChunk(EngineChunkResponse(id: id, values: [value])))
         } catch {
             writeResponse(.failure(id: id, code: "runtime_error", message: "Failed to encode stream chunk"))
         }
@@ -139,7 +139,7 @@ actor EngineRequestSession {
             return
         }
 
-        await writer.writeResponse(await service.handleLine(line))
+        await writer.writeResponse(service.handleLine(line))
     }
 }
 
@@ -180,11 +180,11 @@ final class EngineSocketServer {
 
     init(service: EngineService) throws {
         self.service = service
-        self.session = EngineRequestSession(service: service)
+        session = EngineRequestSession(service: service)
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
-        self.listener = try NWListener(using: parameters)
-        self.listener.newConnectionLimit = 1
+        listener = try NWListener(using: parameters)
+        listener.newConnectionLimit = 1
     }
 
     func start() async throws {
@@ -194,7 +194,7 @@ final class EngineSocketServer {
                 switch state {
                 case .ready:
                     startup.resume()
-                case .failed(let error):
+                case let .failed(error):
                     startup.resume(throwing: error)
                 default:
                     break
@@ -229,21 +229,21 @@ final class EngineSocketServer {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
             guard let self else { return }
             if let error {
-                FileHandle.standardError.write(Data(("engine socket read failed: \(error)\n").utf8))
+                FileHandle.standardError.write(Data("engine socket read failed: \(error)\n".utf8))
                 Task { await self.session.stopAllStreams() }
                 return
             }
             if let data, !data.isEmpty {
-                self.buffer.append(data)
-                if self.buffer.count > self.maxFrameBytes {
+                buffer.append(data)
+                if buffer.count > maxFrameBytes {
                     FileHandle.standardError.write(Data("engine socket frame exceeded maximum size\n".utf8))
                     connection.cancel()
                     Task { await self.session.stopAllStreams() }
                     return
                 }
-                while let newline = self.buffer.firstIndex(of: 0x0a) {
-                    let lineData = self.buffer[..<newline]
-                    self.buffer.removeSubrange(...newline)
+                while let newline = buffer.firstIndex(of: 0x0A) {
+                    let lineData = buffer[..<newline]
+                    buffer.removeSubrange(...newline)
                     guard let line = String(data: lineData, encoding: .utf8) else {
                         FileHandle.standardError.write(Data("engine socket received invalid UTF-8 frame\n".utf8))
                         connection.cancel()
@@ -257,7 +257,7 @@ final class EngineSocketServer {
                 Task { await self.session.stopAllStreams() }
                 return
             }
-            self.receiveNext(connection: connection, writer: writer)
+            receiveNext(connection: connection, writer: writer)
         }
     }
 
@@ -290,7 +290,7 @@ struct GuerillaglassEngineMain {
                 }
                 server.cancel()
             } catch {
-                FileHandle.standardError.write(Data(("engine socket startup failed: \(error)\n").utf8))
+                FileHandle.standardError.write(Data("engine socket startup failed: \(error)\n".utf8))
                 Foundation.exit(1)
             }
             return

@@ -1,3 +1,5 @@
+// swiftlint:disable file_length
+
 import AVFoundation
 import Darwin
 import EngineProtocol
