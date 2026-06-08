@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
-import { describe, expect, it } from "@effect/vitest";
+import { describe, expect, it } from "vitest";
 import { Cause, Effect, Layer, Option } from "effect";
 import { HttpPlatform, HttpRouter } from "effect/unstable/http";
 import { MediaRegistry, makeMediaRegistryService } from "../src/bun/media/MediaRegistry";
@@ -33,14 +33,11 @@ function mediaAppLayer(registry: MediaRegistry["Service"]) {
   );
 }
 
-const makeHarness = Effect.acquireRelease(
-  Effect.gen(function* () {
-    const registry = yield* makeMediaRegistryService;
-    const webHandler = HttpRouter.toWebHandler(mediaAppLayer(registry), { disableLogger: true });
-    return { registry, handler: webHandler.handler, dispose: webHandler.dispose };
-  }),
-  (harness) => Effect.promise(() => harness.dispose()),
-);
+const makeHarness = Effect.gen(function* () {
+  const registry = yield* makeMediaRegistryService;
+  const webHandler = HttpRouter.toWebHandler(mediaAppLayer(registry), { disableLogger: true });
+  return { registry, handler: webHandler.handler, dispose: webHandler.dispose };
+});
 
 function mediaURL(token: string): string {
   return `http://127.0.0.1/media/${encodeURIComponent(token)}`;
@@ -61,15 +58,21 @@ function firstFailure(cause: Cause.Cause<unknown>): unknown {
   return Option.isSome(error) ? error.value : Cause.squash(cause);
 }
 
+function effectTest(name: string, effect: () => Effect.Effect<void, unknown, unknown>): void {
+  it(name, async () => {
+    await Effect.runPromise(
+      effect().pipe(Effect.provide(BunFileSystem.layer)) as Effect.Effect<void, unknown, never>,
+    );
+  });
+}
+
 describe("media HTTP routes", () => {
-  it.effect("serves whole-file and range responses for local media paths", () =>
+  effectTest("serves whole-file and range responses for local media paths", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("capture.mov", "0123456789"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry
-          .registerMediaFile(fixture.filePath)
-          .pipe(Effect.provide(BunFileSystem.layer));
+        const token = yield* registry.registerMediaFile(fixture.filePath);
         const resolved = mediaURL(token);
 
         const fullResponse = yield* Effect.promise(() => dispatch(handler, resolved));
@@ -92,14 +95,12 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("supports HEAD, serves first segment for multi-range, and returns 416", () =>
+  effectTest("supports HEAD, serves first segment for multi-range, and returns 416", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("head.mov", "0123456789"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry
-          .registerMediaFile(fixture.filePath)
-          .pipe(Effect.provide(BunFileSystem.layer));
+        const token = yield* registry.registerMediaFile(fixture.filePath);
         const resolved = mediaURL(token);
 
         const headResponse = yield* Effect.promise(() =>
@@ -127,13 +128,11 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("rejects unsupported and missing media paths before minting tokens", () =>
+  effectTest("rejects unsupported and missing media paths before minting tokens", () =>
     Effect.gen(function* () {
       const { registry } = yield* makeHarness;
       const unsupported = yield* Effect.exit(
-        registry
-          .registerMediaFile(path.join(os.tmpdir(), "capture.txt"))
-          .pipe(Effect.provide(BunFileSystem.layer)),
+        registry.registerMediaFile(path.join(os.tmpdir(), "capture.txt")),
       );
       expect(unsupported._tag).toBe("Failure");
       if (unsupported._tag === "Failure") {
@@ -143,9 +142,7 @@ describe("media HTTP routes", () => {
       }
 
       const missing = yield* Effect.exit(
-        registry
-          .registerMediaFile(path.join(os.tmpdir(), "missing.mov"))
-          .pipe(Effect.provide(BunFileSystem.layer)),
+        registry.registerMediaFile(path.join(os.tmpdir(), "missing.mov")),
       );
       expect(missing._tag).toBe("Failure");
       if (missing._tag === "Failure") {
@@ -156,14 +153,12 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("returns 404 when a media file is deleted after token minting", () =>
+  effectTest("returns 404 when a media file is deleted after token minting", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("deleted.mov", "gone"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry
-          .registerMediaFile(fixture.filePath)
-          .pipe(Effect.provide(BunFileSystem.layer));
+        const token = yield* registry.registerMediaFile(fixture.filePath);
         yield* Effect.promise(() => rm(fixture.filePath, { force: true }));
 
         const response = yield* Effect.promise(() => dispatch(handler, mediaURL(token)));
@@ -175,14 +170,12 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("returns 404 for unknown, invalid, expired, and non-loopback tokens", () =>
+  effectTest("returns 404 for unknown, invalid, expired, and non-loopback tokens", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("secure.mp4", "secure"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry
-          .registerMediaFile(fixture.filePath)
-          .pipe(Effect.provide(BunFileSystem.layer));
+        const token = yield* registry.registerMediaFile(fixture.filePath);
 
         const unknownResponse = yield* Effect.promise(() =>
           dispatch(handler, mediaURL("00000000-0000-4000-8000-000000000000")),
@@ -204,7 +197,7 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("serves live preview frames and cached fallback frames", () =>
+  effectTest("serves live preview frames and cached fallback frames", () =>
     Effect.gen(function* () {
       const { registry, handler } = yield* makeHarness;
       let calls = 0;
@@ -231,7 +224,7 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("returns 404 when live preview has no frame and no cache", () =>
+  effectTest("returns 404 when live preview has no frame and no cache", () =>
     Effect.gen(function* () {
       const { registry, handler } = yield* makeHarness;
       const token = yield* registry.registerCapturePreview(Effect.succeed(null));
@@ -240,7 +233,7 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.effect("returns health response", () =>
+  effectTest("returns health response", () =>
     Effect.gen(function* () {
       const { handler } = yield* makeHarness;
       const response = yield* Effect.promise(() => dispatch(handler, "http://127.0.0.1/health"));

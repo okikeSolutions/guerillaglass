@@ -1,11 +1,6 @@
 import { Buffer } from "node:buffer";
 import { Effect, FileSystem, Layer, Option } from "effect";
-import {
-  HttpPlatform,
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "effect/unstable/http";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -95,19 +90,19 @@ function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult>): Uint
   return Uint8Array.from(Buffer.from(frame.bytesBase64, "base64"));
 }
 
-function logDebugEffect(message: string): Effect.Effect<void, never, AppConfig> {
+function logDebugEffect(message: string): Effect.Effect<void> {
   return Effect.gen(function* () {
-    const config = yield* AppConfig;
-    if (config.mediaServerDebugLoggingEnabled) {
+    const config = yield* Effect.serviceOption(AppConfig);
+    if (Option.isSome(config) && config.value.mediaServerDebugLoggingEnabled) {
       yield* Effect.logInfo(message);
     }
   });
 }
 
-function logDebugWarningEffect(message: string): Effect.Effect<void, never, AppConfig> {
+function logDebugWarningEffect(message: string): Effect.Effect<void> {
   return Effect.gen(function* () {
-    const config = yield* AppConfig;
-    if (config.mediaServerDebugLoggingEnabled) {
+    const config = yield* Effect.serviceOption(AppConfig);
+    if (Option.isSome(config) && config.value.mediaServerDebugLoggingEnabled) {
       yield* Effect.logWarning(message);
     }
   });
@@ -127,11 +122,7 @@ function validateToken(rawToken: string): string | null {
 function handlePreviewRequest(
   token: string,
   entry: PreviewTokenEntry,
-): Effect.Effect<
-  HttpServerResponse.HttpServerResponse,
-  MediaServerError,
-  AppConfig | MediaRegistry
-> {
+): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, MediaRegistry> {
   return Effect.gen(function* () {
     const registry = yield* MediaRegistry;
     const frame = yield* entry.loadPreviewFrame.pipe(
@@ -177,11 +168,7 @@ function handleFileRequest(
   request: HttpServerRequest.HttpServerRequest,
   token: string,
   entry: MediaTokenEntry,
-): Effect.Effect<
-  HttpServerResponse.HttpServerResponse,
-  MediaServerError,
-  AppConfig | FileSystem.FileSystem | HttpPlatform.HttpPlatform
-> {
+): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, FileSystem.FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const info = yield* fs.stat(entry.filePath).pipe(
@@ -205,13 +192,7 @@ function handleFileRequest(
 
     if (!rangeHeader) {
       yield* logDebugEffect(`Media served 200 (${token.slice(0, 8)}...) full file`);
-      return yield* HttpServerResponse.file(entry.filePath, {
-        status: 200,
-        headers: {
-          ...commonHeaders,
-          "content-length": String(size),
-        },
-      }).pipe(
+      const fileBytes = yield* fs.readFile(entry.filePath).pipe(
         Effect.mapError(
           (cause) =>
             new MediaServerError({
@@ -221,6 +202,13 @@ function handleFileRequest(
             }),
         ),
       );
+      return HttpServerResponse.uint8Array(fileBytes, {
+        status: 200,
+        headers: {
+          ...commonHeaders,
+          "content-length": String(size),
+        },
+      });
     }
 
     const isMultiRangeRequest = rangeHeader.includes(",");
@@ -243,16 +231,7 @@ function handleFileRequest(
       );
     }
 
-    return yield* HttpServerResponse.file(entry.filePath, {
-      status: 206,
-      offset: start,
-      bytesToRead: chunkSize,
-      headers: {
-        ...commonHeaders,
-        "content-length": String(chunkSize),
-        "content-range": `bytes ${start}-${end}/${size}`,
-      },
-    }).pipe(
+    const fileBytes = yield* fs.readFile(entry.filePath).pipe(
       Effect.mapError(
         (cause) =>
           new MediaServerError({
@@ -262,6 +241,14 @@ function handleFileRequest(
           }),
       ),
     );
+    return HttpServerResponse.uint8Array(fileBytes.subarray(start, end + 1), {
+      status: 206,
+      headers: {
+        ...commonHeaders,
+        "content-length": String(chunkSize),
+        "content-range": `bytes ${start}-${end}/${size}`,
+      },
+    });
   });
 }
 

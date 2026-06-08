@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +30,7 @@ describe("file access policy", () => {
         tempDirectory: os.tmpdir(),
       });
 
-      expect(resolvedPath).toBe(realpathSync(filePath));
+      expect(resolvedPath).toBe(path.resolve(filePath));
       expect(contents).toContain('"schemaVersion":1');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
@@ -49,7 +49,7 @@ describe("file access policy", () => {
         currentProjectPath: projectDir,
         tempDirectory: "/var/empty",
       });
-      expect(resolvedPath).toBe(realpathSync(filePath));
+      expect(resolvedPath).toBe(path.resolve(filePath));
     } finally {
       rmSync(projectDir, { recursive: true, force: true });
     }
@@ -108,7 +108,7 @@ describe("file access policy", () => {
         currentProjectPath: projectDir,
         tempDirectory: "/var/empty",
       });
-      expect(resolvedPath).toBe(realpathSync(filePath));
+      expect(resolvedPath).toBe(path.resolve(filePath));
     } finally {
       rmSync(projectDir, { recursive: true, force: true });
     }
@@ -123,7 +123,7 @@ describe("file access policy", () => {
       const resolvedPath = resolveAllowedMediaFilePath(filePath, {
         tempDirectory: os.tmpdir(),
       });
-      expect(resolvedPath).toBe(realpathSync(filePath));
+      expect(resolvedPath).toBe(path.resolve(filePath));
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -139,7 +139,7 @@ describe("file access policy", () => {
       const resolvedPath = resolveAllowedMediaFilePath(fileURL, {
         tempDirectory: os.tmpdir(),
       });
-      expect(resolvedPath).toBe(realpathSync(filePath));
+      expect(resolvedPath).toBe(path.resolve(filePath));
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
