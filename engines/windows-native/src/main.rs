@@ -65,7 +65,10 @@ fn print_authenticode_result(result: authenticode::AuthenticodeVerificationResul
 }
 
 fn maybe_run_authenticode_helper(arguments: &[String]) -> bool {
-    if !arguments.iter().any(|argument| argument == "--verify-authenticode") {
+    if !arguments
+        .iter()
+        .any(|argument| argument == "--verify-authenticode")
+    {
         return false;
     }
 
@@ -84,7 +87,10 @@ fn maybe_run_authenticode_helper(arguments: &[String]) -> bool {
         &AuthenticodeExpectation {
             expected_sha256_thumbprint: argument_value(arguments, "--sha256-thumbprint"),
             expected_subject_contains: argument_value(arguments, "--subject-contains"),
-            revocation: if arguments.iter().any(|argument| argument == "--offline-revocation") {
+            revocation: if arguments
+                .iter()
+                .any(|argument| argument == "--offline-revocation")
+            {
                 RevocationMode::OfflineAllowed
             } else {
                 RevocationMode::Online

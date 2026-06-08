@@ -86,7 +86,10 @@ pub enum EngineResponse {
     #[serde(rename = "response")]
     Success { id: JsonRpcId, result: Value },
     #[serde(rename = "error")]
-    Error { id: JsonRpcId, error: EngineWireError },
+    Error {
+        id: JsonRpcId,
+        error: EngineWireError,
+    },
     #[serde(rename = "chunk")]
     Chunk { id: JsonRpcId, values: Vec<Value> },
 }

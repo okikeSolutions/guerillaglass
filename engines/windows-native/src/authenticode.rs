@@ -56,7 +56,10 @@ pub fn normalize_thumbprint(value: &str) -> String {
 
 #[cfg(windows)]
 mod windows_impl {
-    use super::{normalize_thumbprint, AuthenticodeExpectation, AuthenticodeVerificationResult, RevocationMode};
+    use super::{
+        normalize_thumbprint, AuthenticodeExpectation, AuthenticodeVerificationResult,
+        RevocationMode,
+    };
     use std::ffi::c_void;
     use std::os::windows::ffi::OsStrExt;
     use std::path::Path;
@@ -67,9 +70,9 @@ mod windows_impl {
         CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_SHA256_HASH_PROP_ID,
     };
     use windows::Win32::Security::WinTrust::{
-        WinVerifyTrust, WTHelperGetProvCertFromChain, WTHelperGetProvSignerFromChain,
-        WTHelperProvDataFromStateData, WINTRUST_ACTION_GENERIC_VERIFY_V2, WINTRUST_DATA,
-        WINTRUST_DATA_0, WINTRUST_FILE_INFO, WTD_CHOICE_FILE,
+        WTHelperGetProvCertFromChain, WTHelperGetProvSignerFromChain,
+        WTHelperProvDataFromStateData, WinVerifyTrust, WINTRUST_ACTION_GENERIC_VERIFY_V2,
+        WINTRUST_DATA, WINTRUST_DATA_0, WINTRUST_FILE_INFO, WTD_CHOICE_FILE,
         WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, WTD_REVOKE_NONE, WTD_REVOKE_WHOLECHAIN,
         WTD_STATEACTION_CLOSE, WTD_STATEACTION_VERIFY, WTD_UI_NONE,
     };
@@ -99,7 +102,9 @@ mod windows_impl {
                     RevocationMode::OfflineAllowed => WTD_REVOKE_NONE,
                 },
                 dwUnionChoice: WTD_CHOICE_FILE,
-                Anonymous: WINTRUST_DATA_0 { pFile: &mut file_info },
+                Anonymous: WINTRUST_DATA_0 {
+                    pFile: &mut file_info,
+                },
                 dwStateAction: WTD_STATEACTION_VERIFY,
                 hWVTStateData: Default::default(),
                 pwszURLReference: PCWSTR::null(),
@@ -122,7 +127,10 @@ mod windows_impl {
                     ok: false,
                     subject: None,
                     sha256_thumbprint: None,
-                    error: Some(format!("WinVerifyTrust failed with status 0x{:08x}", status.0)),
+                    error: Some(format!(
+                        "WinVerifyTrust failed with status 0x{:08x}",
+                        status.0
+                    )),
                 };
             }
 
@@ -147,7 +155,9 @@ mod windows_impl {
                 }
             }
 
-            if let Some(expected_subject_contains) = expectation.expected_subject_contains.as_deref() {
+            if let Some(expected_subject_contains) =
+                expectation.expected_subject_contains.as_deref()
+            {
                 let actual = subject.as_deref().unwrap_or_default().to_lowercase();
                 if !actual.contains(&expected_subject_contains.to_lowercase()) {
                     return AuthenticodeVerificationResult {
@@ -177,7 +187,9 @@ mod windows_impl {
         );
     }
 
-    unsafe fn signer_certificate_context(trust_data: &WINTRUST_DATA) -> Option<*const CERT_CONTEXT> {
+    unsafe fn signer_certificate_context(
+        trust_data: &WINTRUST_DATA,
+    ) -> Option<*const CERT_CONTEXT> {
         let provider_data = WTHelperProvDataFromStateData(trust_data.hWVTStateData);
         if provider_data.is_null() {
             return None;
@@ -215,17 +227,17 @@ mod windows_impl {
         {
             return None;
         }
-        Some(bytes.into_iter().map(|byte| format!("{byte:02x}")).collect())
+        Some(
+            bytes
+                .into_iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect(),
+        )
     }
 
     unsafe fn certificate_subject(certificate: *const CERT_CONTEXT) -> Option<String> {
-        let required = CertGetNameStringW(
-            certificate,
-            CERT_NAME_SIMPLE_DISPLAY_TYPE,
-            0,
-            None,
-            None,
-        );
+        let required =
+            CertGetNameStringW(certificate, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, None, None);
         if required <= 1 {
             return None;
         }

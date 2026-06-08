@@ -154,7 +154,8 @@ pub(crate) fn run_cut_plan(id: &JsonRpcId, state: &State, params: &Value) -> Eng
     }
 
     let output_path = PathBuf::from(&output_url);
-    if let Err(error) = write_file_no_symlink(&output_path, b"guerillaglass-native-cut-plan-export") {
+    if let Err(error) = write_file_no_symlink(&output_path, b"guerillaglass-native-cut-plan-export")
+    {
         return failure(
             id,
             ProtocolErrorCode::PermissionDenied,

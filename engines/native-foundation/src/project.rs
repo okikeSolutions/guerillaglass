@@ -1,5 +1,7 @@
 use crate::params::{ProjectOpenParams, ProjectRecentsParams, ProjectSaveParams};
-use crate::path_security::{create_directory_all_no_symlink, reject_final_symlink, write_file_no_symlink};
+use crate::path_security::{
+    create_directory_all_no_symlink, reject_final_symlink, write_file_no_symlink,
+};
 use crate::state::{record_recent_project, State};
 use crate::DEFAULT_RECENTS_LIMIT;
 use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
@@ -95,7 +97,9 @@ pub(crate) fn save(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineR
             );
         }
         let snapshot_path = directory.join("project.native.json");
-        if let Err(error) = write_file_no_symlink(&snapshot_path, state.project_state().to_string().as_bytes()) {
+        if let Err(error) =
+            write_file_no_symlink(&snapshot_path, state.project_state().to_string().as_bytes())
+        {
             return failure(
                 id,
                 ProtocolErrorCode::PermissionDenied,
