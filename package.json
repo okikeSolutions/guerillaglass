@@ -7,9 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "gate": "./Scripts/full_gate.sh",
-    "gate:rust": "./Scripts/rust_gate.sh",
-    "gate:typescript": "./Scripts/typescript_gate.sh",
+    "gate": "bash ./Scripts/full_gate.sh",
+    "gate:rust": "bash ./Scripts/rust_gate.sh",
+    "gate:typescript": "bash ./Scripts/typescript_gate.sh",
     "js:format": "bunx oxfmt --write apps packages '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**'",
     "js:format:check": "bunx oxfmt --check apps packages '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**'",
     "js:lint": "bunx oxlint apps packages Scripts oxlint.config.mjs --ignore-pattern 'apps/*/src/paraglide/**' --ignore-pattern 'apps/*/build/**' --ignore-pattern 'apps/*/dist/**'",
@@ -42,8 +42,8 @@
     "docs:check": "bun ./Scripts/docs_gate.mjs",
     "docs:check:ts": "bun ./Scripts/docs_gate.mjs --scope=ts",
     "docs:check:native": "bun ./Scripts/docs_gate.mjs --scope=native",
-    "coverage": "./Scripts/coverage.sh",
-    "coverage:check": "./Scripts/coverage_check.sh",
+    "coverage": "bash ./Scripts/coverage.sh",
+    "coverage:check": "bash ./Scripts/coverage_check.sh",
     "prepare": "effect-language-service patch"
   },
   "devDependencies": {
