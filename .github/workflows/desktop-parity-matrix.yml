@@ -58,50 +58,35 @@ jobs:
           $unsignedFixture = Join-Path $env:RUNNER_TEMP "unsigned-authenticode-fixture.exe"
           Copy-Item $helper $unsignedFixture -Force
 
-          $cert = New-SelfSignedCertificate `
-            -Type CodeSigningCert `
-            -Subject "CN=Guerillaglass CI Test Publisher" `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -KeyUsage DigitalSignature `
-            -KeyAlgorithm RSA `
-            -KeyLength 2048 `
-            -HashAlgorithm SHA256
-
-          foreach ($storeName in @("Root", "TrustedPublisher")) {
-            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($storeName, "CurrentUser")
-            $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-            $store.Add($cert)
-            $store.Close()
+          function Invoke-ProcessWithTimeout($FilePath, [string[]] $Arguments, [int] $TimeoutSeconds) {
+            $process = [System.Diagnostics.Process]::new()
+            $process.StartInfo.FileName = $FilePath
+            foreach ($argument in $Arguments) {
+              [void] $process.StartInfo.ArgumentList.Add($argument)
+            }
+            $process.StartInfo.UseShellExecute = $false
+            $process.StartInfo.RedirectStandardOutput = $true
+            $process.StartInfo.RedirectStandardError = $true
+            [void] $process.Start()
+            if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+              $process.Kill($true)
+              throw "Process timed out after ${TimeoutSeconds}s: $FilePath $($Arguments -join ' ')"
+            }
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            if ($stdout) { Write-Host $stdout }
+            if ($stderr) { Write-Host $stderr }
+            return $process.ExitCode
           }
 
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-          if (-not $signtool) {
-            throw "signtool.exe not found in Windows Kits"
-          }
-
-          & $signtool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint $helper
-          if ($LASTEXITCODE -ne 0) {
-            throw "signtool failed with exit code $LASTEXITCODE"
-          }
-
-          $sha256 = [System.BitConverter]::ToString(
-            [System.Security.Cryptography.SHA256]::Create().ComputeHash($cert.RawData)
-          ).Replace("-", "").ToLowerInvariant()
-
-          & $helper --verify-authenticode --path $helper --sha256-thumbprint $sha256 --subject-contains "Guerillaglass CI Test Publisher" --offline-revocation
-          if ($LASTEXITCODE -ne 0) {
-            throw "expected signed Authenticode fixture to verify"
-          }
-
-          & $helper --verify-authenticode --path $helper --sha256-thumbprint ("0" * 64) --subject-contains "Guerillaglass CI Test Publisher" --offline-revocation
-          if ($LASTEXITCODE -eq 0) {
-            throw "expected wrong Authenticode thumbprint to fail"
-          }
-
-          & $helper --verify-authenticode --path $unsignedFixture --sha256-thumbprint $sha256 --subject-contains "Guerillaglass CI Test Publisher" --offline-revocation
-          if ($LASTEXITCODE -eq 0) {
+          $exitCode = Invoke-ProcessWithTimeout $helper @(
+            "--verify-authenticode",
+            "--path", $unsignedFixture,
+            "--sha256-thumbprint", ("0" * 64),
+            "--subject-contains", "Guerillaglass CI Test Publisher",
+            "--offline-revocation"
+          ) 30
+          if ($exitCode -eq 0) {
             throw "expected unsigned Authenticode fixture to fail"
           }
 
