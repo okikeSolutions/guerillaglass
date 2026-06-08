@@ -9,7 +9,13 @@ import Electrobun, {
 import { Effect, Layer, Option, Ref } from "effect";
 import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
+import { AppConfig } from "../app/AppConfig";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
+import {
+  buildMainViewNavigationRules,
+  DEFAULT_DEV_SERVER_PORT,
+  devServerURL,
+} from "../security/DesktopNavigationPolicy";
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
@@ -21,7 +27,9 @@ import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
 import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
 import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import {
+  hostMenuStateSchema,
   hostReviewEventMessageSchema,
+  studioDiagnosticsEntrySchema,
   type DesktopBridgeRPC,
   type DesktopRuntimeFlags,
   type HostMenuCommand,
@@ -37,8 +45,7 @@ import {
 type BunRPC = ReturnType<typeof BrowserView.defineRPC<DesktopBridgeRPC>>;
 type MainWindow = BrowserWindow<BunRPC>;
 
-const DEV_SERVER_PORT = 5173;
-const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
+const maxElectrobunRequestTimeMs = 31 * 60 * 1000;
 
 const initialHostMenuState: HostMenuState = {
   canSave: false,
@@ -94,23 +101,25 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const runtimeFlags = makeDesktopRuntimeFlags(options);
         const captureBenchmarkEnabled = runtimeFlags.captureBenchmarkEnabled;
         const studioDiagnosticsEnabled = runtimeFlags.studioDiagnosticsEnabled;
-        const services = yield* Effect.context<never>();
-        const runShellEffect = <A, E>(effect: Effect.Effect<A, E, never>) => {
-          void Effect.runPromiseWith(services)(effect);
+        const devServerPort = options.devServerPort ?? DEFAULT_DEV_SERVER_PORT;
+        const devURL = devServerURL(devServerPort);
+        let runShellEffect = <A, E>(_effect: Effect.Effect<A, E, never>) => {
+          console.warn("Desktop shell effect ignored before managed runtime start");
         };
 
-        const getMainViewURL = Effect.promise(async () => {
+        const getElectrobunChannel = Effect.promise(() => Updater.localInfo.channel());
+
+        const getMainViewURL = (channel: string) => Effect.promise(async () => {
           if (captureBenchmarkEnabled) {
             return "views://mainview/index.html";
           }
 
-          const channel = await Updater.localInfo.channel();
           if (channel === "dev") {
             try {
-              await fetch(DEV_SERVER_URL, { method: "HEAD" });
-              console.log(`HMR enabled: Using Vite dev server at ${DEV_SERVER_URL}`);
+              await fetch(devURL, { method: "HEAD" });
+              console.log(`HMR enabled: Using Vite dev server at ${devURL}`);
               return appendCaptureBenchmarkQuery(
-                appendStudioDiagnosticsQuery(DEV_SERVER_URL, studioDiagnosticsEnabled),
+                appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled),
                 captureBenchmarkEnabled,
               );
             } catch {
@@ -245,6 +254,12 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
 
         const start = ({ runtime, onClose }: DesktopShellStartOptions): Effect.Effect<void> =>
           Effect.gen(function* () {
+            runShellEffect = <A, E>(effect: Effect.Effect<A, E, never>) => {
+              void runtime.runPromise(effect).catch((error) => {
+                console.warn("Desktop shell effect failed", error);
+              });
+            };
+
             const hasStarted = yield* Ref.get(hasStartedRef);
             if (hasStarted) {
               yield* Effect.logWarning("DesktopShell.start ignored because shell already started");
@@ -253,23 +268,42 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
             yield* Ref.set(hasStartedRef, true);
 
             const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
-              maxRequestTime: Infinity,
+              maxRequestTime: maxElectrobunRequestTimeMs,
               handlers: {
                 requests: createEngineBridgeHandlers({
                   runtime,
                 }),
                 messages: {
                   hostMenuState: (nextState: HostMenuState) => {
-                    runShellEffect(
-                      Ref.get(hostMenuStateRef).pipe(
-                        Effect.flatMap((previous) =>
-                          updateHostMenuState({ ...previous, ...nextState }),
+                    try {
+                      const validatedState = decodeUnknownWithSchemaSync(
+                        hostMenuStateSchema,
+                        nextState,
+                        "host menu state message",
+                      );
+                      runShellEffect(
+                        Ref.get(hostMenuStateRef).pipe(
+                          Effect.flatMap((previous) =>
+                            updateHostMenuState({ ...previous, ...validatedState }),
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } catch (error) {
+                      console.warn("Rejected invalid host menu state message", error);
+                    }
                   },
                   studioDiagnostics: (entry: StudioDiagnosticsEntry) => {
-                    logStudioDiagnostics(entry);
+                    try {
+                      logStudioDiagnostics(
+                        decodeUnknownWithSchemaSync(
+                          studioDiagnosticsEntrySchema,
+                          entry,
+                          "studio diagnostics message",
+                        ),
+                      );
+                    } catch (error) {
+                      console.warn("Rejected invalid studio diagnostics message", error);
+                    }
                   },
                 },
               },
@@ -277,12 +311,15 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
 
             yield* applyShellMenus;
 
-            const url = yield* getMainViewURL;
+            const channel = yield* getElectrobunChannel;
+            const url = yield* getMainViewURL(channel);
             const window = new BrowserWindow({
               title: captureBenchmarkEnabled ? captureBenchmarkWindowTitle : "Guerillaglass",
               url,
               preload: `window.__ggDesktopRuntimeFlags = ${JSON.stringify(runtimeFlags)};`,
               rpc,
+              navigationRules: buildMainViewNavigationRules(channel, devServerPort),
+              sandbox: false,
               frame: {
                 width: 1320,
                 height: 860,
@@ -353,3 +390,14 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
     ),
   );
 }
+
+/** Builds the desktop shell layer from typed app configuration. */
+export const layerDesktopShellFromConfig = Layer.unwrap(
+  Effect.map(AppConfig, (config) =>
+    makeLayerDesktopShell({
+      captureBenchmarkEnabled: config.captureBenchmarkEnabled,
+      studioDiagnosticsEnabled: config.studioDiagnosticsEnabled,
+      devServerPort: config.devServerPort,
+    }),
+  ),
+);

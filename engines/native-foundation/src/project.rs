@@ -1,10 +1,36 @@
 use crate::params::{ProjectOpenParams, ProjectRecentsParams, ProjectSaveParams};
+use crate::path_security::{create_directory_all_no_symlink, reject_final_symlink, write_file_no_symlink};
 use crate::state::{record_recent_project, State};
 use crate::DEFAULT_RECENTS_LIMIT;
 use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
-use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+fn validate_project_path(id: &JsonRpcId, project_path: &str) -> Result<(), EngineResponse> {
+    let path = Path::new(project_path);
+    if !path.is_absolute() {
+        return Err(failure(
+            id,
+            ProtocolErrorCode::InvalidParams,
+            "projectPath must be an absolute path",
+        ));
+    }
+    if path.extension().and_then(|value| value.to_str()) != Some("gglassproj") {
+        return Err(failure(
+            id,
+            ProtocolErrorCode::InvalidParams,
+            "projectPath must end with .gglassproj",
+        ));
+    }
+    if let Err(error) = reject_final_symlink(path) {
+        return Err(failure(
+            id,
+            ProtocolErrorCode::PermissionDenied,
+            format!("projectPath failed symlink safety validation: {error}"),
+        ));
+    }
+    Ok(())
+}
 
 fn decode_params<T>(params: &Value) -> T
 where
@@ -29,6 +55,9 @@ pub(crate) fn open(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineR
             )
         }
     };
+    if let Err(response) = validate_project_path(id, &project_path) {
+        return response;
+    }
     state.project_path = Some(project_path.clone());
     state.unsaved_changes = false;
     record_recent_project(state, &project_path);
@@ -38,6 +67,9 @@ pub(crate) fn open(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineR
 pub(crate) fn save(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
     let project_params: ProjectSaveParams = decode_params(params);
     if let Some(project_path) = project_params.project_path {
+        if let Err(response) = validate_project_path(id, &project_path) {
+            return response;
+        }
         state.project_path = Some(project_path);
     }
 
@@ -55,9 +87,21 @@ pub(crate) fn save(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineR
 
     if let Some(project_path) = state.project_path.clone() {
         let directory = PathBuf::from(&project_path);
-        let _ = fs::create_dir_all(&directory);
+        if let Err(error) = create_directory_all_no_symlink(&directory) {
+            return failure(
+                id,
+                ProtocolErrorCode::PermissionDenied,
+                format!("Unable to create project directory safely: {error}"),
+            );
+        }
         let snapshot_path = directory.join("project.native.json");
-        let _ = fs::write(snapshot_path, state.project_state().to_string());
+        if let Err(error) = write_file_no_symlink(&snapshot_path, state.project_state().to_string().as_bytes()) {
+            return failure(
+                id,
+                ProtocolErrorCode::PermissionDenied,
+                format!("Unable to write project snapshot safely: {error}"),
+            );
+        }
         record_recent_project(state, &project_path);
     }
     state.unsaved_changes = false;

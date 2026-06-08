@@ -322,15 +322,31 @@ export const desktopApi = {
   },
 
   async resolveMediaSourceURL(filePath: string): Promise<string> {
+    const capabilityToken = await invokeBridgeContract(
+      "ggGrantMediaSourceCapability",
+      "media source capability result",
+      filePath,
+    );
     return await invokeBridgeContract(
       "ggResolveMediaSourceURL",
       "media source URL result",
       filePath,
+      capabilityToken,
     );
   },
 
-  async resolveCapturePreviewURL(): Promise<string> {
-    return await invokeBridgeContract("ggResolveCapturePreviewURL", "capture preview URL result");
+  async resolveCapturePreviewURL(captureSessionId: string): Promise<string> {
+    const capabilityToken = await invokeBridgeContract(
+      "ggGrantCapturePreviewCapability",
+      "capture preview capability result",
+      captureSessionId,
+    );
+    return await invokeBridgeContract(
+      "ggResolveCapturePreviewURL",
+      "capture preview URL result",
+      captureSessionId,
+      capabilityToken,
+    );
   },
 };
 

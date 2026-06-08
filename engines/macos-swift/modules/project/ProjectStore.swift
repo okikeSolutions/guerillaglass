@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Public class exposed by the macOS engine module.
@@ -78,11 +79,13 @@ public final class ProjectStore {
     }
 
     public func loadProject(at url: URL) throws -> SavedProject {
+        try rejectSymlinkComponents(in: url)
         guard fileManager.fileExists(atPath: url.path) else {
             throw StoreError.invalidProjectDirectory
         }
 
         let projectJSONURL = url.appendingPathComponent(ProjectFile.projectJSON)
+        try rejectSymlinkComponents(in: projectJSONURL)
         guard fileManager.fileExists(atPath: projectJSONURL.path) else {
             throw StoreError.projectJSONMissing
         }
@@ -139,7 +142,7 @@ public final class ProjectStore {
         assets: ProjectAssetURLs,
         to directoryURL: URL
     ) throws -> ProjectDocument {
-        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try createDirectoryNoSymlink(at: directoryURL)
 
         var writtenDocument = try validatedDocument(document)
 
@@ -174,7 +177,7 @@ public final class ProjectStore {
 
         let projectJSONURL = directoryURL.appendingPathComponent(ProjectFile.projectJSON)
         let data = try encoder.encode(writtenDocument)
-        try data.write(to: projectJSONURL, options: [.atomic])
+        try writeDataNoSymlink(data, to: projectJSONURL)
 
         return writtenDocument
     }
@@ -207,10 +210,50 @@ public final class ProjectStore {
     }
 
     private func copyItemReplacingIfNeeded(from sourceURL: URL, to destinationURL: URL) throws {
+        try rejectSymlinkComponents(in: sourceURL)
+        try rejectSymlinkComponents(in: destinationURL)
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }
         try fileManager.copyItem(at: sourceURL, to: destinationURL)
+    }
+
+    private func writeDataNoSymlink(_ data: Data, to destinationURL: URL) throws {
+        try rejectSymlinkComponents(in: destinationURL)
+        try data.write(to: destinationURL, options: [.atomic])
+        try rejectSymlinkComponents(in: destinationURL)
+    }
+
+    private func createDirectoryNoSymlink(at directoryURL: URL) throws {
+        try rejectSymlinkComponents(in: directoryURL)
+        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try rejectSymlinkComponents(in: directoryURL)
+    }
+
+    private func rejectSymlinkComponents(in url: URL) throws {
+        let rawPath = url.path
+        let isAbsolute = rawPath.hasPrefix("/")
+        let components = rawPath.split(separator: "/").map(String.init)
+        var currentPath = isAbsolute ? "/" : ""
+
+        for component in components {
+            if currentPath.isEmpty { currentPath = component }
+            else if currentPath == "/" { currentPath += component }
+            else { currentPath += "/\(component)" }
+            try rejectSymlinkIfExists(atPath: currentPath)
+        }
+    }
+
+    private func rejectSymlinkIfExists(atPath path: String) throws {
+        var metadata = stat()
+        let status = path.withCString { Darwin.lstat($0, &metadata) }
+        if status != 0 {
+            if errno == ENOENT { return }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        if (metadata.st_mode & S_IFMT) == S_IFLNK {
+            throw StoreError.invalidProjectDirectory
+        }
     }
 
     private func validatedDocument(_ document: ProjectDocument) throws -> ProjectDocument {

@@ -4,6 +4,16 @@ import Export
 import Foundation
 import Project
 
+private func validateExportOutputPath(_ outputPath: String) throws {
+    let url = URL(fileURLWithPath: outputPath)
+    guard url.path == outputPath else {
+        throw NSError(domain: "GuerillaglassEngine", code: 400, userInfo: [NSLocalizedDescriptionKey: "outputURL must be an absolute path"])
+    }
+    guard ["mp4", "mov"].contains(url.pathExtension.lowercased()) else {
+        throw NSError(domain: "GuerillaglassEngine", code: 400, userInfo: [NSLocalizedDescriptionKey: "outputURL must end with .mp4 or .mov"])
+    }
+}
+
 extension EngineService {
     func exportInfoResponse(id: String) -> EngineResponse {
         let presets = Presets.all.map { preset in
@@ -35,6 +45,7 @@ extension EngineService {
         }
 
         do {
+            try validateExportOutputPath(outputPath)
             let timeline = parseTimelineDocument(from: params["timeline"])
             let exportAsset = try await makeExportAsset(
                 recordingURL: recordingURL,
@@ -75,6 +86,7 @@ extension EngineService {
         }
 
         do {
+            try validateExportOutputPath(outputPath)
             let execution = try validatedCutPlanExecutionForJob(jobID: jobID)
             guard let projectURL = currentProjectURL else {
                 return .failure(id: id, code: "invalid_params", message: "No active project is open.")

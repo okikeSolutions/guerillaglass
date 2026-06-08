@@ -36,6 +36,10 @@ export type BrowserStorageErrorCode =
   | "BROWSER_STORAGE_UNAVAILABLE"
   | "BROWSER_STORAGE_WRITE_FAILED";
 
+export type BridgeRequestLimitErrorCode = "BRIDGE_REQUEST_RATE_LIMITED" | "BRIDGE_REQUEST_TIMEOUT";
+
+export type CapabilityTokenErrorCode = "CAPABILITY_TOKEN_INVALID";
+
 export type ReviewBridgeErrorCode =
   | "REVIEW_BRIDGE_URL_MISSING"
   | "REVIEW_AUTH_TOKEN_MISSING"
@@ -129,6 +133,34 @@ export class BrowserStorageError extends Data.TaggedError("BrowserStorageError")
   }
 }
 
+export class BridgeRequestLimitError extends Data.TaggedError("BridgeRequestLimitError")<{
+  requestName: string;
+  retryAfterMs: number;
+}> {
+  get message(): string {
+    return `Too many ${this.requestName} requests. Try again in ${Math.ceil(this.retryAfterMs / 1000)} seconds.`;
+  }
+}
+
+export class BridgeRequestTimeoutError extends Data.TaggedError("BridgeRequestTimeoutError")<{
+  requestName: string;
+  timeout: string;
+}> {
+  get message(): string {
+    return `${this.requestName} timed out after ${this.timeout}.`;
+  }
+}
+
+export class CapabilityTokenError extends Data.TaggedError("CapabilityTokenError")<{
+  code: CapabilityTokenErrorCode;
+  description: string;
+  cause?: unknown;
+}> {
+  get message(): string {
+    return this.description;
+  }
+}
+
 export class ReviewBridgeError extends Data.TaggedError("ReviewBridgeError")<{
   code: ReviewBridgeErrorCode;
   description: string;
@@ -170,6 +202,9 @@ export type KnownTaggedError =
   | MediaServerError
   | PathPickerError
   | BrowserStorageError
+  | BridgeRequestLimitError
+  | BridgeRequestTimeoutError
+  | CapabilityTokenError
   | ReviewBridgeError
   | JsonParseError
   | StudioContextUnavailableError
@@ -189,6 +224,9 @@ export function isKnownTaggedError(error: unknown): error is KnownTaggedError {
     error instanceof MediaServerError ||
     error instanceof PathPickerError ||
     error instanceof BrowserStorageError ||
+    error instanceof BridgeRequestLimitError ||
+    error instanceof BridgeRequestTimeoutError ||
+    error instanceof CapabilityTokenError ||
     error instanceof ReviewBridgeError ||
     error instanceof JsonParseError ||
     error instanceof StudioContextUnavailableError ||

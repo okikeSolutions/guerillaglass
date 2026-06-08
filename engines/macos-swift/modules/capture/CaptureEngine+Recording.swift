@@ -1,4 +1,5 @@
 import AVFoundation
+import Darwin
 import Export
 import Foundation
 import OSLog
@@ -205,8 +206,14 @@ public extension CaptureEngine {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         let timestamp = formatter.string(from: Date())
-        return FileManager.default.temporaryDirectory
-            .appendingPathComponent("guerillaglass-recording-\(timestamp).mov")
+        let temporaryDirectory: URL
+        if let resolved = realpath(FileManager.default.temporaryDirectory.path, nil) {
+            temporaryDirectory = URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
+            free(resolved)
+        } else {
+            temporaryDirectory = FileManager.default.temporaryDirectory
+        }
+        return temporaryDirectory.appendingPathComponent("guerillaglass-recording-\(timestamp).mov")
     }
 
     private static func recordingDuration(for url: URL) async -> TimeInterval {

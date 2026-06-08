@@ -10,6 +10,7 @@ import { ReviewGateway } from "../src/bun/review/service";
 import { makeCaptureStatusStreamEffect } from "../src/bun/app/AppLayer";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
 import { ProjectSession } from "../src/bun/session/ProjectSession";
+import { DesktopTempDirectory } from "../src/bun/security/DesktopTempDirectory";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
 function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): CaptureStatusResult {
@@ -117,6 +118,7 @@ describe("desktop app runtime capture status stream", () => {
             dispose: Effect.void,
           }),
           projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
+          desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
           engineTransportLayer: Layer.effect(
             EngineTransport,
             Effect.acquireRelease(

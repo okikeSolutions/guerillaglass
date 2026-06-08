@@ -9,13 +9,14 @@ import {
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
+import { AppConfig } from "../app/AppConfig";
+import { guardMediaServerRequest } from "../security/MediaServerRequestGuard";
 import { mediaTypeForPath } from "./policy";
 import { MediaRegistry, type MediaTokenEntry, type PreviewTokenEntry } from "./MediaRegistry";
 
 const maxTokenPathSegmentLength = 160;
 const mediaRoutePrefix = "/media/";
 const livePreviewMimeType = "image/jpeg";
-const mediaServerDebugLoggingEnabled = process.env.GG_MEDIA_SERVER_DEBUG === "1";
 const tokenPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type ByteRange = {
@@ -50,30 +51,6 @@ function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   }
   if (start >= size) return null;
   return { start, end: Math.min(end, size - 1) };
-}
-
-function isLoopbackHost(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  return (
-    normalized === "127.0.0.1" ||
-    normalized === "localhost" ||
-    normalized === "::1" ||
-    normalized === "[::1]"
-  );
-}
-
-function requestUsesLoopbackHost(request: HttpServerRequest.HttpServerRequest): boolean {
-  try {
-    const url = new URL(request.originalUrl);
-    return isLoopbackHost(url.hostname);
-  } catch {
-    const hostHeader = request.headers.host;
-    if (!hostHeader) return true;
-    const hostname = hostHeader.startsWith("[")
-      ? hostHeader.slice(1, hostHeader.indexOf("]"))
-      : (hostHeader.split(":")[0] ?? "");
-    return isLoopbackHost(hostname);
-  }
 }
 
 function mediaSecurityHeaders(): Record<string, string> {
@@ -118,12 +95,22 @@ function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult>): Uint
   return Uint8Array.from(Buffer.from(frame.bytesBase64, "base64"));
 }
 
-function logDebugEffect(message: string): Effect.Effect<void> {
-  return mediaServerDebugLoggingEnabled ? Effect.logInfo(message) : Effect.void;
+function logDebugEffect(message: string): Effect.Effect<void, never, AppConfig> {
+  return Effect.gen(function* () {
+    const config = yield* AppConfig;
+    if (config.mediaServerDebugLoggingEnabled) {
+      yield* Effect.logInfo(message);
+    }
+  });
 }
 
-function logDebugWarningEffect(message: string): Effect.Effect<void> {
-  return mediaServerDebugLoggingEnabled ? Effect.logWarning(message) : Effect.void;
+function logDebugWarningEffect(message: string): Effect.Effect<void, never, AppConfig> {
+  return Effect.gen(function* () {
+    const config = yield* AppConfig;
+    if (config.mediaServerDebugLoggingEnabled) {
+      yield* Effect.logWarning(message);
+    }
+  });
 }
 
 function validateToken(rawToken: string): string | null {
@@ -140,7 +127,7 @@ function validateToken(rawToken: string): string | null {
 function handlePreviewRequest(
   token: string,
   entry: PreviewTokenEntry,
-): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, MediaRegistry> {
+): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, AppConfig | MediaRegistry> {
   return Effect.gen(function* () {
     const registry = yield* MediaRegistry;
     const frame = yield* entry.loadPreviewFrame.pipe(
@@ -189,7 +176,7 @@ function handleFileRequest(
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
   MediaServerError,
-  FileSystem.FileSystem | HttpPlatform.HttpPlatform
+  AppConfig | FileSystem.FileSystem | HttpPlatform.HttpPlatform
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -294,8 +281,9 @@ const mediaRouteHandler = Effect.gen(function* () {
     return textResponse(405, "Method not allowed", { allow: "GET, HEAD" });
   }
 
-  if (!requestUsesLoopbackHost(request)) {
-    return textResponse(403, "Forbidden");
+  const guardResult = guardMediaServerRequest(request);
+  if (!guardResult.allowed) {
+    return textResponse(guardResult.status, guardResult.body);
   }
 
   if (!request.url.startsWith(mediaRoutePrefix)) {

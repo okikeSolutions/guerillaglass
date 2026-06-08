@@ -1,5 +1,6 @@
 import Automation
 import AVFoundation
+import Darwin
 import Foundation
 import Rendering
 
@@ -71,11 +72,15 @@ public final class ExportPipeline {
         }
         let sessionBox = ExportSessionBox(session)
 
-        if FileManager.default.fileExists(atPath: outputURL.path) {
-            try FileManager.default.removeItem(at: outputURL)
-        }
+        let replacementDirectoryURL = try makeExportReplacementDirectory(appropriateFor: outputURL)
+        defer { try? FileManager.default.removeItem(at: replacementDirectoryURL) }
+        let temporaryOutputURL = replacementDirectoryURL
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(outputURL.pathExtension)
 
-        session.outputURL = outputURL
+        try rejectSymlinkComponents(in: outputURL)
+
+        session.outputURL = temporaryOutputURL
         session.outputFileType = preset.fileType
         if let trimRange {
             session.timeRange = trimRange
@@ -104,6 +109,148 @@ public final class ExportPipeline {
             }
         }
 
+        try installExportFileNoSymlink(from: temporaryOutputURL, to: outputURL)
+        try rejectSymlinkComponents(in: outputURL)
         return outputURL
+    }
+}
+
+private func makeExportReplacementDirectory(appropriateFor outputURL: URL) throws -> URL {
+    try FileManager.default.url(
+        for: .itemReplacementDirectory,
+        in: .userDomainMask,
+        appropriateFor: outputURL,
+        create: true
+    ).resolvingSymlinksInPath()
+}
+
+private func installExportFileNoSymlink(from sourceURL: URL, to destinationURL: URL) throws {
+    try rejectSymlinkComponents(in: destinationURL)
+    try removeExistingRegularFileNoSymlink(at: destinationURL)
+    try rejectSymlinkComponents(in: destinationURL.deletingLastPathComponent())
+    try copyRegularFileNoFollow(from: sourceURL, to: destinationURL)
+}
+
+private func removeExistingRegularFileNoSymlink(at destinationURL: URL) throws {
+    var metadata = stat()
+    let status = destinationURL.withUnsafeFileSystemRepresentation { fileSystemPath in
+        guard let fileSystemPath else {
+            return Int32(-1)
+        }
+        return Darwin.lstat(fileSystemPath, &metadata)
+    }
+
+    if status != 0 {
+        if errno == ENOENT {
+            return
+        }
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+    }
+
+    let fileType = metadata.st_mode & S_IFMT
+    guard fileType == S_IFREG else {
+        throw ExportPipeline.ExportError.failed(
+            NSError(domain: "GuerillaglassExport", code: Int(EFTYPE), userInfo: [NSLocalizedDescriptionKey: "Export destination already exists and is not a regular file"])
+        )
+    }
+
+    try FileManager.default.removeItem(at: destinationURL)
+}
+
+private func copyRegularFileNoFollow(from sourceURL: URL, to destinationURL: URL) throws {
+    let sourceFd = try openNoFollow(sourceURL, flags: O_RDONLY)
+    defer { close(sourceFd) }
+
+    var sourceStat = stat()
+    guard fstat(sourceFd, &sourceStat) == 0, (sourceStat.st_mode & S_IFMT) == S_IFREG else {
+        throw ExportPipeline.ExportError.failed(
+            NSError(domain: "GuerillaglassExport", code: Int(EFTYPE), userInfo: [NSLocalizedDescriptionKey: "Export source is not a regular file"])
+        )
+    }
+
+    let destinationFd = try openNoFollow(destinationURL, flags: O_WRONLY | O_CREAT | O_EXCL, mode: 0o644)
+    defer { close(destinationFd) }
+
+    var buffer = [UInt8](repeating: 0, count: 1024 * 1024)
+    while true {
+        let bytesRead = buffer.withUnsafeMutableBytes { rawBuffer in
+            Darwin.read(sourceFd, rawBuffer.baseAddress, rawBuffer.count)
+        }
+        if bytesRead == 0 { break }
+        if bytesRead < 0 {
+            if errno == EINTR { continue }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+
+        var written = 0
+        while written < bytesRead {
+            let bytesWritten = buffer.withUnsafeBytes { rawBuffer in
+                Darwin.write(
+                    destinationFd,
+                    rawBuffer.baseAddress!.advanced(by: written),
+                    bytesRead - written
+                )
+            }
+            if bytesWritten < 0 {
+                if errno == EINTR { continue }
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            written += bytesWritten
+        }
+    }
+
+    if fsync(destinationFd) != 0 {
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+    }
+}
+
+private func openNoFollow(_ url: URL, flags: Int32, mode: mode_t = 0) throws -> Int32 {
+    try url.withUnsafeFileSystemRepresentation { fileSystemPath in
+        guard let fileSystemPath else {
+            throw ExportPipeline.ExportError.failed(
+                NSError(domain: "GuerillaglassExport", code: Int(EINVAL), userInfo: [NSLocalizedDescriptionKey: "Invalid export path"])
+            )
+        }
+        let fd = Darwin.open(fileSystemPath, flags | O_NOFOLLOW | O_CLOEXEC, mode)
+        if fd < 0 {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        return fd
+    }
+}
+
+private func rejectSymlinkComponents(in url: URL) throws {
+    let rawPath = url.path
+    let isAbsolute = rawPath.hasPrefix("/")
+    let components = rawPath.split(separator: "/").map(String.init)
+    var currentPath = isAbsolute ? "/" : ""
+
+    for component in components {
+        if currentPath.isEmpty {
+            currentPath = component
+        } else if currentPath == "/" {
+            currentPath += component
+        } else {
+            currentPath += "/\(component)"
+        }
+        try rejectSymlinkIfExists(atPath: currentPath)
+    }
+}
+
+private func rejectSymlinkIfExists(atPath path: String) throws {
+    var metadata = stat()
+    let status = path.withCString { fileSystemPath in
+        Darwin.lstat(fileSystemPath, &metadata)
+    }
+    if status != 0 {
+        if errno == ENOENT {
+            return
+        }
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+    }
+    if (metadata.st_mode & S_IFMT) == S_IFLNK {
+        throw ExportPipeline.ExportError.failed(
+            NSError(domain: "GuerillaglassExport", code: Int(ELOOP), userInfo: [NSLocalizedDescriptionKey: "Symlink output path component is not allowed: \(path)"])
+        )
     }
 }

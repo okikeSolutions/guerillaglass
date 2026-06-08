@@ -1,11 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, chmod, copyFile, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 const PACKAGE_EXTENSION = "gglassproj";
 const DOCUMENT_TYPE_NAME = "Guerilla Glass Project";
 const PROJECT_UTI = "com.okikeSolutions.guerillaglass.project";
+const MACOS_CODE_SIGNATURE_HELPER_PRODUCT = "guerillaglass-code-signature-checker";
+const MACOS_CODE_SIGNATURE_HELPER_RESOURCE_PATH = path.join(
+  "Contents",
+  "Resources",
+  "native",
+  "macos",
+  MACOS_CODE_SIGNATURE_HELPER_PRODUCT,
+);
 
 type PlistPrimitive = string | number | boolean | null;
 interface PlistObject {
@@ -236,6 +245,42 @@ async function findAppBundles(rootDirectory: string): Promise<string[]> {
   return foundBundles;
 }
 
+function repoRootDirectory(): string {
+  return path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..");
+}
+
+function runSwiftBuildForCodeSignatureHelper(): string {
+  const repoRoot = repoRootDirectory();
+  const result = spawnSync(
+    "swift",
+    ["build", "-c", "release", "--product", MACOS_CODE_SIGNATURE_HELPER_PRODUCT],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    const stderr = result.stderr?.trim();
+    const stdout = result.stdout?.trim();
+    throw new Error(
+      `swift build --product ${MACOS_CODE_SIGNATURE_HELPER_PRODUCT} failed${stderr ? `: ${stderr}` : stdout ? `: ${stdout}` : ""}`,
+    );
+  }
+  return path.join(
+    repoRoot,
+    ".build",
+    "release",
+    MACOS_CODE_SIGNATURE_HELPER_PRODUCT,
+  );
+}
+
+async function ensureMacosCodeSignatureHelper(appBundlePath: string): Promise<void> {
+  const sourcePath = runSwiftBuildForCodeSignatureHelper();
+  await access(sourcePath, constants.X_OK);
+  const destinationPath = path.join(appBundlePath, MACOS_CODE_SIGNATURE_HELPER_RESOURCE_PATH);
+  await mkdir(path.dirname(destinationPath), { recursive: true });
+  await copyFile(sourcePath, destinationPath);
+  await chmod(destinationPath, 0o755);
+  process.stdout.write(`[code-signature-helper] installed: ${destinationPath}\n`);
+}
+
 async function patchBundleInfoPlist(appBundlePath: string): Promise<void> {
   const infoPlistPath = path.join(appBundlePath, "Contents", "Info.plist");
   const infoStat = await stat(infoPlistPath);
@@ -253,6 +298,7 @@ async function patchBundleInfoPlist(appBundlePath: string): Promise<void> {
 
   const validatedPlist = readInfoPlistAsObject(infoPlistPath);
   assertProjectPackageRegistration(validatedPlist, infoPlistPath);
+  await ensureMacosCodeSignatureHelper(appBundlePath);
 
   const status = modified ? "updated+validated" : "already configured";
   process.stdout.write(`[project-package] ${status}: ${infoPlistPath}\n`);

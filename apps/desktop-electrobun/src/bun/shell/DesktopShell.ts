@@ -18,6 +18,7 @@ export type DesktopShellService = {
 export type DesktopShellLayerOptions = {
   captureBenchmarkEnabled?: boolean;
   studioDiagnosticsEnabled?: boolean;
+  devServerPort?: number;
 };
 
 /** Effect service that owns Electrobun shell resources and renderer messages. */

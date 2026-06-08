@@ -6,7 +6,10 @@ import { Effect, Layer, Schedule } from "effect";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import { Socket } from "effect/unstable/socket";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
-import { makeEngineSocketProcess } from "./processBun.js";
+import {
+  makeEngineSocketProcess,
+  type EngineExecutableTrustPolicy,
+} from "./processBun.js";
 import { makeEngineWireRpcClientProtocol } from "./wireProtocol.js";
 import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
 
@@ -14,6 +17,8 @@ import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
 export type EngineTransportBunOptions = {
   /** Absolute path to the native engine executable or TypeScript stub. */
   readonly enginePath?: string;
+  /** Optional production trust policy applied before spawning the native engine executable. */
+  readonly trustPolicy?: EngineExecutableTrustPolicy;
 };
 
 const engineProcessPlatformLayer = BunChildProcessSpawner.layer.pipe(
@@ -58,6 +63,7 @@ export function makeLayerEngineTransportBun(options?: EngineTransportBunOptions)
     Effect.gen(function* () {
       const { address, authToken } = yield* makeEngineSocketProcess({
         enginePath: options?.enginePath,
+        trustPolicy: options?.trustPolicy,
       }).pipe(Effect.provide(engineProcessPlatformLayer));
       return Layer.effect(RpcClient.Protocol, makeEngineWireRpcClientProtocol({ authToken })).pipe(
         Layer.provide(makeEngineSocketLayer(address)),

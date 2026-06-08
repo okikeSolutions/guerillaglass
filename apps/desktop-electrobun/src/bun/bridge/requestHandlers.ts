@@ -4,6 +4,7 @@ import { createBunBridgeHandlers } from "../../shared/bridge/desktopBridgeBindin
 import type { BunBridgeRequestHandlerMap } from "../../shared/bridge/desktopBridgeContract";
 import type { DesktopAppRuntime } from "../app/AppRuntime";
 import type { DesktopAppServices } from "../app/AppLayer";
+import { redactBridgeErrorForRendererEffect } from "../security/BridgeErrorRedaction";
 import { HostBridgeService } from "./HostBridgeService";
 
 type BridgeHandlerDependencies = {
@@ -17,7 +18,7 @@ export function createEngineBridgeHandlers({
   const run = (effect: Effect.Effect<unknown, unknown, unknown>): Promise<any> =>
     runtime.runPromise(effect as Effect.Effect<unknown, unknown, DesktopAppServices>);
 
-  return createBunBridgeHandlers(
+  const handlers = createBunBridgeHandlers(
     Object.fromEntries(
       bridgeRequestNameList.map((name) => [
         name,
@@ -31,4 +32,16 @@ export function createEngineBridgeHandlers({
       ]),
     ) as never,
   );
+
+  return Object.fromEntries(
+    bridgeRequestNameList.map((name) => [
+      name,
+      async (params: never) => {
+        const response = await handlers[name](params);
+        if (response.ok) return response;
+        const error = await run(redactBridgeErrorForRendererEffect(response.error));
+        return { ...response, error };
+      },
+    ]),
+  ) as BunBridgeRequestHandlerMap;
 }

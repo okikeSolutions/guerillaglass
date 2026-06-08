@@ -1,3 +1,4 @@
+use crate::path_security::{create_directory_all_no_symlink, write_file_no_symlink};
 use protocol_rust::{CaptureClock, RunningDuration};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -170,9 +171,9 @@ pub(crate) fn load_recent_projects(index_path: &Path) -> Vec<Value> {
 
 pub(crate) fn save_recent_projects(index_path: &Path, items: &[Value]) {
     if let Some(parent) = index_path.parent() {
-        let _ = fs::create_dir_all(parent);
+        let _ = create_directory_all_no_symlink(parent);
     }
-    let _ = fs::write(index_path, json!({ "items": items }).to_string());
+    let _ = write_file_no_symlink(index_path, json!({ "items": items }).to_string().as_bytes());
 }
 
 pub(crate) fn is_valid_recent_project_item(item: &Value) -> bool {

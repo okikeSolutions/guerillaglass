@@ -1,7 +1,10 @@
 import {
   BridgeInvocationError,
+  BridgeRequestLimitError,
+  BridgeRequestTimeoutError,
   BridgeUnavailableError,
   BrowserStorageError,
+  CapabilityTokenError,
   CaptureWindowPickerUnsupportedError,
   FileAccessPolicyError,
   MediaServerError,
@@ -10,6 +13,7 @@ import {
   StudioActionError,
   StudioContextUnavailableError,
   type BrowserStorageErrorCode,
+  type CapabilityTokenErrorCode,
   type FileAccessPolicyErrorCode,
   type MediaServerErrorCode,
   type PathPickerErrorCode,
@@ -162,6 +166,37 @@ function serializeBridgeErrorInternal(error: unknown, depth: number): Serialized
   if (error instanceof BrowserStorageError) {
     return {
       tag: "BrowserStorageError",
+      data: {
+        code: error.code,
+        description: error.description,
+      },
+      cause:
+        error.cause === undefined
+          ? undefined
+          : serializeBridgeErrorInternal(error.cause, depth + 1),
+    };
+  }
+  if (error instanceof BridgeRequestLimitError) {
+    return {
+      tag: "BridgeRequestLimitError",
+      data: {
+        requestName: error.requestName,
+        retryAfterMs: error.retryAfterMs,
+      },
+    };
+  }
+  if (error instanceof BridgeRequestTimeoutError) {
+    return {
+      tag: "BridgeRequestTimeoutError",
+      data: {
+        requestName: error.requestName,
+        timeout: error.timeout,
+      },
+    };
+  }
+  if (error instanceof CapabilityTokenError) {
+    return {
+      tag: "CapabilityTokenError",
       data: {
         code: error.code,
         description: error.description,
@@ -377,6 +412,30 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
           serialized,
           "description",
           "Unknown browser storage error.",
+        ),
+        cause,
+      });
+    case "BridgeRequestLimitError":
+      return new BridgeRequestLimitError({
+        requestName: readSerializedBridgeString(serialized, "requestName", "bridge request"),
+        retryAfterMs: Number(readSerializedBridgeField(serialized, "retryAfterMs") ?? 0),
+      });
+    case "BridgeRequestTimeoutError":
+      return new BridgeRequestTimeoutError({
+        requestName: readSerializedBridgeString(serialized, "requestName", "bridge request"),
+        timeout: readSerializedBridgeString(serialized, "timeout", "the configured timeout"),
+      });
+    case "CapabilityTokenError":
+      return new CapabilityTokenError({
+        code: readSerializedBridgeString(
+          serialized,
+          "code",
+          "CAPABILITY_TOKEN_INVALID",
+        ) as CapabilityTokenErrorCode,
+        description: readSerializedBridgeString(
+          serialized,
+          "description",
+          "Invalid capability token.",
         ),
         cause,
       });

@@ -31,6 +31,7 @@ import { MediaSourceService } from "../src/bun/media/service";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
 import { ProjectSession } from "../src/bun/session/ProjectSession";
+import { DesktopTempDirectory } from "../src/bun/security/DesktopTempDirectory";
 
 const captureTelemetryFixture = {
   sourceDroppedFrames: 0,
@@ -272,7 +273,9 @@ describe("renderer engine bridge", () => {
             },
           ],
         }),
+      ggGrantMediaSourceCapability: async () => "media-capability-token",
       ggResolveMediaSourceURL: async () => "media://token",
+      ggGrantCapturePreviewCapability: async () => "capture-capability-token",
       ggResolveCapturePreviewURL: async () => "http://127.0.0.1:42424/media/preview-token",
       ggHostSendMenuState: (state: unknown) => {
         lastMenuState = state;
@@ -311,7 +314,7 @@ describe("renderer engine bridge", () => {
     const picked = await desktopApi.pickPath({ mode: "export" });
     const eventsRaw = await desktopApi.readTextFile("/tmp/events.json");
     const mediaSourceURL = await desktopApi.resolveMediaSourceURL("/tmp/out.mp4");
-    const capturePreviewURL = await desktopApi.resolveCapturePreviewURL();
+    const capturePreviewURL = await desktopApi.resolveCapturePreviewURL("capture-session-1");
     sendHostMenuState({
       canSave: true,
       canExport: true,
@@ -409,6 +412,7 @@ describe("renderer engine bridge", () => {
 
   test("preserves Bun-side media errors across bridge serialization", async () => {
     installWindowBridge({
+      ggGrantMediaSourceCapability: async () => "media-capability-token",
       ggResolveMediaSourceURL: async () => {
         throw new MediaServerError({
           code: "MEDIA_FILE_MISSING",
@@ -429,10 +433,11 @@ describe("renderer engine bridge", () => {
 
   test("rejects invalid capture preview URL payloads at the bridge contract boundary", async () => {
     installWindowBridge({
+      ggGrantCapturePreviewCapability: async () => "capture-capability-token",
       ggResolveCapturePreviewURL: async () => "",
     });
 
-    await expect(desktopApi.resolveCapturePreviewURL()).rejects.toBeInstanceOf(ContractDecodeError);
+    await expect(desktopApi.resolveCapturePreviewURL("capture-session-1")).rejects.toBeInstanceOf(ContractDecodeError);
   });
 
   test("rejects invalid host path picker payloads at the bridge contract boundary", async () => {
@@ -457,6 +462,7 @@ describe("renderer engine bridge", () => {
 
   test("rejects invalid media source URL payloads at the bridge contract boundary", async () => {
     installWindowBridge({
+      ggGrantMediaSourceCapability: async () => "media-capability-token",
       ggResolveMediaSourceURL: async () => "",
     });
 
@@ -510,6 +516,7 @@ describe("renderer engine bridge", () => {
       }),
       enableCaptureStatusStream: false,
       projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
+      desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
       engineTransportLayer: Layer.succeed(EngineTransport, {} as never),
       mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
     });

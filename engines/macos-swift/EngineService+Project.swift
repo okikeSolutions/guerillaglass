@@ -4,6 +4,13 @@ import EngineProtocol
 import Foundation
 import Project
 
+private func validateProjectPath(_ projectPath: String) throws {
+    let url = URL(fileURLWithPath: projectPath, isDirectory: true)
+    guard url.path == projectPath, url.pathExtension == "gglassproj" else {
+        throw NSError(domain: "GuerillaglassEngine", code: 400, userInfo: [NSLocalizedDescriptionKey: "projectPath must be an absolute .gglassproj path"])
+    }
+}
+
 extension EngineService {
     func projectStateResponse(id: String) -> EngineResponse {
         .success(id: id, result: projectStateJSON())
@@ -15,6 +22,7 @@ extension EngineService {
         }
 
         do {
+            try validateProjectPath(projectPath)
             let savedProject = try projectStore.loadProject(at: URL(fileURLWithPath: projectPath, isDirectory: true))
             currentProjectURL = savedProject.url
             currentProjectDocument = savedProject.document
@@ -64,6 +72,11 @@ extension EngineService {
 
         let destinationURL: URL
         if let projectPath = params["projectPath"]?.stringValue {
+            do {
+                try validateProjectPath(projectPath)
+            } catch {
+                return .failure(id: id, code: "invalid_params", message: error.localizedDescription)
+            }
             destinationURL = URL(fileURLWithPath: projectPath, isDirectory: true)
         } else if let currentProjectURL {
             destinationURL = currentProjectURL

@@ -7,6 +7,7 @@ import {
   type ProjectState,
 } from "@guerillaglass/engine/protocol/domains/project";
 import { pickPathForModeEffect } from "../path/picker";
+import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { readAllowedTextFile, resolveAllowedMediaFilePath } from "../security/fileAccess";
 import type { BridgeRequests, HostPathPickerMode } from "../../shared/bridge/desktopBridgeContract";
 import { PathPickerError } from "../../shared/errors/desktopErrors";
@@ -47,6 +48,7 @@ export const layerProjectSession = Layer.effect(
   ProjectSession,
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const tempDirectory = yield* DesktopTempDirectory;
     const currentProjectPathRef = yield* Ref.make(Option.none<string>());
 
     const currentProjectPath = Effect.map(Ref.get(currentProjectPathRef), Option.getOrNull);
@@ -143,7 +145,7 @@ export const layerProjectSession = Layer.effect(
         return yield* Effect.tryPromise(() =>
           readAllowedTextFile(filePath, {
             currentProjectPath: currentProjectPathForAccess,
-            tempDirectory: process.env.TMPDIR,
+            tempDirectory: tempDirectory.path,
           }),
         ).pipe(Effect.map((contents) => contents as string));
       });
@@ -154,7 +156,7 @@ export const layerProjectSession = Layer.effect(
         return yield* Effect.sync(() =>
           resolveAllowedMediaFilePath(filePath, {
             currentProjectPath: currentProjectPathForAccess,
-            tempDirectory: process.env.TMPDIR,
+            tempDirectory: tempDirectory.path,
           }),
         );
       });

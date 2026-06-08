@@ -7,7 +7,7 @@
     "dev": "bun run build && electrobun dev",
     "dev:open": "bun run build && open build/dev-macos-arm64/Guerillaglass-dev.app",
     "dev:hmr": "concurrently \"bun run hmr\" \"bun run dev\"",
-    "hmr": "vite --port 5173",
+    "hmr": "vite",
     "build": "bun run i18n:compile && vite build && electrobun build",
     "build:prod": "bun run i18n:compile && vite build && electrobun build --channel prod",
     "typecheck": "bun run i18n:compile && tsc --noEmit -p tsconfig.json",

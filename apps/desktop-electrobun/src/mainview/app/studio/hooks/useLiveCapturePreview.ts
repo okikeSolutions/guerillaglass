@@ -28,7 +28,10 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
   const previewURLQuery = useQuery<string | null>({
     queryKey: ["studio", "capturePreviewURL", captureSessionId],
     enabled: Boolean(captureSessionId) && hasPreviewResolver,
-    queryFn: async () => await desktopApi.resolveCapturePreviewURL(),
+    queryFn: async () => {
+      if (!captureSessionId) return null;
+      return await desktopApi.resolveCapturePreviewURL(captureSessionId);
+    },
     gcTime: 0,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,

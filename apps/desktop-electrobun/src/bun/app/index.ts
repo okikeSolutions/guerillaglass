@@ -1,15 +1,18 @@
 import { Utils } from "electrobun/bun";
 import * as BunServices from "@effect/platform-bun/BunServices";
 import { Effect, Layer } from "effect";
-import { layerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
+import { makeLayerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
 import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
+import { AppConfig } from "./AppConfig";
 import { DesktopShell } from "../shell/DesktopShell";
 import { ProjectSession } from "../session/ProjectSession";
 import { layerProjectSession } from "../session/ProjectSessionElectrobun";
-import { makeLayerDesktopShell } from "../shell/DesktopShellElectrobun";
-
-const captureBenchmarkEnabled = process.env.GG_CAPTURE_BENCHMARK === "1";
-const studioDiagnosticsEnabled = process.env.GG_STUDIO_DIAGNOSTICS === "1";
+import { layerDesktopShellFromConfig } from "../shell/DesktopShellElectrobun";
+import { layerDesktopTempDirectory } from "../security/DesktopTempDirectory";
+import {
+  productionLikeEnvironment,
+  validateEngineExecutablePolicy,
+} from "../security/EngineExecutablePolicy";
 
 let desktopAppRuntime: DesktopAppRuntime | null = null;
 
@@ -28,24 +31,51 @@ function disposeDesktopAppOnProcessSignal() {
 process.once("SIGINT", disposeDesktopAppOnProcessSignal);
 process.once("SIGTERM", disposeDesktopAppOnProcessSignal);
 
+const guardedEngineTransportLayer = Layer.unwrap(
+  Effect.gen(function* () {
+    yield* validateEngineExecutablePolicy;
+    const config = yield* AppConfig;
+    const productionLike = productionLikeEnvironment(config);
+    return makeLayerEngineTransportBun({
+      enginePath: config.enginePath ?? undefined,
+      trustPolicy: {
+        enabled: productionLike,
+        expectedSha256: config.engineExpectedSha256,
+        rejectSymlinkExecutable: true,
+        rejectWorldWritable: config.engineRejectWorldWritable,
+        requireCurrentUserOwner: config.engineRequireCurrentUserOwner,
+        macosCodeSignatureHelperPath: config.macosCodeSignatureHelperPath,
+        macosExpectedTeamId: config.engineExpectedTeamId,
+        macosSigningRequirement: config.engineSigningRequirement,
+        windowsAuthenticodeHelperPath: config.windowsAuthenticodeHelperPath,
+        windowsExpectedPublisherSha256Thumbprint:
+          config.windowsExpectedPublisherSha256Thumbprint,
+        windowsExpectedPublisherSubject: config.windowsExpectedPublisherSubject,
+        windowsAllowOfflineRevocation: config.windowsAllowOfflineRevocation,
+      },
+    });
+  }),
+);
+
 async function bootstrapApp() {
   desktopAppRuntime = await makeDesktopAppRuntime({
-    enableCaptureStatusStream: !captureBenchmarkEnabled,
-    desktopShellLayer: makeLayerDesktopShell({
-      captureBenchmarkEnabled,
-      studioDiagnosticsEnabled,
-    }),
-    engineTransportLayer: layerEngineTransportBun,
+    desktopShellLayer: layerDesktopShellFromConfig,
+    engineTransportLayer: guardedEngineTransportLayer,
+    desktopTempDirectoryLayer: layerDesktopTempDirectory.pipe(Layer.provide(BunServices.layer)),
     projectSessionLayer: layerProjectSession.pipe(Layer.provide(BunServices.layer)),
   });
 
   try {
     const runtime = desktopAppRuntime;
-    if (!captureBenchmarkEnabled) {
-      await runtime.runPromise(
-        Effect.flatMap(ProjectSession, (session) => session.loadInitialProject),
-      );
-    }
+    await runtime.runPromise(
+      Effect.gen(function* () {
+        const config = yield* AppConfig;
+        if (!config.captureBenchmarkEnabled) {
+          const session = yield* ProjectSession;
+          yield* session.loadInitialProject;
+        }
+      }),
+    );
     await runtime.runPromise(
       Effect.flatMap(DesktopShell, (shell) =>
         shell.start({

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 import { isoDateTimeSchema } from "@guerillaglass/engine/protocol/schema-primitives";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { capturePreviewFrameResultSchema } from "@guerillaglass/engine/protocol/domains/capture";
@@ -7,7 +7,12 @@ import { MediaSourceService } from "../media/service";
 import { ProjectSession } from "../session/ProjectSession";
 import { ReviewGateway } from "../review/service";
 import { DesktopShell } from "../shell/DesktopShell";
+import { BridgeRequestLimits } from "../security/BridgeRequestLimits";
+import { FileAccessGrants } from "../security/FileAccessGrants";
+import { ProjectExportPathPolicy } from "../security/ProjectExportPathPolicy";
+import { CapabilityGrantService } from "../security/DesktopCapabilities";
 import type { BridgeRequestName, BridgeRequests } from "../../shared/bridge/desktopBridgeContract";
+import { CapabilityTokenError } from "../../shared/errors/desktopErrors";
 
 type HostBridgeServiceShape = {
   handle<K extends BridgeRequestName>(
@@ -37,6 +42,25 @@ function reviewEventCreated(comment: any): ReviewBridgeEvent {
   };
 }
 
+function reviewMutationSubject(reviewId: string): string {
+  return `review:${reviewId}`;
+}
+
+function mediaSourceSubject(filePath: string): string {
+  return `media:${filePath}`;
+}
+
+function capturePreviewSubject(captureSessionId: string): string {
+  return `capture:${captureSessionId}`;
+}
+
+function captureSessionIdFromStatus(status: any): string | null {
+  const value = status?.captureSessionId;
+  if (typeof value === "string") return value;
+  if (Option.isOption(value)) return Option.getOrNull(value) as string | null;
+  return null;
+}
+
 function reviewWorkflowChanged(response: any): ReviewBridgeEvent {
   return {
     type: "workflow.statusChanged",
@@ -50,7 +74,7 @@ export const layerHostBridgeService = Layer.succeed(
   HostBridgeService,
   HostBridgeService.of({
     handle(name, params) {
-      return Effect.gen(function* () {
+      const requestEffect = Effect.gen(function* () {
         switch (name) {
           case "ggEnginePing":
             return yield* engine((transport) => transport["system.ping"](undefined));
@@ -102,20 +126,47 @@ export const layerHostBridgeService = Layer.succeed(
             return yield* engine((transport) => transport["capture.previewFrame"](undefined));
           case "ggEngineExportInfo":
             return yield* engine((transport) => transport["export.info"](undefined));
-          case "ggEngineRunExport":
-            return yield* engine((transport) => transport["export.run"](params as any));
-          case "ggEngineRunCutPlanExport":
-            return yield* engine((transport) => transport["export.runCutPlan"](params as any));
+          case "ggEngineRunExport": {
+            const pathPolicy = yield* ProjectExportPathPolicy;
+            const outputURL = yield* pathPolicy.validateExportOutputPath(
+              (params as { outputURL: string }).outputURL,
+            );
+            return yield* engine((transport) =>
+              transport["export.run"]({ ...(params as any), outputURL } as any),
+            );
+          }
+          case "ggEngineRunCutPlanExport": {
+            const pathPolicy = yield* ProjectExportPathPolicy;
+            const outputURL = yield* pathPolicy.validateExportOutputPath(
+              (params as { outputURL: string }).outputURL,
+            );
+            return yield* engine((transport) =>
+              transport["export.runCutPlan"]({ ...(params as any), outputURL } as any),
+            );
+          }
           case "ggEngineProjectCurrent": {
             const session = yield* ProjectSession;
             return yield* session.projectCurrent;
           }
           case "ggEngineProjectOpen": {
             const session = yield* ProjectSession;
-            return yield* session.projectOpen(params as any);
+            const pathPolicy = yield* ProjectExportPathPolicy;
+            const projectPath = yield* pathPolicy.validateProjectOpenPath(
+              (params as { projectPath: string }).projectPath,
+            );
+            return yield* session.projectOpen({ ...(params as any), projectPath } as any);
           }
           case "ggEngineProjectSave": {
             const session = yield* ProjectSession;
+            const pathPolicy = yield* ProjectExportPathPolicy;
+            const projectPath = (params as { projectPath?: string }).projectPath;
+            if (projectPath) {
+              const validatedProjectPath = yield* pathPolicy.validateProjectSavePath(projectPath);
+              return yield* session.projectSave({
+                ...(params as any),
+                projectPath: validatedProjectPath,
+              } as any);
+            }
             return yield* session.projectSave(params as any);
           }
           case "ggEngineProjectRecents": {
@@ -126,9 +177,31 @@ export const layerHostBridgeService = Layer.succeed(
             const reviewGateway = yield* ReviewGateway;
             return yield* reviewGateway.sessionSnapshot(params as any);
           }
+          case "ggGrantReviewMutationCapability": {
+            const capabilities = yield* CapabilityGrantService;
+            const authToken = (params as { authToken: string }).authToken.trim();
+            if (!authToken) {
+              return yield* new CapabilityTokenError({
+                code: "CAPABILITY_TOKEN_INVALID",
+                description: "Missing authToken for review mutation capability.",
+              });
+            }
+            return yield* capabilities.mint({
+              scope: "review:mutate",
+              subject: reviewMutationSubject((params as { reviewId: string }).reviewId),
+              singleUse: true,
+            });
+          }
           case "ggReviewCreateComment": {
             const reviewGateway = yield* ReviewGateway;
             const shell = yield* DesktopShell;
+            const capabilities = yield* CapabilityGrantService;
+            const reviewId = (params as { reviewId: string }).reviewId;
+            yield* capabilities.consume({
+              token: (params as { capabilityToken: string }).capabilityToken,
+              scope: "review:mutate",
+              subject: reviewMutationSubject(reviewId),
+            });
             const comment = yield* reviewGateway.createComment(params as any);
             yield* shell.publishReviewEvent(reviewEventCreated(comment));
             return comment;
@@ -136,21 +209,45 @@ export const layerHostBridgeService = Layer.succeed(
           case "ggReviewSetWorkflowStatus": {
             const reviewGateway = yield* ReviewGateway;
             const shell = yield* DesktopShell;
+            const capabilities = yield* CapabilityGrantService;
+            const reviewId = (params as { reviewId: string }).reviewId;
+            yield* capabilities.consume({
+              token: (params as { capabilityToken: string }).capabilityToken,
+              scope: "review:mutate",
+              subject: reviewMutationSubject(reviewId),
+            });
             const response = yield* reviewGateway.setWorkflowStatus(params as any);
             yield* shell.publishReviewEvent(reviewWorkflowChanged(response));
             return response;
           }
           case "ggPickPath": {
             const session = yield* ProjectSession;
-            return yield* session.pickPath(params as any);
+            const grants = yield* FileAccessGrants;
+            const pickedPath = yield* session.pickPath(params as any);
+            if (pickedPath) {
+              yield* grants.grantPickedPath((params as { mode: any }).mode, pickedPath);
+            }
+            return pickedPath;
           }
           case "ggReadTextFile": {
             const session = yield* ProjectSession;
             return yield* session.readTextFile((params as { filePath: string }).filePath);
           }
+          case "ggGrantMediaSourceCapability": {
+            const session = yield* ProjectSession;
+            const capabilities = yield* CapabilityGrantService;
+            const filePath = (params as { filePath: string }).filePath;
+            const allowedMediaPath = yield* session.resolveAllowedMediaFilePath(filePath);
+            return yield* capabilities.mint({
+              scope: "media:resolve-source",
+              subject: mediaSourceSubject(allowedMediaPath),
+              singleUse: true,
+            });
+          }
           case "ggResolveMediaSourceURL": {
             const session = yield* ProjectSession;
             const mediaSourceService = yield* MediaSourceService;
+            const capabilities = yield* CapabilityGrantService;
             const filePath = (params as { filePath: string }).filePath;
             const allowedMediaPath = yield* session.resolveAllowedMediaFilePath(filePath).pipe(
               Effect.catch((error) =>
@@ -163,11 +260,40 @@ export const layerHostBridgeService = Layer.succeed(
                 }),
               ),
             );
+            yield* capabilities.consume({
+              token: (params as { capabilityToken: string }).capabilityToken,
+              scope: "media:resolve-source",
+              subject: mediaSourceSubject(allowedMediaPath),
+            });
             return yield* mediaSourceService.resolveMediaSourceURL(allowedMediaPath);
+          }
+          case "ggGrantCapturePreviewCapability": {
+            const transport = yield* EngineTransport;
+            const capabilities = yield* CapabilityGrantService;
+            const captureSessionId = (params as { captureSessionId: string }).captureSessionId;
+            const status = yield* transport["capture.status"](undefined);
+            if (!status.isRunning || captureSessionIdFromStatus(status) !== captureSessionId) {
+              return yield* new CapabilityTokenError({
+                code: "CAPABILITY_TOKEN_INVALID",
+                description: "Capture preview capability requires the active capture session.",
+              });
+            }
+            return yield* capabilities.mint({
+              scope: "capture:resolve-preview-url",
+              subject: capturePreviewSubject(captureSessionId),
+              singleUse: true,
+            });
           }
           case "ggResolveCapturePreviewURL": {
             const transport = yield* EngineTransport;
             const mediaSourceService = yield* MediaSourceService;
+            const capabilities = yield* CapabilityGrantService;
+            const captureSessionId = (params as { captureSessionId: string }).captureSessionId;
+            yield* capabilities.consume({
+              token: (params as { capabilityToken: string }).capabilityToken,
+              scope: "capture:resolve-preview-url",
+              subject: capturePreviewSubject(captureSessionId),
+            });
             const encodePreviewFrame = Schema.encodeUnknownEffect(
               Schema.toCodecJson(capturePreviewFrameResultSchema),
             );
@@ -180,6 +306,10 @@ export const layerHostBridgeService = Layer.succeed(
           }
         }
       }) as Effect.Effect<BridgeRequests[typeof name]["response"], unknown>;
+
+      return Effect.flatMap(BridgeRequestLimits, (limits) =>
+        limits.guard(name, requestEffect),
+      ) as Effect.Effect<BridgeRequests[typeof name]["response"], unknown>;
     },
   }),
 );

@@ -1,11 +1,12 @@
 import AVFoundation
+import Darwin
 @testable import Export
 import XCTest
 
 final class ExportPipelineTests: XCTestCase {
     func testExportFailsWithoutVideoTrack() async throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -35,7 +36,7 @@ final class ExportPipelineTests: XCTestCase {
 
     func testExportCreatesFileForVideoAsset() async throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -61,6 +62,96 @@ final class ExportPipelineTests: XCTestCase {
         }
 
         XCTAssertTrue(fileManager.fileExists(atPath: outputURL.path))
+    }
+
+    func testExportRejectsAncestorSymlinkOutputPath() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(at: sourceURL)
+        let realDirectory = baseURL.appendingPathComponent("real", isDirectory: true)
+        try fileManager.createDirectory(at: realDirectory.appendingPathComponent("sub", isDirectory: true), withIntermediateDirectories: true)
+        let linkDirectory = baseURL.appendingPathComponent("link", isDirectory: true)
+        try fileManager.createSymbolicLink(at: linkDirectory, withDestinationURL: realDirectory)
+        let outputURL = linkDirectory.appendingPathComponent("sub/export.mp4")
+
+        do {
+            _ = try await ExportPipeline().export(
+                recordingURL: sourceURL,
+                preset: Presets.h2641080p30,
+                trimRange: nil,
+                outputURL: outputURL
+            )
+            XCTFail("Expected export to reject ancestor symlink output path.")
+        } catch {
+            XCTAssertFalse(fileManager.fileExists(atPath: realDirectory.appendingPathComponent("sub/export.mp4").path))
+        }
+    }
+
+    func testExportRejectsExistingDirectoryOutputPathWithoutDeletingIt() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(at: sourceURL)
+        let outputURL = baseURL.appendingPathComponent("Reports.mov", isDirectory: true)
+        try fileManager.createDirectory(at: outputURL, withIntermediateDirectories: true)
+        let markerURL = outputURL.appendingPathComponent("marker.txt")
+        try Data("do-not-delete".utf8).write(to: markerURL)
+
+        do {
+            _ = try await ExportPipeline().export(
+                recordingURL: sourceURL,
+                preset: Presets.h2641080p30,
+                trimRange: nil,
+                outputURL: outputURL
+            )
+            XCTFail("Expected export to reject existing directory output path.")
+        } catch {
+            XCTAssertTrue(fileManager.fileExists(atPath: outputURL.path))
+            XCTAssertEqual(try String(contentsOf: markerURL), "do-not-delete")
+        }
+    }
+
+    func testExportRejectsSymlinkOutputPath() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(at: sourceURL)
+
+        let targetURL = baseURL.appendingPathComponent("target.mp4")
+        try Data("do-not-overwrite".utf8).write(to: targetURL)
+        let outputURL = baseURL.appendingPathComponent("output.mp4")
+        try fileManager.createSymbolicLink(at: outputURL, withDestinationURL: targetURL)
+
+        do {
+            _ = try await ExportPipeline().export(
+                recordingURL: sourceURL,
+                preset: Presets.h2641080p30,
+                trimRange: nil,
+                outputURL: outputURL
+            )
+            XCTFail("Expected export to reject symlink output path.")
+        } catch {
+            XCTAssertEqual(try String(contentsOf: targetURL), "do-not-overwrite")
+        }
+    }
+
+    private func canonicalTemporaryDirectory() throws -> URL {
+        let temporaryPath = FileManager.default.temporaryDirectory.path
+        guard let resolved = realpath(temporaryPath, nil) else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        defer { free(resolved) }
+        return URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
     }
 
     private func makeAudioFile(at url: URL) throws {

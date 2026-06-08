@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Redacted } from "effect";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import { RpcClientDefect, RpcClientError } from "effect/unstable/rpc/RpcClientError";
 import type { FromClientEncoded, FromServerEncoded } from "effect/unstable/rpc/RpcMessage";
@@ -139,7 +139,7 @@ export function fromEngineWireServerMessage(message: EngineWireServerMessage): F
   }
 }
 
-export function makeEngineWireRpcClientProtocol(options: { readonly authToken: string }) {
+export function makeEngineWireRpcClientProtocol(options: { readonly authToken: Redacted.Redacted<string> }) {
   return RpcClient.Protocol.make(
     Effect.fnUntraced(function* (
       writeResponse: (clientId: number, response: FromServerEncoded) => Effect.Effect<void>,
@@ -218,7 +218,7 @@ export function makeEngineWireRpcClientProtocol(options: { readonly authToken: s
           if (currentError) return Effect.fail(currentError);
           if (request._tag === "Request") requestClientMap.set(request.id, clientId);
           if (request._tag === "Interrupt") requestClientMap.delete(request.requestId);
-          const wireMessage = toEngineWireClientMessage(request, options.authToken);
+          const wireMessage = toEngineWireClientMessage(request, Redacted.value(options.authToken));
           if (!wireMessage) return Effect.void;
           return Effect.logDebug("engine rpc sending", {
             messageType: wireMessage.type,

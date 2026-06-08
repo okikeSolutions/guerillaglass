@@ -48,13 +48,14 @@ import {
   projectPathSchema,
   reviewAuthTokenSchema,
   reviewCommentIdSchema,
+  captureSessionIdSchema,
   reviewIdSchema,
 } from "@guerillaglass/engine/protocol/schema-primitives";
 import { Schema } from "effect";
 import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
 import type { RPCSchema } from "electrobun/bun";
 import type { SerializedBridgeError } from "../errors/desktopErrors";
-import type { StudioShortcutOverrides } from "../shortcuts";
+import { studioShortcutOverridesSchema, type StudioShortcutOverrides } from "../shortcuts";
 import type { StudioDiagnosticsValue } from "../studioDiagnostics";
 
 function greaterThanOrEqualTo(minimum: number) {
@@ -106,6 +107,18 @@ export type HostMenuState = {
   shortcutOverrides?: StudioShortcutOverrides;
 };
 
+export const hostMenuStateSchema = Schema.Struct({
+  canSave: Schema.Boolean,
+  canExport: Schema.Boolean,
+  canTrimTimeline: Schema.Boolean,
+  canToggleTimeline: Schema.Boolean,
+  isRecording: Schema.Boolean,
+  recordingURL: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(2048)))),
+  locale: Schema.optional(Schema.String.check(Schema.isMaxLength(32))),
+  densityMode: Schema.optional(Schema.Literals(["comfortable", "compact"])),
+  shortcutOverrides: Schema.optional(studioShortcutOverridesSchema),
+});
+
 export type DesktopRuntimeFlags = {
   captureBenchmarkEnabled: boolean;
   studioDiagnosticsEnabled: boolean;
@@ -133,30 +146,43 @@ export const readTextFileRequestSchema = Schema.Struct({
   filePath: filePathSchema,
 });
 export const readTextFileResponseSchema = Schema.String;
+export const desktopCapabilityTokenSchema = Schema.NonEmptyString.check(Schema.isMaxLength(512));
 export const resolveMediaSourceURLRequestSchema = Schema.Struct({
   filePath: filePathSchema,
+  capabilityToken: desktopCapabilityTokenSchema,
 });
 export const resolveMediaSourceURLResponseSchema = outputUrlSchema;
 /** Host bridge schema for resolving the loopback live-preview URL. */
-export const resolveCapturePreviewURLRequestSchema = Schema.Undefined;
+export const resolveCapturePreviewURLRequestSchema = Schema.Struct({
+  captureSessionId: captureSessionIdSchema,
+  capabilityToken: desktopCapabilityTokenSchema,
+});
 /** Tokenized loopback preview URL served by the Bun media server. */
 export const resolveCapturePreviewURLResponseSchema = outputUrlSchema;
 export const hostReviewEventMessageSchema = Schema.Struct({
   event: reviewBridgeEventSchema,
 });
 const studioDiagnosticsValueSchema = Schema.Union([
-  Schema.String,
+  Schema.String.check(Schema.isMaxLength(2048)),
   Schema.Number,
   Schema.Boolean,
   Schema.Null,
 ]);
 export const studioDiagnosticsEntrySchema = Schema.Struct({
   source: Schema.Literal("renderer"),
-  level: Schema.NonEmptyString,
-  message: Schema.NonEmptyString,
+  level: Schema.NonEmptyString.check(Schema.isMaxLength(32)),
+  message: Schema.NonEmptyString.check(Schema.isMaxLength(4096)),
   timestamp: isoDateTimeSchema,
-  annotations: Schema.optional(Schema.Record(Schema.String, studioDiagnosticsValueSchema)),
-  spans: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
+  annotations: Schema.optional(
+    Schema.Record(Schema.String.check(Schema.isMaxLength(128)), studioDiagnosticsValueSchema).check(
+      Schema.isMaxProperties(64),
+    ),
+  ),
+  spans: Schema.optional(
+    Schema.Record(Schema.String.check(Schema.isMaxLength(128)), Schema.Number).check(
+      Schema.isMaxProperties(64),
+    ),
+  ),
 });
 function engineRpc(method: string): {
   readonly payloadSchema: Schema.Top;
@@ -195,9 +221,20 @@ const reviewSessionSnapshotBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
   reviewId: reviewIdSchema,
 });
+const reviewMutationCapabilityBridgeParamsSchema = Schema.Struct({
+  authToken: reviewAuthTokenSchema,
+  reviewId: reviewIdSchema,
+});
+const mediaSourceCapabilityBridgeParamsSchema = Schema.Struct({
+  filePath: filePathSchema,
+});
+const capturePreviewCapabilityBridgeParamsSchema = Schema.Struct({
+  captureSessionId: captureSessionIdSchema,
+});
 const reviewCreateCommentBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
   reviewId: reviewIdSchema,
+  capabilityToken: desktopCapabilityTokenSchema,
   body: Schema.NonEmptyString,
   frameNumber: Schema.optional(nonNegativeIntSchema),
   timestampSeconds: Schema.optional(nonNegativeNumberSchema),
@@ -206,6 +243,7 @@ const reviewCreateCommentBridgeParamsSchema = Schema.Struct({
 const reviewSetWorkflowStatusBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
   reviewId: reviewIdSchema,
+  capabilityToken: desktopCapabilityTokenSchema,
   status: reviewWorkflowStatusSchema,
 });
 
@@ -234,6 +272,10 @@ type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> 
 
 type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
   authToken: string;
+};
+
+type ReviewBridgeMutationRequestWithAuth<TRequest> = ReviewBridgeRequestWithAuth<TRequest> & {
+  capabilityToken: string;
 };
 
 function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
@@ -532,15 +574,20 @@ export const bridgeRequestDefinitions = {
     ReviewSessionSnapshot,
     [params: ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>]
   >((params) => params, reviewSessionSnapshotBridgeParamsSchema, reviewSessionSnapshotSchema),
+  ggGrantReviewMutationCapability: defineValidatedBridgeRequest<
+    { authToken: string; reviewId: string },
+    string,
+    [params: { authToken: string; reviewId: string }]
+  >((params) => params, reviewMutationCapabilityBridgeParamsSchema, desktopCapabilityTokenSchema),
   ggReviewCreateComment: defineValidatedBridgeRequest<
-    ReviewBridgeRequestWithAuth<ReviewCreateCommentRequest>,
+    ReviewBridgeMutationRequestWithAuth<ReviewCreateCommentRequest>,
     ReviewComment,
-    [params: ReviewBridgeRequestWithAuth<ReviewCreateCommentRequest>]
+    [params: ReviewBridgeMutationRequestWithAuth<ReviewCreateCommentRequest>]
   >((params) => params, reviewCreateCommentBridgeParamsSchema, reviewCommentSchema),
   ggReviewSetWorkflowStatus: defineValidatedBridgeRequest<
-    ReviewBridgeRequestWithAuth<ReviewSetWorkflowStatusRequest>,
+    ReviewBridgeMutationRequestWithAuth<ReviewSetWorkflowStatusRequest>,
     ReviewSetWorkflowStatusResponse,
-    [params: ReviewBridgeRequestWithAuth<ReviewSetWorkflowStatusRequest>]
+    [params: ReviewBridgeMutationRequestWithAuth<ReviewSetWorkflowStatusRequest>]
   >(
     (params) => params,
     reviewSetWorkflowStatusBridgeParamsSchema,
@@ -558,19 +605,42 @@ export const bridgeRequestDefinitions = {
     readTextFileRequestSchema,
     readTextFileResponseSchema,
   ),
-  ggResolveMediaSourceURL: defineValidatedBridgeRequest<
+  ggGrantMediaSourceCapability: defineValidatedBridgeRequest<
     { filePath: string },
     string,
     [filePath: string]
   >(
-    (filePath) => ({
+    (filePath) => ({ filePath }),
+    mediaSourceCapabilityBridgeParamsSchema,
+    desktopCapabilityTokenSchema,
+  ),
+  ggResolveMediaSourceURL: defineValidatedBridgeRequest<
+    { filePath: string; capabilityToken: string },
+    string,
+    [filePath: string, capabilityToken: string]
+  >(
+    (filePath, capabilityToken) => ({
       filePath,
+      capabilityToken,
     }),
     resolveMediaSourceURLRequestSchema,
     resolveMediaSourceURLResponseSchema,
   ),
-  ggResolveCapturePreviewURL: defineValidatedBridgeRequest<undefined, string, []>(
-    () => undefined,
+  ggGrantCapturePreviewCapability: defineValidatedBridgeRequest<
+    { captureSessionId: string },
+    string,
+    [captureSessionId: string]
+  >(
+    (captureSessionId) => ({ captureSessionId }),
+    capturePreviewCapabilityBridgeParamsSchema,
+    desktopCapabilityTokenSchema,
+  ),
+  ggResolveCapturePreviewURL: defineValidatedBridgeRequest<
+    { captureSessionId: string; capabilityToken: string },
+    string,
+    [captureSessionId: string, capabilityToken: string]
+  >(
+    (captureSessionId, capabilityToken) => ({ captureSessionId, capabilityToken }),
     resolveCapturePreviewURLRequestSchema,
     resolveCapturePreviewURLResponseSchema,
   ),

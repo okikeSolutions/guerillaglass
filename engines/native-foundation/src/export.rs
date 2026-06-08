@@ -1,9 +1,38 @@
 use crate::params::{ExportRunCutPlanParams, ExportRunParams};
+use crate::path_security::{reject_final_symlink, write_file_no_symlink};
 use crate::state::State;
 use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
-use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+fn validate_export_path(id: &JsonRpcId, output_url: &str) -> Result<(), EngineResponse> {
+    let path = Path::new(output_url);
+    if !path.is_absolute() {
+        return Err(failure(
+            id,
+            ProtocolErrorCode::InvalidParams,
+            "outputURL must be an absolute path",
+        ));
+    }
+    match path.extension().and_then(|value| value.to_str()) {
+        Some("mp4") | Some("mov") => {}
+        _ => {
+            return Err(failure(
+                id,
+                ProtocolErrorCode::InvalidParams,
+                "outputURL must end with .mp4 or .mov",
+            ))
+        }
+    }
+    if let Err(error) = reject_final_symlink(path) {
+        return Err(failure(
+            id,
+            ProtocolErrorCode::PermissionDenied,
+            format!("outputURL failed symlink safety validation: {error}"),
+        ));
+    }
+    Ok(())
+}
 
 fn decode_params<T>(params: &Value) -> T
 where
@@ -43,11 +72,18 @@ pub(crate) fn run(id: &JsonRpcId, params: &Value) -> EngineResponse {
         }
     };
 
-    let output_path = PathBuf::from(&output_url);
-    if let Some(parent) = output_path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Err(response) = validate_export_path(id, &output_url) {
+        return response;
     }
-    let _ = fs::write(&output_path, b"guerillaglass-native-export");
+
+    let output_path = PathBuf::from(&output_url);
+    if let Err(error) = write_file_no_symlink(&output_path, b"guerillaglass-native-export") {
+        return failure(
+            id,
+            ProtocolErrorCode::PermissionDenied,
+            format!("Unable to write export safely: {error}"),
+        );
+    }
 
     success(id, json!({ "outputURL": output_url }))
 }
@@ -113,11 +149,18 @@ pub(crate) fn run_cut_plan(id: &JsonRpcId, state: &State, params: &Value) -> Eng
         );
     }
 
-    let output_path = PathBuf::from(&output_url);
-    if let Some(parent) = output_path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Err(response) = validate_export_path(id, &output_url) {
+        return response;
     }
-    let _ = fs::write(&output_path, b"guerillaglass-native-cut-plan-export");
+
+    let output_path = PathBuf::from(&output_url);
+    if let Err(error) = write_file_no_symlink(&output_path, b"guerillaglass-native-cut-plan-export") {
+        return failure(
+            id,
+            ProtocolErrorCode::PermissionDenied,
+            format!("Unable to write cut-plan export safely: {error}"),
+        );
+    }
 
     success(
         id,

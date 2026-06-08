@@ -1,5 +1,5 @@
-import { realpathSync } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { constants, realpathSync } from "node:fs";
+import { mkdir, open } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { FileAccessPolicyError } from "../../shared/errors/desktopErrors";
 import { isSupportedMediaPath } from "../media/policy";
 
 const DEFAULT_MAX_TEXT_READ_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_MEDIA_SNAPSHOT_BYTES = 20 * 1024 * 1024 * 1024;
 const mediaTempFilePrefix = "guerillaglass-";
 
 type ReadTextFileOptions = {
@@ -16,6 +17,10 @@ type ReadTextFileOptions = {
 };
 
 type ResolveAllowedMediaFileOptions = Omit<ReadTextFileOptions, "maxBytes">;
+
+type CopySafeFileSnapshotOptions = {
+  maxBytes?: number;
+};
 
 function tempRootPath(options: ResolveAllowedMediaFileOptions): string {
   return canonicalizePath(options.tempDirectory ?? os.tmpdir());
@@ -122,7 +127,8 @@ export function resolveAllowedTextFilePath(
     });
   }
 
-  return ensurePathWithinAllowedRoots(resolvedPath, options);
+  ensurePathWithinAllowedRoots(resolvedPath, options);
+  return resolvedPath;
 }
 
 /** Resolves and validates a supported media file path for bridge reads. */
@@ -148,7 +154,7 @@ export function resolveAllowedMediaFilePath(
   const canonicalPath = ensurePathWithinAllowedRoots(resolvedPath, options);
   const projectRoot = projectRootPath(options);
   if (projectRoot && isPathWithinRoot(canonicalPath, projectRoot)) {
-    return canonicalPath;
+    return resolvedPath;
   }
 
   const tempRoot = tempRootPath(options);
@@ -159,7 +165,7 @@ export function resolveAllowedMediaFilePath(
     });
   }
 
-  const mediaFileName = path.basename(canonicalPath).toLowerCase();
+  const mediaFileName = path.basename(resolvedPath).toLowerCase();
   if (!mediaFileName.startsWith(mediaTempFilePrefix)) {
     throw new FileAccessPolicyError({
       code: "TEMP_MEDIA_PREFIX_REQUIRED",
@@ -168,7 +174,58 @@ export function resolveAllowedMediaFilePath(
     });
   }
 
-  return canonicalPath;
+  return resolvedPath;
+}
+
+async function openNoFollowRead(filePath: string) {
+  const noFollow = (constants as typeof constants & { O_NOFOLLOW?: number }).O_NOFOLLOW ?? 0;
+  return await open(filePath, constants.O_RDONLY | noFollow);
+}
+
+/** Copies a file through no-follow handles to create an app-owned immutable serving snapshot. */
+export async function copySafeFileSnapshot(
+  sourcePath: string,
+  destinationPath: string,
+  options: CopySafeFileSnapshotOptions = {},
+): Promise<string> {
+  await mkdir(path.dirname(destinationPath), { recursive: true, mode: 0o700 });
+  const sourceHandle = await openNoFollowRead(sourcePath);
+  const destinationHandle = await open(destinationPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
+  try {
+    const fileStat = await sourceHandle.stat();
+    if (!fileStat.isFile()) {
+      throw new FileAccessPolicyError({
+        code: "PATH_NOT_FILE",
+        description: "Path must point to a file.",
+      });
+    }
+
+    const maxBytes = options.maxBytes ?? DEFAULT_MAX_MEDIA_SNAPSHOT_BYTES;
+    if (fileStat.size > maxBytes) {
+      throw new FileAccessPolicyError({
+        code: "FILE_TOO_LARGE",
+        description: `File too large to snapshot safely (max ${maxBytes} bytes).`,
+      });
+    }
+
+    const buffer = Buffer.allocUnsafe(1024 * 1024);
+    let copiedBytes = 0;
+    while (true) {
+      const { bytesRead } = await sourceHandle.read(buffer, 0, buffer.byteLength, null);
+      if (bytesRead === 0) break;
+      copiedBytes += bytesRead;
+      if (copiedBytes > maxBytes) {
+        throw new FileAccessPolicyError({
+          code: "FILE_TOO_LARGE",
+          description: `File too large to snapshot safely (max ${maxBytes} bytes).`,
+        });
+      }
+      await destinationHandle.write(buffer, 0, bytesRead);
+    }
+    return destinationPath;
+  } finally {
+    await Promise.allSettled([sourceHandle.close(), destinationHandle.close()]);
+  }
 }
 
 /** Reads a validated JSON text file with size and root constraints applied. */
@@ -177,21 +234,26 @@ export async function readAllowedTextFile(
   options: ReadTextFileOptions = {},
 ): Promise<string> {
   const resolvedPath = resolveAllowedTextFilePath(filePath, options);
-  const fileStat = await stat(resolvedPath);
-  if (!fileStat.isFile()) {
-    throw new FileAccessPolicyError({
-      code: "PATH_NOT_FILE",
-      description: "Path must point to a file.",
-    });
-  }
+  const handle = await openNoFollowRead(resolvedPath);
+  try {
+    const fileStat = await handle.stat();
+    if (!fileStat.isFile()) {
+      throw new FileAccessPolicyError({
+        code: "PATH_NOT_FILE",
+        description: "Path must point to a file.",
+      });
+    }
 
-  const maxBytes = options.maxBytes ?? DEFAULT_MAX_TEXT_READ_BYTES;
-  if (fileStat.size > maxBytes) {
-    throw new FileAccessPolicyError({
-      code: "FILE_TOO_LARGE",
-      description: `File too large to read safely (max ${maxBytes} bytes).`,
-    });
-  }
+    const maxBytes = options.maxBytes ?? DEFAULT_MAX_TEXT_READ_BYTES;
+    if (fileStat.size > maxBytes) {
+      throw new FileAccessPolicyError({
+        code: "FILE_TOO_LARGE",
+        description: `File too large to read safely (max ${maxBytes} bytes).`,
+      });
+    }
 
-  return await readFile(resolvedPath, "utf8");
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
 }

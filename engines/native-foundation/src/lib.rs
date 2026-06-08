@@ -5,6 +5,7 @@ mod capture;
 mod export;
 mod handlers;
 mod params;
+mod path_security;
 mod permissions;
 mod project;
 mod sources;
@@ -57,10 +58,13 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system time before unix epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!(
-            "guerillaglass-native-foundation-{label}-{}-{now}",
-            std::process::id()
-        ))
+        std::env::temp_dir()
+            .canonicalize()
+            .unwrap_or_else(|_| std::env::temp_dir())
+            .join(format!(
+                "guerillaglass-native-foundation-{label}-{}-{now}",
+                std::process::id()
+            ))
     }
 
     fn with_state<T>(label: &str, callback: impl FnOnce(&mut State, &Path) -> T) -> T {
@@ -377,6 +381,34 @@ mod tests {
         });
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn export_run_rejects_symlink_output_file() {
+        use std::os::unix::fs::symlink;
+
+        with_state("export-run-symlink-output", |state, root| {
+            let target_path = root.join("outside-target.mp4");
+            fs::write(&target_path, b"outside").expect("write symlink target");
+            let output_url = root.join("exports").join("result.mp4");
+            fs::create_dir_all(output_url.parent().expect("output parent"))
+                .expect("create output parent");
+            symlink(&target_path, &output_url).expect("create output symlink");
+
+            let response = handle_request(
+                "linux",
+                state,
+                &request(
+                    "r10-symlink",
+                    "export.run",
+                    json!({ "outputURL": output_url.to_string_lossy() }),
+                ),
+            );
+            let message = expect_error(response, ProtocolErrorCode::PermissionDenied);
+            assert!(message.contains("symlink"));
+            assert_eq!(fs::read(&target_path).expect("read target"), b"outside");
+        });
+    }
+
     #[test]
     fn agent_run_requires_project_and_recording() {
         with_state("agent-run-requires-project-recording", |state, _| {
@@ -591,7 +623,7 @@ mod tests {
     #[test]
     fn project_open_and_recents_persist_recent_project_index() {
         with_state("project-open-recents", |state, root| {
-            let project_path = root.join("projects").join("demo.ggproject");
+            let project_path = root.join("projects").join("demo.gglassproj");
             let open = handle_request(
                 "linux",
                 state,
@@ -627,14 +659,14 @@ mod tests {
                 "expected recents index file to be written"
             );
             let written = fs::read_to_string(recents_path).expect("read recents index");
-            assert!(written.contains("demo.ggproject"));
+            assert!(written.contains("demo.gglassproj"));
         });
     }
 
     #[test]
     fn project_save_clamps_auto_zoom_and_writes_snapshot() {
         with_state("project-save-clamps-autoz", |state, root| {
-            let project_path = root.join("project-session");
+            let project_path = root.join("project-session.gglassproj");
             let save = handle_request(
                 "linux",
                 state,
@@ -669,6 +701,32 @@ mod tests {
         });
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn project_save_rejects_symlink_project_path() {
+        use std::os::unix::fs::symlink;
+
+        with_state("project-save-symlink-path", |state, root| {
+            let real_project_path = root.join("real-project.gglassproj");
+            fs::create_dir_all(&real_project_path).expect("create real project dir");
+            let project_path = root.join("linked-project.gglassproj");
+            symlink(&real_project_path, &project_path).expect("create project symlink");
+
+            let save = handle_request(
+                "linux",
+                state,
+                &request(
+                    "r12-symlink",
+                    "project.save",
+                    json!({ "projectPath": project_path.to_string_lossy() }),
+                ),
+            );
+            let message = expect_error(save, ProtocolErrorCode::PermissionDenied);
+            assert!(message.contains("symlink"));
+            assert!(!real_project_path.join("project.native.json").exists());
+        });
+    }
+
     #[test]
     fn project_recents_deduplicates_and_truncates_to_maximum_size() {
         with_state("project-recents-dedupe-truncate", |state, root| {
@@ -676,7 +734,7 @@ mod tests {
             for index in 0..(MAX_RECENT_PROJECTS + 5) {
                 let path = root
                     .join("projects")
-                    .join(format!("item-{index}.ggproject"));
+                    .join(format!("item-{index}.gglassproj"));
                 let path_string = path.to_string_lossy().to_string();
                 if index == 4 {
                     selected_path = path_string.clone();
@@ -731,13 +789,13 @@ mod tests {
         let mut items = Vec::new();
         for index in 0..(MAX_RECENT_PROJECTS + 2) {
             items.push(json!({
-                "projectPath": format!("/tmp/demo-{index}.ggproject"),
+                "projectPath": format!("/tmp/demo-{index}.gglassproj"),
                 "displayName": format!("demo-{index}"),
                 "lastOpenedAt": "2026-02-21T00:00:00Z"
             }));
         }
         items.push(json!({
-            "projectPath": "/tmp/invalid.ggproject",
+            "projectPath": "/tmp/invalid.gglassproj",
             "displayName": "",
             "lastOpenedAt": "2026-02-21T00:00:00Z"
         }));
@@ -757,7 +815,7 @@ mod tests {
             save_recent_projects(
                 &recents_path,
                 &[json!({
-                    "projectPath": "/tmp/example.ggproject",
+                    "projectPath": "/tmp/example.gglassproj",
                     "displayName": "example",
                     "lastOpenedAt": "2026-02-21T00:00:00Z"
                 })],

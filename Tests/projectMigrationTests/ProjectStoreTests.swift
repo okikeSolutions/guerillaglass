@@ -4,7 +4,7 @@ import XCTest
 final class ProjectStoreTests: XCTestCase {
     func testSaveAndLoadProject() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -25,7 +25,7 @@ final class ProjectStoreTests: XCTestCase {
 
     func testSaveRejectsMissingRecording() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -38,7 +38,7 @@ final class ProjectStoreTests: XCTestCase {
 
     func testWriteProjectRejectsPathTraversalAssetFileNames() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -60,7 +60,7 @@ final class ProjectStoreTests: XCTestCase {
 
     func testLoadProjectRejectsPathTraversalAssetFileNames() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -75,4 +75,13 @@ final class ProjectStoreTests: XCTestCase {
         let store = ProjectStore(projectsDirectoryURL: baseURL.appendingPathComponent("Projects", isDirectory: true))
         XCTAssertThrowsError(try store.loadProject(at: projectURL))
     }
+}
+
+private func canonicalTemporaryDirectory() -> URL {
+    let temporaryPath = FileManager.default.temporaryDirectory.path
+    guard let resolved = realpath(temporaryPath, nil) else {
+        return FileManager.default.temporaryDirectory
+    }
+    defer { free(resolved) }
+    return URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
 }

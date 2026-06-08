@@ -6,6 +6,10 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
+const devServerPort = Number.parseInt(process.env.PORT ?? "5173", 10);
+if (!Number.isInteger(devServerPort) || devServerPort < 1 || devServerPort > 65_535) {
+  throw new Error("PORT must be an integer between 1 and 65535.");
+}
 
 export default defineConfig({
   plugins: [
@@ -43,7 +47,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: devServerPort,
     strictPort: true,
   },
   resolve: {

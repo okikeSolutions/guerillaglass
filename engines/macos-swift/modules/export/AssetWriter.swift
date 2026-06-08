@@ -1,4 +1,5 @@
 import AVFoundation
+import Darwin
 import Foundation
 
 /// Public class exposed by the macOS engine module.
@@ -75,9 +76,11 @@ public final class AssetWriter {
         self.outputURL = outputURL
         self.configuration = configuration
 
+        try rejectSymlinkComponents(in: outputURL)
         if FileManager.default.fileExists(atPath: outputURL.path) {
             try FileManager.default.removeItem(at: outputURL)
         }
+        try rejectSymlinkComponents(in: outputURL.deletingLastPathComponent())
 
         do {
             writer = try AVAssetWriter(outputURL: outputURL, fileType: configuration.fileType)
@@ -113,5 +116,39 @@ public final class AssetWriter {
         queue.async {
             self.finishSynchronously(completion: completion)
         }
+    }
+}
+
+private func rejectSymlinkComponents(in url: URL) throws {
+    let rawPath = url.path
+    let isAbsolute = rawPath.hasPrefix("/")
+    let components = rawPath.split(separator: "/").map(String.init)
+    var currentPath = isAbsolute ? "/" : ""
+
+    for component in components {
+        if currentPath.isEmpty {
+            currentPath = component
+        } else if currentPath == "/" {
+            currentPath += component
+        } else {
+            currentPath += "/\(component)"
+        }
+        try rejectSymlinkIfExists(atPath: currentPath)
+    }
+}
+
+private func rejectSymlinkIfExists(atPath path: String) throws {
+    var metadata = stat()
+    let status = path.withCString { fileSystemPath in
+        Darwin.lstat(fileSystemPath, &metadata)
+    }
+    if status != 0 {
+        if errno == ENOENT { return }
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+    }
+    if (metadata.st_mode & S_IFMT) == S_IFLNK {
+        throw AssetWriter.AssetWriterError.writerFailed(
+            NSError(domain: "GuerillaglassExport", code: Int(ELOOP), userInfo: [NSLocalizedDescriptionKey: "Symlink output path component is not allowed: \(path)"])
+        )
     }
 }

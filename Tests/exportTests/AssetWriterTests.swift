@@ -1,4 +1,5 @@
 import AVFoundation
+import Darwin
 @testable import Export
 import XCTest
 
@@ -132,8 +133,15 @@ final class AssetWriterTests: XCTestCase {
 
 private extension AssetWriterTests {
     func makeOutputURL(fileName: String) -> URL {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let temporaryPath = FileManager.default.temporaryDirectory.path
+        let canonicalTemporaryDirectory: URL
+        if let resolved = realpath(temporaryPath, nil) {
+            canonicalTemporaryDirectory = URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
+            free(resolved)
+        } else {
+            canonicalTemporaryDirectory = FileManager.default.temporaryDirectory
+        }
+        let directory = canonicalTemporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appendingPathComponent(fileName)
     }
