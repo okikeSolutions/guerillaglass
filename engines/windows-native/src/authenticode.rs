@@ -63,8 +63,8 @@ mod windows_impl {
     use std::ffi::c_void;
     use std::os::windows::ffi::OsStrExt;
     use std::path::Path;
-    use windows::core::PCWSTR;
-    use windows::Win32::Foundation::{HWND, WIN32_ERROR};
+    use windows::core::{PCWSTR, PWSTR};
+    use windows::Win32::Foundation::HWND;
     use windows::Win32::Security::Cryptography::{
         CertGetCertificateContextProperty, CertGetNameStringW, CERT_CONTEXT,
         CERT_NAME_SIMPLE_DISPLAY_TYPE, CERT_SHA256_HASH_PROP_ID,
@@ -107,7 +107,7 @@ mod windows_impl {
                 },
                 dwStateAction: WTD_STATEACTION_VERIFY,
                 hWVTStateData: Default::default(),
-                pwszURLReference: PCWSTR::null(),
+                pwszURLReference: PWSTR::null(),
                 dwProvFlags: match expectation.revocation {
                     RevocationMode::Online => WTD_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT,
                     RevocationMode::OfflineAllowed => Default::default(),
@@ -116,12 +116,13 @@ mod windows_impl {
                 pSignatureSettings: std::ptr::null_mut(),
             };
 
+            let mut action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
             let status = WinVerifyTrust(
-                HWND(0),
-                &WINTRUST_ACTION_GENERIC_VERIFY_V2,
+                HWND(std::ptr::null_mut()),
+                &mut action,
                 &mut trust_data as *mut _ as *mut c_void,
             );
-            if status != WIN32_ERROR(0) {
+            if status != 0 {
                 close_wintrust_state(&mut trust_data);
                 return AuthenticodeVerificationResult {
                     ok: false,
@@ -129,14 +130,16 @@ mod windows_impl {
                     sha256_thumbprint: None,
                     error: Some(format!(
                         "WinVerifyTrust failed with status 0x{:08x}",
-                        status.0
+                        status
                     )),
                 };
             }
 
             let certificate_context = signer_certificate_context(&trust_data);
-            let subject = certificate_context.and_then(certificate_subject);
-            let sha256_thumbprint = certificate_context.and_then(certificate_sha256_thumbprint);
+            let subject =
+                certificate_context.and_then(|certificate| certificate_subject(certificate));
+            let sha256_thumbprint = certificate_context
+                .and_then(|certificate| certificate_sha256_thumbprint(certificate));
             close_wintrust_state(&mut trust_data);
 
             if let Some(expected_thumbprint) = expectation.expected_sha256_thumbprint.as_deref() {
@@ -180,9 +183,10 @@ mod windows_impl {
 
     unsafe fn close_wintrust_state(trust_data: &mut WINTRUST_DATA) {
         trust_data.dwStateAction = WTD_STATEACTION_CLOSE;
+        let mut action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
         let _ = WinVerifyTrust(
-            HWND(0),
-            &WINTRUST_ACTION_GENERIC_VERIFY_V2,
+            HWND(std::ptr::null_mut()),
+            &mut action,
             trust_data as *mut _ as *mut c_void,
         );
     }
@@ -194,7 +198,7 @@ mod windows_impl {
         if provider_data.is_null() {
             return None;
         }
-        let signer = WTHelperGetProvSignerFromChain(provider_data, 0, false.into(), 0);
+        let signer = WTHelperGetProvSignerFromChain(provider_data, 0, false, 0);
         if signer.is_null() {
             return None;
         }
@@ -217,13 +221,13 @@ mod windows_impl {
             return None;
         }
         let mut bytes = vec![0u8; length as usize];
-        if !CertGetCertificateContextProperty(
+        if CertGetCertificateContextProperty(
             certificate,
             CERT_SHA256_HASH_PROP_ID,
             Some(bytes.as_mut_ptr() as *mut c_void),
             &mut length,
         )
-        .as_bool()
+        .is_err()
         {
             return None;
         }
