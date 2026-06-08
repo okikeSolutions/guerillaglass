@@ -303,7 +303,9 @@ async function patchBundleInfoPlist(appBundlePath: string): Promise<void> {
 
   const validatedPlist = readInfoPlistAsObject(infoPlistPath);
   assertProjectPackageRegistration(validatedPlist, infoPlistPath);
-  await ensureMacosCodeSignatureHelper(appBundlePath);
+  if (process.env.GG_SKIP_CODE_SIGNATURE_HELPER_INSTALL !== "1") {
+    await ensureMacosCodeSignatureHelper(appBundlePath);
+  }
 
   const status = modified ? "updated+validated" : "already configured";
   process.stdout.write(`[project-package] ${status}: ${infoPlistPath}\n`);
