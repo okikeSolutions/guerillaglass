@@ -1,5 +1,5 @@
 import { constants, realpathSync } from "node:fs";
-import { mkdir, open } from "node:fs/promises";
+import { lstat, mkdir, open } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -177,7 +177,18 @@ export function resolveAllowedMediaFilePath(
   return resolvedPath;
 }
 
+async function rejectFinalSymlink(filePath: string): Promise<void> {
+  const fileStat = await lstat(filePath);
+  if (fileStat.isSymbolicLink()) {
+    throw new FileAccessPolicyError({
+      code: "PATH_NOT_FILE",
+      description: "Path must point to a regular file, not a symbolic link.",
+    });
+  }
+}
+
 async function openNoFollowRead(filePath: string) {
+  await rejectFinalSymlink(filePath);
   const noFollow = (constants as typeof constants & { O_NOFOLLOW?: number }).O_NOFOLLOW ?? 0;
   return await open(filePath, constants.O_RDONLY | noFollow);
 }

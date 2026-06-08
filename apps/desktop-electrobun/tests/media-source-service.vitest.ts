@@ -1,4 +1,6 @@
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Layer, Option } from "effect";
@@ -18,7 +20,7 @@ describe("media source service", () => {
     Effect.gen(function* () {
       const layer = layerMediaSourceServiceCore.pipe(
         Layer.provideMerge(layerMediaRegistry),
-        Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: "/tmp" })),
+        Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: os.tmpdir() })),
         Layer.provide(BunFileSystem.layer),
         Layer.provide(
           Layer.succeed(HttpServer.HttpServer, {
@@ -44,7 +46,7 @@ describe("media source service", () => {
   it("mints loopback media and preview URLs from the scoped HTTP server address", async () => {
     const layer = layerMediaSourceServiceCore.pipe(
       Layer.provideMerge(layerMediaRegistry),
-      Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: "/tmp" })),
+      Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: os.tmpdir() })),
       Layer.provide(BunFileSystem.layer),
       Layer.provide(
         Layer.succeed(HttpServer.HttpServer, {
@@ -58,19 +60,29 @@ describe("media source service", () => {
       Effect.gen(function* () {
         const registry = yield* MediaRegistry;
         const mediaSourceService = yield* MediaSourceService;
-        const sourcePath = "/tmp/guerillaglass-media-source-service-test.mov";
-        writeFileSync(sourcePath, "fixture-media");
-        const mediaURL = yield* mediaSourceService.resolveMediaSourceURL(sourcePath);
-        const previewURL = yield* mediaSourceService.resolveCapturePreviewURL(Effect.succeed(null));
+        const testDirectory = mkdtempSync(path.join(os.tmpdir(), "gg-media-source-service-"));
+        try {
+          const sourcePath = path.join(
+            testDirectory,
+            "guerillaglass-media-source-service-test.mov",
+          );
+          writeFileSync(sourcePath, "fixture-media");
+          const mediaURL = yield* mediaSourceService.resolveMediaSourceURL(sourcePath);
+          const previewURL = yield* mediaSourceService.resolveCapturePreviewURL(
+            Effect.succeed(null),
+          );
 
-        expect(mediaURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
-        expect(previewURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
+          expect(mediaURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
+          expect(previewURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
 
-        const previewToken = decodeURIComponent(
-          new URL(previewURL).pathname.split("/").pop() ?? "",
-        );
-        const entry = yield* registry.resolveToken(previewToken);
-        expect(entry._tag).toBe("Some");
+          const previewToken = decodeURIComponent(
+            new URL(previewURL).pathname.split("/").pop() ?? "",
+          );
+          const entry = yield* registry.resolveToken(previewToken);
+          expect(entry._tag).toBe("Some");
+        } finally {
+          rmSync(testDirectory, { recursive: true, force: true });
+        }
       }).pipe(Effect.provide(layer), Effect.scoped),
     );
   });
