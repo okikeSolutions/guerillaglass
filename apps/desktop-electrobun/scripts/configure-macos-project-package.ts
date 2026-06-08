@@ -1,6 +1,16 @@
 import { spawnSync } from "node:child_process";
 import { constants } from "node:fs";
-import { access, chmod, copyFile, mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -263,12 +273,7 @@ function runSwiftBuildForCodeSignatureHelper(): string {
       `swift build --product ${MACOS_CODE_SIGNATURE_HELPER_PRODUCT} failed${stderr ? `: ${stderr}` : stdout ? `: ${stdout}` : ""}`,
     );
   }
-  return path.join(
-    repoRoot,
-    ".build",
-    "release",
-    MACOS_CODE_SIGNATURE_HELPER_PRODUCT,
-  );
+  return path.join(repoRoot, ".build", "release", MACOS_CODE_SIGNATURE_HELPER_PRODUCT);
 }
 
 async function ensureMacosCodeSignatureHelper(appBundlePath: string): Promise<void> {

@@ -66,7 +66,9 @@ function tokenError(description: string): CapabilityTokenError {
 }
 
 /** Local opaque capability-token registry for privileged host bridge operations. */
-export function makeCapabilityGrantService(options: { maxEntries?: number } = {}): CapabilityGrantServiceShape {
+export function makeCapabilityGrantService(
+  options: { maxEntries?: number } = {},
+): CapabilityGrantServiceShape {
   const maxEntries = Math.max(1, options.maxEntries ?? 1024);
   const records = new Map<string, CapabilityRecord>();
 
@@ -87,53 +89,53 @@ export function makeCapabilityGrantService(options: { maxEntries?: number } = {}
     mint: (params) =>
       Effect.try({
         try: () => {
-        const subject = params.subject.trim();
-        if (subject.length === 0) {
-          throw tokenError("Capability subject is required.");
-        }
-        prune();
-        const token = makeOpaqueToken();
-        const now = Date.now();
-        const ttlMs = Math.max(1, params.ttlMs ?? defaultTtlMsByScope[params.scope]);
-        const idleTtlMs = Math.max(1, params.idleTtlMs ?? defaultIdleTtlMsByScope[params.scope]);
-        records.set(token, {
-          token: Redacted.make(token, { label: "desktop-capability-token" }),
-          scope: params.scope,
-          subject,
-          expiresAt: now + ttlMs,
-          idleExpiresAt: now + idleTtlMs,
-          idleTtlMs,
-          singleUse: params.singleUse ?? false,
-        });
-        return token;
+          const subject = params.subject.trim();
+          if (subject.length === 0) {
+            throw tokenError("Capability subject is required.");
+          }
+          prune();
+          const token = makeOpaqueToken();
+          const now = Date.now();
+          const ttlMs = Math.max(1, params.ttlMs ?? defaultTtlMsByScope[params.scope]);
+          const idleTtlMs = Math.max(1, params.idleTtlMs ?? defaultIdleTtlMsByScope[params.scope]);
+          records.set(token, {
+            token: Redacted.make(token, { label: "desktop-capability-token" }),
+            scope: params.scope,
+            subject,
+            expiresAt: now + ttlMs,
+            idleExpiresAt: now + idleTtlMs,
+            idleTtlMs,
+            singleUse: params.singleUse ?? false,
+          });
+          return token;
         },
         catch: (error) => error as CapabilityTokenError,
       }),
     consume: ({ token, scope, subject }) =>
       Effect.try({
         try: () => {
-        prune();
-        const normalizedToken = token.trim();
-        const record = records.get(normalizedToken);
-        if (!record) {
-          throw tokenError("Missing or expired capability token.");
-        }
-        const now = Date.now();
-        if (record.expiresAt <= now || record.idleExpiresAt <= now) {
-          records.delete(normalizedToken);
-          throw tokenError("Expired capability token.");
-        }
-        if (record.scope !== scope) {
-          throw tokenError("Capability token scope mismatch.");
-        }
-        if (record.subject !== subject.trim()) {
-          throw tokenError("Capability token subject mismatch.");
-        }
-        if (record.singleUse) {
-          records.delete(normalizedToken);
-        } else {
-          records.set(normalizedToken, { ...record, idleExpiresAt: now + record.idleTtlMs });
-        }
+          prune();
+          const normalizedToken = token.trim();
+          const record = records.get(normalizedToken);
+          if (!record) {
+            throw tokenError("Missing or expired capability token.");
+          }
+          const now = Date.now();
+          if (record.expiresAt <= now || record.idleExpiresAt <= now) {
+            records.delete(normalizedToken);
+            throw tokenError("Expired capability token.");
+          }
+          if (record.scope !== scope) {
+            throw tokenError("Capability token scope mismatch.");
+          }
+          if (record.subject !== subject.trim()) {
+            throw tokenError("Capability token subject mismatch.");
+          }
+          if (record.singleUse) {
+            records.delete(normalizedToken);
+          } else {
+            records.set(normalizedToken, { ...record, idleExpiresAt: now + record.idleTtlMs });
+          }
         },
         catch: (error) => error as CapabilityTokenError,
       }),

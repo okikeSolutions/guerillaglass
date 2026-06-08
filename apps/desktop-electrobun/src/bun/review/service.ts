@@ -69,7 +69,9 @@ export class ReviewGateway extends Context.Service<ReviewGateway, ReviewGatewayS
 function resolveReviewConvexUrl(
   dependencies: ReviewGatewayDependencies,
 ): Effect.Effect<string, ReviewBridgeError> {
-  return Effect.sync(() => dependencies.resolveConvexUrl?.() ?? dependencies.fallbackReviewConvexUrl).pipe(
+  return Effect.sync(
+    () => dependencies.resolveConvexUrl?.() ?? dependencies.fallbackReviewConvexUrl,
+  ).pipe(
     Effect.flatMap((reviewConvexUrl) => {
       if (reviewConvexUrl && reviewConvexUrl.trim().length > 0) {
         return Effect.succeed(reviewConvexUrl);

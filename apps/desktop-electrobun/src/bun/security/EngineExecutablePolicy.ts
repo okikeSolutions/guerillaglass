@@ -14,7 +14,7 @@ function configuredMacosSignatureTrust(config: DesktopAppConfig): boolean {
 function configuredWindowsAuthenticodeTrust(config: DesktopAppConfig): boolean {
   return Boolean(
     config.windowsExpectedPublisherSha256Thumbprint?.trim() ||
-      config.windowsExpectedPublisherSubject?.trim(),
+    config.windowsExpectedPublisherSubject?.trim(),
   );
 }
 

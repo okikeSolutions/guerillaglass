@@ -139,7 +139,9 @@ export function fromEngineWireServerMessage(message: EngineWireServerMessage): F
   }
 }
 
-export function makeEngineWireRpcClientProtocol(options: { readonly authToken: Redacted.Redacted<string> }) {
+export function makeEngineWireRpcClientProtocol(options: {
+  readonly authToken: Redacted.Redacted<string>;
+}) {
   return RpcClient.Protocol.make(
     Effect.fnUntraced(function* (
       writeResponse: (clientId: number, response: FromServerEncoded) => Effect.Effect<void>,

@@ -127,7 +127,11 @@ function validateToken(rawToken: string): string | null {
 function handlePreviewRequest(
   token: string,
   entry: PreviewTokenEntry,
-): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, AppConfig | MediaRegistry> {
+): Effect.Effect<
+  HttpServerResponse.HttpServerResponse,
+  MediaServerError,
+  AppConfig | MediaRegistry
+> {
   return Effect.gen(function* () {
     const registry = yield* MediaRegistry;
     const frame = yield* entry.loadPreviewFrame.pipe(

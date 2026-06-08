@@ -190,7 +190,11 @@ export async function copySafeFileSnapshot(
 ): Promise<string> {
   await mkdir(path.dirname(destinationPath), { recursive: true, mode: 0o700 });
   const sourceHandle = await openNoFollowRead(sourcePath);
-  const destinationHandle = await open(destinationPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o600);
+  const destinationHandle = await open(
+    destinationPath,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
+    0o600,
+  );
   try {
     const fileStat = await sourceHandle.stat();
     if (!fileStat.isFile()) {

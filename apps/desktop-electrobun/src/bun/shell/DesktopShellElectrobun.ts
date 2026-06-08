@@ -109,29 +109,30 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
 
         const getElectrobunChannel = Effect.promise(() => Updater.localInfo.channel());
 
-        const getMainViewURL = (channel: string) => Effect.promise(async () => {
-          if (captureBenchmarkEnabled) {
-            return "views://mainview/index.html";
-          }
-
-          if (channel === "dev") {
-            try {
-              await fetch(devURL, { method: "HEAD" });
-              console.log(`HMR enabled: Using Vite dev server at ${devURL}`);
-              return appendCaptureBenchmarkQuery(
-                appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled),
-                captureBenchmarkEnabled,
-              );
-            } catch {
-              console.log("Vite dev server not running. Run 'bun run dev:hmr' for HMR support.");
+        const getMainViewURL = (channel: string) =>
+          Effect.promise(async () => {
+            if (captureBenchmarkEnabled) {
+              return "views://mainview/index.html";
             }
-          }
 
-          return appendCaptureBenchmarkQuery(
-            appendStudioDiagnosticsQuery("views://mainview/index.html", studioDiagnosticsEnabled),
-            captureBenchmarkEnabled,
-          );
-        });
+            if (channel === "dev") {
+              try {
+                await fetch(devURL, { method: "HEAD" });
+                console.log(`HMR enabled: Using Vite dev server at ${devURL}`);
+                return appendCaptureBenchmarkQuery(
+                  appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled),
+                  captureBenchmarkEnabled,
+                );
+              } catch {
+                console.log("Vite dev server not running. Run 'bun run dev:hmr' for HMR support.");
+              }
+            }
+
+            return appendCaptureBenchmarkQuery(
+              appendStudioDiagnosticsQuery("views://mainview/index.html", studioDiagnosticsEnabled),
+              captureBenchmarkEnabled,
+            );
+          });
 
         const dispatchHostCommand = (command: HostMenuCommand) =>
           Effect.gen(function* () {

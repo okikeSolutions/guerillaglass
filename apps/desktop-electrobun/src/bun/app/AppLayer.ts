@@ -13,11 +13,12 @@ import { DesktopShell } from "../shell/DesktopShell";
 import { ProjectSession } from "../session/ProjectSession";
 import { HostBridgeService, layerHostBridgeService } from "../bridge/HostBridgeService";
 import { BridgeRequestLimits, layerBridgeRequestLimits } from "../security/BridgeRequestLimits";
-import {
-  DesktopTempDirectory,
-} from "../security/DesktopTempDirectory";
+import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { FileAccessGrants, layerFileAccessGrants } from "../security/FileAccessGrants";
-import { CapabilityGrantService, layerCapabilityGrantService } from "../security/DesktopCapabilities";
+import {
+  CapabilityGrantService,
+  layerCapabilityGrantService,
+} from "../security/DesktopCapabilities";
 import {
   ProjectExportPathPolicy,
   layerProjectExportPathPolicy,
@@ -26,7 +27,11 @@ import {
 export type DesktopAppLayerOptions = {
   engineTransportLayer: Layer.Layer<EngineTransport, unknown, AppConfig>;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, AppConfig>;
-  mediaSourceServiceLayer?: Layer.Layer<MediaSourceService, never, AppConfig | DesktopTempDirectory>;
+  mediaSourceServiceLayer?: Layer.Layer<
+    MediaSourceService,
+    never,
+    AppConfig | DesktopTempDirectory
+  >;
   desktopShellLayer: Layer.Layer<DesktopShell, never, AppConfig>;
   projectSessionLayer: Layer.Layer<ProjectSession, never, AppConfig | DesktopTempDirectory>;
   desktopTempDirectoryLayer: Layer.Layer<DesktopTempDirectory, unknown, never>;
@@ -114,7 +119,9 @@ function makeCaptureStatusStreamLayer(
       const config = yield* AppConfig;
       const enabled = options.enableCaptureStatusStream ?? !config.captureBenchmarkEnabled;
       if (!enabled) return;
-      yield* Effect.forkScoped(makeCaptureStatusStreamEffect(options.initialCaptureStatusDelayMs ?? 0));
+      yield* Effect.forkScoped(
+        makeCaptureStatusStreamEffect(options.initialCaptureStatusDelayMs ?? 0),
+      );
     }),
   );
 }
@@ -131,9 +138,9 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   const projectSessionLayer = options.projectSessionLayer.pipe(
     Layer.provideMerge(tempDirectoryLayer),
   );
-  const mediaSourceServiceLayer = (
-    options.mediaSourceServiceLayer ?? layerMediaSourceService
-  ).pipe(Layer.provideMerge(tempDirectoryLayer));
+  const mediaSourceServiceLayer = (options.mediaSourceServiceLayer ?? layerMediaSourceService).pipe(
+    Layer.provideMerge(tempDirectoryLayer),
+  );
 
   const appServicesLayer = Layer.mergeAll(
     options.engineTransportLayer,

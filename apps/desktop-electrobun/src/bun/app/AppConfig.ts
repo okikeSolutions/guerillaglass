@@ -65,7 +65,9 @@ const appConfigEffect = Effect.gen(function* () {
     enginePath: Option.getOrNull(yield* optionalString("GG_ENGINE_PATH")),
     engineExpectedSha256: Option.getOrNull(yield* optionalString("GG_ENGINE_EXPECTED_SHA256")),
     engineExpectedTeamId: Option.getOrNull(yield* optionalString("GG_ENGINE_EXPECTED_TEAM_ID")),
-    engineSigningRequirement: Option.getOrNull(yield* optionalString("GG_ENGINE_SIGNING_REQUIREMENT")),
+    engineSigningRequirement: Option.getOrNull(
+      yield* optionalString("GG_ENGINE_SIGNING_REQUIREMENT"),
+    ),
     macosCodeSignatureHelperPath:
       Option.getOrNull(yield* optionalString("GG_MACOS_CODE_SIGNATURE_HELPER_PATH")) ??
       bundledNativeHelperPath("native/macos/guerillaglass-code-signature-checker"),
@@ -78,19 +80,17 @@ const appConfigEffect = Effect.gen(function* () {
     windowsExpectedPublisherSubject: Option.getOrNull(
       yield* optionalString("GG_WINDOWS_EXPECTED_PUBLISHER_SUBJECT"),
     ),
-    windowsAllowOfflineRevocation: yield* Config.boolean("GG_WINDOWS_ALLOW_OFFLINE_REVOCATION").pipe(
-      Config.withDefault(false),
-    ),
-    engineRequireCurrentUserOwner: yield* Config.boolean("GG_ENGINE_REQUIRE_CURRENT_USER_OWNER").pipe(
-      Config.withDefault(false),
-    ),
+    windowsAllowOfflineRevocation: yield* Config.boolean(
+      "GG_WINDOWS_ALLOW_OFFLINE_REVOCATION",
+    ).pipe(Config.withDefault(false)),
+    engineRequireCurrentUserOwner: yield* Config.boolean(
+      "GG_ENGINE_REQUIRE_CURRENT_USER_OWNER",
+    ).pipe(Config.withDefault(false)),
     engineRejectWorldWritable: yield* Config.boolean("GG_ENGINE_REJECT_WORLD_WRITABLE").pipe(
       Config.withDefault(true),
     ),
     tempDirectory: Option.getOrNull(yield* optionalString("TMPDIR")),
-    reviewConvexUrl: Option.getOrNull(
-      Option.orElse(ggReviewConvexUrl, () => viteConvexUrl),
-    ),
+    reviewConvexUrl: Option.getOrNull(Option.orElse(ggReviewConvexUrl, () => viteConvexUrl)),
   });
 });
 

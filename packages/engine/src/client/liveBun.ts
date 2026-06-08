@@ -6,10 +6,7 @@ import { Effect, Layer, Schedule } from "effect";
 import * as RpcClient from "effect/unstable/rpc/RpcClient";
 import { Socket } from "effect/unstable/socket";
 import { EngineTransport } from "@guerillaglass/engine/client/service";
-import {
-  makeEngineSocketProcess,
-  type EngineExecutableTrustPolicy,
-} from "./processBun.js";
+import { makeEngineSocketProcess, type EngineExecutableTrustPolicy } from "./processBun.js";
 import { makeEngineWireRpcClientProtocol } from "./wireProtocol.js";
 import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
 

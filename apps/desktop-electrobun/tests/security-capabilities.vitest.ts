@@ -1,7 +1,10 @@
 import { Effect, Exit } from "effect";
 import { describe, expect, test } from "vitest";
 import { CapabilityTokenError } from "@shared/errors/desktopErrors";
-import { deserializeBridgeError, serializeBridgeError } from "@shared/errors/desktopErrorSerialization";
+import {
+  deserializeBridgeError,
+  serializeBridgeError,
+} from "@shared/errors/desktopErrorSerialization";
 import { makeCapabilityGrantService } from "../src/bun/security/DesktopCapabilities";
 
 describe("desktop capability grants", () => {
@@ -73,9 +76,7 @@ describe("desktop capability grants", () => {
       service.consume({ token, scope: "review:mutate", subject: "review:abc" }),
     );
     await expect(
-      Effect.runPromise(
-        service.consume({ token, scope: "review:mutate", subject: "review:abc" }),
-      ),
+      Effect.runPromise(service.consume({ token, scope: "review:mutate", subject: "review:abc" })),
     ).rejects.toBeInstanceOf(CapabilityTokenError);
   });
 

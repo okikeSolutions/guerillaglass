@@ -437,7 +437,9 @@ describe("renderer engine bridge", () => {
       ggResolveCapturePreviewURL: async () => "",
     });
 
-    await expect(desktopApi.resolveCapturePreviewURL("capture-session-1")).rejects.toBeInstanceOf(ContractDecodeError);
+    await expect(desktopApi.resolveCapturePreviewURL("capture-session-1")).rejects.toBeInstanceOf(
+      ContractDecodeError,
+    );
   });
 
   test("rejects invalid host path picker payloads at the bridge contract boundary", async () => {

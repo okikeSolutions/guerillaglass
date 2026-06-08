@@ -39,7 +39,9 @@ describe("desktop app config", () => {
 
 describe("desktop navigation rules", () => {
   test("exclude the Vite dev server outside the dev channel", () => {
-    expect(JSON.parse(buildMainViewNavigationRules("stable", 7777))).toEqual(["views://mainview/*"]);
+    expect(JSON.parse(buildMainViewNavigationRules("stable", 7777))).toEqual([
+      "views://mainview/*",
+    ]);
     expect(JSON.parse(buildMainViewNavigationRules("dev", 7777))).toEqual([
       "views://mainview/*",
       "http://localhost:7777/*",
@@ -124,9 +126,7 @@ describe("symlink-safe file access", () => {
       writeFileSync(targetPath, "{}");
       symlinkSync(targetPath, symlinkPath);
 
-      await expect(
-        readAllowedTextFile(symlinkPath, { tempDirectory: root }),
-      ).rejects.toBeTruthy();
+      await expect(readAllowedTextFile(symlinkPath, { tempDirectory: root })).rejects.toBeTruthy();
       await expect(copySafeFileSnapshot(symlinkPath, snapshotPath)).rejects.toBeTruthy();
     } finally {
       rmSync(root, { recursive: true, force: true });

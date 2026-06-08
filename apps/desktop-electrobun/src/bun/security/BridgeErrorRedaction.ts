@@ -8,7 +8,9 @@ function productionLikeEnvironment(config: DesktopAppConfig): boolean {
 
 const sensitiveDataKeys = new Set(["stack", "authToken", "token", "password", "secret"]);
 
-function redactData(data: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+function redactData(
+  data: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
   if (!data) return undefined;
   const next: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {

@@ -9,9 +9,15 @@ const projectPackageExtension = ".gglassproj";
 const exportFileExtensions = new Set([".mp4", ".mov"]);
 
 type ProjectExportPathPolicyService = {
-  readonly validateProjectOpenPath: (projectPath: string) => Effect.Effect<string, FileAccessPolicyError>;
-  readonly validateProjectSavePath: (projectPath: string) => Effect.Effect<string, FileAccessPolicyError>;
-  readonly validateExportOutputPath: (outputURL: string) => Effect.Effect<string, FileAccessPolicyError>;
+  readonly validateProjectOpenPath: (
+    projectPath: string,
+  ) => Effect.Effect<string, FileAccessPolicyError>;
+  readonly validateProjectSavePath: (
+    projectPath: string,
+  ) => Effect.Effect<string, FileAccessPolicyError>;
+  readonly validateExportOutputPath: (
+    outputURL: string,
+  ) => Effect.Effect<string, FileAccessPolicyError>;
 };
 
 export class ProjectExportPathPolicy extends Context.Service<
@@ -75,20 +81,21 @@ export const layerProjectExportPathPolicy = Layer.effect(
   Effect.gen(function* () {
     const grants = yield* FileAccessGrants;
 
-    const validateProjectPath = (
-      kind: "project-open" | "project-save",
-      projectPath: string,
-    ) =>
-      Effect.sync(() => requireExtension(normalizeLocalPath(projectPath), projectPackageExtension)).pipe(
-        Effect.flatMap((normalizedPath) => requireGranted(grants, kind, normalizedPath)),
-      );
+    const validateProjectPath = (kind: "project-open" | "project-save", projectPath: string) =>
+      Effect.sync(() =>
+        requireExtension(normalizeLocalPath(projectPath), projectPackageExtension),
+      ).pipe(Effect.flatMap((normalizedPath) => requireGranted(grants, kind, normalizedPath)));
 
     return ProjectExportPathPolicy.of({
       validateProjectOpenPath: (projectPath) => validateProjectPath("project-open", projectPath),
       validateProjectSavePath: (projectPath) => validateProjectPath("project-save", projectPath),
       validateExportOutputPath: (outputURL) =>
-        Effect.sync(() => requireExtension(normalizeLocalPath(outputURL), exportFileExtensions)).pipe(
-          Effect.flatMap((normalizedPath) => requireGranted(grants, "export-directory", normalizedPath)),
+        Effect.sync(() =>
+          requireExtension(normalizeLocalPath(outputURL), exportFileExtensions),
+        ).pipe(
+          Effect.flatMap((normalizedPath) =>
+            requireGranted(grants, "export-directory", normalizedPath),
+          ),
         ),
     });
   }),

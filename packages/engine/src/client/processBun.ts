@@ -51,10 +51,9 @@ function protocolDefect(message: string, cause: unknown): RpcClientError {
 function makeSocketAuthToken(): Redacted.Redacted<string> {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
-  return Redacted.make(
-    Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""),
-    { label: "engine-socket-auth-token" },
-  );
+  return Redacted.make(Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""), {
+    label: "engine-socket-auth-token",
+  });
 }
 
 function isLoopbackReadyHost(host: string): boolean {
@@ -92,7 +91,10 @@ function parseReadyLine(line: string): EngineSocketAddress | undefined {
 }
 
 function normalizeSha256(value: string): string {
-  return value.trim().toLowerCase().replace(/^sha256:/, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^sha256:/, "");
 }
 
 function timingSafeEqualHex(left: string, right: string): boolean {
@@ -104,14 +106,18 @@ function timingSafeEqualHex(left: string, right: string): boolean {
   return normalizedLeft === normalizedRight;
 }
 
-export function configuredMacosCodeSignatureTrust(policy: EngineExecutableTrustPolicy | undefined): boolean {
+export function configuredMacosCodeSignatureTrust(
+  policy: EngineExecutableTrustPolicy | undefined,
+): boolean {
   return Boolean(policy?.macosExpectedTeamId?.trim() || policy?.macosSigningRequirement?.trim());
 }
 
-function configuredWindowsAuthenticodeTrust(policy: EngineExecutableTrustPolicy | undefined): boolean {
+function configuredWindowsAuthenticodeTrust(
+  policy: EngineExecutableTrustPolicy | undefined,
+): boolean {
   return Boolean(
     policy?.windowsExpectedPublisherSha256Thumbprint?.trim() ||
-      policy?.windowsExpectedPublisherSubject?.trim(),
+    policy?.windowsExpectedPublisherSubject?.trim(),
   );
 }
 
@@ -238,7 +244,8 @@ export function validateEngineExecutableTrust(
       if ((policy.rejectWorldWritable ?? true) && (fileStat.mode & 0o022) !== 0) {
         throw new EngineClientError({
           code: "ENGINE_PROCESS_UNAVAILABLE",
-          description: "Engine executable must not be group- or world-writable in trusted production mode.",
+          description:
+            "Engine executable must not be group- or world-writable in trusted production mode.",
         });
       }
 
@@ -247,18 +254,22 @@ export function validateEngineExecutableTrust(
         if (fileStat.uid !== currentUid) {
           throw new EngineClientError({
             code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "Engine executable must be owned by the current user in trusted production mode.",
+            description:
+              "Engine executable must be owned by the current user in trusted production mode.",
           });
         }
       }
 
       const expectedSha256 = policy.expectedSha256?.trim();
       if (expectedSha256) {
-        const actualSha256 = createHash("sha256").update(await readFile(enginePath)).digest("hex");
+        const actualSha256 = createHash("sha256")
+          .update(await readFile(enginePath))
+          .digest("hex");
         if (!timingSafeEqualHex(actualSha256, expectedSha256)) {
           throw new EngineClientError({
             code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "Engine executable SHA-256 digest does not match the trusted production allowlist.",
+            description:
+              "Engine executable SHA-256 digest does not match the trusted production allowlist.",
           });
         }
       }
@@ -268,7 +279,10 @@ export function validateEngineExecutableTrust(
         ? error
         : new EngineClientError({
             code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: messageFromUnknownError(error, "Unable to verify engine executable trust."),
+            description: messageFromUnknownError(
+              error,
+              "Unable to verify engine executable trust.",
+            ),
             cause: error,
           }),
   }).pipe(

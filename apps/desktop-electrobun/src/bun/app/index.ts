@@ -48,8 +48,7 @@ const guardedEngineTransportLayer = Layer.unwrap(
         macosExpectedTeamId: config.engineExpectedTeamId,
         macosSigningRequirement: config.engineSigningRequirement,
         windowsAuthenticodeHelperPath: config.windowsAuthenticodeHelperPath,
-        windowsExpectedPublisherSha256Thumbprint:
-          config.windowsExpectedPublisherSha256Thumbprint,
+        windowsExpectedPublisherSha256Thumbprint: config.windowsExpectedPublisherSha256Thumbprint,
         windowsExpectedPublisherSubject: config.windowsExpectedPublisherSubject,
         windowsAllowOfflineRevocation: config.windowsAllowOfflineRevocation,
       },
