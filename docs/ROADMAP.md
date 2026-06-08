@@ -134,7 +134,8 @@ Release workflow checklist:
 - [ ] Add desktop packaging pipeline for supported artifact targets
 - [ ] Add release-smoke validation job for version propagation and packaging metadata
 - [ ] Add packaged-app startup smoke coverage in CI where feasible
-- [ ] Document signing/notarization secret requirements and dry-run unsigned packaging path
+- [x] Document desktop executable-trust signing requirements and remaining platform validation notes (`docs/RELEASE_HARDENING.md`)
+- [ ] Document notarization secret requirements and dry-run unsigned packaging path
 - [ ] Document expected artifact set and manual release verification checklist
 - [ ] Decide and document desktop update metadata/update-channel strategy
 
