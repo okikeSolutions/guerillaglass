@@ -5,6 +5,7 @@ import Foundation
 import InputTracking
 import Project
 
+@MainActor
 final class EngineService {
     let captureEngine = CaptureEngine()
     let exportPipeline = ExportPipeline()
@@ -54,6 +55,7 @@ final class EngineService {
             "recording.start": { id, params in await self.startRecordingResponse(id: id, params: params) },
             "recording.stop": { id, _ in await self.stopRecordingResponse(id: id) },
             "capture.status": { id, _ in self.captureStatusResponse(id: id) },
+            "capture.previewFrame": { id, _ in self.capturePreviewFrameResponse(id: id) },
             "export.info": { id, _ in self.exportInfoResponse(id: id) },
             "export.run": { id, params in await self.exportRunResponse(id: id, params: params) },
             "export.runCutPlan": { id, params in await self.exportRunCutPlanResponse(id: id, params: params) },

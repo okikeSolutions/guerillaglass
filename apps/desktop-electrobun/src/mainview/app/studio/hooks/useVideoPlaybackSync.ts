@@ -1,11 +1,17 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
+import { recordStudioPlaybackActive, recordStudioPlaybackTick } from "@lib/studioDiagnostics";
+import type { CompiledTimelineSegment } from "../domain/timelineDomainModel";
+import {
+  mapProgramSecondsToSourceTime,
+  timelineDurationSeconds,
+} from "../domain/timelineDomainModel";
+import type { PlaybackTransportStore } from "./timeline/usePlaybackTransport";
 
 type UseVideoPlaybackSyncOptions = {
   mediaRef: RefObject<HTMLVideoElement | null>;
+  playbackStore: PlaybackTransportStore;
   recordingMediaSource: string | null;
-  isTimelinePlaying: boolean;
-  playbackRate: number;
-  playheadSeconds: number;
+  timelineSegments: CompiledTimelineSegment[];
   timelineDuration: number;
   setTimelinePlaybackActive: (isActive: boolean) => void;
   setDisplayPlayheadSecondsFromMedia: (seconds: number) => void;
@@ -20,23 +26,55 @@ type VideoWithFrameCallback = HTMLVideoElement & {
 
 export function useVideoPlaybackSync({
   mediaRef,
+  playbackStore,
   recordingMediaSource,
-  isTimelinePlaying,
-  playbackRate,
-  playheadSeconds,
+  timelineSegments,
   timelineDuration,
   setTimelinePlaybackActive,
   setDisplayPlayheadSecondsFromMedia,
   setPlayheadSecondsFromMedia,
 }: UseVideoPlaybackSyncOptions): void {
+  const playheadSecondsRef = useRef(playbackStore.getSnapshot().playheadSeconds);
+  const playbackRateRef = useRef(playbackStore.getSnapshot().playbackRate);
+  const isTimelinePlayingRef = useRef(playbackStore.getSnapshot().isPlaying);
+
+  useEffect(() => {
+    const updateRefs = () => {
+      const snapshot = playbackStore.getSnapshot();
+      playheadSecondsRef.current = snapshot.playheadSeconds;
+      playbackRateRef.current = snapshot.playbackRate;
+      isTimelinePlayingRef.current = snapshot.isPlaying;
+    };
+
+    updateRefs();
+    return playbackStore.subscribe(updateRefs);
+  }, [playbackStore]);
+
+  useEffect(() => {
+    recordStudioPlaybackActive(playbackStore.getSnapshot().isPlaying);
+    return playbackStore.subscribe(() => {
+      recordStudioPlaybackActive(playbackStore.getSnapshot().isPlaying);
+    });
+  }, [playbackStore]);
+
   useEffect(() => {
     const media = mediaRef.current;
     if (!media || !recordingMediaSource) {
       return;
     }
 
-    media.playbackRate = playbackRate;
-  }, [mediaRef, playbackRate, recordingMediaSource]);
+    let lastPlaybackRate = playbackRateRef.current;
+    const syncPlaybackRate = () => {
+      if (playbackRateRef.current === lastPlaybackRate) {
+        return;
+      }
+      lastPlaybackRate = playbackRateRef.current;
+      media.playbackRate = playbackRateRef.current;
+    };
+
+    media.playbackRate = lastPlaybackRate;
+    return playbackStore.subscribe(syncPlaybackRate);
+  }, [mediaRef, playbackStore, recordingMediaSource]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -44,43 +82,112 @@ export function useVideoPlaybackSync({
       return;
     }
 
-    if (isTimelinePlaying) {
+    let lastIsPlaying = isTimelinePlayingRef.current;
+    const syncPlaybackActive = () => {
+      if (isTimelinePlayingRef.current === lastIsPlaying) {
+        return;
+      }
+      lastIsPlaying = isTimelinePlayingRef.current;
+      if (isTimelinePlayingRef.current) {
+        void media.play().catch(() => {
+          setTimelinePlaybackActive(false);
+        });
+        return;
+      }
+      media.pause();
+    };
+
+    if (lastIsPlaying) {
       void media.play().catch(() => {
         setTimelinePlaybackActive(false);
       });
-      return;
+    } else {
+      media.pause();
     }
-    media.pause();
-  }, [isTimelinePlaying, mediaRef, recordingMediaSource, setTimelinePlaybackActive]);
+    return playbackStore.subscribe(syncPlaybackActive);
+  }, [mediaRef, playbackStore, recordingMediaSource, setTimelinePlaybackActive]);
 
   useEffect(() => {
     const media = mediaRef.current;
-    if (!media || !recordingMediaSource || isTimelinePlaying) {
+    if (!media || !recordingMediaSource) {
       return;
     }
 
-    const boundedPlayhead = Math.max(0, Math.min(playheadSeconds, timelineDuration));
-    if (Math.abs(media.currentTime - boundedPlayhead) <= 0.08) {
-      return;
-    }
+    const syncPausedSeek = () => {
+      if (isTimelinePlayingRef.current) {
+        return;
+      }
 
-    try {
-      media.currentTime = boundedPlayhead;
-    } catch {
-      // Ignore seek errors while media is loading.
-    }
-  }, [isTimelinePlaying, mediaRef, playheadSeconds, recordingMediaSource, timelineDuration]);
+      const boundedPlayhead = Math.max(0, Math.min(playheadSecondsRef.current, timelineDuration));
+      const mappedSource = mapProgramSecondsToSourceTime(timelineSegments, boundedPlayhead);
+      const targetMediaSeconds = mappedSource?.sourceSeconds ?? boundedPlayhead;
+      if (Math.abs(media.currentTime - targetMediaSeconds) <= 0.08) {
+        return;
+      }
+
+      try {
+        media.currentTime = targetMediaSeconds;
+      } catch {
+        // Ignore seek errors while media is loading.
+      }
+    };
+
+    syncPausedSeek();
+    return playbackStore.subscribe(syncPausedSeek);
+  }, [mediaRef, playbackStore, recordingMediaSource, timelineDuration, timelineSegments]);
 
   useEffect(() => {
     const media = mediaRef.current;
-    if (!media || !recordingMediaSource || !isTimelinePlaying) {
+    if (!media || !recordingMediaSource) {
       return;
     }
 
     let animationFrameHandle: number | null = null;
     let videoFrameHandle: number | null = null;
     let isCancelled = false;
+    let loopActive = false;
     const mediaWithFrameCallback = media as VideoWithFrameCallback;
+    const segmentBoundaryThresholdSeconds = 0.02;
+
+    const syncProgramClockFromMedia = () => {
+      const mapped = mapProgramSecondsToSourceTime(timelineSegments, playheadSecondsRef.current);
+      const activeSegment = mapped?.segment ?? null;
+      if (!activeSegment) {
+        recordStudioPlaybackTick(media.currentTime);
+        setDisplayPlayheadSecondsFromMedia(media.currentTime);
+        return true;
+      }
+
+      if (media.currentTime >= activeSegment.sourceEndSeconds - segmentBoundaryThresholdSeconds) {
+        const nextSegment = timelineSegments[activeSegment.index + 1];
+        if (!nextSegment) {
+          setDisplayPlayheadSecondsFromMedia(activeSegment.programEndSeconds);
+          setTimelinePlaybackActive(false);
+          return false;
+        }
+
+        try {
+          media.currentTime = nextSegment.sourceStartSeconds;
+        } catch {
+          setTimelinePlaybackActive(false);
+          return false;
+        }
+        recordStudioPlaybackTick(nextSegment.sourceStartSeconds);
+        setDisplayPlayheadSecondsFromMedia(nextSegment.programStartSeconds);
+        return true;
+      }
+
+      const nextProgramSeconds =
+        activeSegment.programStartSeconds + (media.currentTime - activeSegment.sourceStartSeconds);
+      setDisplayPlayheadSecondsFromMedia(
+        Math.max(
+          activeSegment.programStartSeconds,
+          Math.min(nextProgramSeconds, activeSegment.programEndSeconds),
+        ),
+      );
+      recordStudioPlaybackTick(media.currentTime);
+      return true;
+    };
 
     const scheduleTick = () => {
       if (isCancelled) {
@@ -91,8 +198,9 @@ export function useVideoPlaybackSync({
           if (isCancelled) {
             return;
           }
-          setDisplayPlayheadSecondsFromMedia(media.currentTime);
-          scheduleTick();
+          if (syncProgramClockFromMedia()) {
+            scheduleTick();
+          }
         });
         return;
       }
@@ -100,23 +208,54 @@ export function useVideoPlaybackSync({
         if (isCancelled) {
           return;
         }
-        setDisplayPlayheadSecondsFromMedia(media.currentTime);
-        scheduleTick();
+        if (syncProgramClockFromMedia()) {
+          scheduleTick();
+        }
       });
     };
 
-    scheduleTick();
-
-    return () => {
-      isCancelled = true;
+    const stopLoop = () => {
+      loopActive = false;
       if (animationFrameHandle != null) {
         cancelAnimationFrame(animationFrameHandle);
+        animationFrameHandle = null;
       }
       if (videoFrameHandle != null) {
         mediaWithFrameCallback.cancelVideoFrameCallback?.(videoFrameHandle);
+        videoFrameHandle = null;
       }
     };
-  }, [isTimelinePlaying, mediaRef, recordingMediaSource, setDisplayPlayheadSecondsFromMedia]);
+
+    const syncLoop = () => {
+      if (!isTimelinePlayingRef.current) {
+        stopLoop();
+        return;
+      }
+
+      if (loopActive) {
+        return;
+      }
+
+      loopActive = true;
+      scheduleTick();
+    };
+
+    syncLoop();
+    const unsubscribe = playbackStore.subscribe(syncLoop);
+
+    return () => {
+      isCancelled = true;
+      unsubscribe();
+      stopLoop();
+    };
+  }, [
+    mediaRef,
+    playbackStore,
+    recordingMediaSource,
+    setDisplayPlayheadSecondsFromMedia,
+    setTimelinePlaybackActive,
+    timelineSegments,
+  ]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -125,19 +264,33 @@ export function useVideoPlaybackSync({
     }
 
     const handleSeeked = () => {
-      setPlayheadSecondsFromMedia(media.currentTime);
+      const mapped = mapProgramSecondsToSourceTime(timelineSegments, playheadSecondsRef.current);
+      if (!mapped) {
+        setPlayheadSecondsFromMedia(media.currentTime);
+        return;
+      }
+
+      const nextProgramSeconds =
+        mapped.segment.programStartSeconds +
+        (media.currentTime - mapped.segment.sourceStartSeconds);
+      setPlayheadSecondsFromMedia(
+        Math.max(
+          mapped.segment.programStartSeconds,
+          Math.min(nextProgramSeconds, mapped.segment.programEndSeconds),
+        ),
+      );
     };
     const handleEnded = () => {
       setTimelinePlaybackActive(false);
-      const duration = media.duration;
-      if (Number.isFinite(duration) && duration > 0) {
+      const duration = timelineDurationSeconds(timelineSegments);
+      if (duration > 0) {
         setPlayheadSecondsFromMedia(duration);
       }
     };
     const handleLoadedMetadata = () => {
-      const duration = media.duration;
-      if (Number.isFinite(duration) && duration > 0) {
-        setPlayheadSecondsFromMedia(Math.min(playheadSeconds, duration));
+      const duration = timelineDurationSeconds(timelineSegments);
+      if (duration > 0) {
+        setPlayheadSecondsFromMedia(Math.min(playheadSecondsRef.current, duration));
       }
     };
 
@@ -150,5 +303,5 @@ export function useVideoPlaybackSync({
       media.removeEventListener("ended", handleEnded);
       media.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [mediaRef, playheadSeconds, setPlayheadSecondsFromMedia, setTimelinePlaybackActive]);
+  }, [mediaRef, setPlayheadSecondsFromMedia, setTimelinePlaybackActive, timelineSegments]);
 }

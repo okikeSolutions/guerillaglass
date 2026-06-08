@@ -26,7 +26,7 @@ const BASE_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
 function runCommand(command: string[], env?: Record<string, string>) {
   return Bun.spawnSync(command, {
     cwd: process.cwd(),
-    env: { ...process.env, ...env },
+    env: { ...process.env, GG_SKIP_CODE_SIGNATURE_HELPER_INSTALL: "1", ...env },
     stdout: "pipe",
     stderr: "pipe",
   });

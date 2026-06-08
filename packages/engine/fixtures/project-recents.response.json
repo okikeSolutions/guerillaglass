@@ -1,0 +1,13 @@
+{
+  "type": "response",
+  "id": "2",
+  "result": {
+    "items": [
+      {
+        "projectPath": "/tmp/fixture.gglassproj",
+        "displayName": "fixture",
+        "lastOpenedAt": "2026-02-19T10:00:00.000Z"
+      }
+    ]
+  }
+}

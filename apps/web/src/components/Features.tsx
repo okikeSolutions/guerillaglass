@@ -6,6 +6,18 @@ export const FeatureBento: React.FC = () => {
   return (
     <section className="bg-black/45 min-h-screen py-10 font-manrope">
       <div className="max-w-7xl mx-auto px-4">
+        <div className="mb-10 max-w-3xl text-white">
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/60">
+            Problem & product
+          </p>
+          <h2 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
+            The product is built for teams who need better videos without a messier process.
+          </h2>
+          <p className="mt-4 text-lg leading-relaxed text-white/80">
+            Guerilla Glass replaces a stitched-together stack of recorder, editor, export, and
+            review apps with one timeline-first desktop workflow.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[280px]">
           {/* Hero Card - Large */}
           <div className="md:col-span-2 md:row-span-2 bg-black/20 backdrop-blur-lg rounded-3xl p-10 text-white flex flex-col justify-end relative overflow-hidden group">
@@ -15,16 +27,16 @@ export const FeatureBento: React.FC = () => {
             <div className="relative z-10 space-y-3">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium">
                 <span className="size-2 bg-green-400 rounded-full animate-pulse" />
-                Creator Studio
+                One workflow
               </div>
               <h3 className="text-5xl font-bold tracking-tight">
-                Record, Edit,
+                Capture, cut,
                 <br />
-                Deliver
+                review, deliver
               </h3>
               <p className="max-w-md text-white/90 text-lg">
-                A local-first, native workflow for capture to polished export with deterministic
-                rendering and pro editor ergonomics.
+                Record the source, shape the story on a timeline, collect feedback, and export the
+                final file without leaving Guerilla Glass.
               </p>
             </div>
           </div>
@@ -37,7 +49,9 @@ export const FeatureBento: React.FC = () => {
                 <MountainSnow className="w-6 h-6" />
               </div>
               <h4 className="text-4xl font-black text-white mb-2">macOS 13+</h4>
-              <p className="text-neutral-200 font-medium">Production capture/export baseline</p>
+              <p className="text-neutral-200 font-medium">
+                Production-ready capture and export today
+              </p>
             </div>
           </div>
 
@@ -47,30 +61,33 @@ export const FeatureBento: React.FC = () => {
               <Rainbow className="w-6 h-6" />
             </div>
             <div className="space-y-2">
-              <h4 className="text-2xl font-bold text-white">Typed Native Protocol</h4>
+              <h4 className="text-2xl font-bold text-white">Local-first desktop engine</h4>
               <p className="text-neutral-200">
-                Shared protocol contracts keep the desktop shell and platform engines aligned across
-                macOS Swift and Windows/Linux Rust foundations.
+                Native capture and deterministic rendering keep the editing workflow responsive,
+                private, and reliable even when you are offline.
               </p>
             </div>
           </div>
 
           {/* CTA Card */}
-          <div className="bg-black/20 backdrop-blur-lg rounded-3xl p-8 text-white flex flex-col justify-between transition-all cursor-pointer group">
+          <a
+            href="#pricing"
+            className="bg-black/20 backdrop-blur-lg rounded-3xl p-8 text-white flex flex-col justify-between transition-all cursor-pointer group"
+          >
             <div className="flex justify-between items-start">
               <span className="text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                Open Source
+                Buying path
               </span>
               <div className="size-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-xl group-hover:bg-white/30 group-hover:rotate-45 transition-all">
                 ↗
               </div>
             </div>
             <h4 className="text-2xl font-bold leading-tight">
-              Follow the
+              Compare plans
               <br />
-              Roadmap
+              and pricing
             </h4>
-          </div>
+          </a>
 
           {/* Stats Card 2 */}
           <div className="bg-black/20 backdrop-blur-lg rounded-3xl p-8 text-white flex flex-col justify-center gap-3 relative overflow-hidden group">
@@ -81,10 +98,10 @@ export const FeatureBento: React.FC = () => {
             </span>
             <div className="relative z-10">
               <span className="text-5xl font-black bg-linear-to-r from-blue-200 to-blue-600 bg-clip-text text-transparent">
-                24 / 30 / 60
+                Review
               </span>
               <p className="text-sm uppercase tracking-widest text-neutral-300 font-semibold mt-2">
-                Capture FPS
+                Timestamped links and comments
               </p>
             </div>
           </div>
@@ -93,9 +110,9 @@ export const FeatureBento: React.FC = () => {
           <div className="bg-black/20 backdrop-blur-lg rounded-3xl p-8 text-white flex flex-col justify-center gap-3 relative overflow-hidden group hover:shadow-2xl transition-all">
             <div className="absolute -bottom-10 -right-10 size-40 bg-white/10 rounded-full blur-3xl" />
             <div className="relative z-10">
-              <span className="text-5xl font-black">Offline</span>
+              <span className="text-5xl font-black">Export</span>
               <p className="text-sm uppercase tracking-widest text-rose-100 font-semibold mt-2">
-                Capture/Edit/Export
+                Deliver polished videos faster
               </p>
             </div>
           </div>

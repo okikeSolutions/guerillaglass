@@ -343,6 +343,12 @@
     @apply space-y-1.5 px-1 pt-1.5 pb-0.5;
   }
 
+  .gg-inspector-option-card {
+    @apply rounded-md px-3 py-3;
+    border: 1px solid color-mix(in oklab, var(--gg-border-subtle) 85%, transparent);
+    background-color: color-mix(in oklab, var(--gg-surface-1) 42%, transparent);
+  }
+
   .gg-inspector-detail-list {
     @apply space-y-0.5 text-muted-foreground;
     font-size: 0.72rem;
@@ -350,7 +356,7 @@
   }
 
   .gg-inspector-detail-row {
-    @apply text-foreground/90;
+    @apply flex items-center justify-between gap-3;
   }
 
   .gg-inspector-toggle-row {

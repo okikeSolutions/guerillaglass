@@ -21,8 +21,14 @@
       "@/*": ["./src/mainview/*"],
       "@lib/*": ["./src/mainview/lib/*"],
       "@shared/*": ["./src/shared/*"],
-      "@studio/*": ["./src/mainview/app/studio/*"]
-    }
+      "@studio/*": ["./src/mainview/app/studio/*"],
+      "@guerillaglass/engine/*": ["../../packages/engine/src/*"]
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
   },
   "include": ["src", "tests", "scripts", "*.config.ts"],
   "exclude": ["node_modules", "dist", "build", "tests/ui"]

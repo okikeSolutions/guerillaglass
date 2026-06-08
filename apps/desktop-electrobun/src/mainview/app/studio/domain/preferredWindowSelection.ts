@@ -1,4 +1,4 @@
-import type { SourcesResult } from "@guerillaglass/engine-protocol";
+import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
 
 type SourceWindow = SourcesResult["windows"][number];
 
@@ -13,7 +13,7 @@ function hasTitle(windowItem: SourceWindow): boolean {
   return windowItem.title.trim().length > 0;
 }
 
-function chooseLargestWindow(windows: SourceWindow[]): SourceWindow | null {
+function chooseLargestWindow(windows: ReadonlyArray<SourceWindow>): SourceWindow | null {
   if (windows.length === 0) {
     return null;
   }
@@ -34,7 +34,7 @@ function chooseLargestWindow(windows: SourceWindow[]): SourceWindow | null {
   }, firstWindow);
 }
 
-export function pickPreferredWindowId(windows: SourceWindow[]): number {
+export function pickPreferredWindowId(windows: ReadonlyArray<SourceWindow>): number {
   if (windows.length === 0) {
     return 0;
   }
@@ -50,7 +50,10 @@ export function pickPreferredWindowId(windows: SourceWindow[]): number {
   return preferredWindow?.id ?? 0;
 }
 
-export function resolveSelectedWindowId(windows: SourceWindow[], selectedWindowId: number): number {
+export function resolveSelectedWindowId(
+  windows: ReadonlyArray<SourceWindow>,
+  selectedWindowId: number,
+): number {
   if (windows.some((windowItem) => windowItem.id === selectedWindowId)) {
     return selectedWindowId;
   }

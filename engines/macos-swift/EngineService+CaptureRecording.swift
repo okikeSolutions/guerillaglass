@@ -41,12 +41,24 @@ extension EngineService {
             "recordingBitrateMbps": telemetry.recordingBitrateMbps.map { .number($0) } ?? .null,
             "captureCallbackMs": .number(telemetry.captureCallbackMs),
             "recordQueueLagMs": .number(telemetry.recordQueueLagMs),
-            "writerAppendMs": .number(telemetry.writerAppendMs)
+            "writerAppendMs": .number(telemetry.writerAppendMs),
+            "previewEncodeMs": .number(telemetry.previewEncodeMs)
+        ])
+    }
+
+    private func capturePreviewFramePayload(
+        from previewFrame: CapturePreviewFrameSnapshot
+    ) -> JSONValue {
+        .object([
+            "frameId": .number(Double(previewFrame.frameId)),
+            "bytesBase64": .string(previewFrame.bytesBase64)
         ])
     }
 
     func startDisplayResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
+        let displayID = params["displayId"]?.intValue.map { CGDirectDisplayID($0) }
         let enableMic = params["enableMic"]?.boolValue ?? false
+        let enablePreview = params["enablePreview"]?.boolValue ?? true
         guard let captureFps = resolveCaptureFrameRate(from: params) else {
             return .failure(
                 id: id,
@@ -55,7 +67,12 @@ extension EngineService {
             )
         }
         do {
-            try await captureEngine.startDisplayCapture(enableMic: enableMic, targetFrameRate: captureFps)
+            try await captureEngine.startDisplayCapture(
+                displayID: displayID,
+                enableMic: enableMic,
+                targetFrameRate: captureFps,
+                enablePreview: enablePreview
+            )
             return captureStatusResponse(id: id)
         } catch {
             return captureStartFailureResponse(id: id, error: error)
@@ -67,6 +84,7 @@ extension EngineService {
             return .failure(id: id, code: "invalid_params", message: "windowId is required")
         }
         let enableMic = params["enableMic"]?.boolValue ?? false
+        let enablePreview = params["enablePreview"]?.boolValue ?? true
         guard let captureFps = resolveCaptureFrameRate(from: params) else {
             return .failure(
                 id: id,
@@ -80,7 +98,8 @@ extension EngineService {
                 if #available(macOS 14.0, *) {
                     try await captureEngine.startCaptureUsingPicker(
                         enableMic: enableMic,
-                        targetFrameRate: captureFps
+                        targetFrameRate: captureFps,
+                        enablePreview: enablePreview
                     )
                 } else {
                     return .failure(
@@ -93,7 +112,8 @@ extension EngineService {
                 try await captureEngine.startWindowCapture(
                     windowID: CGWindowID(windowID),
                     enableMic: enableMic,
-                    targetFrameRate: captureFps
+                    targetFrameRate: captureFps,
+                    enablePreview: enablePreview
                 )
             }
             return captureStatusResponse(id: id)
@@ -104,6 +124,7 @@ extension EngineService {
 
     func startCurrentWindowResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
         let enableMic = params["enableMic"]?.boolValue ?? false
+        let enablePreview = params["enablePreview"]?.boolValue ?? true
         guard let captureFps = resolveCaptureFrameRate(from: params) else {
             return .failure(
                 id: id,
@@ -115,7 +136,8 @@ extension EngineService {
         do {
             try await captureEngine.startCurrentWindowCapture(
                 enableMic: enableMic,
-                targetFrameRate: captureFps
+                targetFrameRate: captureFps,
+                enablePreview: enablePreview
             )
             return captureStatusResponse(id: id)
         } catch {
@@ -134,6 +156,7 @@ extension EngineService {
 
         do {
             try await captureEngine.startRecording()
+            currentProjectDocument.project.lastRecordingTelemetry = nil
             currentEventsURL = nil
             currentProjectDocument.eventsFileName = nil
 
@@ -161,6 +184,11 @@ extension EngineService {
 
         if let recordingURL = captureEngine.recordingURL {
             currentProjectDocument.recordingFileName = recordingURL.lastPathComponent
+        }
+        if let lastRecordingTelemetry = captureEngine.lastRecordingTelemetry {
+            currentProjectDocument.project.lastRecordingTelemetry = captureTelemetrySummary(
+                from: lastRecordingTelemetry
+            )
         }
         hasUnsavedProjectChanges = true
 
@@ -214,13 +242,22 @@ extension EngineService {
             result: .object([
                 "isRunning": .bool(captureEngine.isRunning),
                 "isRecording": .bool(captureEngine.isRecording),
+                "captureSessionId": captureEngine.captureSessionID.map { .string($0) } ?? .null,
                 "recordingDurationSeconds": .number(recordingDurationSeconds),
                 "recordingURL": captureEngine.recordingURL.map { .string($0.path) } ?? .null,
                 "captureMetadata": captureMetadataPayload,
                 "lastError": captureEngine.lastError.map { .string($0) } ?? .null,
                 "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
+                "lastRecordingTelemetry": captureEngine.lastRecordingTelemetry.map(telemetryPayload(from:))
+                    ?? .null,
                 "telemetry": telemetryPayload(from: telemetry)
             ])
         )
+    }
+
+    func capturePreviewFrameResponse(id: String) -> EngineResponse {
+        let previewFramePayload = captureEngine.latestPreviewFrame().map(capturePreviewFramePayload)
+            ?? .null
+        return .success(id: id, result: previewFramePayload)
     }
 }

@@ -38,6 +38,7 @@ function statusResult() {
       : null,
     lastError: null,
     eventsURL: null,
+    lastRecordingTelemetry: null,
     telemetry: {
       sourceDroppedFrames: 0,
       writerDroppedFrames: 0,
@@ -75,6 +76,8 @@ function handleRequest(request: Request): Response | null {
           displays: [
             {
               id: 1,
+              displayName: "Primary Display",
+              isPrimary: true,
               width: 1920,
               height: 1080,
               refreshHz: 60,

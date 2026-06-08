@@ -1,5 +1,5 @@
 import { useHotkey, type RegisterableHotkey } from "@tanstack/react-hotkeys";
-import { hostMenuCommands, type HostMenuCommand } from "@shared/bridge";
+import { hostMenuCommands, type HostMenuCommand } from "@shared/bridge/desktopBridgeContract";
 import {
   resolveStudioShortcutBinding,
   type ShortcutDisplayPlatform,
@@ -38,11 +38,15 @@ function shouldBlockGlobalSingleKeyHotkey(target: EventTarget | null): boolean {
 
 type UseStudioHotkeysOptions = {
   runHostCommand: (command: HostMenuCommand) => void;
+  canTrimTimeline: boolean;
+  canEditSelectedTimelineClip: boolean;
   singleKeyShortcutsEnabled: boolean;
   shortcutOverrides: StudioShortcutOverrides;
   shortcutPlatform: ShortcutDisplayPlatform;
   clearInspectorSelection: () => void;
   clearNotice: () => void;
+  deleteSelectedTimelineClip: () => void;
+  liftSelectedTimelineClip: () => void;
   setTimelineTool: (tool: TimelineTool) => void;
 };
 
@@ -65,11 +69,15 @@ function shortcutOptionsFor(
 
 export function useStudioHotkeys({
   runHostCommand,
+  canTrimTimeline,
+  canEditSelectedTimelineClip,
   singleKeyShortcutsEnabled,
   shortcutOverrides,
   shortcutPlatform,
   clearInspectorSelection,
   clearNotice,
+  deleteSelectedTimelineClip,
+  liftSelectedTimelineClip,
   setTimelineTool,
 }: UseStudioHotkeysOptions): void {
   const saveShortcut = shortcutOptionsFor("save", shortcutOverrides, shortcutPlatform);
@@ -173,6 +181,9 @@ export function useStudioHotkeys({
   useHotkey(
     trimInShortcut.hotkey,
     (event) => {
+      if (!canTrimTimeline) {
+        return;
+      }
       if (
         trimInShortcut.singleKey &&
         (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
@@ -192,6 +203,9 @@ export function useStudioHotkeys({
   useHotkey(
     trimOutShortcut.hotkey,
     (event) => {
+      if (!canTrimTimeline) {
+        return;
+      }
       if (
         trimOutShortcut.singleKey &&
         (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
@@ -226,4 +240,28 @@ export function useStudioHotkeys({
       stopPropagation: false,
     },
   );
+
+  const handleDeleteHotkey = (event: KeyboardEvent) => {
+    if (!canEditSelectedTimelineClip || shouldBlockGlobalSingleKeyHotkey(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    if (event.shiftKey) {
+      liftSelectedTimelineClip();
+      return;
+    }
+    deleteSelectedTimelineClip();
+  };
+
+  useHotkey("Delete", handleDeleteHotkey, {
+    ignoreInputs: false,
+    preventDefault: false,
+    stopPropagation: false,
+  });
+
+  useHotkey("Backspace", handleDeleteHotkey, {
+    ignoreInputs: false,
+    preventDefault: false,
+    stopPropagation: false,
+  });
 }

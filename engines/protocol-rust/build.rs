@@ -4,18 +4,15 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
-    let methods_path = manifest_dir.join("../../packages/engine-protocol/src/methods.ts");
-    println!("cargo:rerun-if-changed={}", methods_path.display());
+    let rpcs_path = manifest_dir.join("../../packages/engine/src/protocol/rpc/group.ts");
+    println!("cargo:rerun-if-changed={}", rpcs_path.display());
 
-    let methods_source = fs::read_to_string(&methods_path)
-        .unwrap_or_else(|error| panic!("failed to read {}: {error}", methods_path.display()));
+    let rpcs_source = fs::read_to_string(&rpcs_path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", rpcs_path.display()));
 
-    let entries = parse_methods(&methods_source);
+    let entries = parse_rpcs(&rpcs_source);
     if entries.is_empty() {
-        panic!(
-            "no engine methods were discovered in {}",
-            methods_path.display()
-        );
+        panic!("no engine RPCs were discovered in {}", rpcs_path.display());
     }
 
     let generated = render_methods_module(&entries);
@@ -24,45 +21,45 @@ fn main() {
         .expect("failed to write generated methods module");
 }
 
-fn parse_methods(source: &str) -> Vec<(String, String)> {
+fn parse_rpcs(source: &str) -> Vec<(String, String)> {
     let mut entries = Vec::new();
-    let mut in_map = false;
+    let mut pending_variant: Option<String> = None;
 
     for line in source.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("export const engineMethods") {
-            in_map = true;
-            continue;
-        }
-        if !in_map {
-            continue;
-        }
-        if trimmed.starts_with("} as const") {
-            break;
-        }
-        if trimmed.is_empty() || trimmed.starts_with("//") {
-            continue;
-        }
-
-        let Some((variant_part, value_part)) = trimmed.split_once(':') else {
-            continue;
-        };
-
-        let variant = variant_part.trim().trim_end_matches(',');
-        if variant.is_empty() {
+        if let Some(rest) = trimmed.strip_prefix("export class ") {
+            let Some((variant, after_variant)) = rest
+                .split_once(" extends rpc(")
+                .or_else(|| rest.split_once(" extends streamRpc("))
+            else {
+                continue;
+            };
+            pending_variant = Some(variant.trim().to_string());
+            if let Some(method_name) = first_quoted_string(after_variant) {
+                entries.push((
+                    pending_variant.take().expect("pending variant"),
+                    method_name,
+                ));
+            }
             continue;
         }
 
-        let mut quote_parts = value_part.split('"');
-        let _before = quote_parts.next();
-        let Some(method_name) = quote_parts.next() else {
-            continue;
-        };
-
-        entries.push((variant.to_string(), method_name.to_string()));
+        if let Some(variant) = pending_variant.take() {
+            if let Some(method_name) = first_quoted_string(trimmed) {
+                entries.push((variant, method_name));
+            } else {
+                pending_variant = Some(variant);
+            }
+        }
     }
 
     entries
+}
+
+fn first_quoted_string(source: &str) -> Option<String> {
+    let mut quote_parts = source.split('"');
+    let _before = quote_parts.next();
+    quote_parts.next().map(str::to_string)
 }
 
 fn render_methods_module(entries: &[(String, String)]) -> String {

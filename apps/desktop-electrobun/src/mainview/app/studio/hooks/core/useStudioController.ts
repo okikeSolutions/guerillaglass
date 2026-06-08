@@ -1,27 +1,33 @@
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
 import {
   defaultCaptureFrameRate,
-  type AutoZoomSettings,
   type CaptureFrameRate,
-  type ExportPreset,
-} from "@guerillaglass/engine-protocol";
-import { getStudioMessages } from "@guerillaglass/localization";
+} from "@guerillaglass/engine/protocol/domains/sources";
+import {
+  type AutoZoomSettings,
+  type TimelineDocument,
+} from "@guerillaglass/engine/protocol/shared/valueObjects";
+import { getStudioMessages, type StudioMessages } from "@shared/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
-import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge";
-import { hostBridgeEventNames } from "@shared/bridge";
+import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
+import type { HostMenuCommand, HostPathPickerMode } from "@shared/bridge/desktopBridgeContract";
+import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
+  PathPickerError,
+  StudioActionError,
+} from "@shared/errors/desktopErrors";
+import {
   ContractDecodeError,
   EngineClientError,
   EngineResponseError,
   JsonParseError,
-  PathPickerError,
-  StudioActionError,
   messageFromUnknownError,
-} from "@shared/errors";
+} from "@guerillaglass/engine/client/errors/clientErrors";
 import { createHostCommandRunnerFromHandlers } from "@shared/hostCommandRegistry";
 import {
   detectStudioShortcutPlatform,
@@ -37,6 +43,21 @@ import {
   normalizeInspectorSelection,
   selectionFromPreset,
 } from "../../domain/inspectorSelectionModel";
+import {
+  createEmptyTimelineDocument,
+  createSingleSegmentTimelineDocument,
+} from "../../domain/timelineDomainModel";
+import {
+  deleteTimelineItems,
+  liftTimelineItems,
+  moveTimelineItems,
+  splitTimelineClipAtProgramTime,
+} from "../../domain/timelineCommands";
+import {
+  normalizeTimelineFrameRate,
+  quantizeSecondsToFrame,
+} from "../../domain/timelineFrameTimebase";
+import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import {
   loadStudioShortcutOverrides,
@@ -81,6 +102,44 @@ export function formatAspectRatio(width: number, height: number): string {
     return "9:16";
   }
   return `${width}:${height}`;
+}
+
+export function mapStudioActionErrorMessage(ui: StudioMessages, error: unknown): string {
+  if (error instanceof StudioActionError) {
+    switch (error.reason) {
+      case "screen_permission_required":
+        return ui.notices.screenPermissionRequired;
+      case "window_selection_required":
+        return ui.notices.selectWindowFirst;
+      case "export_missing_recording":
+        return ui.notices.exportMissingRecording;
+      case "export_missing_preset":
+        return ui.notices.exportMissingPreset;
+    }
+  }
+  if (error instanceof EngineClientError && error.code === "ENGINE_REQUEST_TIMEOUT") {
+    return ui.notices.rpcTimedOut;
+  }
+  if (error instanceof EngineResponseError) {
+    if (
+      error.code === "runtime_error" &&
+      /capture did not stabilize quickly enough/i.test(error.description)
+    ) {
+      return ui.notices.recordingStartNotReady;
+    }
+    return error.message;
+  }
+  if (
+    error instanceof BridgeUnavailableError ||
+    error instanceof BridgeInvocationError ||
+    error instanceof ContractDecodeError ||
+    error instanceof EngineClientError ||
+    error instanceof JsonParseError ||
+    error instanceof PathPickerError
+  ) {
+    return error.message;
+  }
+  return messageFromUnknownError(error, ui.notices.actionFailed);
 }
 
 export function useStudioController() {
@@ -157,39 +216,12 @@ export function useStudioController() {
     [dateTimeFormatter],
   );
   const mapActionErrorMessage = useCallback(
-    (error: unknown): string => {
-      if (error instanceof StudioActionError) {
-        switch (error.reason) {
-          case "screen_permission_required":
-            return ui.notices.screenPermissionRequired;
-          case "window_selection_required":
-            return ui.notices.selectWindowFirst;
-          case "export_missing_recording":
-            return ui.notices.exportMissingRecording;
-          case "export_missing_preset":
-            return ui.notices.exportMissingPreset;
-        }
-      }
-      if (error instanceof EngineClientError && error.code === "ENGINE_REQUEST_TIMEOUT") {
-        return ui.notices.rpcTimedOut;
-      }
-      if (
-        error instanceof BridgeUnavailableError ||
-        error instanceof BridgeInvocationError ||
-        error instanceof ContractDecodeError ||
-        error instanceof EngineClientError ||
-        error instanceof EngineResponseError ||
-        error instanceof JsonParseError ||
-        error instanceof PathPickerError
-      ) {
-        return error.message;
-      }
-      return messageFromUnknownError(error, ui.notices.actionFailed);
-    },
+    (error: unknown): string => mapStudioActionErrorMessage(ui, error),
     [
       ui.notices.actionFailed,
       ui.notices.exportMissingPreset,
       ui.notices.exportMissingRecording,
+      ui.notices.recordingStartNotReady,
       ui.notices.rpcTimedOut,
       ui.notices.screenPermissionRequired,
       ui.notices.selectWindowFirst,
@@ -199,6 +231,7 @@ export function useStudioController() {
   const settingsForm = useForm({
     defaultValues: {
       captureSource: "window" as CaptureSourceMode,
+      selectedDisplayId: 0,
       selectedWindowId: 0,
       captureFps: defaultCaptureFrameRate,
       micEnabled: false,
@@ -229,11 +262,19 @@ export function useStudioController() {
     recordingURL,
     sourcesQuery,
     timelineEvents,
+    displayChoices,
     windowChoices,
-  } = useStudioDataQueries(studioRecentsLimit);
+  } = useStudioDataQueries({
+    recentsLimit: studioRecentsLimit,
+    subscribeToCaptureStatus: activeMode === "capture",
+  });
   const recentsLimit = studioRecentsLimit;
 
   const lastHydratedProjectAutoZoomSignatureRef = useRef<string | null>(null);
+  const diagnosticsRenderSignatureRef = useRef<Record<
+    string,
+    string | number | boolean | null
+  > | null>(null);
 
   useEffect(() => {
     saveStudioShortcutOverrides(shortcutOverrides, shortcutPlatform);
@@ -252,17 +293,65 @@ export function useStudioController() {
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
   }, [projectQuery.data?.autoZoom, settingsForm]);
 
+  const baselineTimelineDocument = useMemo<TimelineDocument>(() => {
+    const projectTimeline = projectQuery.data?.timeline;
+    const recordingDurationSeconds = captureStatusQuery.data?.recordingDurationSeconds ?? 0;
+    if (projectTimeline && projectTimeline.items.length > 0) {
+      return projectTimeline;
+    }
+
+    if (recordingURL && recordingDurationSeconds > 0) {
+      return createSingleSegmentTimelineDocument(recordingDurationSeconds);
+    }
+
+    return createEmptyTimelineDocument();
+  }, [
+    captureStatusQuery.data?.recordingDurationSeconds,
+    projectQuery.data?.timeline,
+    recordingURL,
+  ]);
+  const baselineTimelineSignature = useMemo(
+    () => JSON.stringify(baselineTimelineDocument),
+    [baselineTimelineDocument],
+  );
+  const [timelineDraftState, setTimelineDraftState] = useState<{
+    draft: TimelineDocument;
+    sourceSignature: string;
+  } | null>(null);
+  const timelineDocument =
+    timelineDraftState?.sourceSignature === baselineTimelineSignature
+      ? timelineDraftState.draft
+      : baselineTimelineDocument;
+  const updateTimelineDocument = useCallback(
+    (updater: (currentTimeline: TimelineDocument) => TimelineDocument) => {
+      setTimelineDraftState((currentDraftState) => {
+        const currentTimeline =
+          currentDraftState?.sourceSignature === baselineTimelineSignature
+            ? currentDraftState.draft
+            : baselineTimelineDocument;
+        return {
+          draft: updater(currentTimeline),
+          sourceSignature: baselineTimelineSignature,
+        };
+      });
+    },
+    [baselineTimelineDocument, baselineTimelineSignature],
+  );
+
+  const selectedDisplayId = useMemo(() => {
+    return resolveSelectedDisplayId(displayChoices, settingsForm.state.values.selectedDisplayId);
+  }, [displayChoices, settingsForm.state.values.selectedDisplayId]);
   const selectedWindowId = useMemo(() => {
     return resolveSelectedWindowId(windowChoices, settingsForm.state.values.selectedWindowId);
   }, [settingsForm.state.values.selectedWindowId, windowChoices]);
   const selectedDisplaySource = useMemo(
-    () => sourcesQuery.data?.displays[0] ?? null,
-    [sourcesQuery.data?.displays],
+    () => displayChoices.find((displayItem) => displayItem.id === selectedDisplayId) ?? null,
+    [displayChoices, selectedDisplayId],
   );
   const selectedWindowSource = useMemo(() => {
     return windowChoices.find((windowItem) => windowItem.id === selectedWindowId) ?? null;
   }, [selectedWindowId, windowChoices]);
-  const supportedCaptureFrameRates = useMemo<CaptureFrameRate[]>(() => {
+  const supportedCaptureFrameRates = useMemo<ReadonlyArray<CaptureFrameRate>>(() => {
     const source =
       settingsForm.state.values.captureSource === "display"
         ? selectedDisplaySource
@@ -315,6 +404,7 @@ export function useStudioController() {
     activeMode,
     recordingURL,
     recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+    timelineDocument,
     timelineFrameRate,
     timelineEvents,
     laneLabels: {
@@ -322,17 +412,11 @@ export function useStudioController() {
       audio: ui.labels.timelineLaneAudio,
       events: ui.labels.timelineLaneEvents,
     },
-    trimStartSeconds: exportForm.state.values.trimStartSeconds,
-    trimEndSeconds: exportForm.state.values.trimEndSeconds,
-    onTrimStartSecondsChange: (seconds) => exportForm.setFieldValue("trimStartSeconds", seconds),
-    onTrimEndSecondsChange: (seconds) => exportForm.setFieldValue("trimEndSeconds", seconds),
   });
   const {
     audioMixer,
-    isTimelinePlaying,
     nudgePlayheadSeconds,
-    playheadSeconds: boundedPlayheadSeconds,
-    playbackRate,
+    playbackStore,
     playbackRates,
     resetTimelineZoom,
     setAudioMixerGain,
@@ -345,13 +429,10 @@ export function useStudioController() {
     setTimelinePlaybackActive,
     setTimelineTool,
     setTimelineZoom,
-    setTrimEndSeconds,
-    setTrimInFromPlayhead,
-    setTrimOutFromPlayhead,
-    setTrimStartSeconds,
     timelineDuration,
     timelineLaneControlState,
     timelineLanes,
+    timelineSegments,
     timelineRippleEnabled,
     timelineSnapEnabled,
     timelineTool,
@@ -365,6 +446,106 @@ export function useStudioController() {
     zoomTimelineOut,
   } = timeline;
 
+  useEffect(() => {
+    const nextSignature: Record<string, string | number | boolean | null> = {
+      activeMode,
+      locale,
+      densityMode: layout.densityMode,
+      lastRoute: layout.lastRoute,
+      noticeKind: notice?.kind ?? null,
+      noticeMessage: notice?.message ?? null,
+      recordingURL,
+      recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+      captureIsRunning: captureStatusQuery.data?.isRunning ?? false,
+      captureIsRecording: captureStatusQuery.data?.isRecording ?? false,
+      projectPath: projectQuery.data?.projectPath ?? null,
+      projectTimelineSegments: projectQuery.data?.timeline?.items.length ?? 0,
+      timelineDocumentSegments: timelineDocument.items.length,
+      timelineDuration,
+      selectedDisplayId,
+      selectedWindowId,
+      eventsCount: timelineEvents.length,
+      playbackIsPlaying: playbackStore.getSnapshot().isPlaying,
+      playbackRate: playbackStore.getSnapshot().playbackRate,
+    };
+
+    const previousSignature = diagnosticsRenderSignatureRef.current;
+    diagnosticsRenderSignatureRef.current = nextSignature;
+    if (!previousSignature) {
+      return;
+    }
+
+    const changedKeys = Object.keys(nextSignature).filter(
+      (key) => previousSignature[key] !== nextSignature[key],
+    );
+    if (changedKeys.length === 0) {
+      recordStudioDiagnosticsEvent("studio controller render without tracked state change", {
+        activeMode,
+      });
+      return;
+    }
+
+    recordStudioDiagnosticsEvent("studio controller render drivers", {
+      activeMode,
+      changedKeys: changedKeys.join(","),
+    });
+  });
+
+  const setTrimStartSeconds = useCallback(
+    (seconds: number) => {
+      const nextTrimStart = Math.min(
+        Math.max(
+          timelineSnapEnabled
+            ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
+            : seconds,
+          0,
+        ),
+        timelineDuration,
+      );
+      exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
+      if (
+        exportForm.state.values.trimEndSeconds > 0 &&
+        nextTrimStart > exportForm.state.values.trimEndSeconds
+      ) {
+        exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
+      }
+    },
+    [exportForm, timelineDuration, timelineFrameRate, timelineSnapEnabled],
+  );
+
+  const setTrimEndSeconds = useCallback(
+    (seconds: number) => {
+      const nextTrimEnd = Math.min(
+        Math.max(
+          timelineSnapEnabled
+            ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
+            : seconds,
+          0,
+        ),
+        timelineDuration,
+      );
+      exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
+      if (exportForm.state.values.trimStartSeconds > nextTrimEnd) {
+        exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
+      }
+    },
+    [exportForm, timelineDuration, timelineFrameRate, timelineSnapEnabled],
+  );
+
+  const setTrimInFromPlayhead = useCallback(() => {
+    if (activeMode !== "deliver") {
+      return;
+    }
+    setTrimStartSeconds(playbackStore.getSnapshot().playheadSeconds);
+  }, [activeMode, playbackStore, setTrimStartSeconds]);
+
+  const setTrimOutFromPlayhead = useCallback(() => {
+    if (activeMode !== "deliver") {
+      return;
+    }
+    setTrimEndSeconds(playbackStore.getSnapshot().playheadSeconds);
+  }, [activeMode, playbackStore, setTrimEndSeconds]);
+
   const selectedPreset = useMemo<ExportPreset | undefined>(() => {
     const selected = presets.find((preset) => preset.id === exportForm.state.values.presetId);
     return selected ?? presets[0];
@@ -376,6 +557,148 @@ export function useStudioController() {
     () => normalizeInspectorSelection(activeMode, rawInspectorSelection),
     [activeMode, rawInspectorSelection],
   );
+  const selectedTimelineClip =
+    inspectorSelection.kind === "timelineClip" ? inspectorSelection : null;
+  const clearInspectorSelection = useCallback(() => {
+    setRawInspectorSelection(emptyInspectorSelection);
+  }, []);
+
+  const splitSelectedTimelineClipAtPlayhead = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const result = splitTimelineClipAtProgramTime(
+        currentTimeline,
+        playbackStore.getSnapshot().playheadSeconds,
+      );
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+      setTimelineTool("select");
+    }
+  }, [clearInspectorSelection, playbackStore, selectedTimelineClip, setTimelineTool]);
+
+  const splitTimelineClipAtSeconds = useCallback(
+    (seconds: number) => {
+      let didChange = false;
+      updateTimelineDocument((currentTimeline) => {
+        const result = splitTimelineClipAtProgramTime(currentTimeline, seconds);
+        didChange = result.changed;
+        return result.timeline;
+      });
+      if (didChange) {
+        clearInspectorSelection();
+        setPlayheadSecondsClamped(seconds);
+        setTimelineTool("select");
+      }
+    },
+    [clearInspectorSelection, setPlayheadSecondsClamped, setTimelineTool],
+  );
+
+  const deleteSelectedTimelineClip = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const result = deleteTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+        ripple: timelineRippleEnabled,
+      });
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+
+  const liftSelectedTimelineClip = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const result = liftTimelineItems(currentTimeline, [selectedTimelineClip.clipId]);
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip]);
+
+  const moveSelectedTimelineClipEarlier = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const selectedIndex = currentTimeline.items.findIndex(
+        (item) => item.id === selectedTimelineClip.clipId,
+      );
+      if (selectedIndex <= 0) {
+        return currentTimeline;
+      }
+
+      const previousItem = currentTimeline.items[selectedIndex - 1] ?? null;
+      const result =
+        timelineRippleEnabled || previousItem?.kind !== "gap"
+          ? moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: true,
+              destinationIndex: Math.max(0, selectedIndex - 1),
+            })
+          : moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: false,
+              destinationGapId: previousItem.id,
+            });
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+
+  const moveSelectedTimelineClipLater = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+
+    let didChange = false;
+    updateTimelineDocument((currentTimeline) => {
+      const selectedIndex = currentTimeline.items.findIndex(
+        (item) => item.id === selectedTimelineClip.clipId,
+      );
+      if (selectedIndex === -1 || selectedIndex >= currentTimeline.items.length - 1) {
+        return currentTimeline;
+      }
+
+      const nextItem = currentTimeline.items[selectedIndex + 1] ?? null;
+      const result =
+        timelineRippleEnabled || nextItem?.kind !== "gap"
+          ? moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: true,
+              destinationIndex: Math.min(currentTimeline.items.length, selectedIndex + 2),
+            })
+          : moveTimelineItems(currentTimeline, [selectedTimelineClip.clipId], {
+              ripple: false,
+              destinationGapId: nextItem.id,
+            });
+      didChange = result.changed;
+      return result.timeline;
+    });
+    if (didChange) {
+      clearInspectorSelection();
+    }
+  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
 
   const pickPathSafely = useCallback(
     async (params: { mode: HostPathPickerMode; startingFolder?: string }): Promise<string | null> =>
@@ -403,10 +726,13 @@ export function useStudioController() {
     setNotice,
     setTimelinePlayback: setIsTimelinePlaying,
     resetPlayhead: () => setPlayheadSeconds(0),
+    clearInspectorSelection,
     pickPathSafely,
+    selectedDisplayId,
     selectedWindowId,
     inputMonitoringDenied,
     recordingURL,
+    timelineDocument,
     selectedPreset,
     recentsLimit,
     settingsForm: settingsForm as unknown as SettingsFormApi,
@@ -485,10 +811,6 @@ export function useStudioController() {
     [presets],
   );
 
-  const clearInspectorSelection = useCallback(() => {
-    setRawInspectorSelection(emptyInspectorSelection);
-  }, []);
-
   const runHostCommand = useMemo(
     () =>
       createHostCommandRunnerFromHandlers({
@@ -514,12 +836,21 @@ export function useStudioController() {
           toggleTimelinePlayback();
         },
         timelineTrimIn: () => {
+          if (activeMode !== "deliver") {
+            return;
+          }
           setTrimInFromPlayhead();
         },
         timelineTrimOut: () => {
+          if (activeMode !== "deliver") {
+            return;
+          }
           setTrimOutFromPlayhead();
         },
         timelineTogglePanel: () => {
+          if (activeMode === "capture") {
+            return;
+          }
           toggleTimelineCollapsed();
         },
         viewDensityComfortable: () => {
@@ -546,6 +877,7 @@ export function useStudioController() {
       openProjectMutation,
       refreshMutation,
       saveProjectMutation,
+      activeMode,
       setDensityMode,
       setLocale,
       setTrimInFromPlayhead,
@@ -603,11 +935,15 @@ export function useStudioController() {
 
   useStudioHotkeys({
     runHostCommand,
+    canTrimTimeline: activeMode === "deliver" && Boolean(recordingURL),
+    canEditSelectedTimelineClip: activeMode === "edit" && selectedTimelineClip != null,
     singleKeyShortcutsEnabled: settingsForm.state.values.singleKeyShortcutsEnabled,
     shortcutOverrides,
     shortcutPlatform,
     clearInspectorSelection,
     clearNotice,
+    deleteSelectedTimelineClip,
+    liftSelectedTimelineClip,
     setTimelineTool,
   });
 
@@ -615,6 +951,8 @@ export function useStudioController() {
     sendHostMenuState({
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
+      canTrimTimeline: activeMode === "deliver" && !isRunningAction && Boolean(recordingURL),
+      canToggleTimeline: activeMode !== "capture",
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
       recordingURL,
       locale,
@@ -623,12 +961,19 @@ export function useStudioController() {
     });
   }, [
     captureStatusQuery.data?.isRecording,
+    activeMode,
     isRunningAction,
     layout.densityMode,
     locale,
     recordingURL,
     shortcutOverrides,
   ]);
+
+  useEffect(() => {
+    if (activeMode !== "deliver" && timelineTool === "trim") {
+      setTimelineTool("select");
+    }
+  }, [activeMode, setTimelineTool, timelineTool]);
 
   useEffect(() => {
     const onHostMenuCommand = (event: Event) => {
@@ -668,7 +1013,6 @@ export function useStudioController() {
     inputMonitoringDenied,
     isRefreshing,
     isRunningAction,
-    isTimelinePlaying,
     audioMixer,
     activeMode,
     locale,
@@ -680,8 +1024,7 @@ export function useStudioController() {
     openRecentProjectMutation,
     permissionsQuery,
     pingQuery,
-    playheadSeconds: boundedPlayheadSeconds,
-    playbackRate,
+    playbackStore,
     playbackRates,
     recordingRequiredNotice,
     layout,
@@ -697,6 +1040,7 @@ export function useStudioController() {
     saveProjectMutation,
     selectedPreset,
     selectedPresetId,
+    selectedDisplayId,
     selectedWindowId,
     setNotice,
     setAudioMixerGain,
@@ -706,6 +1050,8 @@ export function useStudioController() {
     setPlayheadSecondsFromMedia,
     setPlaybackRate,
     setTimelinePlaybackActive,
+    splitTimelineClipAtSeconds,
+    splitSelectedTimelineClipAtPlayhead,
     setTimelineTool,
     setTimelineZoom,
     setLocale,
@@ -745,14 +1091,21 @@ export function useStudioController() {
     shortcutOverrides,
     shortcutPlatform,
     supportedCaptureFrameRates,
+    deleteSelectedTimelineClip,
+    liftSelectedTimelineClip,
+    moveSelectedTimelineClipEarlier,
+    moveSelectedTimelineClipLater,
     timelineDuration,
     timelineLanes,
+    timelineDocument,
+    timelineSegments,
     toggleRecordingMutation,
     resetShortcutOverride,
     toggleRightPaneCollapsed,
     toggleTimelineCollapsed,
     toggleTimelinePlayback,
     ui,
+    displayChoices,
     windowChoices,
     setLeftPaneCollapsed,
   };

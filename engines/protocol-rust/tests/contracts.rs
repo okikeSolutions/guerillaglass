@@ -1,4 +1,5 @@
-use protocol_rust::{decode_request_line, EngineMethod};
+use protocol_rust::{decode_request_line, encode_response_line, success, EngineMethod};
+use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
 
@@ -7,7 +8,7 @@ fn fixture_path(name: &str) -> PathBuf {
     path.pop();
     path.pop();
     path.push("packages");
-    path.push("engine-protocol");
+    path.push("engine");
     path.push("fixtures");
     path.push(name);
     path
@@ -37,6 +38,26 @@ fn parses_project_save_fixture() {
         request.params["projectPath"].as_str(),
         Some("/tmp/fixture.gglassproj")
     );
+}
+
+#[test]
+fn encodes_project_recents_response_fixture_shape() {
+    let line = encode_response_line(&success(
+        "2",
+        json!({
+            "items": [{
+                "projectPath": "/tmp/fixture.gglassproj",
+                "displayName": "fixture",
+                "lastOpenedAt": "2026-02-19T10:00:00.000Z"
+            }]
+        }),
+    ))
+    .expect("encode response");
+    let fixture = fs::read_to_string(fixture_path("project-recents.response.json"))
+        .expect("read project-recents response fixture");
+    let actual: serde_json::Value = serde_json::from_str(&line).expect("actual json");
+    let expected: serde_json::Value = serde_json::from_str(&fixture).expect("fixture json");
+    assert_eq!(actual, expected);
 }
 
 #[test]

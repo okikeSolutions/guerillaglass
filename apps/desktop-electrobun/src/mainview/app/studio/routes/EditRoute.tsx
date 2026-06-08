@@ -28,15 +28,14 @@ export function EditRoute() {
     captureStatusQuery,
     formatDuration,
     formatInteger,
-    isTimelinePlaying,
-    playbackRate,
-    playheadSeconds,
+    playbackStore,
     setDisplayPlayheadSecondsFromMedia,
     projectQuery,
     recordingURL,
     setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
     timelineDuration,
+    timelineSegments,
     ui,
   } = studio;
   const mediaRef = useRef<HTMLVideoElement | null>(null);
@@ -53,10 +52,9 @@ export function EditRoute() {
 
   useVideoPlaybackSync({
     mediaRef,
+    playbackStore,
     recordingMediaSource,
-    isTimelinePlaying,
-    playbackRate,
-    playheadSeconds,
+    timelineSegments,
     timelineDuration,
     setTimelinePlaybackActive,
     setDisplayPlayheadSecondsFromMedia,

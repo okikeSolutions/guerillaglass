@@ -12,17 +12,17 @@ bun run js:format:check
 echo "==> js lint (oxlint)"
 bun run js:lint
 
-echo "==> docs gate (typescript surfaces)"
-bun run docs:check:ts
+echo "==> React effect-state lint"
+bun run js:lint:react-effects
 
 echo "==> desktop typecheck"
 (cd apps/desktop-electrobun && bun run typecheck)
 
-echo "==> landing app typecheck"
+echo "==> web app typecheck"
 (cd apps/web && bun run typecheck)
 
-echo "==> engine protocol typecheck"
-(cd packages/engine-protocol && bun run typecheck)
+echo "==> engine package typecheck"
+(cd packages/engine && bun run typecheck)
 
 echo "==> review protocol typecheck"
 (cd packages/review-protocol && bun run typecheck)

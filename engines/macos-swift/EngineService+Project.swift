@@ -1,7 +1,15 @@
+import AVFoundation
 import Capture
 import EngineProtocol
 import Foundation
 import Project
+
+private func validateProjectPath(_ projectPath: String) throws {
+    let url = URL(fileURLWithPath: projectPath, isDirectory: true)
+    guard url.path == projectPath, url.pathExtension == "gglassproj" else {
+        throw NSError(domain: "GuerillaglassEngine", code: 400, userInfo: [NSLocalizedDescriptionKey: "projectPath must be an absolute .gglassproj path"])
+    }
+}
 
 extension EngineService {
     func projectStateResponse(id: String) -> EngineResponse {
@@ -14,6 +22,7 @@ extension EngineService {
         }
 
         do {
+            try validateProjectPath(projectPath)
             let savedProject = try projectStore.loadProject(at: URL(fileURLWithPath: projectPath, isDirectory: true))
             currentProjectURL = savedProject.url
             currentProjectDocument = savedProject.document
@@ -22,6 +31,12 @@ extension EngineService {
             let recordingURL = projectStore.resolveRecordingURL(for: savedProject)
             if FileManager.default.fileExists(atPath: recordingURL.path) {
                 captureEngine.loadRecording(from: recordingURL)
+                if currentProjectDocument.project.timeline.items.isEmpty {
+                    let recordingDuration = bestEffortRecordingDuration(for: recordingURL)
+                    currentProjectDocument.project.timeline = TimelineDocument.singleSegment(
+                        recordingDuration: recordingDuration
+                    )
+                }
             } else {
                 captureEngine.clearRecording()
             }
@@ -48,12 +63,20 @@ extension EngineService {
         if let autoZoom = parseAutoZoomSettings(from: params["autoZoom"]) {
             currentProjectDocument.project.autoZoom = autoZoom
         }
+        if let timeline = parseTimelineDocument(from: params["timeline"]) {
+            currentProjectDocument.project.timeline = timeline
+        }
         if let descriptor = captureEngine.captureDescriptor {
             currentProjectDocument.project.captureMetadata = makeCaptureMetadata(from: descriptor)
         }
 
         let destinationURL: URL
         if let projectPath = params["projectPath"]?.stringValue {
+            do {
+                try validateProjectPath(projectPath)
+            } catch {
+                return .failure(id: id, code: "invalid_params", message: error.localizedDescription)
+            }
             destinationURL = URL(fileURLWithPath: projectPath, isDirectory: true)
         } else if let currentProjectURL {
             destinationURL = currentProjectURL
@@ -123,11 +146,13 @@ extension EngineService {
             "projectPath": currentProjectURL.map { .string($0.path) } ?? .null,
             "recordingURL": captureEngine.recordingURL.map { .string($0.path) } ?? .null,
             "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
+            "lastRecordingTelemetry": project.lastRecordingTelemetry.map(captureTelemetryJSON) ?? .null,
             "autoZoom": .object([
                 "isEnabled": .bool(autoZoom.isEnabled),
                 "intensity": .number(autoZoom.intensity),
                 "minimumKeyframeInterval": .number(autoZoom.minimumKeyframeInterval)
-            ])
+            ]),
+            "timeline": timelineDocumentJSON(from: project.timeline)
         ]
 
         if let metadata = project.captureMetadata {
@@ -155,6 +180,31 @@ extension EngineService {
             intensity: intensity,
             minimumKeyframeInterval: minimumKeyframeInterval
         ).clamped()
+    }
+
+    func parseTimelineDocument(from value: JSONValue?) -> TimelineDocument? {
+        guard let object = value?.objectValue else { return nil }
+        guard let version = object["version"]?.doubleValue else {
+            return nil
+        }
+
+        if case let .array(itemsValue)? = object["items"] {
+            let items = itemsValue.compactMap(parseTimelineItem)
+            guard items.count == itemsValue.count else {
+                return nil
+            }
+            return TimelineDocument(version: Int(version), items: items)
+        }
+
+        if case let .array(segmentsValue)? = object["segments"] {
+            let items = segmentsValue.compactMap(parseTimelineSegment).map(TimelineItem.clip)
+            guard items.count == segmentsValue.count else {
+                return nil
+            }
+            return TimelineDocument(version: Int(version), items: items)
+        }
+
+        return nil
     }
 
     func sourceURLForWrite(sourceURL: URL?, destinationDirectory: URL, expectedFileName: String) -> URL? {
@@ -202,6 +252,110 @@ extension EngineService {
         ])
     }
 
+    func captureTelemetryJSON(from telemetry: CaptureTelemetrySummary) -> JSONValue {
+        .object([
+            "sourceDroppedFrames": .number(Double(telemetry.sourceDroppedFrames)),
+            "writerDroppedFrames": .number(Double(telemetry.writerDroppedFrames)),
+            "writerBackpressureDrops": .number(Double(telemetry.writerBackpressureDrops)),
+            "achievedFps": .number(telemetry.achievedFps),
+            "cpuPercent": telemetry.cpuPercent.map { .number($0) } ?? .null,
+            "memoryBytes": telemetry.memoryBytes.map { .number(Double($0)) } ?? .null,
+            "recordingBitrateMbps": telemetry.recordingBitrateMbps.map { .number($0) } ?? .null,
+            "captureCallbackMs": .number(telemetry.captureCallbackMs),
+            "recordQueueLagMs": .number(telemetry.recordQueueLagMs),
+            "writerAppendMs": .number(telemetry.writerAppendMs),
+            "previewEncodeMs": telemetry.previewEncodeMs.map { .number($0) } ?? .null
+        ])
+    }
+
+    func captureTelemetrySummary(from telemetry: CaptureEngine.CaptureTelemetrySnapshot) -> CaptureTelemetrySummary {
+        CaptureTelemetrySummary(
+            sourceDroppedFrames: telemetry.sourceDroppedFrames,
+            writerDroppedFrames: telemetry.writerDroppedFrames,
+            writerBackpressureDrops: telemetry.writerBackpressureDrops,
+            achievedFps: telemetry.achievedFps,
+            cpuPercent: telemetry.cpuPercent,
+            memoryBytes: telemetry.memoryBytes,
+            recordingBitrateMbps: telemetry.recordingBitrateMbps,
+            captureCallbackMs: telemetry.captureCallbackMs,
+            recordQueueLagMs: telemetry.recordQueueLagMs,
+            writerAppendMs: telemetry.writerAppendMs,
+            previewEncodeMs: telemetry.previewEncodeMs
+        )
+    }
+
+    func timelineDocumentJSON(from document: TimelineDocument) -> JSONValue {
+        .object([
+            "version": .number(Double(document.version)),
+            "items": .array(document.items.map(timelineItemJSON))
+        ])
+    }
+
+    func timelineItemJSON(from item: TimelineItem) -> JSONValue {
+        switch item {
+        case let .clip(clip):
+            .object([
+                "kind": .string("clip"),
+                "id": .string(clip.id),
+                "sourceAssetId": .string(clip.sourceAssetId.rawValue),
+                "sourceStartSeconds": .number(clip.sourceStartSeconds),
+                "sourceEndSeconds": .number(clip.sourceEndSeconds)
+            ])
+        case let .gap(gap):
+            .object([
+                "kind": .string("gap"),
+                "id": .string(gap.id),
+                "durationSeconds": .number(gap.durationSeconds)
+            ])
+        }
+    }
+
+    func parseTimelineItem(from value: JSONValue) -> TimelineItem? {
+        guard let object = value.objectValue,
+              let kind = object["kind"]?.stringValue
+        else {
+            return nil
+        }
+
+        switch kind {
+        case "clip":
+            return parseTimelineSegment(from: value).map(TimelineItem.clip)
+        case "gap":
+            guard let id = object["id"]?.stringValue,
+                  let durationSeconds = object["durationSeconds"]?.doubleValue
+            else {
+                return nil
+            }
+            return .gap(
+                TimelineGap(
+                    id: id,
+                    durationSeconds: durationSeconds
+                )
+            )
+        default:
+            return nil
+        }
+    }
+
+    func parseTimelineSegment(from value: JSONValue) -> TimelineClip? {
+        guard let object = value.objectValue,
+              let id = object["id"]?.stringValue,
+              let sourceAssetIdRaw = object["sourceAssetId"]?.stringValue,
+              let sourceAssetId = TimelineClip.SourceAssetID(rawValue: sourceAssetIdRaw),
+              let sourceStartSeconds = object["sourceStartSeconds"]?.doubleValue,
+              let sourceEndSeconds = object["sourceEndSeconds"]?.doubleValue
+        else {
+            return nil
+        }
+
+        return TimelineClip(
+            id: id,
+            sourceAssetId: sourceAssetId,
+            sourceStartSeconds: sourceStartSeconds,
+            sourceEndSeconds: sourceEndSeconds
+        )
+    }
+
     private func recordRecentProjectIfPossible(url: URL) {
         do {
             try projectLibraryStore.recordRecentProject(url: url)
@@ -235,5 +389,23 @@ extension EngineService {
             "qaPassed": runSummary.qaReport.map { .bool($0.passed) } ?? .null,
             "updatedAt": .string(runSummary.updatedAt)
         ])
+    }
+
+    private func bestEffortRecordingDuration(for recordingURL: URL) -> TimeInterval {
+        let semaphore = DispatchSemaphore(value: 0)
+        var resolvedDuration: TimeInterval = 0
+
+        Task {
+            defer { semaphore.signal() }
+            let asset = AVAsset(url: recordingURL)
+            if let duration = try? await asset.load(.duration),
+               duration.seconds > 0
+            {
+                resolvedDuration = duration.seconds
+            }
+        }
+
+        _ = semaphore.wait(timeout: .now() + 2)
+        return max(0, resolvedDuration)
     }
 }

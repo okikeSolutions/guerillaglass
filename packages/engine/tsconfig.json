@@ -1,0 +1,12 @@
+{
+  "extends": "@guerillaglass/typescript-config/react-library.json",
+  "compilerOptions": {
+    "types": ["bun", "node"],
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
+  },
+  "include": ["src"]
+}

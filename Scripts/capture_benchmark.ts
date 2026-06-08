@@ -1,12 +1,35 @@
+import type { Subprocess } from "bun";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { EngineClient, resolveEnginePath } from "../apps/desktop-electrobun/src/bun/engine/client.ts";
-import type { CaptureFrameRate } from "../packages/engine-protocol/src/index.ts";
+import * as BunFileSystem from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunFileSystem.js";
+import * as BunPath from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunPath.js";
+import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
+import * as Layer from "../apps/desktop-electrobun/node_modules/effect/dist/Layer.js";
+import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
+import * as Schema from "../apps/desktop-electrobun/node_modules/effect/dist/Schema.js";
+import { EngineTransport } from "../packages/engine/src/client/service";
+import { makeLayerEngineTransportBun } from "../packages/engine/src/client/liveBun";
+import { resolveEnginePath } from "../packages/engine/src/client/config/paths";
+import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
+import {
+  sourcesResultSchema,
+  type CaptureFrameRate,
+  type SourcesResult,
+} from "../packages/engine/src/protocol/domains/sources";
+import {
+  captureStatusResultSchema,
+  type CaptureStatusResult,
+} from "../packages/engine/src/protocol/domains/capture";
 
-type BenchmarkScenarioID =
+export type BenchmarkScenarioID =
+  | "display-30-no-mic"
+  | "display-30-mic"
+  | "window-30-no-mic"
+  | "window-30-no-mic-no-preview"
+  | "window-30-input-tracking"
   | "display-60-no-mic"
   | "display-60-mic"
   | "window-60-no-mic"
@@ -16,27 +39,138 @@ type BenchmarkScenarioID =
   | "window-120-no-mic"
   | "window-120-input-tracking";
 
-type ScenarioConfig = {
+type DisplaySelectionStrategy = "exact1080p" | "primary";
+
+type BenchmarkSceneWindow = {
+  appNames: readonly string[];
+  titleFragment: string;
+};
+
+type BenchmarkSceneHandle = {
+  window: BenchmarkSceneWindow;
+  close: () => Promise<void>;
+};
+
+const benchmarkReadyMessage = "capture-benchmark-ready";
+const benchmarkAppBundlePath = path.join(
+  process.cwd(),
+  "apps/desktop-electrobun/build/dev-macos-arm64/Guerillaglass-dev.app",
+);
+const benchmarkAppExecutablePath = path.join(benchmarkAppBundlePath, "Contents/MacOS/launcher");
+
+export type ScenarioConfig = {
   id: BenchmarkScenarioID;
   name: string;
   captureType: "display" | "window";
   enableMic: boolean;
+  enablePreview?: boolean;
   trackInputEvents: boolean;
   captureFps: CaptureFrameRate;
+  displaySelection?: DisplaySelectionStrategy;
 };
 
-type CaptureTelemetry = Awaited<ReturnType<EngineClient["captureStatus"]>>["telemetry"];
-type CaptureStatus = Awaited<ReturnType<EngineClient["captureStatus"]>>;
-type SourceListing = Awaited<ReturnType<EngineClient["listSources"]>>;
+type EngineClientPromise = ReturnType<typeof createBenchmarkEngineClient>;
+type CaptureTelemetry = CaptureStatusResult["telemetry"];
+type CaptureStatus = CaptureStatusResult;
+type SourceListing = SourcesResult;
 type WindowSource = SourceListing["windows"][number];
 type DisplaySource = SourceListing["displays"][number];
 
-type BenchmarkSample = {
+function createBenchmarkEngineClient(enginePath: string) {
+  const runtime = ManagedRuntime.make(makeLayerEngineTransportBun({ enginePath }));
+  const run = <A>(effect: Effect.Effect<A, unknown, unknown>) =>
+    runtime.runPromise(effect as Effect.Effect<A, unknown, EngineTransport>);
+  const runJson = <S extends Schema.Top>(schema: S, effect: Effect.Effect<unknown, unknown, unknown>) =>
+    run(
+      Effect.flatMap(effect, Schema.encodeUnknownEffect(Schema.toCodecJson(schema))) as Effect.Effect<
+        Schema.Codec.Encoded<S>,
+        unknown,
+        unknown
+      >,
+    );
+  const runCaptureStatus = (effect: Effect.Effect<unknown, unknown, unknown>) =>
+    runJson(captureStatusResultSchema, effect) as Promise<CaptureStatusResult>;
+  return {
+    stop: () => runtime.dispose(),
+    getPermissions: () =>
+      run(Effect.flatMap(EngineTransport, (engine) => engine["permissions.get"](undefined))),
+    requestScreenRecordingPermission: () =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["permissions.requestScreenRecording"](undefined),
+        ),
+      ),
+    requestMicrophonePermission: () =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["permissions.requestMicrophone"](undefined),
+        ),
+      ),
+    requestInputMonitoringPermission: () =>
+      run(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["permissions.requestInputMonitoring"](undefined),
+        ),
+      ),
+    listSources: () =>
+      runJson(
+        sourcesResultSchema,
+        Effect.flatMap(EngineTransport, (engine) => engine["sources.list"](undefined)),
+      ).then((sources) => sources as SourceListing),
+    startDisplayCapture: (
+      enableMic: boolean,
+      captureFps: CaptureFrameRate,
+      displayId?: number,
+      enablePreview?: boolean,
+    ) =>
+      runCaptureStatus(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["capture.startDisplay"]({ enableMic, captureFps, displayId, enablePreview }),
+        ),
+      ),
+    startWindowCapture: (
+      windowId: number,
+      enableMic: boolean,
+      captureFps: CaptureFrameRate,
+      enablePreview?: boolean,
+    ) =>
+      runCaptureStatus(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["capture.startWindow"]({ windowId, enableMic, captureFps, enablePreview }),
+        ),
+      ),
+    stopCapture: () =>
+      runCaptureStatus(
+        Effect.flatMap(EngineTransport, (engine) => engine["capture.stop"](undefined)),
+      ),
+    startRecording: (trackInputEvents: boolean) =>
+      runCaptureStatus(
+        Effect.flatMap(EngineTransport, (engine) =>
+          engine["recording.start"]({ trackInputEvents }),
+        ),
+      ),
+    stopRecording: () =>
+      runCaptureStatus(
+        Effect.flatMap(EngineTransport, (engine) => engine["recording.stop"](undefined)),
+      ),
+    captureStatus: () =>
+      runCaptureStatus(
+        Effect.flatMap(EngineTransport, (engine) => engine["capture.status"](undefined)),
+      ),
+  };
+}
+
+export const benchmarkSceneWindow = Object.freeze<BenchmarkSceneWindow>({
+  appNames: ["Guerillaglass", "Guerillaglass-dev"],
+  titleFragment: captureBenchmarkWindowTitle,
+});
+
+export type BenchmarkSample = {
   relativeSeconds: number;
   telemetry: CaptureTelemetry;
 };
 
-type StartupThresholds = {
+export type StartupThresholds = {
   maxPrimingMs: number;
   maxWriterBackpressureDrops: number;
 };
@@ -53,7 +187,7 @@ type InputTrackingDiagnostics = {
   clickEventsEmitted: number | null;
 };
 
-type ScenarioVerdicts = {
+export type ScenarioVerdicts = {
   droppedFramesWithinTarget: boolean | null;
   averageCpuWithinTarget: boolean | null;
   achievedFpsWithinTarget: boolean;
@@ -62,20 +196,21 @@ type ScenarioVerdicts = {
   retinaWindowMatched: boolean | null;
 };
 
-type ScenarioThresholds = {
+export type ScenarioThresholds = {
   maxDroppedFramePercent: number;
   maxAverageCpuPercent: number;
   minAchievedFps: number;
   maxWriterBackpressureDrops: number;
 };
 
-type ScenarioReport = {
+export type ScenarioReport = {
   runIndex: number;
   id: BenchmarkScenarioID;
   name: string;
   status: "passed" | "failed" | "error" | "skipped";
   captureType: "display" | "window";
   enableMic: boolean;
+  enablePreview: boolean;
   trackInputEvents: boolean;
   captureFps: CaptureFrameRate;
   startupThresholds: StartupThresholds;
@@ -91,7 +226,7 @@ type ScenarioReport = {
     height: number;
     pixelScale: number | null;
     refreshHz: number | null;
-    supportedCaptureFrameRates: CaptureFrameRate[];
+    supportedCaptureFrameRates: ReadonlyArray<CaptureFrameRate>;
   } | null;
   effectivePixelCount: number | null;
   inputTracking: InputTrackingDiagnostics;
@@ -110,6 +245,8 @@ type ScenarioReport = {
     peakRecordQueueLagMs: number;
     averageWriterAppendMs: number;
     peakWriterAppendMs: number;
+    averagePreviewEncodeMs: number;
+    peakPreviewEncodeMs: number;
     overallDroppedFrames: number | null;
     overallDroppedFramePercent: number | null;
   };
@@ -120,12 +257,13 @@ type ScenarioReport = {
   failure?: string;
 };
 
-type ScenarioSeriesReport = {
+export type ScenarioSeriesReport = {
   id: BenchmarkScenarioID;
   name: string;
   status: "passed" | "failed" | "error" | "skipped";
   captureType: "display" | "window";
   enableMic: boolean;
+  enablePreview: boolean;
   trackInputEvents: boolean;
   captureFps: CaptureFrameRate;
   startupThresholds: StartupThresholds;
@@ -137,12 +275,16 @@ type ScenarioSeriesReport = {
     averageAchievedFps: number;
     overallDroppedFramePercent: number | null;
     averageCpuPercent: number | null;
+    averageCaptureCallbackMs: number | null;
+    averageRecordQueueLagMs: number | null;
+    averageWriterAppendMs: number | null;
+    averagePreviewEncodeMs: number | null;
     cursorEventsObserved: number | null;
     cursorEventsEmitted: number | null;
   };
 };
 
-type BenchmarkReport = {
+export type BenchmarkReport = {
   generatedAt: string;
   machine: {
     hostname: string;
@@ -158,15 +300,89 @@ type BenchmarkReport = {
     warmupMs: number;
   };
   thresholds: {
+    startup30: StartupThresholds;
     startup60: StartupThresholds;
     startup120: StartupThresholds;
+    fps30: ScenarioThresholds;
     fps60: ScenarioThresholds;
     fps120: ScenarioThresholds;
   };
   scenarios: ScenarioSeriesReport[];
 };
 
-const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
+export type BenchmarkRegressionThresholds = {
+  maxAverageFpsDrop: number;
+  maxDroppedFramePercentIncrease: number;
+  maxAverageCpuPercentIncrease: number;
+  maxStartupPrimingIncreaseMs: number;
+  maxAverageCaptureCallbackMsIncrease: number;
+  maxAverageRecordQueueLagMsIncrease: number;
+  maxAverageWriterAppendMsIncrease: number;
+  maxAveragePreviewEncodeMsIncrease: number;
+};
+
+export type BenchmarkRegression = {
+  scenarioId: BenchmarkScenarioID;
+  metric:
+    | "status"
+    | "averageAchievedFps"
+    | "overallDroppedFramePercent"
+    | "averageCpuPercent"
+    | "worstStartupPrimingMs"
+    | "averageCaptureCallbackMs"
+    | "averageRecordQueueLagMs"
+    | "averageWriterAppendMs"
+    | "averagePreviewEncodeMs";
+  baseline: string | number;
+  candidate: string | number;
+  message: string;
+};
+
+export const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
+  {
+    id: "display-30-no-mic",
+    name: "Display capture at 30 fps, microphone disabled",
+    captureType: "display",
+    enableMic: false,
+    trackInputEvents: false,
+    captureFps: 30,
+    displaySelection: "primary",
+  },
+  {
+    id: "display-30-mic",
+    name: "Display capture at 30 fps, microphone enabled",
+    captureType: "display",
+    enableMic: true,
+    trackInputEvents: false,
+    captureFps: 30,
+    displaySelection: "primary",
+  },
+  {
+    id: "window-30-no-mic",
+    name: "Window capture at 30 fps, microphone disabled",
+    captureType: "window",
+    enableMic: false,
+    enablePreview: true,
+    trackInputEvents: false,
+    captureFps: 30,
+  },
+  {
+    id: "window-30-no-mic-no-preview",
+    name: "Window capture at 30 fps, microphone disabled, preview disabled",
+    captureType: "window",
+    enableMic: false,
+    enablePreview: false,
+    trackInputEvents: false,
+    captureFps: 30,
+  },
+  {
+    id: "window-30-input-tracking",
+    name: "Window capture at 30 fps with input tracking enabled",
+    captureType: "window",
+    enableMic: false,
+    trackInputEvents: true,
+    captureFps: 30,
+  },
   {
     id: "display-60-no-mic",
     name: "Display capture at 60 fps, microphone disabled",
@@ -174,6 +390,7 @@ const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
     enableMic: false,
     trackInputEvents: false,
     captureFps: 60,
+    displaySelection: "exact1080p",
   },
   {
     id: "display-60-mic",
@@ -182,6 +399,7 @@ const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
     enableMic: true,
     trackInputEvents: false,
     captureFps: 60,
+    displaySelection: "exact1080p",
   },
   {
     id: "window-60-no-mic",
@@ -206,6 +424,7 @@ const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
     enableMic: false,
     trackInputEvents: false,
     captureFps: 120,
+    displaySelection: "exact1080p",
   },
   {
     id: "display-120-mic",
@@ -214,6 +433,7 @@ const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
     enableMic: true,
     trackInputEvents: false,
     captureFps: 120,
+    displaySelection: "exact1080p",
   },
   {
     id: "window-120-no-mic",
@@ -233,13 +453,23 @@ const scenarioCatalog: readonly ScenarioConfig[] = Object.freeze([
   },
 ]);
 
-const thresholds = Object.freeze({
+export const thresholds = Object.freeze({
+  startup30: {
+    maxPrimingMs: 400,
+    maxWriterBackpressureDrops: 0,
+  },
   startup60: {
     maxPrimingMs: 400,
     maxWriterBackpressureDrops: 0,
   },
   startup120: {
     maxPrimingMs: 550,
+    maxWriterBackpressureDrops: 0,
+  },
+  fps30: {
+    maxDroppedFramePercent: 0.5,
+    maxAverageCpuPercent: 20,
+    minAchievedFps: 29,
     maxWriterBackpressureDrops: 0,
   },
   fps60: {
@@ -256,12 +486,37 @@ const thresholds = Object.freeze({
   },
 });
 
-function thresholdsForCaptureFrameRate(captureFps: CaptureFrameRate): ScenarioThresholds {
-  return captureFps >= 120 ? thresholds.fps120 : thresholds.fps60;
+export const regressionThresholds = Object.freeze<BenchmarkRegressionThresholds>({
+  maxAverageFpsDrop: 0.75,
+  maxDroppedFramePercentIncrease: 0.25,
+  maxAverageCpuPercentIncrease: 5,
+  maxStartupPrimingIncreaseMs: 100,
+  maxAverageCaptureCallbackMsIncrease: 1.5,
+  maxAverageRecordQueueLagMsIncrease: 1.5,
+  maxAverageWriterAppendMsIncrease: 1.5,
+  maxAveragePreviewEncodeMsIncrease: 2.0,
+});
+
+export function thresholdsForCaptureFrameRate(captureFps: CaptureFrameRate): ScenarioThresholds {
+  if (captureFps >= 120) {
+    return thresholds.fps120;
+  }
+  if (captureFps >= 60) {
+    return thresholds.fps60;
+  }
+  return thresholds.fps30;
 }
 
-function startupThresholdsForCaptureFrameRate(captureFps: CaptureFrameRate): StartupThresholds {
-  return captureFps >= 120 ? thresholds.startup120 : thresholds.startup60;
+export function startupThresholdsForCaptureFrameRate(
+  captureFps: CaptureFrameRate,
+): StartupThresholds {
+  if (captureFps >= 120) {
+    return thresholds.startup120;
+  }
+  if (captureFps >= 60) {
+    return thresholds.startup60;
+  }
+  return thresholds.startup30;
 }
 
 function parseArgs(argv: string[]) {
@@ -270,11 +525,17 @@ function parseArgs(argv: string[]) {
   let warmupMs = 1000;
   let outputDir = path.join(process.cwd(), ".tmp", "capture-benchmarks");
   let scenarioFilter: BenchmarkScenarioID[] | null = null;
+  let assertResults = false;
+  let baselineReportPath: string | null = null;
 
   for (const arg of argv) {
     if (arg === "--help") {
       printUsage();
       process.exit(0);
+    }
+    if (arg === "--assert") {
+      assertResults = true;
+      continue;
     }
     if (arg.startsWith("--duration=")) {
       durationSeconds = parsePositiveInteger(arg.slice("--duration=".length), "duration");
@@ -290,6 +551,10 @@ function parseArgs(argv: string[]) {
     }
     if (arg.startsWith("--output-dir=")) {
       outputDir = path.resolve(process.cwd(), arg.slice("--output-dir=".length));
+      continue;
+    }
+    if (arg.startsWith("--baseline-report=")) {
+      baselineReportPath = path.resolve(process.cwd(), arg.slice("--baseline-report=".length));
       continue;
     }
     if (arg.startsWith("--scenario=")) {
@@ -314,6 +579,8 @@ function parseArgs(argv: string[]) {
     pollIntervalMs,
     warmupMs,
     outputDir,
+    assertResults,
+    baselineReportPath,
     scenarios,
   };
 }
@@ -328,6 +595,8 @@ Options:
                            Delay between capture start and recording start (default: 1000)
   --scenario=<ids>         Comma-separated scenario IDs to run
   --output-dir=<path>      Directory for JSON and Markdown reports
+  --baseline-report=<path> Compare the new run against an existing report.json
+  --assert                 Exit non-zero when a scenario fails or a baseline regression is detected
   --help                   Show this message
 
 Scenarios:
@@ -379,7 +648,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
-async function stopCaptureSession(engine: EngineClient) {
+async function stopCaptureSession(engine: EngineClientPromise) {
   try {
     await withTimeout(engine.stopRecording(), 5000, "stopRecording cleanup");
   } catch {
@@ -447,6 +716,221 @@ function formatBytes(value: number | null) {
   return `${current.toFixed(current >= 100 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+async function waitForBenchmarkWindow(
+  engine: EngineClientPromise,
+  sceneWindow: BenchmarkSceneWindow,
+  timeoutMs: number,
+): Promise<WindowSource> {
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
+    const sources = await engine.listSources();
+    const selectedWindow = selectWindowSource(sources, sceneWindow);
+    if (selectedWindow) {
+      return selectedWindow;
+    }
+    await sleep(500);
+  }
+
+  throw new Error(
+    `Timed out waiting for benchmark window "${sceneWindow.titleFragment}" to appear in window sources.`,
+  );
+}
+
+async function consumeSubprocessStream(
+  stream: ReadableStream<Uint8Array> | null | undefined,
+  {
+    onLine,
+    sink,
+  }: {
+    onLine?: (line: string) => void;
+    sink: (line: string) => void;
+  },
+) {
+  if (!stream) {
+    return;
+  }
+
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffered = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffered += decoder.decode(value, { stream: true });
+      const lines = buffered.split(/\r?\n/u);
+      buffered = lines.pop() ?? "";
+      for (const line of lines) {
+        onLine?.(line);
+        sink(line);
+      }
+    }
+
+    buffered += decoder.decode();
+    if (buffered.length > 0) {
+      onLine?.(buffered);
+      sink(buffered);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function waitForBenchmarkReadySignal(
+  child: Subprocess<"ignore", "pipe", "pipe">,
+  timeoutMs: number,
+) {
+  let resolved = false;
+
+  const readyPromise = new Promise<void>((resolve, reject) => {
+    const handleLine = (line: string) => {
+      if (!resolved && line.includes(benchmarkReadyMessage)) {
+        resolved = true;
+        resolve();
+      }
+    };
+
+    void consumeSubprocessStream(child.stdout, {
+      onLine: handleLine,
+      sink: (line) => console.log(line),
+    }).catch((error) => {
+      if (!resolved) {
+        reject(error);
+      }
+    });
+    void consumeSubprocessStream(child.stderr, {
+      onLine: handleLine,
+      sink: (line) => console.error(line),
+    }).catch((error) => {
+      if (!resolved) {
+        reject(error);
+      }
+    });
+
+    void child.exited.then((exitCode: number) => {
+      if (!resolved) {
+        reject(new Error(`Benchmark app exited before readiness signal (exit code ${exitCode}).`));
+      }
+    });
+  });
+
+  const timeoutPromise = new Promise<void>((_, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new Error(`Timed out waiting for benchmark renderer readiness after ${timeoutMs} ms.`),
+      );
+    }, timeoutMs);
+    void readyPromise.finally(() => clearTimeout(timer));
+  });
+
+  await Promise.race([readyPromise, timeoutPromise]);
+}
+
+function runCommandForBenchmark(command: string[]) {
+  const result = Bun.spawnSync(command, {
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (result.exitCode === 0) {
+    return true;
+  }
+  return false;
+}
+
+async function ensureBenchmarkAppExecutable() {
+  const build = Bun.spawn(["bun", "run", "desktop:build"], {
+    cwd: process.cwd(),
+    env: process.env,
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  await Promise.all([
+    consumeSubprocessStream(build.stdout, {
+      sink: (line) => console.log(line),
+    }),
+    consumeSubprocessStream(build.stderr, {
+      sink: (line) => console.error(line),
+    }),
+  ]);
+
+  const exitCode = await build.exited;
+  if (exitCode !== 0) {
+    throw new Error(`desktop:build failed with exit code ${exitCode}.`);
+  }
+
+  if (!existsSync(benchmarkAppExecutablePath)) {
+    throw new Error(
+      `Benchmark app executable was not found at ${benchmarkAppExecutablePath} after desktop:build.`,
+    );
+  }
+
+  return benchmarkAppExecutablePath;
+}
+
+async function activateBenchmarkApp(sceneWindow: BenchmarkSceneWindow) {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  for (const appName of sceneWindow.appNames) {
+    const activated = runCommandForBenchmark([
+      "osascript",
+      "-e",
+      `tell application "${appName}" to activate`,
+    ]);
+    if (activated) {
+      await sleep(500);
+      return;
+    }
+  }
+}
+
+async function openBenchmarkScene(
+  engine: EngineClientPromise,
+): Promise<BenchmarkSceneHandle | null> {
+  if (process.platform !== "darwin") {
+    return null;
+  }
+
+  const benchmarkExecutablePath = await ensureBenchmarkAppExecutable();
+  const child = Bun.spawn([benchmarkExecutablePath], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      GG_CAPTURE_BENCHMARK: "1",
+      GG_STUDIO_DIAGNOSTICS: "1",
+    },
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  try {
+    await waitForBenchmarkWindow(engine, benchmarkSceneWindow, 90_000);
+    await waitForBenchmarkReadySignal(child, 90_000);
+    await activateBenchmarkApp(benchmarkSceneWindow);
+    await sleep(750);
+  } catch (error) {
+    child.kill();
+    await child.exited.catch(() => {});
+    throw error;
+  }
+
+  return {
+    window: benchmarkSceneWindow,
+    close: async () => {
+      child.kill();
+      await child.exited.catch(() => {});
+    },
+  };
+}
+
 function effectivePixelCountForSource(
   source:
     | {
@@ -468,7 +952,9 @@ function makeInputTrackingMetricsPath(eventsURL: string) {
   return eventsURL.replace(/\.json$/u, ".stats.json");
 }
 
-async function loadInputTrackingDiagnostics(eventsURL: string | null): Promise<InputTrackingDiagnostics> {
+async function loadInputTrackingDiagnostics(
+  eventsURL: string | null,
+): Promise<InputTrackingDiagnostics> {
   if (!eventsURL) {
     return {
       cursorEventsObserved: null,
@@ -503,7 +989,7 @@ async function loadInputTrackingDiagnostics(eventsURL: string | null): Promise<I
   };
 }
 
-async function ensurePermissions(engine: EngineClient, scenario: ScenarioConfig) {
+async function ensurePermissions(engine: EngineClientPromise, scenario: ScenarioConfig) {
   let permissions = await engine.getPermissions();
 
   if (!permissions.screenRecordingGranted) {
@@ -550,17 +1036,27 @@ async function ensurePermissions(engine: EngineClient, scenario: ScenarioConfig)
   return permissions;
 }
 
-function selectDisplaySource(sources: SourceListing, captureFps: CaptureFrameRate) {
+function selectDisplaySource(
+  sources: SourceListing,
+  captureFps: CaptureFrameRate,
+  strategy: DisplaySelectionStrategy = "exact1080p",
+) {
   const supportedDisplays = sources.displays.filter((display) =>
     display.supportedCaptureFrameRates.includes(captureFps),
   );
+  const primaryDisplay = supportedDisplays.find((display) => display.isPrimary);
   const exact1080p = supportedDisplays.find(
     (display) => display.width === 1920 && display.height === 1080,
   );
+  const source =
+    strategy === "primary"
+      ? (primaryDisplay ?? supportedDisplays[0] ?? null)
+      : (exact1080p ?? supportedDisplays[0] ?? null);
   return {
-    source: exact1080p ?? supportedDisplays[0] ?? null,
+    source,
     fallbackSource: sources.displays[0] ?? null,
     exact1080pMatched: exact1080p !== undefined,
+    primaryMatched: primaryDisplay !== undefined,
   };
 }
 
@@ -606,7 +1102,24 @@ function isBenchmarkableWindow(window: WindowSource) {
   return true;
 }
 
-function selectWindowSource(sources: SourceListing): WindowSource | null {
+export function selectWindowSource(
+  sources: SourceListing,
+  preferredSceneWindow?: BenchmarkSceneWindow | null,
+): WindowSource | null {
+  if (preferredSceneWindow) {
+    const preferredAppNames = new Set(preferredSceneWindow.appNames);
+    const benchmarkWindow = rankWindowSources(
+      sources.windows.filter(
+        (window) =>
+          window.isOnScreen &&
+          preferredAppNames.has(window.appName) &&
+          window.title.includes(preferredSceneWindow.titleFragment),
+      ),
+    )[0];
+    if (benchmarkWindow) {
+      return benchmarkWindow;
+    }
+  }
   const candidates = sources.windows.filter(isBenchmarkableWindow);
   return rankWindowSources(candidates)[0] ?? null;
 }
@@ -616,6 +1129,14 @@ function selectFallbackWindowSource(sources: SourceListing): WindowSource | null
     (window) => window.isOnScreen && window.width >= 400 && window.height >= 300,
   );
   return rankWindowSources(fallbackCandidates)[0] ?? null;
+}
+
+async function waitForPreferredWindowSource(
+  engine: EngineClientPromise,
+  preferredSceneWindow: BenchmarkSceneWindow,
+  timeoutMs: number,
+): Promise<WindowSource> {
+  return await waitForBenchmarkWindow(engine, preferredSceneWindow, timeoutMs);
 }
 
 function buildSourceDetails(
@@ -651,14 +1172,16 @@ function buildSourceDetails(
 }
 
 async function runScenarioRun(
-  engine: EngineClient,
+  engine: EngineClientPromise,
   scenario: ScenarioConfig,
   options: { durationSeconds: number; pollIntervalMs: number; warmupMs: number },
   runIndex: number,
+  benchmarkScene?: BenchmarkSceneHandle | null,
 ): Promise<ScenarioReport> {
   const scenarioThresholds = thresholdsForCaptureFrameRate(scenario.captureFps);
   const startupThresholds = startupThresholdsForCaptureFrameRate(scenario.captureFps);
   const notes: string[] = [];
+  const enablePreview = scenario.enablePreview ?? true;
   let finalStatus: CaptureStatus | null = null;
   const samples: BenchmarkSample[] = [];
   let selectedWindow: WindowSource | null = null;
@@ -674,7 +1197,11 @@ async function runScenarioRun(
   try {
     const sources = await engine.listSources();
     if (scenario.captureType === "display") {
-      const selection = selectDisplaySource(sources, scenario.captureFps);
+      const selection = selectDisplaySource(
+        sources,
+        scenario.captureFps,
+        scenario.displaySelection ?? "exact1080p",
+      );
       selectedDisplay = selection.source ?? selection.fallbackSource;
       exact1080pMatched = selection.exact1080pMatched;
       if (!selection.source) {
@@ -682,15 +1209,28 @@ async function runScenarioRun(
           `No display source advertised support for ${scenario.captureFps} fps; running direct display capture without preselected source metadata.`,
         );
       }
-      if (selectedDisplay && !selection.exact1080pMatched) {
+      if (selectedDisplay && scenario.displaySelection === "primary" && !selection.primaryMatched) {
+        notes.push(
+          `No primary display source advertised support for ${scenario.captureFps} fps; benchmark fell back to display ${selectedDisplay.id}.`,
+        );
+      }
+      if (
+        selectedDisplay &&
+        scenario.displaySelection !== "primary" &&
+        !selection.exact1080pMatched
+      ) {
         notes.push(
           `No 1920x1080 display source was available; display benchmark ran at ${selectedDisplay.width}x${selectedDisplay.height}.`,
         );
       }
     } else {
-      const preferredWindowSource = selectWindowSource(sources);
+      const preferredWindowSource = benchmarkScene
+        ? await waitForPreferredWindowSource(engine, benchmarkScene.window, 15_000)
+        : selectWindowSource(sources, null);
       const fallbackWindowSource =
-        preferredWindowSource === null ? selectFallbackWindowSource(sources) : null;
+        benchmarkScene || preferredWindowSource !== null
+          ? null
+          : selectFallbackWindowSource(sources);
       selectedWindow = preferredWindowSource ?? fallbackWindowSource;
       if (!selectedWindow) {
         return {
@@ -700,6 +1240,7 @@ async function runScenarioRun(
           status: "skipped",
           captureType: scenario.captureType,
           enableMic: scenario.enableMic,
+          enablePreview,
           trackInputEvents: scenario.trackInputEvents,
           captureFps: scenario.captureFps,
           startupThresholds,
@@ -713,9 +1254,7 @@ async function runScenarioRun(
             cursorEventsEmitted: null,
             clickEventsEmitted: null,
           },
-          notes: [
-            "No benchmarkable on-screen window source was found.",
-          ],
+          notes: ["No benchmarkable on-screen window source was found."],
           finalTelemetry: null,
           aggregates: {
             averageAchievedFps: 0,
@@ -730,6 +1269,8 @@ async function runScenarioRun(
             peakRecordQueueLagMs: 0,
             averageWriterAppendMs: 0,
             peakWriterAppendMs: 0,
+            averagePreviewEncodeMs: 0,
+            peakPreviewEncodeMs: 0,
             overallDroppedFrames: null,
             overallDroppedFramePercent: null,
           },
@@ -759,6 +1300,7 @@ async function runScenarioRun(
           status: "skipped",
           captureType: scenario.captureType,
           enableMic: scenario.enableMic,
+          enablePreview,
           trackInputEvents: scenario.trackInputEvents,
           captureFps: scenario.captureFps,
           startupThresholds,
@@ -798,6 +1340,8 @@ async function runScenarioRun(
             peakRecordQueueLagMs: 0,
             averageWriterAppendMs: 0,
             peakWriterAppendMs: 0,
+            averagePreviewEncodeMs: 0,
+            peakPreviewEncodeMs: 0,
             overallDroppedFrames: null,
             overallDroppedFramePercent: null,
           },
@@ -817,22 +1361,41 @@ async function runScenarioRun(
       notes.push(
         `Selected window source ${selectedWindow.id}: ${selectedWindow.appName} — ${selectedWindow.title}.`,
       );
+      if (
+        benchmarkScene &&
+        benchmarkScene.window.appNames.includes(selectedWindow.appName) &&
+        selectedWindow.title.includes(benchmarkScene.window.titleFragment)
+      ) {
+        notes.push("Window benchmark used the dedicated animated benchmark scene.");
+        await activateBenchmarkApp(benchmarkScene.window);
+      }
     }
 
     const permissions = await ensurePermissions(engine, scenario);
     notes.push(
       `Permissions: screen=${permissions.screenRecordingGranted}, mic=${permissions.microphoneGranted}, input=${permissions.inputMonitoring}.`,
     );
+    notes.push(`Live preview caching ${enablePreview ? "enabled" : "disabled"} for this scenario.`);
 
     if (scenario.captureType === "display") {
       await withTimeout(
-        engine.startDisplayCapture(scenario.enableMic, scenario.captureFps),
+        engine.startDisplayCapture(
+          scenario.enableMic,
+          scenario.captureFps,
+          selectedDisplay?.id,
+          enablePreview,
+        ),
         15_000,
         "startDisplayCapture",
       );
     } else if (selectedWindow) {
       await withTimeout(
-        engine.startWindowCapture(selectedWindow.id, scenario.enableMic, scenario.captureFps),
+        engine.startWindowCapture(
+          selectedWindow.id,
+          scenario.enableMic,
+          scenario.captureFps,
+          enablePreview,
+        ),
         15_000,
         "startWindowCapture",
       );
@@ -867,43 +1430,37 @@ async function runScenarioRun(
     }
 
     finalStatus = await withTimeout(engine.stopRecording(), 15_000, "stopRecording");
-    const recordingStatus = finalStatus;
+    const recordingStatus = finalStatus!;
     await withTimeout(engine.stopCapture(), 15_000, "stopCapture");
     const inputTracking = await loadInputTrackingDiagnostics(recordingStatus.eventsURL);
 
     const sourceMetadata = recordingStatus.captureMetadata;
-    const source =
-      sourceMetadata
-        ? buildSourceDetails(
-            scenario.captureType === "display" ? selectedDisplay : selectedWindow,
-            {
-              displayId:
-                scenario.captureType === "display" && selectedDisplay ? selectedDisplay.id : undefined,
-              windowId: sourceMetadata.window?.id,
-              title: sourceMetadata.window?.title ?? undefined,
-              appName: sourceMetadata.window?.appName ?? undefined,
-              width: sourceMetadata.contentRect.width,
-              height: sourceMetadata.contentRect.height,
-              pixelScale: sourceMetadata.pixelScale,
-            },
-          )
-        : selectedDisplay
-          ? buildSourceDetails(selectedDisplay, {
-              displayId: selectedDisplay.id,
+    const source = sourceMetadata
+      ? buildSourceDetails(scenario.captureType === "display" ? selectedDisplay : selectedWindow, {
+          displayId:
+            scenario.captureType === "display" && selectedDisplay ? selectedDisplay.id : undefined,
+          windowId: sourceMetadata.window?.id,
+          title: sourceMetadata.window?.title ?? undefined,
+          appName: sourceMetadata.window?.appName ?? undefined,
+          width: sourceMetadata.contentRect.width,
+          height: sourceMetadata.contentRect.height,
+          pixelScale: sourceMetadata.pixelScale,
+        })
+      : selectedDisplay
+        ? buildSourceDetails(selectedDisplay, {
+            displayId: selectedDisplay.id,
+          })
+        : selectedWindow
+          ? buildSourceDetails(selectedWindow, {
+              windowId: selectedWindow.id,
+              title: selectedWindow.title,
+              appName: selectedWindow.appName,
             })
-          : selectedWindow
-            ? buildSourceDetails(selectedWindow, {
-                windowId: selectedWindow.id,
-                title: selectedWindow.title,
-                appName: selectedWindow.appName,
-              })
-            : null;
+          : null;
     const steadySamples = toSteadyStateSamples(samples);
     const averageAchievedFps =
       mean(steadySamples.map((sample) => sample.telemetry.achievedFps)) ?? 0;
-    const minimumAchievedFps = minimum(
-      steadySamples.map((sample) => sample.telemetry.achievedFps),
-    );
+    const minimumAchievedFps = minimum(steadySamples.map((sample) => sample.telemetry.achievedFps));
     const averageCpuPercent = mean(
       steadySamples
         .map((sample) => sample.telemetry.cpuPercent)
@@ -936,6 +1493,18 @@ async function runScenarioRun(
       mean(steadySamples.map((sample) => sample.telemetry.writerAppendMs)) ?? 0;
     const peakWriterAppendMs =
       maximum(steadySamples.map((sample) => sample.telemetry.writerAppendMs)) ?? 0;
+    const averagePreviewEncodeMs =
+      mean(
+        steadySamples
+          .map((sample) => sample.telemetry.previewEncodeMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
+    const peakPreviewEncodeMs =
+      maximum(
+        steadySamples
+          .map((sample) => sample.telemetry.previewEncodeMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const overallDroppedFrames =
       recordingStatus.telemetry.sourceDroppedFrames + recordingStatus.telemetry.writerDroppedFrames;
     const expectedFrames = Math.max(
@@ -951,19 +1520,21 @@ async function runScenarioRun(
       primingMs: startup.primingMs,
       status:
         (startup.primingMs ?? Number.POSITIVE_INFINITY) <= startupThresholds.maxPrimingMs &&
-        recordingStatus.telemetry.writerBackpressureDrops <= startupThresholds.maxWriterBackpressureDrops
+        recordingStatus.telemetry.writerBackpressureDrops <=
+          startupThresholds.maxWriterBackpressureDrops
           ? "passed"
           : "failed",
       writerBackpressureDrops: recordingStatus.telemetry.writerBackpressureDrops,
     };
 
     const verdicts: ScenarioVerdicts = {
-      droppedFramesWithinTarget:
-        Number.isFinite(overallDroppedFramePercent)
-          ? overallDroppedFramePercent <= scenarioThresholds.maxDroppedFramePercent
-          : null,
+      droppedFramesWithinTarget: Number.isFinite(overallDroppedFramePercent)
+        ? overallDroppedFramePercent <= scenarioThresholds.maxDroppedFramePercent
+        : null,
       averageCpuWithinTarget:
-        averageCpuPercent === null ? null : averageCpuPercent <= scenarioThresholds.maxAverageCpuPercent,
+        averageCpuPercent === null
+          ? null
+          : averageCpuPercent <= scenarioThresholds.maxAverageCpuPercent,
       achievedFpsWithinTarget: averageAchievedFps >= scenarioThresholds.minAchievedFps,
       writerBackpressureClear:
         recordingStatus.telemetry.writerBackpressureDrops <=
@@ -986,6 +1557,7 @@ async function runScenarioRun(
       status: passed ? "passed" : "failed",
       captureType: scenario.captureType,
       enableMic: scenario.enableMic,
+      enablePreview,
       trackInputEvents: scenario.trackInputEvents,
       captureFps: scenario.captureFps,
       startupThresholds,
@@ -1010,6 +1582,8 @@ async function runScenarioRun(
         peakRecordQueueLagMs,
         averageWriterAppendMs,
         peakWriterAppendMs,
+        averagePreviewEncodeMs,
+        peakPreviewEncodeMs,
         overallDroppedFrames,
         overallDroppedFramePercent,
       },
@@ -1028,6 +1602,7 @@ async function runScenarioRun(
       status: "error",
       captureType: scenario.captureType,
       enableMic: scenario.enableMic,
+      enablePreview,
       trackInputEvents: scenario.trackInputEvents,
       captureFps: scenario.captureFps,
       startupThresholds,
@@ -1083,6 +1658,8 @@ async function runScenarioRun(
         peakRecordQueueLagMs: 0,
         averageWriterAppendMs: 0,
         peakWriterAppendMs: 0,
+        averagePreviewEncodeMs: 0,
+        peakPreviewEncodeMs: 0,
         overallDroppedFrames: null,
         overallDroppedFramePercent: null,
       },
@@ -1103,13 +1680,14 @@ async function runScenarioRun(
 }
 
 async function runScenarioSeries(
-  engine: EngineClient,
+  engine: EngineClientPromise,
   scenario: ScenarioConfig,
   options: { durationSeconds: number; pollIntervalMs: number; warmupMs: number },
+  benchmarkScene?: BenchmarkSceneHandle | null,
 ): Promise<ScenarioSeriesReport> {
   const runs: ScenarioReport[] = [];
   for (let runIndex = 1; runIndex <= 3; runIndex += 1) {
-    const runReport = await runScenarioRun(engine, scenario, options, runIndex);
+    const runReport = await runScenarioRun(engine, scenario, options, runIndex, benchmarkScene);
     runs.push(runReport);
     if (runReport.status === "skipped") {
       break;
@@ -1128,6 +1706,10 @@ async function runScenarioSeries(
       .map((run) => run.aggregates.averageCpuPercent)
       .filter((value): value is number => value !== null),
   );
+  const averageCaptureCallbackMs = mean(runs.map((run) => run.aggregates.averageCaptureCallbackMs));
+  const averageRecordQueueLagMs = mean(runs.map((run) => run.aggregates.averageRecordQueueLagMs));
+  const averageWriterAppendMs = mean(runs.map((run) => run.aggregates.averageWriterAppendMs));
+  const averagePreviewEncodeMs = mean(runs.map((run) => run.aggregates.averagePreviewEncodeMs));
   const worstStartupPrimingMs = maximum(
     runs.map((run) => run.startup.primingMs).filter((value): value is number => value !== null),
   );
@@ -1157,6 +1739,7 @@ async function runScenarioSeries(
     status,
     captureType: scenario.captureType,
     enableMic: scenario.enableMic,
+    enablePreview: firstRun?.enablePreview ?? scenario.enablePreview ?? true,
     trackInputEvents: scenario.trackInputEvents,
     captureFps: scenario.captureFps,
     startupThresholds: startupThresholdsForCaptureFrameRate(scenario.captureFps),
@@ -1168,6 +1751,10 @@ async function runScenarioSeries(
       averageAchievedFps,
       overallDroppedFramePercent,
       averageCpuPercent,
+      averageCaptureCallbackMs,
+      averageRecordQueueLagMs,
+      averageWriterAppendMs,
+      averagePreviewEncodeMs,
       cursorEventsObserved,
       cursorEventsEmitted,
     },
@@ -1184,15 +1771,17 @@ function buildMarkdownReport(report: BenchmarkReport) {
     "",
     "## Thresholds",
     "",
+    `- Startup 30 fps: priming <= ${report.thresholds.startup30.maxPrimingMs} ms, writer backpressure <= ${report.thresholds.startup30.maxWriterBackpressureDrops}`,
     `- Startup 60 fps: priming <= ${report.thresholds.startup60.maxPrimingMs} ms, writer backpressure <= ${report.thresholds.startup60.maxWriterBackpressureDrops}`,
     `- Startup 120 fps: priming <= ${report.thresholds.startup120.maxPrimingMs} ms, writer backpressure <= ${report.thresholds.startup120.maxWriterBackpressureDrops}`,
+    `- 30 fps: dropped <= ${report.thresholds.fps30.maxDroppedFramePercent.toFixed(2)}%, CPU <= ${report.thresholds.fps30.maxAverageCpuPercent.toFixed(2)}%, achieved FPS >= ${report.thresholds.fps30.minAchievedFps.toFixed(2)}, writer backpressure <= ${report.thresholds.fps30.maxWriterBackpressureDrops}`,
     `- 60 fps: dropped <= ${report.thresholds.fps60.maxDroppedFramePercent.toFixed(2)}%, CPU <= ${report.thresholds.fps60.maxAverageCpuPercent.toFixed(2)}%, achieved FPS >= ${report.thresholds.fps60.minAchievedFps.toFixed(2)}, writer backpressure <= ${report.thresholds.fps60.maxWriterBackpressureDrops}`,
     `- 120 fps: dropped <= ${report.thresholds.fps120.maxDroppedFramePercent.toFixed(2)}%, CPU <= ${report.thresholds.fps120.maxAverageCpuPercent.toFixed(2)}%, achieved FPS >= ${report.thresholds.fps120.minAchievedFps.toFixed(2)}, writer backpressure <= ${report.thresholds.fps120.maxWriterBackpressureDrops}`,
     "",
     "## Scenarios",
     "",
-    "| Scenario | Status | Target FPS | Source | Refresh Hz | Supported FPS | Worst startup ms | Avg FPS | Drop % | Avg CPU |",
-    "| --- | --- | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: |",
+    "| Scenario | Status | Preview | Target FPS | Source | Refresh Hz | Supported FPS | Worst startup ms | Avg FPS | Drop % | Avg CPU |",
+    "| --- | --- | --- | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: |",
   ];
 
   for (const scenario of report.scenarios) {
@@ -1200,7 +1789,7 @@ function buildMarkdownReport(report: BenchmarkReport) {
       ? `${Math.round(scenario.source.width)}x${Math.round(scenario.source.height)} @ ${scenario.source.pixelScale ?? "n/a"}x`
       : "n/a";
     lines.push(
-      `| ${scenario.id} | ${scenario.status} | ${scenario.captureFps} | ${sourceLabel} | ${formatDecimal(scenario.source?.refreshHz ?? null)} | ${scenario.source?.supportedCaptureFrameRates.join(", ") || "n/a"} | ${formatDecimal(scenario.summary.worstStartupPrimingMs)} | ${formatDecimal(scenario.summary.averageAchievedFps)} | ${formatDecimal(scenario.summary.overallDroppedFramePercent)} | ${formatDecimal(scenario.summary.averageCpuPercent)} |`,
+      `| ${scenario.id} | ${scenario.status} | ${scenario.enablePreview ? "on" : "off"} | ${scenario.captureFps} | ${sourceLabel} | ${formatDecimal(scenario.source?.refreshHz ?? null)} | ${scenario.source?.supportedCaptureFrameRates.join(", ") || "n/a"} | ${formatDecimal(scenario.summary.worstStartupPrimingMs)} | ${formatDecimal(scenario.summary.averageAchievedFps)} | ${formatDecimal(scenario.summary.overallDroppedFramePercent)} | ${formatDecimal(scenario.summary.averageCpuPercent)} |`,
     );
   }
 
@@ -1218,13 +1807,19 @@ function buildMarkdownReport(report: BenchmarkReport) {
         `- Supported capture frame rates: ${scenario.source.supportedCaptureFrameRates.join(", ") || "n/a"}`,
       );
     }
+    lines.push(`- Preview caching: ${scenario.enablePreview ? "enabled" : "disabled"}`);
     lines.push(`- Target FPS: ${scenario.captureFps}`);
-    lines.push(`- Worst startup priming: ${formatDecimal(scenario.summary.worstStartupPrimingMs)} ms`);
+    lines.push(
+      `- Worst startup priming: ${formatDecimal(scenario.summary.worstStartupPrimingMs)} ms`,
+    );
     lines.push(`- Average FPS across runs: ${formatDecimal(scenario.summary.averageAchievedFps)}`);
     lines.push(
       `- Average dropped frame percent across runs: ${formatDecimal(scenario.summary.overallDroppedFramePercent)}%`,
     );
     lines.push(`- Average CPU across runs: ${formatDecimal(scenario.summary.averageCpuPercent)}%`);
+    lines.push(
+      `- Average callback / queue / writer / preview encode: ${formatDecimal(scenario.summary.averageCaptureCallbackMs)} / ${formatDecimal(scenario.summary.averageRecordQueueLagMs)} / ${formatDecimal(scenario.summary.averageWriterAppendMs)} / ${formatDecimal(scenario.summary.averagePreviewEncodeMs)} ms`,
+    );
     lines.push(
       `- Cursor events observed/emitted: ${formatDecimal(scenario.summary.cursorEventsObserved, 0)} / ${formatDecimal(scenario.summary.cursorEventsEmitted, 0)}`,
     );
@@ -1233,7 +1828,9 @@ function buildMarkdownReport(report: BenchmarkReport) {
       if (run.failure) {
         lines.push(`  - Failure: ${run.failure}`);
       }
-      lines.push(`  - Startup priming: ${formatDecimal(run.startup.primingMs)} ms (${run.startup.status})`);
+      lines.push(
+        `  - Startup priming: ${formatDecimal(run.startup.primingMs)} ms (${run.startup.status})`,
+      );
       lines.push(`  - Duration: ${formatDecimal(run.durationSeconds)} s`);
       lines.push(`  - Effective pixel count: ${formatDecimal(run.effectivePixelCount, 0)}`);
       lines.push(`  - Average FPS: ${formatDecimal(run.aggregates.averageAchievedFps)}`);
@@ -1253,7 +1850,12 @@ function buildMarkdownReport(report: BenchmarkReport) {
       lines.push(
         `  - Average writer append: ${formatDecimal(run.aggregates.averageWriterAppendMs)} ms`,
       );
-      lines.push(`  - Writer backpressure drops: ${run.finalTelemetry?.writerBackpressureDrops ?? "n/a"}`);
+      lines.push(
+        `  - Average preview encode: ${formatDecimal(run.aggregates.averagePreviewEncodeMs)} ms`,
+      );
+      lines.push(
+        `  - Writer backpressure drops: ${run.finalTelemetry?.writerBackpressureDrops ?? "n/a"}`,
+      );
       lines.push(
         `  - Cursor observed/emitted/clicks: ${formatDecimal(run.inputTracking.cursorEventsObserved, 0)} / ${formatDecimal(run.inputTracking.cursorEventsEmitted, 0)} / ${formatDecimal(run.inputTracking.clickEventsEmitted, 0)}`,
       );
@@ -1270,7 +1872,7 @@ function buildMarkdownReport(report: BenchmarkReport) {
 }
 
 async function writeReports(report: BenchmarkReport, outputDir: string) {
-  const timestamp = report.generatedAt.replaceAll(":", "-");
+  const timestamp = report.generatedAt.replace(/:/g, "-");
   const reportDir = path.join(outputDir, timestamp);
   await mkdir(reportDir, { recursive: true });
 
@@ -1279,19 +1881,208 @@ async function writeReports(report: BenchmarkReport, outputDir: string) {
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   await writeFile(markdownPath, buildMarkdownReport(report), "utf8");
 
-  return { reportDir, jsonPath, markdownPath };
+  const latestDir = path.join(outputDir, "latest");
+  await mkdir(latestDir, { recursive: true });
+  const latestJsonPath = path.join(latestDir, "report.json");
+  const latestMarkdownPath = path.join(latestDir, "report.md");
+  await writeFile(latestJsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(latestMarkdownPath, buildMarkdownReport(report), "utf8");
+
+  return { reportDir, jsonPath, markdownPath, latestJsonPath, latestMarkdownPath };
+}
+
+export async function readBenchmarkReport(reportPath: string): Promise<BenchmarkReport> {
+  const raw = await readFile(reportPath, "utf8");
+  return JSON.parse(raw) as BenchmarkReport;
+}
+
+export function collectBenchmarkFailures(report: BenchmarkReport) {
+  return report.scenarios
+    .filter((scenario) => scenario.status === "failed" || scenario.status === "error")
+    .map((scenario) => ({
+      scenarioId: scenario.id,
+      status: scenario.status,
+      message: `${scenario.id} finished with status ${scenario.status}.`,
+    }));
+}
+
+function addRegressionIfNumberWorse(
+  regressions: BenchmarkRegression[],
+  scenarioId: BenchmarkScenarioID,
+  metric: BenchmarkRegression["metric"],
+  baselineValue: number | null,
+  candidateValue: number | null,
+  maxIncrease: number,
+  message: string,
+) {
+  if (baselineValue == null || candidateValue == null) {
+    return;
+  }
+  if (candidateValue - baselineValue > maxIncrease) {
+    regressions.push({
+      scenarioId,
+      metric,
+      baseline: baselineValue,
+      candidate: candidateValue,
+      message,
+    });
+  }
+}
+
+export function compareBenchmarkReports(
+  baselineReport: BenchmarkReport,
+  candidateReport: BenchmarkReport,
+  limits: BenchmarkRegressionThresholds = regressionThresholds,
+) {
+  const regressions: BenchmarkRegression[] = [];
+  const warnings: string[] = [];
+
+  if (
+    baselineReport.machine.platform !== candidateReport.machine.platform ||
+    baselineReport.machine.arch !== candidateReport.machine.arch ||
+    baselineReport.machine.hostname !== candidateReport.machine.hostname
+  ) {
+    warnings.push(
+      `Machine mismatch: baseline=${baselineReport.machine.hostname} (${baselineReport.machine.platform}/${baselineReport.machine.arch}) candidate=${candidateReport.machine.hostname} (${candidateReport.machine.platform}/${candidateReport.machine.arch}).`,
+    );
+  }
+
+  const baselineByScenario = new Map(
+    baselineReport.scenarios.map((scenario) => [scenario.id, scenario] as const),
+  );
+
+  for (const candidateScenario of candidateReport.scenarios) {
+    const baselineScenario = baselineByScenario.get(candidateScenario.id);
+    if (!baselineScenario) {
+      warnings.push(`No baseline scenario found for ${candidateScenario.id}; skipped comparison.`);
+      continue;
+    }
+
+    if (baselineScenario.status === "passed" && candidateScenario.status !== "passed") {
+      regressions.push({
+        scenarioId: candidateScenario.id,
+        metric: "status",
+        baseline: baselineScenario.status,
+        candidate: candidateScenario.status,
+        message: `${candidateScenario.id} regressed from ${baselineScenario.status} to ${candidateScenario.status}.`,
+      });
+    }
+
+    if (baselineScenario.status === "skipped" || candidateScenario.status === "skipped") {
+      warnings.push(`Skipped comparison for ${candidateScenario.id} because one run was skipped.`);
+      continue;
+    }
+
+    if (
+      baselineScenario.source &&
+      candidateScenario.source &&
+      (baselineScenario.source.width !== candidateScenario.source.width ||
+        baselineScenario.source.height !== candidateScenario.source.height ||
+        baselineScenario.source.pixelScale !== candidateScenario.source.pixelScale)
+    ) {
+      warnings.push(
+        `Source shape changed for ${candidateScenario.id}: baseline=${baselineScenario.source.width}x${baselineScenario.source.height}@${baselineScenario.source.pixelScale ?? "n/a"} candidate=${candidateScenario.source.width}x${candidateScenario.source.height}@${candidateScenario.source.pixelScale ?? "n/a"}.`,
+      );
+    }
+
+    if (
+      baselineScenario.summary.averageAchievedFps - candidateScenario.summary.averageAchievedFps >
+      limits.maxAverageFpsDrop
+    ) {
+      regressions.push({
+        scenarioId: candidateScenario.id,
+        metric: "averageAchievedFps",
+        baseline: baselineScenario.summary.averageAchievedFps,
+        candidate: candidateScenario.summary.averageAchievedFps,
+        message: `${candidateScenario.id} average FPS dropped by more than ${limits.maxAverageFpsDrop}.`,
+      });
+    }
+
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "overallDroppedFramePercent",
+      baselineScenario.summary.overallDroppedFramePercent,
+      candidateScenario.summary.overallDroppedFramePercent,
+      limits.maxDroppedFramePercentIncrease,
+      `${candidateScenario.id} dropped-frame percentage increased by more than ${limits.maxDroppedFramePercentIncrease}.`,
+    );
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "averageCpuPercent",
+      baselineScenario.summary.averageCpuPercent,
+      candidateScenario.summary.averageCpuPercent,
+      limits.maxAverageCpuPercentIncrease,
+      `${candidateScenario.id} average CPU increased by more than ${limits.maxAverageCpuPercentIncrease}.`,
+    );
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "worstStartupPrimingMs",
+      baselineScenario.summary.worstStartupPrimingMs,
+      candidateScenario.summary.worstStartupPrimingMs,
+      limits.maxStartupPrimingIncreaseMs,
+      `${candidateScenario.id} startup priming regressed by more than ${limits.maxStartupPrimingIncreaseMs} ms.`,
+    );
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "averageCaptureCallbackMs",
+      baselineScenario.summary.averageCaptureCallbackMs,
+      candidateScenario.summary.averageCaptureCallbackMs,
+      limits.maxAverageCaptureCallbackMsIncrease,
+      `${candidateScenario.id} capture callback latency increased by more than ${limits.maxAverageCaptureCallbackMsIncrease} ms.`,
+    );
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "averageRecordQueueLagMs",
+      baselineScenario.summary.averageRecordQueueLagMs,
+      candidateScenario.summary.averageRecordQueueLagMs,
+      limits.maxAverageRecordQueueLagMsIncrease,
+      `${candidateScenario.id} record queue lag increased by more than ${limits.maxAverageRecordQueueLagMsIncrease} ms.`,
+    );
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "averageWriterAppendMs",
+      baselineScenario.summary.averageWriterAppendMs,
+      candidateScenario.summary.averageWriterAppendMs,
+      limits.maxAverageWriterAppendMsIncrease,
+      `${candidateScenario.id} writer append latency increased by more than ${limits.maxAverageWriterAppendMsIncrease} ms.`,
+    );
+    addRegressionIfNumberWorse(
+      regressions,
+      candidateScenario.id,
+      "averagePreviewEncodeMs",
+      baselineScenario.summary.averagePreviewEncodeMs,
+      candidateScenario.summary.averagePreviewEncodeMs,
+      limits.maxAveragePreviewEncodeMsIncrease,
+      `${candidateScenario.id} preview encode latency increased by more than ${limits.maxAveragePreviewEncodeMsIncrease} ms.`,
+    );
+  }
+
+  return { regressions, warnings };
 }
 
 async function main() {
   const config = parseArgs(process.argv.slice(2));
-  const enginePath = resolveEnginePath();
-  const engine = new EngineClient(enginePath);
+  const enginePath = await Effect.runPromise(
+    resolveEnginePath().pipe(Effect.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer))),
+  );
+  const engine = createBenchmarkEngineClient(enginePath);
   const scenarioReports: ScenarioSeriesReport[] = [];
+  const baselineReport =
+    config.baselineReportPath === null
+      ? null
+      : await readBenchmarkReport(config.baselineReportPath);
+  const benchmarkScene = await openBenchmarkScene(engine);
 
   try {
     for (const scenario of config.scenarios) {
       console.log(`Running ${scenario.id}...`);
-      const report = await runScenarioSeries(engine, scenario, config);
+      const report = await runScenarioSeries(engine, scenario, config, benchmarkScene);
       scenarioReports.push(report);
       console.log(
         `Finished ${scenario.id}: ${report.status} (runs=${report.runs.length}, avg fps=${formatDecimal(report.summary.averageAchievedFps)}, drop=${formatDecimal(report.summary.overallDroppedFramePercent)}%, cpu=${formatDecimal(report.summary.averageCpuPercent)}%)`,
@@ -1300,6 +2091,7 @@ async function main() {
   } finally {
     await stopCaptureSession(engine);
     await engine.stop();
+    await benchmarkScene?.close();
   }
 
   const report: BenchmarkReport = {
@@ -1322,9 +2114,39 @@ async function main() {
   };
 
   const outputs = await writeReports(report, config.outputDir);
+  const failures = collectBenchmarkFailures(report);
+  const regressionResult =
+    baselineReport === null ? null : compareBenchmarkReports(baselineReport, report);
+
   console.log(`Benchmark report written to ${outputs.reportDir}`);
   console.log(`JSON: ${outputs.jsonPath}`);
   console.log(`Markdown: ${outputs.markdownPath}`);
+  console.log(`Latest JSON: ${outputs.latestJsonPath}`);
+  console.log(`Latest Markdown: ${outputs.latestMarkdownPath}`);
+
+  if (regressionResult) {
+    for (const warning of regressionResult.warnings) {
+      console.warn(`Benchmark comparison warning: ${warning}`);
+    }
+    for (const regression of regressionResult.regressions) {
+      console.error(`Benchmark regression: ${regression.message}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    for (const failure of failures) {
+      console.error(`Benchmark failure: ${failure.message}`);
+    }
+  }
+
+  if (
+    config.assertResults &&
+    (failures.length > 0 || (regressionResult?.regressions.length ?? 0) > 0)
+  ) {
+    process.exitCode = 1;
+  }
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}

@@ -25,6 +25,8 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
 
         guard status == nil || status == .complete else { return }
 
+        cacheLatestCompleteVideoSample(sampleBuffer)
+        cachePreviewSample(sampleBuffer)
         appendVideoSample(sampleBuffer)
     }
 
@@ -32,6 +34,8 @@ extension CaptureEngine: SCStreamOutput, SCStreamDelegate {
         debugLog("stream didStopWithError error=\(String(describing: error))")
         resolveStartupHandshakeIfNeeded(.failure(error))
         audioCapture.stop()
+        clearPreviewFrame()
+        clearLatestCompleteVideoSample()
         Task { @MainActor in
             self.setRunning(false)
             self.lastError = error.localizedDescription

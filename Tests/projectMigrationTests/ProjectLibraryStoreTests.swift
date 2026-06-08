@@ -4,7 +4,7 @@ import XCTest
 final class ProjectLibraryStoreTests: XCTestCase {
     func testRecentProjectsSortedByLastOpenedDate() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -30,7 +30,7 @@ final class ProjectLibraryStoreTests: XCTestCase {
 
     func testRemoveRecentProjectByURL() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -54,7 +54,7 @@ final class ProjectLibraryStoreTests: XCTestCase {
 
     func testRefreshBookmarkUpdatesEntry() throws {
         let fileManager = FileManager.default
-        let baseURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: baseURL) }
 
@@ -72,4 +72,13 @@ final class ProjectLibraryStoreTests: XCTestCase {
         XCTAssertEqual(recent.count, 1)
         XCTAssertFalse(recent[0].bookmarkData.isEmpty)
     }
+}
+
+private func canonicalTemporaryDirectory() -> URL {
+    let temporaryPath = FileManager.default.temporaryDirectory.path
+    guard let resolved = realpath(temporaryPath, nil) else {
+        return FileManager.default.temporaryDirectory
+    }
+    defer { free(resolved) }
+    return URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
 }

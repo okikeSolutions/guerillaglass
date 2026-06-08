@@ -11,7 +11,7 @@ type EditorWorkspaceProps = {
   leftPane: ReactNode;
   centerPane: ReactNode;
   rightPane: ReactNode;
-  bottomPane: ReactNode;
+  bottomPane?: ReactNode | null;
 };
 
 function toPxSize(value: number): string {
@@ -121,30 +121,34 @@ export function EditorWorkspace({
           </ResizablePanelGroup>
         </ResizablePanel>
 
-        <ResizableHandle
-          withHandle
-          className="gg-timeline-resize-handle"
-          onPointerDown={markPointerResizeStart}
-          aria-label={studio.ui.labels.resizeTimeline}
-          aria-valuemin={timelineHeightBounds.minPx}
-          aria-valuemax={timelineHeightBounds.maxPx}
-          aria-valuenow={layout.timelineCollapsed ? 0 : timelineHeightPx}
-          onKeyDown={timelineResizeKeyDown}
-        />
+        {bottomPane ? (
+          <>
+            <ResizableHandle
+              withHandle
+              className="gg-timeline-resize-handle"
+              onPointerDown={markPointerResizeStart}
+              aria-label={studio.ui.labels.resizeTimeline}
+              aria-valuemin={timelineHeightBounds.minPx}
+              aria-valuemax={timelineHeightBounds.maxPx}
+              aria-valuenow={layout.timelineCollapsed ? 0 : timelineHeightPx}
+              onKeyDown={timelineResizeKeyDown}
+            />
 
-        <ResizablePanel
-          id="workspace-timeline-pane"
-          key={timelinePanelKey}
-          panelRef={timelinePanelRef}
-          defaultSize={layout.timelineCollapsed ? "0px" : toPxSize(timelineHeightPx)}
-          minSize={toPxSize(timelineHeightBounds.minPx)}
-          maxSize={toPxSize(timelineHeightBounds.maxPx)}
-          collapsible
-          collapsedSize="0px"
-          className="min-h-0 overflow-hidden"
-        >
-          {bottomPane}
-        </ResizablePanel>
+            <ResizablePanel
+              id="workspace-timeline-pane"
+              key={timelinePanelKey}
+              panelRef={timelinePanelRef}
+              defaultSize={layout.timelineCollapsed ? "0px" : toPxSize(timelineHeightPx)}
+              minSize={toPxSize(timelineHeightBounds.minPx)}
+              maxSize={toPxSize(timelineHeightBounds.maxPx)}
+              collapsible
+              collapsedSize="0px"
+              className="min-h-0 overflow-hidden"
+            >
+              {bottomPane}
+            </ResizablePanel>
+          </>
+        ) : null}
       </ResizablePanelGroup>
     </div>
   );

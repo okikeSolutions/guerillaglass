@@ -35,9 +35,6 @@ jobs:
       - name: Install JavaScript dependencies
         run: bun install
 
-      - name: Run documentation coverage gate
-        run: bun run docs:check
-
       - name: Install SwiftFormat and SwiftLint
         run: |
           brew update

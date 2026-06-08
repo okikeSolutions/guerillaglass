@@ -1,4 +1,7 @@
+// swiftlint:disable file_length
+
 import AVFoundation
+import Darwin
 import EngineProtocol
 import Foundation
 import Project
@@ -775,9 +778,8 @@ extension EngineService {
         projectURL: URL,
         blockingReason: AgentBlockingReason?
     ) throws -> AgentRunSummaryDocument {
-        let fileManager = FileManager.default
         let analysisDirectoryURL = projectURL.appendingPathComponent(ProjectFile.analysisDirectory, isDirectory: true)
-        try fileManager.createDirectory(at: analysisDirectoryURL, withIntermediateDirectories: true)
+        try createAgentDirectoryNoSymlink(at: analysisDirectoryURL)
 
         let transcriptFullPath = try writeAgentArtifact(
             TranscriptFullDocument(
@@ -859,7 +861,7 @@ extension EngineService {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(summary)
-        try data.write(to: outputURL, options: [.atomic])
+        try writeAgentDataNoSymlink(data, to: outputURL)
     }
 
     private func writeAgentArtifact(
@@ -872,7 +874,7 @@ extension EngineService {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(payload)
-        try data.write(to: outputURL, options: [.atomic])
+        try writeAgentDataNoSymlink(data, to: outputURL)
         return relativePath
     }
 
@@ -904,6 +906,7 @@ extension EngineService {
             throw AgentModeError.invalidParams("Unknown jobId: \(jobID)")
         }
 
+        try rejectAgentSymlinkComponents(in: summaryURL)
         let data = try Data(contentsOf: summaryURL)
         let decoder = JSONDecoder()
         let runSummary = try decoder.decode(AgentRunSummaryDocument.self, from: data)
@@ -918,6 +921,7 @@ extension EngineService {
             throw AgentModeError.invalidCutPlan("Cut plan artifact not found.")
         }
         let cutPlanURL = projectURL.appendingPathComponent(cutPlanArtifact.path)
+        try rejectAgentSymlinkComponents(in: cutPlanURL)
         let data = try Data(contentsOf: cutPlanURL)
         let decoder = JSONDecoder()
         let cutPlan = try decoder.decode(AgentCutPlanDocument.self, from: data)
@@ -977,5 +981,43 @@ extension EngineService {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+
+    private func writeAgentDataNoSymlink(_ data: Data, to destinationURL: URL) throws {
+        try rejectAgentSymlinkComponents(in: destinationURL)
+        try data.write(to: destinationURL, options: [.atomic])
+        try rejectAgentSymlinkComponents(in: destinationURL)
+    }
+
+    private func createAgentDirectoryNoSymlink(at directoryURL: URL) throws {
+        try rejectAgentSymlinkComponents(in: directoryURL)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try rejectAgentSymlinkComponents(in: directoryURL)
+    }
+
+    private func rejectAgentSymlinkComponents(in url: URL) throws {
+        let rawPath = url.path
+        let isAbsolute = rawPath.hasPrefix("/")
+        let components = rawPath.split(separator: "/").map(String.init)
+        var currentPath = isAbsolute ? "/" : ""
+
+        for component in components {
+            if currentPath.isEmpty { currentPath = component }
+            else if currentPath == "/" { currentPath += component }
+            else { currentPath += "/\(component)" }
+            try rejectAgentSymlinkIfExists(atPath: currentPath)
+        }
+    }
+
+    private func rejectAgentSymlinkIfExists(atPath path: String) throws {
+        var metadata = stat()
+        let status = path.withCString { Darwin.lstat($0, &metadata) }
+        if status != 0 {
+            if errno == ENOENT { return }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        if (metadata.st_mode & S_IFMT) == S_IFLNK {
+            throw AgentModeError.runtime("Symlink path component is not allowed for Agent Mode artifacts: \(path)")
+        }
     }
 }

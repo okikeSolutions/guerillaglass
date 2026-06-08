@@ -22,7 +22,7 @@ import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
-import { TimelineDock } from "../panels/TimelineDock";
+import { useLiveCapturePreview } from "../hooks/useLiveCapturePreview";
 import { useRecordingMediaSource } from "../hooks/useRecordingMediaSource";
 import {
   StudioPane,
@@ -32,10 +32,23 @@ import {
   StudioPaneTitle,
 } from "../layout/StudioPanePrimitives";
 
+function displayOptionLabel(
+  displayItem: ReturnType<typeof useStudio>["displayChoices"][number],
+  ui: ReturnType<typeof useStudio>["ui"],
+): string {
+  const primarySuffix = displayItem.isPrimary ? ` (${ui.values.primary})` : "";
+  return `${displayItem.displayName}${primarySuffix} - ${displayItem.width}x${displayItem.height}`;
+}
+
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
   const recordingMediaSource = useRecordingMediaSource(studio.recordingURL);
+  const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
+  const captureSessionId = isCaptureRunning
+    ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
+    : null;
+  const liveCapturePreview = useLiveCapturePreview(captureSessionId);
 
   return (
     <EditorWorkspace
@@ -180,6 +193,36 @@ export function CaptureRoute() {
                   )}
                 </studio.settingsForm.Field>
               ) : null}
+
+              {settingsValues.captureSource === "display" ? (
+                <studio.settingsForm.Field name="selectedDisplayId">
+                  {(field) => (
+                    <Field>
+                      <FieldLabel>{studio.ui.labels.display}</FieldLabel>
+                      <FieldContent>
+                        <NativeSelect
+                          value={String(studio.selectedDisplayId)}
+                          disabled={studio.displayChoices.length <= 1}
+                          onChange={(event) => {
+                            field.handleChange(Number(event.target.value));
+                          }}
+                        >
+                          {studio.displayChoices.length === 0 ? (
+                            <NativeSelectOption value="0">
+                              {studio.ui.labels.noDisplays}
+                            </NativeSelectOption>
+                          ) : null}
+                          {studio.displayChoices.map((displayItem) => (
+                            <NativeSelectOption key={displayItem.id} value={String(displayItem.id)}>
+                              {displayOptionLabel(displayItem, studio.ui)}
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </FieldContent>
+                    </Field>
+                  )}
+                </studio.settingsForm.Field>
+              ) : null}
             </CaptureLeftSection>
           </StudioPaneBody>
         </StudioPane>
@@ -196,9 +239,30 @@ export function CaptureRoute() {
               <div className="gg-preview-stage-wrap">
                 <AspectRatio ratio={16 / 9} className="h-auto w-auto">
                   <div className="gg-preview-stage">
-                    {studio.captureStatusQuery.data?.isRecording ? (
-                      <div className="text-center">
-                        <p className="text-sm font-medium">{studio.ui.helper.activePreviewTitle}</p>
+                    {isCaptureRunning ? (
+                      <div className="relative h-full w-full overflow-hidden rounded-md">
+                        <img
+                          ref={liveCapturePreview.imageRef}
+                          alt={studio.ui.helper.activePreviewTitle}
+                          className={cn(
+                            "h-full w-full object-contain",
+                            liveCapturePreview.hasFrame ? "block" : "hidden",
+                          )}
+                        />
+                        {!liveCapturePreview.hasFrame ? (
+                          <div className="flex h-full w-full items-center justify-center text-center">
+                            <p className="text-sm font-medium">
+                              {studio.ui.helper.activePreviewTitle}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {studio.captureStatusQuery.data?.isRecording ? (
+                          <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/15 backdrop-blur-sm">
+                            <span className="h-2 w-2 rounded-full bg-red-500" />
+                            {studio.ui.labels.recording}
+                          </div>
+                        ) : null}
                       </div>
                     ) : recordingMediaSource ? (
                       <video
@@ -233,7 +297,7 @@ export function CaptureRoute() {
         </StudioPane>
       }
       rightPane={<InspectorPanel mode="capture" />}
-      bottomPane={<TimelineDock />}
+      bottomPane={null}
     />
   );
 }

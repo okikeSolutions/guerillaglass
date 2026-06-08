@@ -16,5 +16,5 @@ Expected binary path:
 ## Notes
 
 - Protocol handlers are implemented for parity (`engine.capabilities`, `permissions`, `sources`, `capture`, `recording`, `export`, `project`).
-- Wire request/response types come from `engines/protocol-rust`.
+- Stable socket wire request/response/error/chunk types come from `engines/protocol-rust`.
 - Capture/audio/input internals are currently foundation-level and need Windows API integration for production capture quality.

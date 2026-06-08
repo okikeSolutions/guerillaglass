@@ -12,6 +12,7 @@ export default defineConfig({
     "apps/web/convex/betterAuth/_generated/**",
     "apps/web/convex/betterAuth/generatedSchema.ts",
     "apps/web/src/routeTree.gen.ts",
+    "vendor/**",
   ],
   rules: {
     "react/exhaustive-deps": "deny",

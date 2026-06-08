@@ -2,7 +2,7 @@
 
 This is a protocol-compatible stub sidecar for Linux parallel development.
 
-It simulates the current engine protocol over stdio and does not perform real capture/export.
+It simulates the current engine protocol over the stable Guerillaglass loopback socket wire protocol and does not perform real capture/export.
 
 ## Usage
 
@@ -13,7 +13,7 @@ GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 ## Purpose
 
 - Unblock UI and protocol workflow development before native Linux capture implementation.
-- Keep method/result envelope behavior aligned with `packages/engine-protocol`.
+- Keep method/result envelope behavior aligned with `packages/engine`.
 
 ## Not Implemented
 

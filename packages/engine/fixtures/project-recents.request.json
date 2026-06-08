@@ -1,0 +1,8 @@
+{
+  "type": "request",
+  "id": "1",
+  "method": "project.recents",
+  "params": {
+    "limit": 5
+  }
+}

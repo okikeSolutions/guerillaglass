@@ -1,4 +1,4 @@
-import { BrowserStorageError } from "@shared/errors";
+import { BrowserStorageError } from "@shared/errors/desktopErrors";
 
 export type DesktopPreferenceDefinition<T> = {
   key: string;

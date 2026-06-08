@@ -88,49 +88,80 @@ public enum JSONValue: Codable, Equatable {
 
 /// Request envelope sent from the desktop shell to the native engine.
 public struct EngineRequest: Codable, Equatable {
+    public let type: String
     public let id: String
     public let method: String
     public let params: [String: JSONValue]
 
     public init(id: String, method: String, params: [String: JSONValue]) {
+        type = "request"
         self.id = id
         self.method = method
         self.params = params
     }
-}
 
-/// Error payload returned for failed engine responses.
-public struct EngineError: Codable, Equatable {
-    public let code: String
-    public let message: String
+    private enum CodingKeys: String, CodingKey {
+        case type, id, method, params
+    }
 
-    public init(code: String, message: String) {
-        self.code = code
-        self.message = message
+    public var methodKind: EngineMethod? {
+        EngineMethod(method: method)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "request"
+        if let stringId = try? container.decode(String.self, forKey: .id) {
+            id = stringId
+        } else if let intId = try? container.decode(Int.self, forKey: .id) {
+            id = String(intId)
+        } else {
+            id = try String(container.decode(Double.self, forKey: .id))
+        }
+        method = try container.decode(String.self, forKey: .method)
+        params = try container.decodeIfPresent([String: JSONValue].self, forKey: .params) ?? [:]
     }
 }
 
+public struct EngineError: Codable, Equatable {
+    public let code: String
+    public let message: String
+}
+
 // swiftlint:disable identifier_name
-/// Response envelope returned by the native engine.
+/// Response envelope returned by the native engine using the stable Guerillaglass wire protocol.
 public struct EngineResponse: Codable, Equatable {
+    public let type: String
     public let id: String
-    public let ok: Bool
     public let result: JSONValue?
     public let error: EngineError?
 
-    public init(id: String, ok: Bool, result: JSONValue?, error: EngineError?) {
+    public init(id: String, result: JSONValue?, error: EngineError?) {
+        type = error == nil ? "response" : "error"
         self.id = id
-        self.ok = ok
         self.result = result
         self.error = error
     }
 
     public static func success(id: String, result: JSONValue) -> EngineResponse {
-        EngineResponse(id: id, ok: true, result: result, error: nil)
+        EngineResponse(id: id, result: result, error: nil)
     }
 
     public static func failure(id: String, code: String, message: String) -> EngineResponse {
-        EngineResponse(id: id, ok: false, result: nil, error: EngineError(code: code, message: message))
+        EngineResponse(id: id, result: nil, error: EngineError(code: code, message: message))
+    }
+}
+
+/// Streaming chunk envelope emitted by the stable Guerillaglass wire protocol.
+public struct EngineChunkResponse: Codable, Equatable {
+    public let type: String
+    public let id: String
+    public let values: [JSONValue]
+
+    public init(id: String, values: [JSONValue]) {
+        type = "chunk"
+        self.id = id
+        self.values = values
     }
 }
 
@@ -154,6 +185,14 @@ public enum EngineLineCodec {
     }
 
     public static func encodeResponse(_ response: EngineResponse) throws -> String {
+        let data = try encoder.encode(response)
+        guard let line = String(data: data, encoding: .utf8) else {
+            throw EngineProtocolError.invalidLine
+        }
+        return line
+    }
+
+    public static func encodeChunk(_ response: EngineChunkResponse) throws -> String {
         let data = try encoder.encode(response)
         guard let line = String(data: data, encoding: .utf8) else {
             throw EngineProtocolError.invalidLine

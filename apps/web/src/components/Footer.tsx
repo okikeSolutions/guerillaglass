@@ -5,33 +5,44 @@ export const Footer = () => {
         <div className="space-y-6">
           <div className="text-2xl font-bold text-white">Guerilla Glass.</div>
           <p className="text-white max-w-xs text-pretty">
-            Redefining the digital frontier with elegance and love.
+            Record, edit, review, and deliver clearer product videos from one desktop workflow.
+          </p>
+          <p className="max-w-sm text-sm leading-relaxed text-white/70">
+            Start with the open-source macOS app for local work. Move to a paid plan when your team
+            needs review links, comments, and collaboration.
           </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-16">
           <div className="space-y-4">
-            <div className="font-bold text-sm uppercase tracking-widest text-white">Social</div>
+            <div className="font-bold text-sm uppercase tracking-widest text-white">Product</div>
             <div className="flex flex-col gap-2 text-sm text-white">
-              <a href="#" className="hover:text-black">
-                Twitter
+              <a href="#product" className="hover:text-white/70">
+                How it works
               </a>
-              <a href="#" className="hover:text-black">
-                LinkedIn
+              <a href="#pricing" className="hover:text-white/70">
+                Pricing
               </a>
-              <a href="#" className="hover:text-black">
-                Instagram
+              <a href="#faq" className="hover:text-white/70">
+                FAQ
               </a>
             </div>
           </div>
           <div className="space-y-4">
-            <div className="font-bold text-sm uppercase tracking-widest text-white">Legal</div>
+            <div className="font-bold text-sm uppercase tracking-widest text-white">
+              Get started
+            </div>
             <div className="flex flex-col gap-2 text-sm text-white">
-              <a href="#" className="hover:text-black">
-                Privacy
+              <a
+                href="https://github.com/okikeSolutions/guerillaglass"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-white/70"
+              >
+                Download app
               </a>
-              <a href="#" className="hover:text-black">
-                Terms
+              <a href="#pricing" className="hover:text-white/70">
+                Buy a plan
               </a>
             </div>
           </div>
@@ -39,7 +50,7 @@ export const Footer = () => {
       </div>
       <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-white text-xs text-white flex justify-between">
         <span>&copy; 2026 Guerilla Glass. All rights reserved.</span>
-        <span>Made with Love.</span>
+        <span>Local-first capture. Paid collaboration when you need it.</span>
       </div>
     </footer>
   );

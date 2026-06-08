@@ -7,8 +7,8 @@ import {
 import {
   ContractDecodeError,
   JsonParseError,
-  decodeJsonStringWithSchemaSync,
-} from "@shared/errors";
+} from "@guerillaglass/engine/client/errors/clientErrors";
+import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import {
   createDesktopPreferenceStorageKey,
   loadDesktopPreference,

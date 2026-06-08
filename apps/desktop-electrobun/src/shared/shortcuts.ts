@@ -35,10 +35,10 @@ export const studioShortcutIds = [
   "timelineBlade",
 ] as const;
 
-export const studioShortcutIdSchema = Schema.Literal(...studioShortcutIds);
+export const studioShortcutIdSchema = Schema.Literals(studioShortcutIds);
 export type StudioShortcutId = (typeof studioShortcutIds)[number];
 
-export const shortcutDisplayPlatformSchema = Schema.Literal("mac", "windows", "linux");
+export const shortcutDisplayPlatformSchema = Schema.Literals(["mac", "windows", "linux"]);
 export type ShortcutDisplayPlatform = "mac" | "windows" | "linux";
 
 export const studioHotkeySchema = Schema.String;

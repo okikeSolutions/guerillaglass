@@ -1,0 +1,6 @@
+{
+  "type": "request",
+  "id": "1",
+  "method": "engine.capabilities",
+  "params": {}
+}

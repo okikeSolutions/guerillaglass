@@ -1,11 +1,23 @@
 import { useMemo } from "react";
+import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
 import { useStudio } from "../state/StudioProvider";
 import { studioToneClass } from "../view-model/studioSemanticTone";
-import { buildTechnicalFeedbackMetrics } from "../view-model/technicalFeedbackStripModel";
+import {
+  buildTechnicalFeedbackMetrics,
+  resolveTechnicalFeedbackTelemetry,
+} from "../view-model/technicalFeedbackStripModel";
 
 export function StudioTechnicalFeedbackStrip() {
   const studio = useStudio();
-  const telemetry = studio.captureStatusQuery.data?.telemetry;
+  useStudioRenderDiagnostics("StudioTechnicalFeedbackStrip");
+  const telemetry = resolveTechnicalFeedbackTelemetry({
+    activeMode: studio.activeMode,
+    isCaptureRunning: Boolean(studio.captureStatusQuery.data?.isRunning),
+    isCaptureRecording: Boolean(studio.captureStatusQuery.data?.isRecording),
+    liveTelemetry: studio.captureStatusQuery.data?.telemetry,
+    lastRecordingTelemetry: studio.captureStatusQuery.data?.lastRecordingTelemetry,
+    projectLastRecordingTelemetry: studio.projectQuery.data?.lastRecordingTelemetry,
+  });
 
   const metrics = useMemo(
     () =>
@@ -30,6 +42,10 @@ export function StudioTechnicalFeedbackStrip() {
       ),
     [studio, telemetry],
   );
+
+  if (!telemetry) {
+    return null;
+  }
 
   return (
     <section

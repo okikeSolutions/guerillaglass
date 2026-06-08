@@ -7,7 +7,8 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "guerillaglass-engine", targets: ["guerillaglass-engine"])
+        .executable(name: "guerillaglass-engine", targets: ["guerillaglass-engine"]),
+        .executable(name: "guerillaglass-code-signature-checker", targets: ["guerillaglass-code-signature-checker"])
     ],
     targets: [
         .target(
@@ -20,6 +21,11 @@ let package = Package(
             dependencies: ["EngineProtocol", "Capture", "InputTracking", "Export", "Project"],
             path: "engines/macos-swift",
             exclude: ["modules"]
+        ),
+        .executableTarget(
+            name: "guerillaglass-code-signature-checker",
+            dependencies: [],
+            path: "engines/macos-code-signature-checker"
         ),
         .target(
             name: "Capture",

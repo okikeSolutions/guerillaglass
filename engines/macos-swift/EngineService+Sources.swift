@@ -1,3 +1,4 @@
+import AppKit
 import Capture
 import CoreGraphics
 import EngineProtocol
@@ -5,6 +6,13 @@ import Foundation
 import ScreenCaptureKit
 
 extension EngineService {
+    struct DisplayCapability {
+        let displayName: String
+        let isPrimary: Bool
+        let refreshHz: Double?
+        let pixelScale: Double?
+    }
+
     typealias WindowCapability = (refreshHz: Double?, pixelScale: Double?)
 
     func sourcesListResponse(id: String) async -> EngineResponse {
@@ -29,9 +37,9 @@ extension EngineService {
         // single filtering policy via `filteredWindows(from:)` before capability enrichment.
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         let windows = filteredWindows(from: content.windows)
-        let (refreshHzByDisplayID, capabilityByWindowID) = await sourceCapabilities(for: content, windows: windows)
+        let (capabilityByDisplayID, capabilityByWindowID) = await sourceCapabilities(for: content, windows: windows)
         let displays = content.displays.map { display in
-            encodeDisplay(display, refreshHz: refreshHzByDisplayID[display.displayID] ?? nil)
+            encodeDisplay(display, capabilities: capabilityByDisplayID[display.displayID] ?? nil)
         }
         let sorted = ShareableWindow.sorted(windows.map(ShareableWindow.init(window:)))
         let encodedWindows = sorted.map { window in
@@ -57,12 +65,30 @@ extension EngineService {
     private func sourceCapabilities(
         for content: SCShareableContent,
         windows: [SCWindow]
-    ) async -> ([CGDirectDisplayID: Double?], [CGWindowID: WindowCapability]) {
+    ) async -> ([CGDirectDisplayID: DisplayCapability], [CGWindowID: WindowCapability]) {
         let displayIDs = content.displays.map(\.displayID)
         let windowFramesByID = Dictionary(uniqueKeysWithValues: windows.map { ($0.windowID, $0.frame) })
         return await MainActor.run {
-            let refreshHzByDisplayID = Dictionary(uniqueKeysWithValues: displayIDs.map { displayID in
-                (displayID, CaptureSourceCapability.refreshRate(for: displayID))
+            let capabilityByDisplayID = Dictionary(uniqueKeysWithValues: displayIDs.map { displayID in
+                let screen = NSScreen.screens.first { screen in
+                    guard
+                        let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+                    else {
+                        return false
+                    }
+                    return CGDirectDisplayID(screenNumber.uint32Value) == displayID
+                }
+                let displayName = screen?.localizedName ?? "Display \(displayID)"
+                let isPrimary = displayID == CGMainDisplayID()
+                return (
+                    displayID,
+                    DisplayCapability(
+                        displayName: displayName,
+                        isPrimary: isPrimary,
+                        refreshHz: CaptureSourceCapability.refreshRate(for: displayID),
+                        pixelScale: CaptureSourceCapability.pixelScale(for: displayID)
+                    )
+                )
             })
             let capabilityByWindowID = Dictionary(uniqueKeysWithValues: windowFramesByID.map { windowID, frame in
                 (
@@ -73,23 +99,27 @@ extension EngineService {
                     )
                 )
             })
-            return (refreshHzByDisplayID, capabilityByWindowID)
+            return (capabilityByDisplayID, capabilityByWindowID)
         }
     }
 
-    private func encodeDisplay(_ display: SCDisplay, refreshHz: Double?) -> JSONValue {
-        .object([
+    private func encodeDisplay(_ display: SCDisplay, capabilities: DisplayCapability?) -> JSONValue {
+        let refreshHz = capabilities?.refreshHz
+        let pixelScale = capabilities?.pixelScale ?? 1
+        return .object([
             "id": .number(Double(display.displayID)),
+            "displayName": .string(capabilities?.displayName ?? "Display \(display.displayID)"),
+            "isPrimary": .bool(capabilities?.isPrimary ?? false),
             "width": .number(Double(display.width)),
             "height": .number(Double(display.height)),
-            "pixelScale": .number(1),
+            "pixelScale": .number(pixelScale),
             "refreshHz": refreshHz.map { .number($0) } ?? .null,
             "supportedCaptureFrameRates": .array(
                 CaptureSourceCapability.supportedFrameRates(
                     refreshHz: refreshHz,
                     width: Double(display.width),
                     height: Double(display.height),
-                    pixelScale: 1
+                    pixelScale: pixelScale
                 ).map {
                     .number(Double($0))
                 }

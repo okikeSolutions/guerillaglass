@@ -43,7 +43,8 @@ final class CaptureTelemetryStore {
                 recordingBitrateMbps: state.recordingBitrateMbps,
                 captureCallbackMs: state.captureCallbackMetric.value,
                 recordQueueLagMs: state.recordQueueLagMetric.value,
-                writerAppendMs: state.writerAppendMetric.value
+                writerAppendMs: state.writerAppendMetric.value,
+                previewEncodeMs: state.previewEncodeMetric.value
             )
         }
     }
@@ -110,6 +111,12 @@ final class CaptureTelemetryStore {
             }
         }
     }
+
+    func recordPreviewEncodeDuration(_ durationMs: Double) {
+        queue.async {
+            self.state.previewEncodeMetric.record(durationMs)
+        }
+    }
 }
 
 private extension CaptureTelemetryStore {
@@ -150,6 +157,7 @@ private extension CaptureTelemetryStore {
         var captureCallbackMetric = TimingMetric(smoothingFactor: 0.2)
         var recordQueueLagMetric = TimingMetric(smoothingFactor: 0.2)
         var writerAppendMetric = TimingMetric(smoothingFactor: 0.18)
+        var previewEncodeMetric = TimingMetric(smoothingFactor: 0.18)
 
         var sourceDroppedFrames: Int {
             sourceStatusDroppedFrames + sourceTimingDroppedFrames

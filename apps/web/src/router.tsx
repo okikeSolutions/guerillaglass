@@ -5,8 +5,11 @@ import { ConvexQueryClient } from "@convex-dev/react-query";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
-  const CONVEX_URL = import.meta.env.VITE_CONVEX_URL;
-  const convexQueryClient = new ConvexQueryClient(CONVEX_URL, {
+  const convexUrl = import.meta.env.VITE_CONVEX_URL;
+  if (!convexUrl) {
+    throw new Error("Missing VITE_CONVEX_URL.");
+  }
+  const convexQueryClient = new ConvexQueryClient(convexUrl, {
     expectAuth: true,
   });
 

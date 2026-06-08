@@ -86,6 +86,37 @@ final class CaptureRecordingTests: XCTestCase {
         XCTAssertTrue(hasWriterTiming)
     }
 
+    func testStartRecordingUsesLatestCompleteFrameSeedWhenCaptureIsStatic() async throws {
+        let engine = CaptureEngine()
+        await MainActor.run {
+            engine.setRunning(true)
+        }
+
+        let seedSample = try makeVideoSampleBuffer(presentationTime: .zero)
+        engine.cacheLatestCompleteVideoSample(seedSample)
+
+        try await engine.startRecording()
+
+        let isRecording = await waitForCondition {
+            await MainActor.run { engine.isRecording }
+        }
+        XCTAssertTrue(isRecording)
+
+        await engine.stopRecording()
+
+        let stopped = await waitForCondition {
+            await MainActor.run { !engine.isRecording }
+        }
+        XCTAssertTrue(stopped)
+
+        let outputURL = await MainActor.run { engine.recordingURL }
+        XCTAssertNotNil(outputURL)
+        if let outputURL {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: outputURL.path))
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+    }
+
     func testStartRecordingFailsWhenPrimingDoesNotStabilizeInTime() async {
         let engine = CaptureEngine()
         await MainActor.run {
@@ -156,6 +187,39 @@ final class CaptureRecordingTests: XCTestCase {
             }
         }
         XCTAssertTrue(cleared)
+    }
+
+    func testCachePreviewSampleProducesLivePreviewFrame() async throws {
+        let engine = CaptureEngine()
+
+        try engine.cachePreviewSample(makeVideoSampleBuffer(presentationTime: .zero))
+
+        let previewAvailable = await waitForCondition {
+            engine.latestPreviewFrame() != nil
+        }
+        XCTAssertTrue(previewAvailable)
+
+        let previewFrame = engine.latestPreviewFrame()
+        XCTAssertNotNil(previewFrame)
+        XCTAssertEqual(previewFrame?.frameId, 1)
+        XCTAssertFalse(previewFrame?.bytesBase64.isEmpty ?? true)
+    }
+
+    func testStopCaptureClearsCachedLivePreviewFrame() async throws {
+        let engine = CaptureEngine()
+
+        try engine.cachePreviewSample(makeVideoSampleBuffer(presentationTime: .zero))
+        let previewAvailable = await waitForCondition {
+            engine.latestPreviewFrame() != nil
+        }
+        XCTAssertTrue(previewAvailable)
+
+        await MainActor.run {
+            engine.setRunning(true)
+        }
+        await engine.stopCapture()
+
+        XCTAssertNil(engine.latestPreviewFrame())
     }
 }
 

@@ -1,22 +1,25 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  captureStatusResultSchema,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine/protocol/domains/capture";
+import type { ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
+import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
 import type {
-  CaptureStatusResult,
-  ExportPreset,
-  InputEvent,
-  PermissionsResult,
-  PingResult,
   ProjectRecentsResult,
   ProjectState,
-  SourcesResult,
-} from "@guerillaglass/engine-protocol";
-import { captureStatusResultSchema } from "@guerillaglass/engine-protocol";
-import { hostBridgeEventNames } from "@shared/bridge";
-import { decodeUnknownWithSchemaSync } from "@shared/errors";
+} from "@guerillaglass/engine/protocol/domains/project";
+import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
+import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
+import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
+import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
+import { validateEncodedUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
 const emptyExportPresets: ExportPreset[] = [];
+const emptySourceDisplays: SourcesResult["displays"] = [];
 const emptySourceWindows: SourcesResult["windows"] = [];
 
 export const studioQueryKeys = {
@@ -40,7 +43,7 @@ export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | nul
   }
 
   try {
-    return decodeUnknownWithSchemaSync(
+    return validateEncodedUnknownWithSchemaSync(
       captureStatusResultSchema,
       payload,
       "capture status event",
@@ -50,13 +53,37 @@ export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | nul
   }
 }
 
-export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) {
+export function captureStatusResultsEqual(
+  previous: CaptureStatusResult | undefined,
+  next: CaptureStatusResult,
+): boolean {
+  if (!previous) {
+    return false;
+  }
+  return JSON.stringify(previous) === JSON.stringify(next);
+}
+
+type UseStudioDataQueriesOptions = {
+  recentsLimit?: number;
+  subscribeToCaptureStatus?: boolean;
+};
+
+export function useStudioDataQueries({
+  recentsLimit = studioRecentsLimit,
+  subscribeToCaptureStatus = true,
+}: UseStudioDataQueriesOptions = {}) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     const onCaptureStatus = (event: Event) => {
       const captureStatus = parseCaptureStatusEvent(event);
       if (!captureStatus) {
+        return;
+      }
+      const current = queryClient.getQueryData<CaptureStatusResult>(
+        studioQueryKeys.captureStatus(),
+      );
+      if (captureStatusResultsEqual(current, captureStatus)) {
         return;
       }
       queryClient.setQueryData(studioQueryKeys.captureStatus(), captureStatus);
@@ -80,32 +107,33 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
   const permissionsQuery = useQuery<PermissionsResult>({
     queryKey: studioQueryKeys.permissions(),
     queryFn: () => engineApi.getPermissions(),
-    staleTime: 30_000,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const sourcesQuery = useQuery<SourcesResult>({
     queryKey: studioQueryKeys.sources(),
     queryFn: () => engineApi.listSources(),
-    staleTime: 5000,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const captureStatusQuery = useQuery<CaptureStatusResult>({
     queryKey: studioQueryKeys.captureStatus(),
     queryFn: () => engineApi.captureStatus(),
-    staleTime: 5000,
+    staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
+    subscribed: subscribeToCaptureStatus,
   });
 
   const exportInfoQuery = useQuery({
     queryKey: studioQueryKeys.exportInfo(),
     queryFn: () => engineApi.exportInfo(),
-    staleTime: 60_000,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const projectQuery = useQuery<ProjectState>({
     queryKey: studioQueryKeys.projectCurrent(),
     queryFn: () => engineApi.projectCurrent(),
-    staleTime: 10_000,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   const projectRecentsQuery = useQuery<ProjectRecentsResult>({
@@ -118,7 +146,7 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
         return emptyProjectRecents;
       }
     },
-    staleTime: 10_000,
+    staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
 
@@ -139,12 +167,13 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
       const raw = await desktopApi.readTextFile(eventsURL);
       return parseInputEventLog(raw);
     },
-    staleTime: 10_000,
+    staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
 
   const timelineEvents = eventsQuery.isSuccess ? eventsQuery.data : [];
   const presets = exportInfoQuery.data?.presets ?? emptyExportPresets;
+  const displayChoices = sourcesQuery.data?.displays ?? emptySourceDisplays;
   const windowChoices = sourcesQuery.data?.windows ?? emptySourceWindows;
 
   return {
@@ -159,6 +188,7 @@ export function useStudioDataQueries(recentsLimit: number = studioRecentsLimit) 
     projectRecentsQuery,
     recordingURL,
     sourcesQuery,
+    displayChoices,
     timelineEvents,
     windowChoices,
   };

@@ -1,8 +1,8 @@
 import { Electroview } from "electrobun/view";
-import type { CaptureStatusResult } from "@guerillaglass/engine-protocol";
+import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { createWindowBridgeBindings } from "@shared/bridge";
-import { decodeUnknownWithSchemaSync } from "@shared/errors";
+import { createWindowBridgeBindings } from "@shared/bridge/desktopBridgeBindings";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import type {
   BridgeRequestName,
   BridgeRequestInvoker,
@@ -10,12 +10,17 @@ import type {
   BridgeResponseEnvelope,
   DesktopBridgeRPC,
   HostMenuCommand,
+  DesktopRuntimeFlags,
   WindowBridgeBindings,
-} from "@shared/bridge";
-import { hostBridgeEventNames, hostReviewEventMessageSchema } from "@shared/bridge";
+} from "@shared/bridge/desktopBridgeContract";
+import {
+  hostBridgeEventNames,
+  hostReviewEventMessageSchema,
+} from "@shared/bridge/desktopBridgeContract";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;
+  __ggDesktopRuntimeFlags?: DesktopRuntimeFlags;
 };
 
 let bridgeInitialized = false;
@@ -66,6 +71,14 @@ export function initializeElectrobunRpcBridge(): void {
             console.warn("Rejected invalid host review event payload", error);
           }
         },
+        desktopRuntimeFlags: (flags: DesktopRuntimeFlags) => {
+          (window as ElectrobunRuntimeWindow).__ggDesktopRuntimeFlags = flags;
+          window.dispatchEvent(
+            new CustomEvent(hostBridgeEventNames.desktopRuntimeFlags, {
+              detail: flags,
+            }),
+          );
+        },
       },
     },
   });
@@ -84,8 +97,10 @@ export function initializeElectrobunRpcBridge(): void {
     >;
   };
 
-  const bindings: WindowBridgeBindings = createWindowBridgeBindings(invoke, (state) =>
-    rpc.send.hostMenuState(state),
+  const bindings: WindowBridgeBindings = createWindowBridgeBindings(
+    invoke,
+    (state) => rpc.send.hostMenuState(state),
+    (entry) => rpc.send.studioDiagnostics(entry),
   );
 
   Object.assign(window, bindings);

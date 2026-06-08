@@ -1,58 +1,104 @@
 import path from "node:path";
+import processEnv from "node:process";
 import { describe, expect, test } from "bun:test";
 
 type WireResponse = {
-  id: string;
-  ok: boolean;
+  type: "response" | "error";
+  id: string | number;
   error?: {
     code: string;
     message: string;
   };
 };
 
-function createLineClient(stubPath: string) {
+type ReadyMessage = {
+  type: "guerillaglass.engine.ready";
+  host: string;
+  port: number;
+};
+
+async function readProcessLine(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const newlineIndex = buffer.indexOf("\n");
+    if (newlineIndex >= 0) {
+      return buffer.slice(0, newlineIndex);
+    }
+    const { value, done } = await reader.read();
+    if (done) {
+      throw new Error("Stub engine closed stdout unexpectedly");
+    }
+    buffer += decoder.decode(value, { stream: true });
+  }
+}
+
+async function createSocketClient(stubPath: string) {
+  const authToken = "stub-test-token";
   const command = stubPath.endsWith(".ts") ? ["bun", stubPath] : [stubPath];
   const process = Bun.spawn({
     cmd: command,
-    stdin: "pipe",
+    stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",
+    env: {
+      ...processEnv.env,
+      GG_ENGINE_RPC_AUTH_TOKEN: authToken,
+    },
   });
 
-  const stdin = process.stdin;
-  const reader = process.stdout.getReader();
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let buffer = "";
+  const stdoutReader = process.stdout.getReader();
+  const ready = JSON.parse(await readProcessLine(stdoutReader)) as ReadyMessage;
+  expect(ready.type).toBe("guerillaglass.engine.ready");
 
-  const readLine = async (): Promise<string> => {
-    while (true) {
+  let buffer = "";
+  let resolveLine: ((line: string) => void) | null = null;
+  const socket = await Bun.connect<{ decoder: TextDecoder }>({
+    hostname: ready.host,
+    port: ready.port,
+    socket: {
+      open(socket) {
+        socket.data = { decoder: new TextDecoder() };
+      },
+      data(socket, data) {
+        buffer += socket.data.decoder.decode(data, { stream: true });
+        const newlineIndex = buffer.indexOf("\n");
+        if (newlineIndex >= 0 && resolveLine) {
+          const line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          const resolve = resolveLine;
+          resolveLine = null;
+          resolve(line);
+        }
+      },
+    },
+  });
+
+  const readLine = () =>
+    new Promise<string>((resolve) => {
       const newlineIndex = buffer.indexOf("\n");
       if (newlineIndex >= 0) {
         const line = buffer.slice(0, newlineIndex);
         buffer = buffer.slice(newlineIndex + 1);
-        return line;
+        resolve(line);
+        return;
       }
-
-      const { value, done } = await reader.read();
-      if (done) {
-        throw new Error("Stub engine closed stdout unexpectedly");
-      }
-      buffer += decoder.decode(value, { stream: true });
-    }
-  };
+      resolveLine = resolve;
+    });
 
   return {
-    async send(rawLine: string): Promise<WireResponse> {
-      await stdin.write(encoder.encode(`${rawLine}\n`));
-      const line = await readLine();
-      return JSON.parse(line) as WireResponse;
+    async send(rawRequest: Record<string, unknown> | string): Promise<WireResponse> {
+      const rawLine = typeof rawRequest === "string" ? rawRequest : JSON.stringify(rawRequest);
+      socket.write(`${rawLine}\n`);
+      return JSON.parse(await readLine()) as WireResponse;
     },
     async close() {
-      await stdin.end();
-      reader.releaseLock();
+      socket.end();
+      stdoutReader.releaseLock();
       process.kill();
+      await process.exited.catch(() => undefined);
     },
+    authToken,
   };
 }
 
@@ -63,10 +109,10 @@ describe("stub engine process", () => {
   );
 
   test("returns invalid_request for malformed JSON", async () => {
-    const client = createLineClient(linuxStubPath);
+    const client = await createSocketClient(linuxStubPath);
     try {
       const response = await client.send("not-json");
-      expect(response.ok).toBe(false);
+      expect(response.type).toBe("error");
       expect(response.id).toBe("unknown");
       expect(response.error?.code).toBe("invalid_request");
     } finally {
@@ -75,13 +121,17 @@ describe("stub engine process", () => {
   });
 
   test("returns unsupported_method for unknown method", async () => {
-    const client = createLineClient(linuxStubPath);
+    const client = await createSocketClient(linuxStubPath);
     try {
-      const response = await client.send(
-        JSON.stringify({ id: "abc", method: "capture.flyToMoon", params: {} }),
-      );
-      expect(response.ok).toBe(false);
-      expect(response.id).toBe("abc");
+      const response = await client.send({
+        type: "request",
+        id: 1,
+        method: "capture.flyToMoon",
+        params: {},
+        authToken: client.authToken,
+      });
+      expect(response.type).toBe("error");
+      expect(response.id).toBe(1);
       expect(response.error?.code).toBe("unsupported_method");
     } finally {
       await client.close();

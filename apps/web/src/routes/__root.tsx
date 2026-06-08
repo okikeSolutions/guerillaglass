@@ -37,7 +37,12 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "TanStack Start Starter",
+        title: "Guerilla Glass | Record, edit, review, and deliver product videos",
+      },
+      {
+        name: "description",
+        content:
+          "Guerilla Glass helps teams turn rough screen recordings into clear product videos with one local-first workflow for capture, editing, review, and delivery.",
       },
     ],
     links: [

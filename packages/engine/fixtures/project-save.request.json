@@ -1,0 +1,8 @@
+{
+  "type": "request",
+  "id": "1",
+  "method": "project.save",
+  "params": {
+    "projectPath": "/tmp/fixture.gglassproj"
+  }
+}

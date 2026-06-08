@@ -1,4 +1,13 @@
-import type { CaptureTelemetry } from "@guerillaglass/engine-protocol";
+import type { CaptureTelemetry } from "@guerillaglass/engine/protocol/domains/capture";
+
+export type TechnicalFeedbackTelemetrySource = {
+  activeMode: "capture" | "edit" | "deliver";
+  isCaptureRunning: boolean;
+  isCaptureRecording: boolean;
+  liveTelemetry: CaptureTelemetry | undefined;
+  lastRecordingTelemetry: CaptureTelemetry | null | undefined;
+  projectLastRecordingTelemetry: CaptureTelemetry | null | undefined;
+};
 
 export type TechnicalFeedbackFormatter = {
   formatInteger: (value: number) => string;
@@ -139,4 +148,21 @@ export function buildTechnicalFeedbackMetrics(
       tone: "neutral",
     },
   ];
+}
+
+export function resolveTechnicalFeedbackTelemetry(
+  source: TechnicalFeedbackTelemetrySource,
+): CaptureTelemetry | undefined {
+  if (source.activeMode === "capture") {
+    if (source.isCaptureRunning || source.isCaptureRecording) {
+      return source.liveTelemetry;
+    }
+    return source.lastRecordingTelemetry ?? source.projectLastRecordingTelemetry ?? undefined;
+  }
+
+  if (source.activeMode === "edit" && !source.isCaptureRunning && !source.isCaptureRecording) {
+    return source.lastRecordingTelemetry ?? source.projectLastRecordingTelemetry ?? undefined;
+  }
+
+  return undefined;
 }

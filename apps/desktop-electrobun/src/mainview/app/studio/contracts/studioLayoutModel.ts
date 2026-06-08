@@ -3,12 +3,12 @@ import {
   defaultStudioLocale,
   normalizeStudioLocale,
   type StudioLocale,
-} from "@guerillaglass/localization";
+} from "@shared/localization";
 import {
   ContractDecodeError,
   JsonParseError,
-  decodeJsonStringWithSchemaSync,
-} from "@shared/errors";
+} from "@guerillaglass/engine/client/errors/clientErrors";
+import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
 import type { StudioMode } from "../domain/inspectorSelectionModel";
 import {
   createDesktopPreferenceStorageKey,
@@ -70,12 +70,7 @@ const studioLayoutStorageCandidateSchema = Schema.Struct({
   locale: Schema.optional(Schema.String),
   densityMode: Schema.optional(Schema.String),
   presetRoutesApplied: Schema.optional(Schema.Array(Schema.String)),
-  presetVersionByRoute: Schema.optional(
-    Schema.Record({
-      key: Schema.String,
-      value: Schema.Number,
-    }),
-  ),
+  presetVersionByRoute: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
 });
 
 export type StudioLayoutState = {

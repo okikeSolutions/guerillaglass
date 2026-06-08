@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   advancePlaybackSeconds,
+  createPlaybackTransportStore,
   toDisplayClockSeconds,
   toEditClockSeconds,
 } from "@studio/hooks/timeline/usePlaybackTransport";
@@ -44,5 +45,30 @@ describe("playback transport", () => {
     expect(displaySeconds).toBeCloseTo(0.041, 6);
     expect(editSeconds).toBeCloseTo(1 / 30, 6);
     expect(displaySeconds).not.toBe(editSeconds);
+  });
+
+  test("playback transport store updates snapshots without React state", () => {
+    const store = createPlaybackTransportStore({
+      durationSeconds: 10,
+      frameRate: 30,
+    });
+    const notifications: number[] = [];
+    const unsubscribe = store.subscribe(() => {
+      notifications.push(store.getSnapshot().playheadSeconds);
+    });
+
+    store.play();
+    store.advance(250);
+    store.setRate(2);
+    store.advance(250);
+
+    const snapshot = store.getSnapshot();
+    expect(snapshot.isPlaying).toBe(true);
+    expect(snapshot.playbackRate).toBe(2);
+    expect(snapshot.playheadSeconds).toBeCloseTo(0.75, 3);
+    expect(snapshot.editPlayheadSeconds).toBeCloseTo(23 / 30, 6);
+    expect(notifications.length).toBeGreaterThanOrEqual(3);
+
+    unsubscribe();
   });
 });

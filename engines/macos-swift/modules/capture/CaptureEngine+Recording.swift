@@ -1,4 +1,5 @@
 import AVFoundation
+import Darwin
 import Export
 import Foundation
 import OSLog
@@ -18,6 +19,9 @@ public extension CaptureEngine {
     func startRecording() async throws {
         guard isRunning else {
             throw CaptureError.captureNotRunning
+        }
+        await MainActor.run {
+            self.lastRecordingTelemetry = nil
         }
         let expectedFrameRate = max(1, captureFrameRate)
         let outputURL = makeRecordingURL()
@@ -51,6 +55,9 @@ public extension CaptureEngine {
                 )
                 engine.resetRecordingActivation()
                 engine.recordActivationTimeoutIfNeeded(frameRate: expectedFrameRate)
+                if let seedSample = engine.latestCompleteVideoSeedSample() {
+                    engine.activateRecordingFromPrimedSamples([seedSample])
+                }
                 continuation.resume()
             }
         }
@@ -128,6 +135,7 @@ public extension CaptureEngine {
                             let duration = await Self.recordingDuration(for: url)
                             engine.recordingURL = url
                             engine.recordingDuration = duration
+                            engine.lastRecordingTelemetry = engine.telemetrySnapshot()
                         case let .failure(error):
                             Self.logger.error("Recording failed: \(error.localizedDescription, privacy: .private)")
                             engine.lastError = error.localizedDescription
@@ -142,6 +150,7 @@ public extension CaptureEngine {
     func loadRecording(from url: URL) {
         Task { @MainActor in
             self.recordingURL = url
+            self.lastRecordingTelemetry = nil
         }
         Task {
             let duration = await Self.recordingDuration(for: url)
@@ -155,6 +164,7 @@ public extension CaptureEngine {
         Task { @MainActor in
             self.recordingURL = nil
             self.recordingDuration = 0
+            self.lastRecordingTelemetry = nil
         }
     }
 
@@ -196,8 +206,14 @@ public extension CaptureEngine {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         let timestamp = formatter.string(from: Date())
-        return FileManager.default.temporaryDirectory
-            .appendingPathComponent("guerillaglass-recording-\(timestamp).mov")
+        let temporaryDirectory: URL
+        if let resolved = realpath(FileManager.default.temporaryDirectory.path, nil) {
+            temporaryDirectory = URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
+            free(resolved)
+        } else {
+            temporaryDirectory = FileManager.default.temporaryDirectory
+        }
+        return temporaryDirectory.appendingPathComponent("guerillaglass-recording-\(timestamp).mov")
     }
 
     private static func recordingDuration(for url: URL) async -> TimeInterval {
@@ -246,34 +262,7 @@ private extension CaptureEngine {
             return
         }
 
-        do {
-            let outputURL = recordingState.outputURL ?? makeRecordingURL()
-            let writer = try AssetWriter(
-                outputURL: outputURL,
-                configuration: AssetWriter.Configuration(
-                    fileType: .mov,
-                    codec: .h264,
-                    expectedFrameRate: recordingState.expectedFrameRate
-                )
-            )
-            guard let firstStableSample = nextPrimingState.bufferedFrames.first else {
-                throw CaptureError.captureStartUnstable(frameRate: recordingState.expectedFrameRate)
-            }
-
-            recordingState.outputURL = outputURL
-            recordingState.writer = writer
-            recordingState.videoBaseTime = CMSampleBufferGetPresentationTimeStamp(firstStableSample)
-            recordingState.lastDurationUpdate = 0
-            recordingState.phase = .recording
-
-            for primedSample in nextPrimingState.bufferedFrames {
-                appendActiveRecordingSample(primedSample)
-            }
-            resolveRecordingActivation(.success(()))
-        } catch {
-            recordingState = RecordingState()
-            resolveRecordingActivation(.failure(error))
-        }
+        activateRecordingFromPrimedSamples(nextPrimingState.bufferedFrames)
     }
 
     func appendActiveRecordingSample(_ sampleBuffer: CMSampleBuffer) {
@@ -298,6 +287,37 @@ private extension CaptureEngine {
 
         writer.appendVideo(sampleBuffer: sampleBuffer) { [weak self] sample in
             self?.recordWriterAppendSample(sample)
+        }
+    }
+
+    func activateRecordingFromPrimedSamples(_ primedSamples: [CMSampleBuffer]) {
+        do {
+            let outputURL = recordingState.outputURL ?? makeRecordingURL()
+            let writer = try AssetWriter(
+                outputURL: outputURL,
+                configuration: AssetWriter.Configuration(
+                    fileType: .mov,
+                    codec: .h264,
+                    expectedFrameRate: recordingState.expectedFrameRate
+                )
+            )
+            guard let firstPrimedSample = primedSamples.first else {
+                throw CaptureError.captureStartUnstable(frameRate: recordingState.expectedFrameRate)
+            }
+
+            recordingState.outputURL = outputURL
+            recordingState.writer = writer
+            recordingState.videoBaseTime = CMSampleBufferGetPresentationTimeStamp(firstPrimedSample)
+            recordingState.lastDurationUpdate = 0
+            recordingState.phase = .recording
+
+            for primedSample in primedSamples {
+                appendActiveRecordingSample(primedSample)
+            }
+            resolveRecordingActivation(.success(()))
+        } catch {
+            recordingState = RecordingState()
+            resolveRecordingActivation(.failure(error))
         }
     }
 }

@@ -1,13 +1,15 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 import type {
   ReviewComment,
   ReviewSessionSnapshot,
   ReviewSetWorkflowStatusResponse,
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
-import { ReviewBridgeError, messageFromUnknownError } from "../../shared/errors";
+import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { AppConfig } from "../app/AppConfig";
+import { ReviewBridgeError } from "../../shared/errors/desktopErrors";
 
 const reviewSessionSnapshotQuery = makeFunctionReference<
   "query",
@@ -56,19 +58,19 @@ type ReviewGatewayService = {
 type ReviewGatewayDependencies = {
   createClient?: (reviewConvexUrl: string, authToken: string) => ReviewClientLike;
   resolveConvexUrl?: () => string | undefined;
+  fallbackReviewConvexUrl?: string | null;
 };
 
 /** Effect service tag for Convex-backed review operations used by the Bun host. */
-export class ReviewGateway extends Context.Tag("@guerillaglass/desktop/ReviewGateway")<
-  ReviewGateway,
-  ReviewGatewayService
->() {}
+export class ReviewGateway extends Context.Service<ReviewGateway, ReviewGatewayService>()(
+  "@guerillaglass/desktop/ReviewGateway",
+) {}
 
 function resolveReviewConvexUrl(
-  resolveConvexUrl?: () => string | undefined,
+  dependencies: ReviewGatewayDependencies,
 ): Effect.Effect<string, ReviewBridgeError> {
   return Effect.sync(
-    () => resolveConvexUrl?.() ?? process.env.GG_REVIEW_CONVEX_URL ?? process.env.VITE_CONVEX_URL,
+    () => dependencies.resolveConvexUrl?.() ?? dependencies.fallbackReviewConvexUrl,
   ).pipe(
     Effect.flatMap((reviewConvexUrl) => {
       if (reviewConvexUrl && reviewConvexUrl.trim().length > 0) {
@@ -114,11 +116,13 @@ function reviewRequestEffect<A>(
   run: (client: ReviewClientLike) => Promise<A>,
 ): Effect.Effect<A, ReviewBridgeError> {
   return Effect.gen(function* () {
-    const normalizedToken = yield* requireReviewAuthToken(authToken);
-    const reviewConvexUrl = yield* resolveReviewConvexUrl(dependencies.resolveConvexUrl);
+    const normalizedToken = yield* requireReviewAuthToken(authToken).pipe(
+      Effect.map((token) => Redacted.make(token, { label: "review-auth-token" })),
+    );
+    const reviewConvexUrl = yield* resolveReviewConvexUrl(dependencies);
     const client = (dependencies.createClient ?? defaultCreateClient)(
       reviewConvexUrl,
-      normalizedToken,
+      Redacted.value(normalizedToken),
     );
     return yield* Effect.tryPromise({
       try: () => run(client),
@@ -161,10 +165,21 @@ export function makeReviewGateway(
   };
 }
 
-/** Builds the live review gateway layer with injectable Convex wiring for tests. */
-export function makeReviewGatewayLive(dependencies?: ReviewGatewayDependencies) {
-  return Layer.succeed(ReviewGateway, makeReviewGateway(dependencies));
+/** Builds the review gateway layer with injectable Convex wiring for tests. */
+export function makeLayerReviewGateway(dependencies?: ReviewGatewayDependencies) {
+  if (dependencies?.resolveConvexUrl) {
+    return Layer.succeed(ReviewGateway, makeReviewGateway(dependencies));
+  }
+  return Layer.effect(
+    ReviewGateway,
+    Effect.map(AppConfig, (config) =>
+      makeReviewGateway({
+        ...dependencies,
+        fallbackReviewConvexUrl: dependencies?.fallbackReviewConvexUrl ?? config.reviewConvexUrl,
+      }),
+    ),
+  );
 }
 
-/** Default live review gateway layer used by the desktop Bun host runtime. */
-export const ReviewGatewayLive = makeReviewGatewayLive();
+/** Default review gateway layer used by the desktop app runtime. */
+export const layerReviewGateway = makeLayerReviewGateway();
