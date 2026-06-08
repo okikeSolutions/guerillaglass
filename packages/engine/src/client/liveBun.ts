@@ -59,10 +59,9 @@ export function makeLayerEngineTransportBun(options?: EngineTransportBunOptions)
       const { address, authToken } = yield* makeEngineSocketProcess({
         enginePath: options?.enginePath,
       }).pipe(Effect.provide(engineProcessPlatformLayer));
-      return Layer.effect(
-        RpcClient.Protocol,
-        makeEngineWireRpcClientProtocol({ authToken }),
-      ).pipe(Layer.provide(makeEngineSocketLayer(address)));
+      return Layer.effect(RpcClient.Protocol, makeEngineWireRpcClientProtocol({ authToken })).pipe(
+        Layer.provide(makeEngineSocketLayer(address)),
+      );
     }).pipe(
       Effect.annotateLogs({ component: "engine-client", transport: "socket" }),
       Effect.withSpan("engine.transport.bun.layer"),

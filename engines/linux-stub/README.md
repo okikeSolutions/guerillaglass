@@ -2,7 +2,7 @@
 
 This is a protocol-compatible stub sidecar for Linux parallel development.
 
-It simulates the current engine protocol over stdio and does not perform real capture/export.
+It simulates the current engine protocol over the stable Guerillaglass loopback socket wire protocol and does not perform real capture/export.
 
 ## Usage
 

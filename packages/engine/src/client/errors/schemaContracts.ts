@@ -1,5 +1,8 @@
 import { Effect, Schema, SchemaIssue, type Types } from "effect";
-import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import {
+  ContractDecodeError,
+  JsonParseError,
+} from "@guerillaglass/engine/client/errors/clientErrors";
 import type { ValidationIssue } from "./validation.js";
 
 export type { ValidationIssue };
@@ -43,7 +46,10 @@ export function extractValidationIssues(error: unknown): ValidationIssue[] {
     .filter((issue) => isValidationIssue(issue));
 }
 
-export function parseJsonString(raw: string, source: string): Effect.Effect<unknown, JsonParseError> {
+export function parseJsonString(
+  raw: string,
+  source: string,
+): Effect.Effect<unknown, JsonParseError> {
   return Effect.try({
     try: () => JSON.parse(raw) as unknown,
     catch: (cause) => new JsonParseError({ source, cause }),

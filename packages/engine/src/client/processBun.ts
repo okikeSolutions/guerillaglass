@@ -110,16 +110,19 @@ function waitForProcessExit(process: ChildProcessHandle): Effect.Effect<never, R
   return process.exitCode.pipe(
     Effect.flatMap((exitCode) =>
       Effect.fail(
-        protocolDefect(`Engine process exited before readiness with code ${Number(exitCode)}`, undefined),
+        protocolDefect(
+          `Engine process exited before readiness with code ${Number(exitCode)}`,
+          undefined,
+        ),
       ),
     ),
-    Effect.mapError((cause) =>
-      protocolDefect("Engine process exited before readiness", cause),
-    ),
+    Effect.mapError((cause) => protocolDefect("Engine process exited before readiness", cause)),
   );
 }
 
-function waitForReady(process: ChildProcessHandle): Effect.Effect<EngineSocketAddress, RpcClientError> {
+function waitForReady(
+  process: ChildProcessHandle,
+): Effect.Effect<EngineSocketAddress, RpcClientError> {
   const readReadyLine = process.stdout.pipe(
     Stream.decodeText,
     Stream.splitLines,
@@ -172,12 +175,16 @@ function spawnEngineProcess(
       forceKillAfter: "2 seconds",
     }).pipe(
       Effect.mapError((cause) => protocolDefect("Failed to spawn engine process", cause)),
-      Effect.tap((process) => Effect.logInfo("engine process spawned", { pid: Number(process.pid) })),
+      Effect.tap((process) =>
+        Effect.logInfo("engine process spawned", { pid: Number(process.pid) }),
+      ),
     ),
     (process) =>
       Effect.gen(function* () {
         yield* Effect.logInfo("shutting down engine process", { pid: Number(process.pid) });
-        yield* process.kill({ forceKillAfter: "2 seconds" }).pipe(Effect.catchCause(() => Effect.void));
+        yield* process
+          .kill({ forceKillAfter: "2 seconds" })
+          .pipe(Effect.catchCause(() => Effect.void));
       }),
   ).pipe(
     Effect.withSpan("engine.process.spawn", {
@@ -191,7 +198,11 @@ function spawnEngineProcess(
 
 export function makeEngineSocketProcess(
   options: EngineSocketProcessOptions = {},
-): Effect.Effect<EngineSocketProcess, RpcClientError, FileSystem.FileSystem | Path.Path | Scope.Scope | ChildProcessSpawner> {
+): Effect.Effect<
+  EngineSocketProcess,
+  RpcClientError,
+  FileSystem.FileSystem | Path.Path | Scope.Scope | ChildProcessSpawner
+> {
   return Effect.gen(function* () {
     const enginePath =
       options.enginePath ??

@@ -1,39 +1,53 @@
 # Guerilla Glass Desktop (Electrobun)
 
-This app is the new desktop shell for Guerilla Glass using Electrobun + React + Tailwind + shadcn base components.
+Desktop creator studio shell built with Electrobun, React, Tailwind, shadcn/base-ui components, and an Effect-native Bun backend.
 
-It talks to the native Swift engine (`guerillaglass-engine`) over stdio with a typed protocol defined in `/packages/engine`.
+The desktop host talks to native sidecars through `@guerillaglass/engine` using a stable loopback socket wire protocol. Stdio/native JSON-RPC paths were removed.
+
+## Runtime Architecture
+
+```txt
+React renderer
+  -> Electrobun RPC bridge
+    -> thin request adapter
+      -> AppRuntime / AppLayer
+        -> DesktopShell service
+        -> ProjectSession service
+        -> EngineTransport service
+        -> MediaSourceService + Effect HTTP media routes
+```
+
+Key points:
+
+- One Bun process owns one Effect app runtime.
+- Electrobun shell resources are scoped behind `DesktopShell`.
+- Bridge handlers delegate to `HostBridgeService` / `ProjectSession`; they do not own business logic.
+- Engine sidecars are spawned with Effect process primitives and connected over Bun socket services.
+- Media playback uses tokenized loopback URLs served by Effect HTTP routes and `BunHttpServer.layer`.
+- Localization is generated from root Paraglide/Inlang messages into ignored `src/paraglide` output.
 
 ## Prerequisites
 
 - Bun `1.3+`
-- Swift toolchain + macOS SDK (to build the native engine)
-- Rust toolchain (to build/test `windows-native`, `linux-native`, and `protocol-rust`)
+- Swift toolchain + macOS SDK for the macOS native engine
+- Rust toolchain for Windows/Linux native foundations and protocol tests
 
 ## Setup
 
 ```bash
-# Workspace dependencies
 bun install
-
-# Build native engine once (required for runtime wiring)
+bun run i18n:compile
 bun run swift:build
 ```
 
 ## Development
 
 ```bash
-# Desktop shell (no HMR)
 bun run desktop:dev
-
-# Desktop shell with Vite HMR
 bun run desktop:dev:hmr
 
-# Force Windows/Linux protocol stubs (for parallel engine development)
 GG_ENGINE_TARGET=windows-stub bun run desktop:dev
 GG_ENGINE_TARGET=linux-stub bun run desktop:dev
-
-# Prefer native Windows/Linux engines when their binaries exist
 GG_ENGINE_TARGET=windows-native bun run desktop:dev
 GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ```
@@ -41,18 +55,14 @@ GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ## Test & Coverage
 
 ```bash
-# JS/TS format + lint (workspace-level Oxc tooling)
-bun run js:format:check
-bun run js:lint
-
-# Desktop tests
+bun run desktop:typecheck
 bun run desktop:test
 bun run desktop:test:coverage
 bun run desktop:test:e2e
-
-# Browser UI smoke tests (Playwright against Vite UI + mocked Electrobun bridge)
 bun run desktop:test:ui
 ```
+
+The app-level `typecheck`, `build`, and test scripts generate Paraglide output first, so fresh clones and CI do not need generated files committed.
 
 ## Build
 
@@ -67,14 +77,18 @@ bun run desktop:build
 - The hook updates and validates generated `Info.plist` entries:
   - `UTExportedTypeDeclarations` for `com.okikeSolutions.guerillaglass.project`
   - `CFBundleDocumentTypes` with `LSItemContentTypes` and `LSTypeIsPackage=true`
-- Result: Finder treats `.gglassproj` as a package item (single project item by default, directory on disk).
+- Finder treats `.gglassproj` as a single package item by default.
 
 ## Key Paths
 
-- UI shell: `/apps/desktop-electrobun/src/mainview`
-- Bun main process bridge: `/apps/desktop-electrobun/src/bun`
-- Shared Effect Schema protocol: `/packages/engine/src/protocol`
-- Shared Rust protocol: `/engines/protocol-rust`
-- Native engine target: `/engines/macos-swift`
-- Native engine foundations: `/engines/windows-native`, `/engines/linux-native`
-- Stub engines: `/engines/windows-stub`, `/engines/linux-stub`
+- React renderer: `src/mainview`
+- Bun backend/effect services: `src/bun`
+- App composition root: `src/bun/app`
+- Desktop shell service: `src/bun/shell`
+- Bridge adapter/service: `src/bun/bridge`
+- Session service: `src/bun/session`
+- Media registry/routes/source service: `src/bun/media`
+- App-local localization adapter: `src/shared/localization.ts`
+- Generated Paraglide output: `src/paraglide` (ignored)
+- Engine protocol/client: `../../packages/engine`
+- Native sidecars/foundations: `../../engines`

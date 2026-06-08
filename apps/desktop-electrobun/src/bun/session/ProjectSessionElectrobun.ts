@@ -113,7 +113,8 @@ export const layerProjectSession = Layer.effect(
                   cause: error,
                 }),
             }),
-          pathExists: (filePath) => fs.exists(filePath).pipe(Effect.catch(() => Effect.succeed(false))),
+          pathExists: (filePath) =>
+            fs.exists(filePath).pipe(Effect.catch(() => Effect.succeed(false))),
           confirmOverwritePath: (filePath) =>
             Effect.tryPromise({
               try: () =>

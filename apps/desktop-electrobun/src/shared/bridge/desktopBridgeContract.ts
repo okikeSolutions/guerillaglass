@@ -158,7 +158,10 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
   annotations: Schema.optional(Schema.Record(Schema.String, studioDiagnosticsValueSchema)),
   spans: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
 });
-function engineRpc(method: string): { readonly payloadSchema: Schema.Top; readonly successSchema: Schema.Top } {
+function engineRpc(method: string): {
+  readonly payloadSchema: Schema.Top;
+  readonly successSchema: Schema.Top;
+} {
   const rpc = EngineRpcs.requests.get(method);
   if (!rpc) {
     throw new Error(`Unknown engine RPC method: ${method}`);
@@ -328,7 +331,11 @@ export const bridgeRequestDefinitions = {
     { jobId: string },
     AgentStatusResult,
     [jobId: string]
-  >((jobId) => ({ jobId }), engineAgentStatusBridgeParamsSchema, engineSuccessSchema("agent.status")),
+  >(
+    (jobId) => ({ jobId }),
+    engineAgentStatusBridgeParamsSchema,
+    engineSuccessSchema("agent.status"),
+  ),
   ggEngineAgentApply: defineValidatedBridgeRequest<
     { jobId: string; destructiveIntent?: boolean },
     ActionResult,
@@ -338,7 +345,11 @@ export const bridgeRequestDefinitions = {
     undefined,
     ActionResult,
     []
-  >(() => undefined, undefinedBridgeParamsSchema, engineSuccessSchema("permissions.requestScreenRecording")),
+  >(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    engineSuccessSchema("permissions.requestScreenRecording"),
+  ),
   ggEngineRequestMicrophonePermission: defineValidatedBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
@@ -348,7 +359,11 @@ export const bridgeRequestDefinitions = {
     undefined,
     ActionResult,
     []
-  >(() => undefined, undefinedBridgeParamsSchema, engineSuccessSchema("permissions.requestInputMonitoring")),
+  >(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    engineSuccessSchema("permissions.requestInputMonitoring"),
+  ),
   ggEngineOpenInputMonitoringSettings: defineValidatedBridgeRequest<undefined, ActionResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,
@@ -507,7 +522,11 @@ export const bridgeRequestDefinitions = {
     { limit?: number },
     ProjectRecentsResult,
     [limit?: number]
-  >((limit) => ({ limit }), engineProjectRecentsBridgeParamsSchema, engineSuccessSchema("project.recents")),
+  >(
+    (limit) => ({ limit }),
+    engineProjectRecentsBridgeParamsSchema,
+    engineSuccessSchema("project.recents"),
+  ),
   ggReviewSessionSnapshot: defineValidatedBridgeRequest<
     ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>,
     ReviewSessionSnapshot,

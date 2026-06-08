@@ -2,11 +2,11 @@
 
 ## Status
 
-Living migration note. Phase 0 and Phase 1 are complete: Effect v4 compatibility is stable for package and desktop typechecks, and `packages/engine` owns the TypeScript protocol plus the Bun engine transport. The remaining sections define the target desktop backend architecture, known boundaries, and migration direction.
+Final migration record for Phases 1–7. The breaking architecture change is implemented: `packages/engine` owns the TypeScript protocol/client, native sidecars use the stable Guerillaglass socket wire protocol, the Electrobun backend runs through one Effect app runtime with scoped services, media serving uses Effect HTTP primitives, Paraglide/Inlang replaced the custom localization package, and versioned packages/crates are aligned to `1.0.0`.
 
 ## Research inputs
 
-This plan is based on the current Guerilla Glass repository, the product architecture in `docs/SPEC.md`, the execution sequencing in `docs/ROADMAP.md`, Electrobun 1.18.1 API sources, Paraglide JS setup guidance, and the vendored Effect v4 beta.78 documentation.
+This record is based on the implemented Guerilla Glass repository, the product architecture in `docs/SPEC.md`, Electrobun 1.18.1 API sources, Paraglide JS setup guidance/source behavior, and the vendored Effect v4 beta.78 documentation.
 
 Relevant Effect docs reviewed:
 
@@ -59,19 +59,32 @@ General rule:
 
 > If we can implement backend/engine infrastructure with native Effect primitives or Effect platform packages, we should prefer that over ad-hoc Promise/class/global code.
 
-Target shape:
+Implemented shape:
 
 ```txt
 React renderer
   -> Electrobun RPC
-    -> thin Promise adapter
-      -> one ManagedRuntime / launched AppLayer
+    -> requestHandlers thin adapter
+      -> AppRuntime / AppLayer
         -> Effect services and scoped resources
           -> packages/engine
-            -> engine protocol + EngineTransport + Bun socket live layer
-          -> Effect HTTP media server
-          -> Electrobun shell adapter
+            -> protocol + EngineTransport + Bun socket live layer
+          -> MediaSourceService + Effect HTTP routes + BunHttpServer.layer
+          -> DesktopShell Electrobun adapter
+          -> ProjectSession
 ```
+
+Phase 1–7 implementation summary:
+
+- Stdio/native JSON-RPC request transport removed.
+- Stable Guerillaglass socket wire protocol is the native sidecar contract.
+- Effect RPC serialization remains TypeScript-internal to `wireProtocol.ts`.
+- Swift/Rust protocol bindings and native-foundation modules were split/typed.
+- Desktop backend uses one composed Effect runtime/layer boundary.
+- Shell, bridge, project session, engine transport, and media server are scoped services/adapters.
+- Media server uses Effect HTTP primitives and tokenized loopback URLs.
+- `packages/localization` was removed in favor of Paraglide/Inlang source messages and app-local generated output.
+- Versioned packages/apps/Rust crates are aligned to `1.0.0`.
 
 ## Non-goals
 
@@ -195,7 +208,7 @@ packages/typescript-config
 
 ### Versioning and semver alignment
 
-This migration is a breaking architecture change. When it lands, all versioned workspace packages and apps should align with the repository semver version for that breaking release. Do not leave packages on stale independent `0.x` versions if their public exports, package names, or import paths changed.
+This migration is a breaking architecture change. Versioned workspace packages, apps, and Rust crates are aligned to repository semver `1.0.0` for the landing change. Do not leave future package rename/removal changes on stale independent `0.x` versions if public exports, package names, or import paths change.
 
 Version-alignment rules:
 

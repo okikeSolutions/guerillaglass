@@ -50,7 +50,9 @@ export function makeCaptureStatusStreamEffect(
 
     yield* Stream.runForEach(statusStream, (captureStatus) =>
       Effect.exit(
-        Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(captureStatus).pipe(
+        Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(
+          captureStatus,
+        ).pipe(
           Effect.flatMap((encodedCaptureStatus) =>
             shell.publishCaptureStatus(encodedCaptureStatus as CaptureStatusResult),
           ),

@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  fromEngineWireServerMessage,
-  toEngineWireClientMessage,
-} from "../src/client/wireProtocol";
+import { fromEngineWireServerMessage, toEngineWireClientMessage } from "../src/client/wireProtocol";
 
 describe("stable Guerillaglass wire protocol bridge", () => {
   test("TS encodes Effect request to stable native request", () => {

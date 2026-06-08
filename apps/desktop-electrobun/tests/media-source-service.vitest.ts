@@ -3,10 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Layer, Option } from "effect";
 import { HttpServer } from "effect/unstable/http";
 import { MediaRegistry, layerMediaRegistry } from "../src/bun/media/MediaRegistry";
-import {
-  MediaSourceService,
-  layerMediaSourceServiceCore,
-} from "../src/bun/media/service";
+import { MediaSourceService, layerMediaSourceServiceCore } from "../src/bun/media/service";
 import { MediaServerError } from "@shared/errors/desktopErrors";
 
 function firstFailure(cause: Cause.Cause<unknown>): unknown {
@@ -28,7 +25,9 @@ describe("media source service", () => {
         ),
       );
 
-      const exit = yield* Effect.exit(MediaSourceService.pipe(Effect.provide(layer), Effect.scoped));
+      const exit = yield* Effect.exit(
+        MediaSourceService.pipe(Effect.provide(layer), Effect.scoped),
+      );
 
       expect(exit._tag).toBe("Failure");
       if (exit._tag === "Failure") {
@@ -55,15 +54,17 @@ describe("media source service", () => {
       yield* Effect.gen(function* () {
         const registry = yield* MediaRegistry;
         const mediaSourceService = yield* MediaSourceService;
-        const mediaURL = yield* mediaSourceService.resolveMediaSourceURL("/tmp/capture.mov").pipe(
-          Effect.catch(() => Effect.succeed("media-validation-failed")),
-        );
+        const mediaURL = yield* mediaSourceService
+          .resolveMediaSourceURL("/tmp/capture.mov")
+          .pipe(Effect.catch(() => Effect.succeed("media-validation-failed")));
         const previewURL = yield* mediaSourceService.resolveCapturePreviewURL(Effect.succeed(null));
 
         expect(mediaURL).toBe("media-validation-failed");
         expect(previewURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
 
-        const previewToken = decodeURIComponent(new URL(previewURL).pathname.split("/").pop() ?? "");
+        const previewToken = decodeURIComponent(
+          new URL(previewURL).pathname.split("/").pop() ?? "",
+        );
         const entry = yield* registry.resolveToken(previewToken);
         expect(entry._tag).toBe("Some");
       }).pipe(Effect.provide(layer), Effect.scoped);

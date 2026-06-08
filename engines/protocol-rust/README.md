@@ -4,10 +4,13 @@ Shared Rust protocol package for native engines.
 
 ## Scope
 
-- Request envelope decoding (`id` + `method` + `params`)
-- Response envelope encoding (`ok` success/error format)
+- Stable Guerillaglass socket wire messages: request, response, error, chunk, ping, pong, interrupt
+- Request envelope decoding (`id`, `method`, `params`, `authToken`)
+- Response/error/chunk envelope encoding
 - Canonical method enum (`EngineMethod`) including `engine.capabilities`
 - Monotonic timing primitives (`CaptureClock`, `RunningDuration`)
+
+Native engines use this stable wire contract. Effect RPC serialization remains TypeScript-internal in `packages/engine/src/client/wireProtocol.ts`.
 
 ## Test
 

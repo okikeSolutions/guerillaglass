@@ -13,7 +13,10 @@ import type {
   DesktopRuntimeFlags,
   WindowBridgeBindings,
 } from "@shared/bridge/desktopBridgeContract";
-import { hostBridgeEventNames, hostReviewEventMessageSchema } from "@shared/bridge/desktopBridgeContract";
+import {
+  hostBridgeEventNames,
+  hostReviewEventMessageSchema,
+} from "@shared/bridge/desktopBridgeContract";
 
 type ElectrobunRuntimeWindow = Window & {
   __electrobun?: unknown;

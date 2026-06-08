@@ -3,7 +3,10 @@ import { Cause, Effect, Exit, Option } from "effect";
 import { ReviewBridgeError } from "@shared/errors/desktopErrors";
 import { makeReviewGateway } from "../src/bun/review/service";
 
-function expectReviewBridgeError(exit: Exit.Exit<unknown, unknown>, code: ReviewBridgeError["code"]) {
+function expectReviewBridgeError(
+  exit: Exit.Exit<unknown, unknown>,
+  code: ReviewBridgeError["code"],
+) {
   if (Exit.isSuccess(exit)) {
     throw new Error("Expected review bridge request to fail");
   }

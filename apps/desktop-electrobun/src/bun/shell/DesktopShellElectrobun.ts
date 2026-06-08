@@ -99,7 +99,6 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
           void Effect.runPromiseWith(services)(effect);
         };
 
-
         const getMainViewURL = Effect.promise(async () => {
           if (captureBenchmarkEnabled) {
             return "views://mainview/index.html";
@@ -252,7 +251,6 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
               return;
             }
             yield* Ref.set(hasStartedRef, true);
-
 
             const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
               maxRequestTime: Infinity,

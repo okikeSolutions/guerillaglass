@@ -12,10 +12,13 @@ bun run js:format:check
 echo "==> js lint (oxlint)"
 bun run js:lint
 
+echo "==> React effect-state lint"
+bun run js:lint:react-effects
+
 echo "==> desktop typecheck"
 (cd apps/desktop-electrobun && bun run typecheck)
 
-echo "==> landing app typecheck"
+echo "==> web app typecheck"
 (cd apps/web && bun run typecheck)
 
 echo "==> engine package typecheck"

@@ -1,4 +1,7 @@
-import { hostMenuCommandList, type HostMenuCommand } from "../../shared/bridge/desktopBridgeContract";
+import {
+  hostMenuCommandList,
+  type HostMenuCommand,
+} from "../../shared/bridge/desktopBridgeContract";
 
 const hostCommandPrefix = "host:";
 const hostMenuCommandSet = new Set<HostMenuCommand>(hostMenuCommandList);

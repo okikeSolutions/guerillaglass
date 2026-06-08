@@ -69,7 +69,10 @@ describe("desktop app runtime capture status stream", () => {
         ),
       );
 
-      expect(delivered).toEqual([encodeStatus(decodeStatus(first)), encodeStatus(decodeStatus(second))]);
+      expect(delivered).toEqual([
+        encodeStatus(decodeStatus(first)),
+        encodeStatus(decodeStatus(second)),
+      ]);
     }),
   );
 

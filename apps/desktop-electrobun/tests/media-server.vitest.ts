@@ -67,9 +67,9 @@ describe("media HTTP routes", () => {
       const fixture = yield* Effect.promise(() => createTempFile("capture.mov", "0123456789"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
-          Effect.provide(BunFileSystem.layer),
-        );
+        const token = yield* registry
+          .registerMediaFile(fixture.filePath)
+          .pipe(Effect.provide(BunFileSystem.layer));
         const resolved = mediaURL(token);
 
         const fullResponse = yield* Effect.promise(() => dispatch(handler, resolved));
@@ -97,12 +97,14 @@ describe("media HTTP routes", () => {
       const fixture = yield* Effect.promise(() => createTempFile("head.mov", "0123456789"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
-          Effect.provide(BunFileSystem.layer),
-        );
+        const token = yield* registry
+          .registerMediaFile(fixture.filePath)
+          .pipe(Effect.provide(BunFileSystem.layer));
         const resolved = mediaURL(token);
 
-        const headResponse = yield* Effect.promise(() => dispatch(handler, resolved, { method: "HEAD" }));
+        const headResponse = yield* Effect.promise(() =>
+          dispatch(handler, resolved, { method: "HEAD" }),
+        );
         expect(headResponse.status).toBe(200);
         expect(headResponse.headers.get("content-length")).toBe("10");
         expect(yield* Effect.promise(() => headResponse.text())).toBe("");
@@ -129,9 +131,9 @@ describe("media HTTP routes", () => {
     Effect.gen(function* () {
       const { registry } = yield* makeHarness;
       const unsupported = yield* Effect.exit(
-        registry.registerMediaFile(path.join(os.tmpdir(), "capture.txt")).pipe(
-          Effect.provide(BunFileSystem.layer),
-        ),
+        registry
+          .registerMediaFile(path.join(os.tmpdir(), "capture.txt"))
+          .pipe(Effect.provide(BunFileSystem.layer)),
       );
       expect(unsupported._tag).toBe("Failure");
       if (unsupported._tag === "Failure") {
@@ -141,9 +143,9 @@ describe("media HTTP routes", () => {
       }
 
       const missing = yield* Effect.exit(
-        registry.registerMediaFile(path.join(os.tmpdir(), "missing.mov")).pipe(
-          Effect.provide(BunFileSystem.layer),
-        ),
+        registry
+          .registerMediaFile(path.join(os.tmpdir(), "missing.mov"))
+          .pipe(Effect.provide(BunFileSystem.layer)),
       );
       expect(missing._tag).toBe("Failure");
       if (missing._tag === "Failure") {
@@ -159,9 +161,9 @@ describe("media HTTP routes", () => {
       const fixture = yield* Effect.promise(() => createTempFile("deleted.mov", "gone"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
-          Effect.provide(BunFileSystem.layer),
-        );
+        const token = yield* registry
+          .registerMediaFile(fixture.filePath)
+          .pipe(Effect.provide(BunFileSystem.layer));
         yield* Effect.promise(() => rm(fixture.filePath, { force: true }));
 
         const response = yield* Effect.promise(() => dispatch(handler, mediaURL(token)));
@@ -178,9 +180,9 @@ describe("media HTTP routes", () => {
       const fixture = yield* Effect.promise(() => createTempFile("secure.mp4", "secure"));
       try {
         const { registry, handler } = yield* makeHarness;
-        const token = yield* registry.registerMediaFile(fixture.filePath).pipe(
-          Effect.provide(BunFileSystem.layer),
-        );
+        const token = yield* registry
+          .registerMediaFile(fixture.filePath)
+          .pipe(Effect.provide(BunFileSystem.layer));
 
         const unknownResponse = yield* Effect.promise(() =>
           dispatch(handler, mediaURL("00000000-0000-4000-8000-000000000000")),
@@ -209,9 +211,7 @@ describe("media HTTP routes", () => {
       const token = yield* registry.registerCapturePreview(
         Effect.sync(() => {
           calls += 1;
-          return calls === 1
-            ? { frameId: 1, bytesBase64: livePreviewBase64 }
-            : null;
+          return calls === 1 ? { frameId: 1, bytesBase64: livePreviewBase64 } : null;
         }),
       );
       const resolved = mediaURL(token);
@@ -219,11 +219,15 @@ describe("media HTTP routes", () => {
       const firstResponse = yield* Effect.promise(() => dispatch(handler, resolved));
       expect(firstResponse.status).toBe(200);
       expect(firstResponse.headers.get("content-type")).toBe("image/jpeg");
-      expect(Buffer.from(yield* Effect.promise(() => firstResponse.arrayBuffer()))).toEqual(livePreviewBytes);
+      expect(Buffer.from(yield* Effect.promise(() => firstResponse.arrayBuffer()))).toEqual(
+        livePreviewBytes,
+      );
 
       const cachedResponse = yield* Effect.promise(() => dispatch(handler, resolved));
       expect(cachedResponse.status).toBe(200);
-      expect(Buffer.from(yield* Effect.promise(() => cachedResponse.arrayBuffer()))).toEqual(livePreviewBytes);
+      expect(Buffer.from(yield* Effect.promise(() => cachedResponse.arrayBuffer()))).toEqual(
+        livePreviewBytes,
+      );
     }),
   );
 

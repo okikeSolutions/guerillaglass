@@ -49,9 +49,9 @@ export const layerMediaSourceServiceCore = Layer.effect(
           Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
         ),
       resolveCapturePreviewURL: (loadPreviewFrame) =>
-        registry.registerCapturePreview(loadPreviewFrame).pipe(
-          Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
-        ),
+        registry
+          .registerCapturePreview(loadPreviewFrame)
+          .pipe(Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`)),
     });
   }),
 );

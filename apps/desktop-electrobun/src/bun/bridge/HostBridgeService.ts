@@ -16,10 +16,9 @@ type HostBridgeServiceShape = {
   ): Effect.Effect<BridgeRequests[K]["response"], unknown>;
 };
 
-export class HostBridgeService extends Context.Service<
-  HostBridgeService,
-  HostBridgeServiceShape
->()("@guerillaglass/desktop/HostBridgeService") {}
+export class HostBridgeService extends Context.Service<HostBridgeService, HostBridgeServiceShape>()(
+  "@guerillaglass/desktop/HostBridgeService",
+) {}
 
 const engine = <A, E>(
   f: (transport: any) => Effect.Effect<A, E>,

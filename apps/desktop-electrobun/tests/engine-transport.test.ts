@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Effect, Layer, ManagedRuntime } from "effect";
-import {
-  EngineTransport,
-  type EngineTransportService,
-} from "@guerillaglass/engine/client/service";
+import { EngineTransport, type EngineTransportService } from "@guerillaglass/engine/client/service";
 
 const testEngine: EngineTransportService = {
   "system.ping": () =>

@@ -8,8 +8,14 @@ import {
   sendHostMenuState,
   sendHostStudioDiagnostics,
 } from "@lib/engine";
-import { createBunBridgeHandlers, createWindowBridgeBindings } from "@shared/bridge/desktopBridgeBindings";
-import type { BridgeRequestHandlerMap, BridgeRequestInvoker } from "@shared/bridge/desktopBridgeContract";
+import {
+  createBunBridgeHandlers,
+  createWindowBridgeBindings,
+} from "@shared/bridge/desktopBridgeBindings";
+import type {
+  BridgeRequestHandlerMap,
+  BridgeRequestInvoker,
+} from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,

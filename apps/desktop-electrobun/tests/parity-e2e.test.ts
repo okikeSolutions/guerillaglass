@@ -90,8 +90,9 @@ describe("phase-1 parity e2e", () => {
 
           const stopped = yield* engine["capture.stop"](undefined);
           expect(stopped.isRunning).toBe(false);
-        }).pipe(Effect.provide(makeLayerEngineTransportBun({ enginePath: fixture.path })), (effect) =>
-          Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
+        }).pipe(
+          Effect.provide(makeLayerEngineTransportBun({ enginePath: fixture.path })),
+          (effect) => Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
         );
       },
       { timeout: 15_000 },

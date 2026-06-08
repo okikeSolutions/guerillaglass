@@ -71,7 +71,7 @@ function requestUsesLoopbackHost(request: HttpServerRequest.HttpServerRequest): 
     if (!hostHeader) return true;
     const hostname = hostHeader.startsWith("[")
       ? hostHeader.slice(1, hostHeader.indexOf("]"))
-      : hostHeader.split(":")[0] ?? "";
+      : (hostHeader.split(":")[0] ?? "");
     return isLoopbackHost(hostname);
   }
 }
@@ -171,7 +171,9 @@ function handlePreviewRequest(
 
     const jpegBytes = decodePreviewFrame(frame);
     yield* registry.updatePreviewCache(token, frame.frameId, jpegBytes);
-    yield* logDebugEffect(`Live preview served 200 (${token.slice(0, 8)}...) frame=${frame.frameId}`);
+    yield* logDebugEffect(
+      `Live preview served 200 (${token.slice(0, 8)}...) frame=${frame.frameId}`,
+    );
 
     return HttpServerResponse.uint8Array(jpegBytes, {
       status: 200,
@@ -322,7 +324,8 @@ const mediaRouteHandler = Effect.gen(function* () {
 }).pipe(
   Effect.catch((error) => {
     const status = error instanceof MediaServerError ? statusForMediaError(error) : 500;
-    const body = status === 404 ? "Not found" : status === 400 ? "Bad request" : "Internal server error";
+    const body =
+      status === 404 ? "Not found" : status === 400 ? "Bad request" : "Internal server error";
     return Effect.logWarning("Media server request failed", error).pipe(
       Effect.andThen(Effect.succeed(textResponse(status, body))),
     );

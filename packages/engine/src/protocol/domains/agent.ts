@@ -181,7 +181,9 @@ export type AgentArtifact = Schema.Codec.Encoded<typeof agentArtifactSchema>;
 /** Type alias for TranscriptionProvider. */
 export type TranscriptionProvider = Schema.Codec.Encoded<typeof transcriptionProviderSchema>;
 /** Type alias for ImportedTranscriptSegment. */
-export type ImportedTranscriptSegment = Schema.Codec.Encoded<typeof importedTranscriptSegmentSchema>;
+export type ImportedTranscriptSegment = Schema.Codec.Encoded<
+  typeof importedTranscriptSegmentSchema
+>;
 /** Type alias for ImportedTranscriptWord. */
 export type ImportedTranscriptWord = Schema.Codec.Encoded<typeof importedTranscriptWordSchema>;
 /** Type alias for ImportedTranscript. */

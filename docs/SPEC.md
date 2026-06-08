@@ -73,7 +73,7 @@ Guerilla Glass should feel like a professional creator tool:
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
 - **Web app shell:** TanStack Start + Convex (`apps/web`) for marketing/auth/review/billing surfaces; sequenced behind the editor-core work
-- **Protocol contract:** Effect Schema (TypeScript) + Swift line-based wire codec + shared Rust protocol crate
+- **Protocol contract:** Effect Schema (TypeScript) + stable Guerillaglass socket wire codecs for Swift/Rust native sidecars
   - `capture.status` telemetry is performance-first and includes `sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`, `cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `captureCallbackMs`, `recordQueueLagMs`, and `writerAppendMs`.
   - Runtime telemetry diagnostics are engine-owned and sampled from monotonic process/runtime counters (no renderer-side metric synthesis).
   - Desktop shell delivers high-frequency capture telemetry via host push stream (`hostCaptureStatus` / `gg-host-capture-status`) rather than renderer timer polling.
@@ -82,7 +82,7 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 30, 60, and 120 fps against an animated benchmark scene and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
   - `bun run capture:benchmark:check` is the local regression command for native capture changes; it can compare against the previous machine-local run via `--baseline-report=.tmp/capture-benchmarks/latest/report.json`.
-- **Shared engine package:** local engine Effect Schema helpers, protocol types, fixtures, shared schema primitives, and TypeScript engine client/runtime façade live in `packages/engine`.
+- **Shared engine package:** local engine Effect Schema helpers, protocol types, fixtures, shared schema primitives, Effect RPC group, stable wire bridge, and TypeScript engine client/runtime façade live in `packages/engine`.
 - **Hosted delivery plane (deferred until editor core is strong):**
   - Hosted review/collaboration lives in web/Convex surfaces and must remain downstream of the local editor.
   - The hosted plane can own share links, comments, presence, workflow state, analytics, and billing without polluting the local media contract.
@@ -106,6 +106,7 @@ Guerilla Glass should feel like a professional creator tool:
 - **App identity:**
   - Display name: **guerillaglass**
   - Bundle identifier: **com.okikeSolutions.guerillaglass**
+- **Localization:** Paraglide/Inlang source messages live in root `project.inlang` and `messages/*.json`; desktop and web generate ignored app-local `src/paraglide` output during typecheck/build/test.
 - **Code quality tooling (no‑Xcode workflow):**
   - Formatter: **SwiftFormat** with a repo‑level `.swiftformat` config.
   - Linting: **SwiftLint** with `.swiftlint.yml` (editor plugin + CI checks).
@@ -127,15 +128,15 @@ Guerilla Glass should feel like a professional creator tool:
 
 ## 5) Capability matrix (cross-platform parity targets)
 
-| Capability                         | macOS (`macos-swift`)                       | Windows (`windows-native`) | Linux (`linux-native`) | Stub engines      |
-| ---------------------------------- | ------------------------------------------- | -------------------------- | ---------------------- | ----------------- |
-| Display capture                    | Production (13+)                            | In progress                | In progress            | Simulated         |
-| Window capture                     | Production (13+)                            | In progress                | In progress            | Simulated         |
-| System audio capture               | Supported where SCStream source supports it | Planned                    | Planned                | Simulated         |
-| Microphone capture                 | Production (AVFoundation)                   | In progress                | In progress            | Simulated         |
-| Cursor/click event tracking        | Production (Input Monitoring-gated)         | Planned parity             | Planned parity         | Simulated         |
-| Auto-zoom planner + effects model  | Production                                  | Planned parity             | Planned parity         | Protocol coverage |
-| Export presets + project save/load | Production                                  | In progress                | In progress            | Protocol coverage |
+| Capability                         | macOS (`macos-swift`)                       | Windows (`windows-native`) | Linux (`linux-native`)     | Stub engines      |
+| ---------------------------------- | ------------------------------------------- | -------------------------- | -------------------------- | ----------------- |
+| Display capture                    | Production (13+)                            | In progress                | In progress                | Simulated         |
+| Window capture                     | Production (13+)                            | In progress                | In progress                | Simulated         |
+| System audio capture               | Supported where SCStream source supports it | Planned                    | Planned                    | Simulated         |
+| Microphone capture                 | Production (AVFoundation)                   | In progress                | In progress                | Simulated         |
+| Cursor/click event tracking        | Production (Input Monitoring-gated)         | Planned parity             | Planned parity             | Simulated         |
+| Auto-zoom planner + effects model  | Production                                  | Planned parity             | Planned parity             | Protocol coverage |
+| Export presets + project save/load | Production                                  | In progress                | In progress                | Protocol coverage |
 | Project recents index              | Production (bookmark-backed)                | In progress (native index) | In progress (native index) | Protocol coverage |
 
 Notes:
@@ -591,10 +592,11 @@ Versioning policy:
 
 Desktop shell and sidecar reliability contract (current):
 
-- Engine transport errors are typed and surfaced explicitly (unavailable, timeout, sidecar exit/failure, circuit-open).
-- Request timeout policy is method-specific; `export.run` is non-timed by default to avoid aborting valid long exports.
-- Automatic retries are limited to read-only methods and transport failures.
-- Repeated crash loops open a restart circuit for a cooldown window before restart attempts resume.
+- Engine transport errors are typed and surfaced explicitly (unavailable, timeout, sidecar exit/failure, protocol, validation).
+- Native request/response traffic uses the stable socket wire protocol; stdout is only used for readiness and stderr for logging.
+- Process lifetime is scoped through Effect layers and Effect child-process primitives.
+- Socket connection gets a bounded retry after readiness; individual RPC calls are not generically retried.
+- Native engines are not automatically restarted; capture/recording/export/project operations have user-visible state and are not assumed idempotent.
 - Any hosted delivery-plane failure must degrade to local-only workflow (no capture/edit/export interruption).
 
 ---
@@ -651,10 +653,14 @@ guerillaglass/
 │  │  ├─ src/protocol/
 │  │  └─ fixtures/
 │  ├─ review-protocol/
-│  │  ├─ src/
-│  │  └─ fixtures/
-│  └─ localization/
-│     └─ src/
+│  │  └─ src/
+│  ├─ ui/
+│  │  └─ src/
+│  └─ typescript-config/
+├─ project.inlang/
+├─ messages/
+│  ├─ en-US.json
+│  └─ de-DE.json
 ├─ engines/
 │  ├─ macos-swift/
 │  │  └─ modules/
@@ -815,7 +821,7 @@ License hygiene:
 
 ## 23) Localization & internationalization
 
-- **String catalogs:** Use a single desktop-shell localization source of truth (e.g. locale JSON catalogs in the React app).
+- **String catalogs:** Use the shared Paraglide/Inlang source messages in root `messages/*.json` with `project.inlang` configuration. App-local generated Paraglide output is ignored and regenerated by CI/build/typecheck scripts.
 - **Internationalize first:** All user-facing strings must be localizable. Avoid hardcoded UI copy in components.
 - **Pluralization:** Use locale-aware message formatting for plural nouns/verbs.
 - **Formatting:** Use locale-aware date/number/measurement formatting instead of manual string interpolation.

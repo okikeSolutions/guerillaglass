@@ -139,9 +139,7 @@ export function fromEngineWireServerMessage(message: EngineWireServerMessage): F
   }
 }
 
-export function makeEngineWireRpcClientProtocol(options: {
-  readonly authToken: string;
-}) {
+export function makeEngineWireRpcClientProtocol(options: { readonly authToken: string }) {
   return RpcClient.Protocol.make(
     Effect.fnUntraced(function* (
       writeResponse: (clientId: number, response: FromServerEncoded) => Effect.Effect<void>,
@@ -154,7 +152,9 @@ export function makeEngineWireRpcClientProtocol(options: {
       let currentError: RpcClientError | undefined;
 
       const broadcast = (response: FromServerEncoded) =>
-        Effect.forEach(clientIds, (clientId) => writeResponse(clientId, response), { discard: true });
+        Effect.forEach(clientIds, (clientId) => writeResponse(clientId, response), {
+          discard: true,
+        });
 
       yield* socket
         .runRaw((chunk) =>
@@ -226,11 +226,14 @@ export function makeEngineWireRpcClientProtocol(options: {
             method: wireMessage.type === "request" ? wireMessage.method : undefined,
           }).pipe(
             Effect.andThen(writeRaw(encodeLine(wireMessage))),
-            Effect.mapError((cause) => protocolDefect("Failed to write engine wire message", cause)),
+            Effect.mapError((cause) =>
+              protocolDefect("Failed to write engine wire message", cause),
+            ),
             Effect.withSpan("engine.rpc.send", {
               attributes: {
                 "engine.rpc.message_type": wireMessage.type,
-                "engine.rpc.method": wireMessage.type === "request" ? wireMessage.method : undefined,
+                "engine.rpc.method":
+                  wireMessage.type === "request" ? wireMessage.method : undefined,
               },
             }),
           );

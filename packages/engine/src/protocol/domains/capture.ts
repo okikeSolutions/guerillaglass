@@ -101,4 +101,6 @@ export type CaptureStatusResult = Omit<
   readonly lastRecordingTelemetry?: CaptureTelemetry | null;
 };
 /** Type alias for CapturePreviewFrameResult. */
-export type CapturePreviewFrameResult = Schema.Codec.Encoded<typeof capturePreviewFrameResultSchema>;
+export type CapturePreviewFrameResult = Schema.Codec.Encoded<
+  typeof capturePreviewFrameResultSchema
+>;

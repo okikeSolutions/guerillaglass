@@ -42,7 +42,9 @@ async function bootstrapApp() {
   try {
     const runtime = desktopAppRuntime;
     if (!captureBenchmarkEnabled) {
-      await runtime.runPromise(Effect.flatMap(ProjectSession, (session) => session.loadInitialProject));
+      await runtime.runPromise(
+        Effect.flatMap(ProjectSession, (session) => session.loadInitialProject),
+      );
     }
     await runtime.runPromise(
       Effect.flatMap(DesktopShell, (shell) =>
