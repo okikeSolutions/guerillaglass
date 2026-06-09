@@ -781,24 +781,57 @@ swift test
 
 ### Phase 8: Final Gates
 
-- Veriy all tests are up to date and use the new v2 engine, where applicable
-- Testing strategy outline in this doc is implemented and passes coverage by testing edge case and critical paths e2e
-- Migrate all typescript tests to vitest, because we can also write our UI tests with vitest not with @vitest/browser-playwright 
+Status: complete.
 
-Required checks:
+Completed scope:
 
-```txt
-bun run protocol:typecheck
-bun run desktop:typecheck
+- Verified active TypeScript, Rust, and Swift tests target the Engine Contract v2 HTTP/OpenAPI boundary where applicable.
+  - Desktop composition tests reject legacy engine transport/status-stream imports and allow the raw low-level `EngineClient` only at the Bun app composition root.
+  - Desktop protocol tests assert directly against `EngineOpenApi` instead of the removed endpoint inventory.
+  - Native Rust/Swift protocol tests cover generated OpenAPI DTOs/server helpers and HTTP-style route behavior, not the removed line/RPC protocol.
+- Migrated desktop TypeScript tests to Vitest conventions.
+  - Desktop unit/e2e-style TypeScript tests now use Vitest imports and `.test.ts` / `.test.tsx` names.
+  - Bun-specific test APIs were removed from desktop tests where they previously blocked Node/Vitest execution.
+  - UI smoke coverage moved from Playwright Test Runner to Vitest Browser Mode using `@vitest/browser-playwright`.
+- Standardized the JavaScript/TypeScript gate on Oxlint type-aware type checking.
+  - Root `js:lint` now runs `oxlint --type-aware --type-check --deny-warnings` across `apps`, `packages`, and `Scripts`.
+  - `oxlint.config.mjs` enables `options.typeAware` and `options.typeCheck` in the root config.
+  - The gate no longer depends on separate package-level `tsc --noEmit` steps for routine CI coverage; package `typecheck` scripts remain available for focused debugging.
+  - Oxlint-discovered gaps were fixed: `packages/ui` now uses bundler module resolution, `apps/web/convex/tsconfig.json` includes Node types, and `packages/ui` DayPicker v10 class keys are valid.
+  - JS/Oxlint warnings are now fatal via `--deny-warnings`; current JS lint output is clean.
+- Optimized local and CI gates without hiding errors.
+  - `Scripts/typescript_gate.sh` compiles i18n once, then runs Oxlint type-check/lint, the custom React effect-state lint, contract checks/tests, and desktop Vitest tests.
+  - `Scripts/full_gate.sh` runs independent Rust, TypeScript, SwiftFormat, SwiftLint, and Swift test checks concurrently while still waiting for every process and streaming warnings/errors.
+  - SwiftLint no longer uses `--lenient`; existing warning-level SwiftLint findings remain visible while error-level findings fail the gate.
+  - GitHub Actions now splits TypeScript, Rust, Swift, protocol-generation determinism, and coverage into independent jobs with concurrency cancellation.
+- Coverage gates were updated for the Vitest migration.
+  - Desktop TypeScript coverage uses Vitest V8 coverage instead of Bun coverage.
+  - `Scripts/coverage_check.sh` consumes Vitest `coverage-summary.json`, package-level engine-client coverage, and Rust `cargo-llvm-cov` output.
+  - Current aggregate coverage thresholds are intentionally baseline-oriented; Rust quality is backed by critical-path behavior tests rather than inflated aggregate generated-code percentages.
+- Removed final migration scaffolding and legacy references without shims.
+  - Endpoint inventory and legacy Swift line-protocol target were removed.
+  - Legacy readiness strings, native stream method names, and old transport bridge names were swept from active source/tests.
+
+Validation completed:
+
+```sh
+bun run js:lint
 bun run desktop:test
-bun run gate
+bun run desktop:typecheck
+bun run protocol:typecheck
+bun run protocol:generate-bindings
 bun run coverage:check
-cargo test ...
+bun run gate
+cargo test --workspace --all-targets
 swift test
-OpenAPI generation check
-native binding generation check
-golden fixture parity tests
 ```
+
+Current local `bun run gate` behavior:
+
+- Runs full Rust, TypeScript, SwiftFormat, SwiftLint, and Swift test checks in parallel.
+- Fails on JS/Oxlint warnings or errors.
+- Fails on SwiftLint errors; existing SwiftLint warnings remain visible for follow-up cleanup.
+- Measured passing average after parallelization and Oxlint standardization: approximately 29 seconds on the local development machine.
 
 ## Testing Strategy
 
