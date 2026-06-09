@@ -1,28 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run Rust gate
-echo "==> rust gate"
-Scripts/rust_gate.sh
+wait_for_gate() {
+  local label="$1"
+  local pid="$2"
+  set +e
+  wait "$pid"
+  local status=$?
+  set -e
+  if [[ "$status" -eq 0 ]]; then
+    echo "==> $label passed"
+    return 0
+  fi
+  echo "==> $label failed with status $status" >&2
+  return "$status"
+}
 
-# Run TypeScript gate
-echo "==> typescript gate"
-Scripts/typescript_gate.sh
+# These checks are independent and do not mutate source files. Run them concurrently for fast
+# local feedback while still streaming every warning/error to the terminal.
+echo "==> starting full gate checks"
 
-# Run SwiftFormat
-echo "==> swiftformat"
-swiftformat .
+Scripts/rust_gate.sh &
+rust_pid=$!
 
-# Run SwiftLint
-echo "==> swiftlint"
-swiftlint
+Scripts/typescript_gate.sh &
+typescript_pid=$!
 
-# Run SwiftTest
-echo "==> swift test"
-swift test
+swiftformat --lint . &
+swiftformat_pid=$!
 
-# Build the project
-echo "==> swift build"
-swift build
+swiftlint --quiet &
+swiftlint_pid=$!
+
+swift test &
+swift_test_pid=$!
+
+failed=0
+wait_for_gate "rust gate" "$rust_pid" || failed=1
+wait_for_gate "typescript gate" "$typescript_pid" || failed=1
+wait_for_gate "swiftformat" "$swiftformat_pid" || failed=1
+wait_for_gate "swiftlint" "$swiftlint_pid" || failed=1
+wait_for_gate "swift test" "$swift_test_pid" || failed=1
+
+if [[ "$failed" -ne 0 ]]; then
+  echo "==> full gate failed" >&2
+  exit 1
+fi
 
 echo "==> full gate passed"

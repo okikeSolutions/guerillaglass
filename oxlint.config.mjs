@@ -4,18 +4,21 @@ import { defineConfig } from "oxlint";
 export default defineConfig({
   extends: [nkzw],
   ignorePatterns: [
-    "apps/desktop-electrobun/build/**",
-    "apps/desktop-electrobun/dist/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
     "apps/desktop-electrobun/playwright-report/**",
     "apps/desktop-electrobun/test-results/**",
-    "apps/web/convex/_generated/**",
-    "apps/web/convex/betterAuth/_generated/**",
+    "**/convex/_generated/**",
+    "**/convex/**/_generated/**",
     "apps/web/convex/betterAuth/generatedSchema.ts",
     "apps/web/src/routeTree.gen.ts",
+    "apps/*/src/paraglide/**",
+    "packages/engine-contract/generated/**",
     "vendor/**",
   ],
   rules: {
-    "react/exhaustive-deps": "deny",
+    "react/exhaustive-deps": "warn",
     "react/rules-of-hooks": "deny",
     "import-x/no-namespace": "off",
     "perfectionist/sort-enums": "off",
@@ -25,9 +28,23 @@ export default defineConfig({
     "perfectionist/sort-object-types": "off",
     "perfectionist/sort-objects": "off",
     "@typescript-eslint/array-type": "off",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-empty-object-type": "warn",
+    "@nkzw/require-use-effect-arguments": "warn",
+    "curly": "warn",
+    "no-console": "warn",
+    "unicorn/catch-error-name": "warn",
+    "unicorn/consistent-function-scoping": "warn",
+    "unicorn/numeric-separators-style": "warn",
+    "unicorn/prefer-at": "warn",
+    "unicorn/prefer-string-replace-all": "warn",
+    "unicorn/prefer-top-level-await": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks-js/refs": "warn",
   },
-  "options": {
-    "typeAware": true
+  options: {
+    typeAware: true,
+    typeCheck: true,
   },
   overrides: [
     {

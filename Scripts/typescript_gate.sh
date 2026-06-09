@@ -9,28 +9,19 @@ fi
 echo "==> js format check (oxfmt)"
 bun run js:format:check
 
-echo "==> js lint (oxlint)"
+echo "==> i18n compile"
+bun run i18n:compile
+
+echo "==> js lint and typecheck (oxlint)"
 bun run js:lint
 
 echo "==> React effect-state lint"
 bun run js:lint:react-effects
 
-echo "==> desktop typecheck"
-(cd apps/desktop-electrobun && bun run typecheck)
-
-echo "==> web app typecheck"
-(cd apps/web && bun run typecheck)
-
 echo "==> engine contract check"
-(cd packages/engine-contract && bun run check:contract:full)
-
-echo "==> engine client typecheck"
-(cd packages/engine-client && bun run typecheck)
-
-echo "==> review protocol typecheck"
-(cd packages/review-protocol && bun run typecheck)
+(cd packages/engine-contract && bun run check:contract && bun run test)
 
 echo "==> desktop tests"
-bun run desktop:test
+(cd apps/desktop-electrobun && bun run test:ci)
 
 echo "==> typescript gate passed"
