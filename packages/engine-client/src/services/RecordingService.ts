@@ -10,7 +10,9 @@ export type RecordingServiceShape = {
   /**
    * Starts recording within the active capture session.
    */
-  readonly start: (request: RecordingStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly start: (
+    request: RecordingStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Stops the active recording.
    */
@@ -27,12 +29,13 @@ export class RecordingService extends Context.Service<RecordingService, Recordin
 /**
  * Layer deriving recording-domain operations from {@link EngineClient}.
  */
-export const layerRecordingService: Layer.Layer<RecordingService, never, EngineClient> = Layer.effect(
-  RecordingService,
-  Effect.map(EngineClient, (client) =>
-    RecordingService.of({
-      start: client.recordingStart,
-      stop: client.recordingStop,
-    }),
-  ),
-);
+export const layerRecordingService: Layer.Layer<RecordingService, never, EngineClient> =
+  Layer.effect(
+    RecordingService,
+    Effect.map(EngineClient, (client) =>
+      RecordingService.of({
+        start: client.recordingStart,
+        stop: client.recordingStop,
+      }),
+    ),
+  );

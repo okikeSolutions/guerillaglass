@@ -4,10 +4,7 @@ import type {
 } from "@guerillaglass/engine-contract/domains/capture";
 import { Context, Effect, Layer } from "effect";
 import type { EngineClientError } from "../errors";
-import {
-  EngineClient,
-  type CaptureStartRequest,
-} from "../service";
+import { EngineClient, type CaptureStartRequest } from "../service";
 
 /**
  * Domain service for capture lifecycle and polling operations.
@@ -16,15 +13,21 @@ export type CaptureServiceShape = {
   /**
    * Starts capture for a display source.
    */
-  readonly startDisplay: (request: CaptureStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly startDisplay: (
+    request: CaptureStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Starts capture for the current foreground window.
    */
-  readonly startCurrentWindow: (request: CaptureStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly startCurrentWindow: (
+    request: CaptureStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Starts capture for a specific window source.
    */
-  readonly startWindow: (request: CaptureStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly startWindow: (
+    request: CaptureStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Stops the active capture session.
    */

@@ -3,15 +3,15 @@ import {
   type CaptureStatusResult,
 } from "@guerillaglass/engine-contract/domains/capture";
 import { Effect, Exit, Layer, Schema, Cause } from "effect";
-import { EngineClient } from "@guerillaglass/engine-client/service";
-import { AgentService, layerAgentService } from "@guerillaglass/engine-client/services/AgentService";
-import { CaptureService, layerCaptureService } from "@guerillaglass/engine-client/services/CaptureService";
-import { ExportService, layerExportService } from "@guerillaglass/engine-client/services/ExportService";
-import { PermissionsService, layerPermissionsService } from "@guerillaglass/engine-client/services/PermissionsService";
-import { ProjectService, layerProjectService } from "@guerillaglass/engine-client/services/ProjectService";
-import { RecordingService, layerRecordingService } from "@guerillaglass/engine-client/services/RecordingService";
-import { SourcesService, layerSourcesService } from "@guerillaglass/engine-client/services/SourcesService";
-import { SystemService, layerSystemService } from "@guerillaglass/engine-client/services/SystemService";
+import { AgentService } from "@guerillaglass/engine-client/services/AgentService";
+import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
+import type { EngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
+import { ExportService } from "@guerillaglass/engine-client/services/ExportService";
+import { PermissionsService } from "@guerillaglass/engine-client/services/PermissionsService";
+import { ProjectService } from "@guerillaglass/engine-client/services/ProjectService";
+import { RecordingService } from "@guerillaglass/engine-client/services/RecordingService";
+import { SourcesService } from "@guerillaglass/engine-client/services/SourcesService";
+import { SystemService } from "@guerillaglass/engine-client/services/SystemService";
 import { AppConfig, layerAppConfig } from "./AppConfig";
 import { layerAppLogging } from "./AppLogging";
 import { MediaSourceService, layerMediaSourceService } from "../media/service";
@@ -36,7 +36,7 @@ function messageFromUnknownError(error: unknown, fallback: string): string {
 }
 
 export type DesktopAppLayerOptions = {
-  engineClientLayer: Layer.Layer<EngineClient, unknown, AppConfig>;
+  engineDomainServicesLayer: Layer.Layer<EngineDomainServices, unknown, AppConfig>;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, AppConfig>;
   mediaSourceServiceLayer?: Layer.Layer<
     MediaSourceService,
@@ -54,7 +54,6 @@ export type DesktopAppLayerOptions = {
 /** Services composed at the desktop app composition root. */
 export type DesktopAppServices =
   | AppConfig
-  | EngineClient
   | AgentService
   | CaptureService
   | ExportService
@@ -156,19 +155,8 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
     Layer.provideMerge(tempDirectoryLayer),
   );
 
-  const engineDomainServicesLayer = Layer.mergeAll(
-    layerSystemService,
-    layerPermissionsService,
-    layerSourcesService,
-    layerCaptureService,
-    layerRecordingService,
-    layerProjectService,
-    layerExportService,
-    layerAgentService,
-  ).pipe(Layer.provideMerge(options.engineClientLayer));
-
   const appServicesLayer = Layer.mergeAll(
-    engineDomainServicesLayer,
+    options.engineDomainServicesLayer,
     options.reviewGatewayLayer ?? layerReviewGateway,
     mediaSourceServiceLayer,
     options.desktopShellLayer,

@@ -74,17 +74,19 @@ export function makeEngineBearerToken(): Redacted.Redacted<string> {
  */
 export function resolveEnginePath(enginePath?: string): Effect.Effect<string, EngineProcessError> {
   return Effect.gen(function* () {
-    const configuredPath = enginePath === undefined
-      ? yield* EnginePathConfig.pipe(
-        Effect.mapError((cause) =>
-          new EngineProcessError({
-            code: "ENGINE_PATH_UNAVAILABLE",
-            message: "Unable to load engine executable path configuration.",
-            cause,
-          }),
-        ),
-      )
-      : Option.none<string>();
+    const configuredPath =
+      enginePath === undefined
+        ? yield* EnginePathConfig.pipe(
+            Effect.mapError(
+              (cause) =>
+                new EngineProcessError({
+                  code: "ENGINE_PATH_UNAVAILABLE",
+                  message: "Unable to load engine executable path configuration.",
+                  cause,
+                }),
+            ),
+          )
+        : Option.none<string>();
     const resolved = enginePath ?? Option.getOrUndefined(configuredPath);
     if (!resolved?.trim()) {
       return yield* new EngineProcessError({
@@ -131,7 +133,10 @@ function resolveEngineCommand(enginePath: string): readonly [string, readonly st
  * @param timeoutMs - Maximum readiness wait duration in milliseconds.
  * @returns A promise for the validated engine HTTP address.
  */
-async function waitForReady(subprocess: Bun.Subprocess, timeoutMs: number): Promise<EngineHttpAddress> {
+async function waitForReady(
+  subprocess: Bun.Subprocess,
+  timeoutMs: number,
+): Promise<EngineHttpAddress> {
   const stdout = subprocess.stdout;
   if (!stdout || typeof stdout === "number") {
     throw new EngineProcessError({
@@ -195,12 +200,15 @@ async function waitForReady(subprocess: Bun.Subprocess, timeoutMs: number): Prom
 function drainStderr(subprocess: Bun.Subprocess): void {
   const stderr = subprocess.stderr;
   if (!stderr || typeof stderr === "number") return;
-  void new Response(stderr).text().then((text) => {
-    for (const line of text.split(/\r?\n/)) {
-      const trimmed = line.trimEnd();
-      if (trimmed.length > 0) console.warn("engine stderr", trimmed);
-    }
-  }).catch(() => undefined);
+  void new Response(stderr)
+    .text()
+    .then((text) => {
+      for (const line of text.split(/\r?\n/)) {
+        const trimmed = line.trimEnd();
+        if (trimmed.length > 0) console.warn("engine stderr", trimmed);
+      }
+    })
+    .catch(() => undefined);
 }
 
 /**
@@ -215,15 +223,18 @@ export function makeEngineHttpProcess(
   return Effect.acquireRelease(
     Effect.gen(function* () {
       const processConfig = yield* EngineProcessConfig.pipe(
-        Effect.mapError((cause) =>
-          new EngineProcessError({
-            code: "ENGINE_READINESS_INVALID",
-            message: "Unable to load engine process configuration.",
-            cause,
-          }),
+        Effect.mapError(
+          (cause) =>
+            new EngineProcessError({
+              code: "ENGINE_READINESS_INVALID",
+              message: "Unable to load engine process configuration.",
+              cause,
+            }),
         ),
       );
-      const enginePath = yield* resolveEnginePath(options.enginePath ?? Option.getOrUndefined(processConfig.enginePath));
+      const enginePath = yield* resolveEnginePath(
+        options.enginePath ?? Option.getOrUndefined(processConfig.enginePath),
+      );
       yield* validateEngineExecutableTrust(enginePath, options.trustPolicy);
       const [command, args] = resolveEngineCommand(enginePath);
       const bearerToken = makeEngineBearerToken();
@@ -240,7 +251,8 @@ export function makeEngineHttpProcess(
       });
       drainStderr(subprocess);
       const address = yield* Effect.tryPromise({
-        try: () => waitForReady(subprocess, options.readinessTimeoutMs ?? processConfig.readinessTimeoutMs),
+        try: () =>
+          waitForReady(subprocess, options.readinessTimeoutMs ?? processConfig.readinessTimeoutMs),
         catch: (cause) =>
           cause instanceof EngineProcessError
             ? cause

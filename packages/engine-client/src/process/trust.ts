@@ -40,7 +40,10 @@ export type EngineExecutableTrustPolicy = {
  * @returns Lowercase hex digest without a `sha256:` prefix.
  */
 function normalizeSha256(value: string): string {
-  return value.trim().toLowerCase().replace(/^sha256:/, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^sha256:/, "");
 }
 
 /**
@@ -109,7 +112,9 @@ export function validateEngineExecutableTrust(
 
       const expectedSha256 = policy.expectedSha256?.trim();
       if (expectedSha256) {
-        const actualSha256 = createHash("sha256").update(await readFile(enginePath)).digest("hex");
+        const actualSha256 = createHash("sha256")
+          .update(await readFile(enginePath))
+          .digest("hex");
         if (!timingSafeEqualHex(actualSha256, expectedSha256)) {
           throw new EngineProcessError({
             code: "ENGINE_TRUST_REJECTED",

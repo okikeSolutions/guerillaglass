@@ -20,7 +20,9 @@ export type AgentServiceShape = {
   /**
    * Checks whether Agent Mode can run for the current project.
    */
-  readonly preflight: (request: AgentPreflightRequest) => Effect.Effect<AgentPreflightResult, EngineClientError>;
+  readonly preflight: (
+    request: AgentPreflightRequest,
+  ) => Effect.Effect<AgentPreflightResult, EngineClientError>;
   /**
    * Starts an Agent Mode job.
    */
@@ -32,7 +34,10 @@ export type AgentServiceShape = {
   /**
    * Applies Agent Mode job output to the current project.
    */
-  readonly apply: (jobId: string, request: AgentApplyRequest) => Effect.Effect<ActionResult, EngineClientError>;
+  readonly apply: (
+    jobId: string,
+    request: AgentApplyRequest,
+  ) => Effect.Effect<ActionResult, EngineClientError>;
 };
 
 /**

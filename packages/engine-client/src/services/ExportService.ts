@@ -5,11 +5,7 @@ import type {
 } from "@guerillaglass/engine-contract/domains/export";
 import { Context, Effect, Layer } from "effect";
 import type { EngineClientError } from "../errors";
-import {
-  EngineClient,
-  type ExportRunCutPlanRequest,
-  type ExportRunRequest,
-} from "../service";
+import { EngineClient, type ExportRunCutPlanRequest, type ExportRunRequest } from "../service";
 
 /**
  * Domain service for render export operations.
@@ -26,7 +22,9 @@ export type ExportServiceShape = {
   /**
    * Starts an export job from an Agent Mode cut plan.
    */
-  readonly runCutPlan: (request: ExportRunCutPlanRequest) => Effect.Effect<ExportRunCutPlanResult, EngineClientError>;
+  readonly runCutPlan: (
+    request: ExportRunCutPlanRequest,
+  ) => Effect.Effect<ExportRunCutPlanResult, EngineClientError>;
   /**
    * Polls an export job.
    */

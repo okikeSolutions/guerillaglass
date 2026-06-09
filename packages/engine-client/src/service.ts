@@ -16,7 +16,10 @@ import type {
   ActionResult,
   PermissionsResult,
 } from "@guerillaglass/engine-contract/domains/permissions";
-import type { ProjectRecentsResult, ProjectState } from "@guerillaglass/engine-contract/domains/project";
+import type {
+  ProjectRecentsResult,
+  ProjectState,
+} from "@guerillaglass/engine-contract/domains/project";
 import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
 import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
 import { EngineHttpApi } from "@guerillaglass/engine-contract/httpApi";
@@ -93,7 +96,9 @@ export type EngineClientService = {
   /**
    * Calls `POST /v1/agent/preflight`.
    */
-  readonly agentPreflight: (request: AgentPreflightRequest) => Effect.Effect<AgentPreflightResult, EngineClientError>;
+  readonly agentPreflight: (
+    request: AgentPreflightRequest,
+  ) => Effect.Effect<AgentPreflightResult, EngineClientError>;
   /**
    * Calls `POST /v1/agent/runs`.
    */
@@ -105,7 +110,10 @@ export type EngineClientService = {
   /**
    * Calls `POST /v1/agent/runs/{jobId}/apply`.
    */
-  readonly agentApply: (jobId: string, request: AgentApplyRequest) => Effect.Effect<ActionResult, EngineClientError>;
+  readonly agentApply: (
+    jobId: string,
+    request: AgentApplyRequest,
+  ) => Effect.Effect<ActionResult, EngineClientError>;
   /**
    * Calls `GET /v1/permissions`.
    */
@@ -133,15 +141,21 @@ export type EngineClientService = {
   /**
    * Calls `POST /v1/capture/start-display`.
    */
-  readonly captureStartDisplay: (request: CaptureStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly captureStartDisplay: (
+    request: CaptureStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/capture/start-current-window`.
    */
-  readonly captureStartCurrentWindow: (request: CaptureStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly captureStartCurrentWindow: (
+    request: CaptureStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/capture/start-window`.
    */
-  readonly captureStartWindow: (request: CaptureStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly captureStartWindow: (
+    request: CaptureStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/capture/stop`.
    */
@@ -157,7 +171,9 @@ export type EngineClientService = {
   /**
    * Calls `POST /v1/recording/start`.
    */
-  readonly recordingStart: (request: RecordingStartRequest) => Effect.Effect<CaptureStatusResult, EngineClientError>;
+  readonly recordingStart: (
+    request: RecordingStartRequest,
+  ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/recording/stop`.
    */
@@ -169,11 +185,15 @@ export type EngineClientService = {
   /**
    * Calls `POST /v1/exports`.
    */
-  readonly exportRun: (request: ExportRunRequest) => Effect.Effect<ExportRunResult, EngineClientError>;
+  readonly exportRun: (
+    request: ExportRunRequest,
+  ) => Effect.Effect<ExportRunResult, EngineClientError>;
   /**
    * Calls `POST /v1/exports/from-cut-plan`.
    */
-  readonly exportRunCutPlan: (request: ExportRunCutPlanRequest) => Effect.Effect<ExportRunCutPlanResult, EngineClientError>;
+  readonly exportRunCutPlan: (
+    request: ExportRunCutPlanRequest,
+  ) => Effect.Effect<ExportRunCutPlanResult, EngineClientError>;
   /**
    * Calls `GET /v1/exports/{jobId}`.
    */
@@ -185,15 +205,21 @@ export type EngineClientService = {
   /**
    * Calls `POST /v1/project/open`.
    */
-  readonly projectOpen: (request: ProjectOpenRequest) => Effect.Effect<ProjectState, EngineClientError>;
+  readonly projectOpen: (
+    request: ProjectOpenRequest,
+  ) => Effect.Effect<ProjectState, EngineClientError>;
   /**
    * Calls `POST /v1/project/save`.
    */
-  readonly projectSave: (request: ProjectSaveRequest) => Effect.Effect<ProjectState, EngineClientError>;
+  readonly projectSave: (
+    request: ProjectSaveRequest,
+  ) => Effect.Effect<ProjectState, EngineClientError>;
   /**
    * Calls `GET /v1/project/recents`.
    */
-  readonly projectRecents: (limit?: number) => Effect.Effect<ProjectRecentsResult, EngineClientError>;
+  readonly projectRecents: (
+    limit?: number,
+  ) => Effect.Effect<ProjectRecentsResult, EngineClientError>;
 };
 
 /**
@@ -203,8 +229,9 @@ export class EngineClient extends Context.Service<EngineClient, EngineClientServ
   "@guerillaglass/engine-client/EngineClient",
 ) {}
 
-const asClientEffect = <A>(effect: Effect.Effect<A, unknown, unknown>): Effect.Effect<A, EngineClientError> =>
-  effect as Effect.Effect<A, EngineClientError>;
+const asClientEffect = <A>(
+  effect: Effect.Effect<A, unknown, unknown>,
+): Effect.Effect<A, EngineClientError> => effect as Effect.Effect<A, EngineClientError>;
 
 /**
  * Builds the generated low-level `HttpApiClient` from explicit client options.
@@ -216,7 +243,9 @@ export function makeBearerHttpClientTransform(
   bearerToken: EngineClientOptions["bearerToken"],
 ): (client: HttpClient.HttpClient) => HttpClient.HttpClient {
   return (client) =>
-    client.pipe(HttpClient.mapRequest((request) => HttpClientRequest.bearerToken(request, bearerToken)));
+    client.pipe(
+      HttpClient.mapRequest((request) => HttpClientRequest.bearerToken(request, bearerToken)),
+    );
 }
 
 export function makeRawEngineHttpApiClient(
@@ -242,24 +271,38 @@ export function makeEngineClientService(rawClient: RawEngineHttpApiClient): Engi
     agentPreflight: (request) => asClientEffect(client.agent.agentPreflight({ payload: request })),
     agentRun: (request) => asClientEffect(client.agent.agentRun({ payload: request })),
     agentStatus: (jobId) => asClientEffect(client.agent.agentStatus({ params: { jobId } })),
-    agentApply: (jobId, request) => asClientEffect(client.agent.agentApply({ params: { jobId }, payload: request })),
+    agentApply: (jobId, request) =>
+      asClientEffect(client.agent.agentApply({ params: { jobId }, payload: request })),
     permissionsGet: asClientEffect(client.permissions.permissionsGet({})),
-    permissionsRequestScreenRecording: asClientEffect(client.permissions.permissionsRequestScreenRecording({})),
-    permissionsRequestMicrophone: asClientEffect(client.permissions.permissionsRequestMicrophone({})),
-    permissionsRequestInputMonitoring: asClientEffect(client.permissions.permissionsRequestInputMonitoring({})),
-    permissionsOpenInputMonitoringSettings: asClientEffect(client.permissions.permissionsOpenInputMonitoringSettings({})),
+    permissionsRequestScreenRecording: asClientEffect(
+      client.permissions.permissionsRequestScreenRecording({}),
+    ),
+    permissionsRequestMicrophone: asClientEffect(
+      client.permissions.permissionsRequestMicrophone({}),
+    ),
+    permissionsRequestInputMonitoring: asClientEffect(
+      client.permissions.permissionsRequestInputMonitoring({}),
+    ),
+    permissionsOpenInputMonitoringSettings: asClientEffect(
+      client.permissions.permissionsOpenInputMonitoringSettings({}),
+    ),
     sourcesList: asClientEffect(client.sources.sourcesList({})),
-    captureStartDisplay: (request) => asClientEffect(client.capture.captureStartDisplay({ payload: request })),
-    captureStartCurrentWindow: (request) => asClientEffect(client.capture.captureStartCurrentWindow({ payload: request })),
-    captureStartWindow: (request) => asClientEffect(client.capture.captureStartWindow({ payload: request })),
+    captureStartDisplay: (request) =>
+      asClientEffect(client.capture.captureStartDisplay({ payload: request })),
+    captureStartCurrentWindow: (request) =>
+      asClientEffect(client.capture.captureStartCurrentWindow({ payload: request })),
+    captureStartWindow: (request) =>
+      asClientEffect(client.capture.captureStartWindow({ payload: request })),
     captureStop: asClientEffect(client.capture.captureStop({})),
     captureStatus: asClientEffect(client.capture.captureStatus({})),
     capturePreviewFrame: asClientEffect(client.capture.capturePreviewFrame({})),
-    recordingStart: (request) => asClientEffect(client.recording.recordingStart({ payload: request })),
+    recordingStart: (request) =>
+      asClientEffect(client.recording.recordingStart({ payload: request })),
     recordingStop: asClientEffect(client.recording.recordingStop({})),
     exportInfo: asClientEffect(client.export.exportInfo({})),
     exportRun: (request) => asClientEffect(client.export.exportRun({ payload: request })),
-    exportRunCutPlan: (request) => asClientEffect(client.export.exportRunCutPlan({ payload: request })),
+    exportRunCutPlan: (request) =>
+      asClientEffect(client.export.exportRunCutPlan({ payload: request })),
     exportGet: (jobId) => asClientEffect(client.export.exportGet({ params: { jobId } })),
     projectCurrent: asClientEffect(client.project.projectCurrent({})),
     projectOpen: (request) => asClientEffect(client.project.projectOpen({ payload: request })),
@@ -274,10 +317,14 @@ export function makeEngineClientService(rawClient: RawEngineHttpApiClient): Engi
  * @param options - Explicit engine client options.
  * @returns A layer providing {@link EngineClient}.
  */
-export function layerEngineClient(options: EngineClientOptions): Layer.Layer<EngineClient, never, HttpClient.HttpClient> {
+export function layerEngineClient(
+  options: EngineClientOptions,
+): Layer.Layer<EngineClient, never, HttpClient.HttpClient> {
   return Layer.effect(
     EngineClient,
-    Effect.map(makeRawEngineHttpApiClient(options), (rawClient) => EngineClient.of(makeEngineClientService(rawClient))),
+    Effect.map(makeRawEngineHttpApiClient(options), (rawClient) =>
+      EngineClient.of(makeEngineClientService(rawClient)),
+    ),
   );
 }
 
@@ -299,7 +346,9 @@ export const layerEngineClientFromConfig = Layer.effect(
  * @param options - Native engine process launch options.
  * @returns A scoped layer providing {@link EngineClient}.
  */
-export function layerEngineClientBun(options?: EngineHttpProcessOptions): Layer.Layer<EngineClient, unknown> {
+export function layerEngineClientBun(
+  options?: EngineHttpProcessOptions,
+): Layer.Layer<EngineClient, unknown> {
   return Layer.effect(
     EngineClient,
     Effect.gen(function* () {

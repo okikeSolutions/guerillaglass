@@ -2,6 +2,7 @@ import { Utils } from "electrobun/bun";
 import * as BunServices from "@effect/platform-bun/BunServices";
 import { Effect, Layer } from "effect";
 import { layerEngineClientBun } from "@guerillaglass/engine-client/service";
+import { layerEngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
 import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
 import { AppConfig } from "./AppConfig";
 import { DesktopShell } from "../shell/DesktopShell";
@@ -44,16 +45,19 @@ const guardedEngineClientLayer = Layer.unwrap(
         rejectSymlinkExecutable: true,
         rejectWorldWritable: config.engineRejectWorldWritable,
         requireCurrentUserOwner: config.engineRequireCurrentUserOwner,
-
       },
     });
   }),
 );
 
+const guardedEngineDomainServicesLayer = layerEngineDomainServices.pipe(
+  Layer.provideMerge(guardedEngineClientLayer),
+);
+
 async function bootstrapApp() {
   desktopAppRuntime = await makeDesktopAppRuntime({
     desktopShellLayer: layerDesktopShellFromConfig,
-    engineClientLayer: guardedEngineClientLayer,
+    engineDomainServicesLayer: guardedEngineDomainServicesLayer,
     desktopTempDirectoryLayer: layerDesktopTempDirectory.pipe(Layer.provide(BunServices.layer)),
     projectSessionLayer: layerProjectSession.pipe(Layer.provide(BunServices.layer)),
   });

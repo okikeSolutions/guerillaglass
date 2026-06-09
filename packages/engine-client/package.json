@@ -15,6 +15,7 @@
     "./service": "./src/service.ts",
     "./services/AgentService": "./src/services/AgentService.ts",
     "./services/CaptureService": "./src/services/CaptureService.ts",
+    "./services/domainServices": "./src/services/domainServices.ts",
     "./services/ExportService": "./src/services/ExportService.ts",
     "./services/PermissionsService": "./src/services/PermissionsService.ts",
     "./services/ProjectService": "./src/services/ProjectService.ts",

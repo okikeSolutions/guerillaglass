@@ -4,11 +4,7 @@ import type {
 } from "@guerillaglass/engine-contract/domains/project";
 import { Context, Effect, Layer } from "effect";
 import type { EngineClientError } from "../errors";
-import {
-  EngineClient,
-  type ProjectOpenRequest,
-  type ProjectSaveRequest,
-} from "../service";
+import { EngineClient, type ProjectOpenRequest, type ProjectSaveRequest } from "../service";
 
 /**
  * Domain service for project state operations.

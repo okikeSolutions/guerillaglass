@@ -185,4 +185,3 @@ export function messageFromUnknownError(error: unknown, fallback: string): strin
   }
   return fallback;
 }
-

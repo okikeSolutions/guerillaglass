@@ -4,10 +4,7 @@ import {
   normalizeStudioLocale,
   type StudioLocale,
 } from "@shared/localization";
-import {
-  ContractDecodeError,
-  JsonParseError,
-} from "@guerillaglass/engine-client/errors";
+import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine-client/errors";
 import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import type { StudioMode } from "../domain/inspectorSelectionModel";
 import {

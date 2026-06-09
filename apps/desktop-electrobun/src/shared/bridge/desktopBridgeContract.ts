@@ -224,7 +224,9 @@ const engineRunExportBridgeParamsSchema = exportRunPayloadSchema;
 const engineRunCutPlanExportBridgeParamsSchema = exportRunCutPlanPayloadSchema;
 const engineProjectOpenBridgeParamsSchema = projectOpenPayloadSchema;
 const engineProjectSaveBridgeParamsSchema = projectSavePayloadSchema;
-const engineProjectRecentsBridgeParamsSchema = Schema.Struct({ limit: Schema.optionalKey(nonNegativeIntSchema) });
+const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
+  limit: Schema.optionalKey(nonNegativeIntSchema),
+});
 const engineSuccessSchemas = {
   "system.ping": pingResultSchema,
   "permissions.get": permissionsResultSchema,
