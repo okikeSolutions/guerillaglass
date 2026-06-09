@@ -2,7 +2,7 @@
 
 Desktop creator studio shell built with Electrobun, React, Tailwind, shadcn/base-ui components, and an Effect-native Bun backend.
 
-The desktop host talks to native sidecars through `@guerillaglass/engine` using a stable loopback socket wire protocol. Stdio/native JSON-RPC paths were removed.
+The desktop host talks to native sidecars through `@guerillaglass/engine-client` using the v2 loopback HTTP/OpenAPI engine contract from `@guerillaglass/engine-contract`.
 
 ## Runtime Architecture
 
@@ -13,7 +13,7 @@ React renderer
       -> AppRuntime / AppLayer
         -> DesktopShell service
         -> ProjectSession service
-        -> EngineTransport service
+        -> EngineClient + domain engine services
         -> MediaSourceService + Effect HTTP media routes
 ```
 
@@ -22,7 +22,7 @@ Key points:
 - One Bun process owns one Effect app runtime.
 - Electrobun shell resources are scoped behind `DesktopShell`.
 - Bridge handlers delegate to `HostBridgeService` / `ProjectSession`; they do not own business logic.
-- Engine sidecars are spawned with Effect process primitives and connected over Bun socket services.
+- Engine sidecars are spawned with Effect process primitives and connected through authenticated loopback HTTP.
 - Media playback uses tokenized loopback URLs served by Effect HTTP routes and `BunHttpServer.layer`.
 - Localization is generated from root Paraglide/Inlang messages into ignored `src/paraglide` output.
 
@@ -46,8 +46,6 @@ bun run swift:build
 bun run desktop:dev
 bun run desktop:dev:hmr
 
-GG_ENGINE_TARGET=windows-stub bun run desktop:dev
-GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 GG_ENGINE_TARGET=windows-native bun run desktop:dev
 GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ```
@@ -90,5 +88,6 @@ bun run desktop:build
 - Media registry/routes/source service: `src/bun/media`
 - App-local localization adapter: `src/shared/localization.ts`
 - Generated Paraglide output: `src/paraglide` (ignored)
-- Engine protocol/client: `../../packages/engine`
+- Engine contract: `../../packages/engine-contract`
+- Engine client: `../../packages/engine-client`
 - Native sidecars/foundations: `../../engines`

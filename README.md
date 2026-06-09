@@ -15,16 +15,16 @@ The repository now uses the completed Phase 1–7 architecture:
 
 - Desktop shell: Electrobun + React + Tailwind (`apps/desktop-electrobun`)
 - Desktop backend: one Effect app runtime composed from scoped services (`src/bun/app`)
-- Engine protocol/client package: Effect Schema + Effect RPC group + Bun socket transport (`packages/engine`)
-- Native engines: Swift and Rust sidecars under `engines/`, speaking the stable Guerillaglass socket wire protocol
+- Engine contract/client packages: Effect `HttpApi` + generated OpenAPI (`packages/engine-contract`) and Effect-native HTTP client/process launcher (`packages/engine-client`)
+- Native engines: Swift and Rust sidecars under `engines/`, serving the v2 loopback HTTP/OpenAPI API
 - Media serving: Effect HTTP routes + scoped Bun HTTP server with tokenized loopback URLs
 - Web app/auth shell: TanStack Start + Convex (`apps/web`)
 - Localization: shared Paraglide/Inlang source messages at `project.inlang` + `messages/*.json`; each app generates ignored `src/paraglide` output in CI/build scripts
 
 Important boundaries:
 
-- Native sidecars do **not** depend on Effect RPC wire internals.
-- TypeScript owns the Effect RPC bridge and stable socket wire conversion.
+- Native sidecars depend on generated OpenAPI bindings/helpers, not Effect RPC internals.
+- TypeScript owns the Effect `HttpApi` contract and generated OpenAPI artifact.
 - Desktop bridge handlers are thin adapters into the Effect runtime.
 - Generated Paraglide output is not committed.
 
@@ -56,8 +56,6 @@ bun run web:dev
 Engine targets:
 
 ```bash
-GG_ENGINE_TARGET=windows-stub bun run desktop:dev
-GG_ENGINE_TARGET=linux-stub bun run desktop:dev
 GG_ENGINE_TARGET=windows-native bun run desktop:dev
 GG_ENGINE_TARGET=linux-native bun run desktop:dev
 ```
@@ -79,7 +77,8 @@ Useful focused checks:
 cd apps/desktop-electrobun && bun run typecheck
 cd apps/desktop-electrobun && bun run test
 cd apps/web && bun run typecheck
-cd packages/engine && bun run typecheck
+cd packages/engine-contract && bun run check:contract:full
+cd packages/engine-client && bun run typecheck
 cargo check
 ```
 

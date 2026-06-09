@@ -73,7 +73,7 @@ Guerilla Glass should feel like a professional creator tool:
 
 - **Desktop shell:** Electrobun + React + Tailwind + shadcn base components
 - **Web app shell:** TanStack Start + Convex (`apps/web`) for marketing/auth/review/billing surfaces; sequenced behind the editor-core work
-- **Protocol contract:** Effect Schema (TypeScript) + stable Guerillaglass socket wire codecs for Swift/Rust native sidecars
+- **Protocol contract:** Effect `HttpApi`/Schema (TypeScript) + generated OpenAPI bindings/helpers for Swift/Rust native sidecars
   - `capture.status` telemetry is performance-first and includes `sourceDroppedFrames`, `writerDroppedFrames`, `writerBackpressureDrops`, `achievedFps`, `cpuPercent`, `memoryBytes`, `recordingBitrateMbps`, `captureCallbackMs`, `recordQueueLagMs`, and `writerAppendMs`.
   - Runtime telemetry diagnostics are engine-owned and sampled from monotonic process/runtime counters (no renderer-side metric synthesis).
   - Desktop shell delivers high-frequency capture telemetry via host push stream (`hostCaptureStatus` / `gg-host-capture-status`) rather than renderer timer polling.
@@ -82,7 +82,7 @@ Guerilla Glass should feel like a professional creator tool:
   - `capture.status` includes `captureMetadata` (with optional window identity for window captures) so shell status surfaces can reflect the active source from engine state rather than only form intent.
   - Hardware verification runs through `bun run capture:benchmark`, which exercises native display/window capture at 30, 60, and 120 fps against an animated benchmark scene and writes JSON/Markdown reports under `.tmp/capture-benchmarks/`.
   - `bun run capture:benchmark:check` is the local regression command for native capture changes; it can compare against the previous machine-local run via `--baseline-report=.tmp/capture-benchmarks/latest/report.json`.
-- **Shared engine package:** local engine Effect Schema helpers, protocol types, fixtures, shared schema primitives, Effect RPC group, stable wire bridge, and TypeScript engine client/runtime façade live in `packages/engine`.
+- **Engine contract/client packages:** local engine schemas, protocol types, shared schema primitives, OpenAPI generation, and TypeScript HTTP client/runtime façade live in `packages/engine-contract` and `packages/engine-client`.
 - **Hosted delivery plane (deferred until editor core is strong):**
   - Hosted review/collaboration lives in web/Convex surfaces and must remain downstream of the local editor.
   - The hosted plane can own share links, comments, presence, workflow state, analytics, and billing without polluting the local media contract.
@@ -355,10 +355,6 @@ Imported transcript contract (`imported_transcript` provider):
   - `startSeconds >= 0`
   - `endSeconds > startSeconds`
 - At least one valid segment or one valid word is required.
-- Reference fixtures:
-  - `packages/engine/fixtures/imported-transcript.valid.json`
-  - `packages/engine/fixtures/imported-transcript.invalid.json`
-
 Error model additions:
 
 - `needs_confirmation`
@@ -593,9 +589,9 @@ Versioning policy:
 Desktop shell and sidecar reliability contract (current):
 
 - Engine transport errors are typed and surfaced explicitly (unavailable, timeout, sidecar exit/failure, protocol, validation).
-- Native request/response traffic uses the stable socket wire protocol; stdout is only used for readiness and stderr for logging.
+- Native request/response traffic uses authenticated loopback HTTP; stdout is only used for readiness and stderr for logging.
 - Process lifetime is scoped through Effect layers and Effect child-process primitives.
-- Socket connection gets a bounded retry after readiness; individual RPC calls are not generically retried.
+- HTTP connection setup follows the emitted readiness envelope; individual API calls are not generically retried.
 - Native engines are not automatically restarted; capture/recording/export/project operations have user-visible state and are not assumed idempotent.
 - Any hosted delivery-plane failure must degrade to local-only workflow (no capture/edit/export interruption).
 
@@ -673,9 +669,6 @@ guerillaglass/
 │  ├─ native-foundation/
 │  ├─ windows-native/
 │  ├─ linux-native/
-│  ├─ windows-stub/
-│  ├─ linux-stub/
-│  ├─ stub-common/
 │  ├─ protocol-rust/
 │  └─ protocol-swift/
 └─ Tests/

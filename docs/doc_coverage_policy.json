@@ -1,12 +1,6 @@
 {
   "typescript": [
     {
-      "name": "engine-public-api",
-      "roots": ["packages/engine/src"],
-      "extensions": [".ts"],
-      "minimumCoverage": 1
-    },
-    {
       "name": "desktop-bridge-public-api",
       "roots": ["apps/desktop-electrobun/src/bun"],
       "extensions": [".ts"],

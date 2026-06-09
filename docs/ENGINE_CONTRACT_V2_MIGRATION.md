@@ -2,7 +2,7 @@
 
 This document defines the from-scratch migration plan for the Guerillaglass engine boundary.
 
-The goal is to replace the current mixed `packages/engine` + Effect RPC + custom socket bridge shape with an Effect-native HTTP/OpenAPI contract architecture that is easier to generate native bindings from, easier to audit, and cleaner to evolve.
+The goal is to replace the old consolidated TypeScript engine package, RPC transport, and custom bridge shape with an Effect-native HTTP/OpenAPI contract architecture that is easier to generate native bindings from, easier to audit, and cleaner to evolve.
 
 This project is not yet used externally, so this migration intentionally avoids shims, barrels, and backward compatibility layers.
 
@@ -48,8 +48,8 @@ React renderer
 
 ## Non-Goals
 
-- No compatibility with the existing socket wire protocol.
-- No compatibility with existing `packages/engine` public exports.
+- No compatibility with the previous local transport protocol.
+- No compatibility with existing old consolidated engine package public exports.
 - No broad barrels.
 - No transitional shims.
 - No native implementation of Effect RPC internals.
@@ -73,7 +73,7 @@ This matches our needs better than making Swift/Rust speak Effect RPC:
 - OpenAPI becomes the native interoperability artifact.
 - Native bindings can be generated from a standard format.
 - TypeScript remains Effect-native.
-- Rust/Swift avoid coupling to `effect/unstable/rpc` message details.
+- Rust/Swift avoid coupling to Effect RPC message details.
 
 ## Package Layout
 
@@ -291,7 +291,7 @@ Initial migration should use:
 - polling with Effect `Schedule` for capture status and job status;
 - job IDs for long-running export/agent work.
 
-Do not introduce SSE/WebSocket in the first migration unless polling proves insufficient.
+Do not introduce push streaming in the first migration unless polling proves insufficient.
 
 Later, if needed:
 
@@ -489,7 +489,7 @@ Status: complete.
 Completed scope:
 
 - Added `packages/engine-contract`.
-- Moved/copied domain schemas from current `packages/engine/src/protocol` into explicit files.
+- Moved/copied domain schemas from current the old consolidated engine package protocol sources into explicit files.
 - Added `httpApi.ts` with the new endpoint model.
 - Added OpenAPI generation script.
 - Added deterministic OpenAPI generation check immediately; generated output is committed and checked.
@@ -507,7 +507,7 @@ cargo check --manifest-path engines/protocol-rust/Cargo.toml
 swift build --package-path engines/protocol-swift
 ```
 
-Known follow-up: root `swift build` fails until the macOS engine implementation is migrated off the deleted legacy socket/RPC protocol types. That belongs to later implementation phases, not Phase 1 package creation.
+Phase 5 update: root `swift build` now resolves the generated Swift OpenAPI runtime/plugin dependencies and Hummingbird transport. Remaining macOS endpoint business handlers still need to be ported from their legacy JSON-value response helpers into generated `APIProtocol` operations.
 
 ### Phase 2: Contract Generation
 
@@ -535,10 +535,20 @@ Note: current schemas use refined primitive values more than TypeScript-only bra
 
 ### Phase 3: TypeScript Client
 
-- Implement native process launcher for HTTP readiness.
-- Implement bearer-token request decoration with `HttpClient.mapRequest` + `HttpClientRequest.bearerToken`, or an explicit `HttpApiMiddleware.layerClient` if the contract requires client middleware.
-- Implement `EngineClient` low-level service with `HttpApiClient`.
-- Implement domain services:
+Status: complete.
+
+Completed scope:
+
+- Implemented HTTP readiness parsing and loopback validation in `packages/engine-client/src/process/readiness.ts`.
+- Implemented process trust checks in `packages/engine-client/src/process/trust.ts`.
+- Implemented Bun-backed native HTTP process launcher in `packages/engine-client/src/process/launchBun.ts`.
+- Generated per-process bearer tokens and passed v2 HTTP environment variables to native engines:
+  - `GG_ENGINE_TRANSPORT=http`
+  - `GG_ENGINE_HTTP_AUTH_TOKEN=...`
+- Implemented `EngineClient` low-level service with `HttpApiClient.make(EngineHttpApi, ...)`.
+- Implemented bearer-token request decoration with `HttpClient.mapRequest` + `HttpClientRequest.bearerToken`.
+- Implemented Bun HTTP client layer with `@effect/platform-bun/BunHttpClient`.
+- Implemented domain services:
   - `SystemService`
   - `PermissionsService`
   - `SourcesService`
@@ -547,53 +557,182 @@ Note: current schemas use refined primitive values more than TypeScript-only bra
   - `ProjectService`
   - `ExportService`
   - `AgentService`
-- Update desktop app services to depend on domain services, not raw transport.
+- Updated desktop app composition to derive domain services from the low-level `engineClientLayer`.
+- Updated desktop service logic to depend on domain services instead of raw transport or low-level `EngineClient`:
+  - `HostBridgeService` uses the domain services directly.
+  - `ProjectSessionElectrobun` uses `ProjectService`.
+  - capture status publishing uses polling through `CaptureService.status`.
+- Removed desktop app dependency on the legacy engine transport service, legacy RPC client usage, old connection concepts, and `capture.statusStream`.
+- Replaced desktop imports from old engine protocol/client paths with `@guerillaglass/engine-contract` and `@guerillaglass/engine-client` paths.
+- Updated desktop tests for polling, optional omission instead of explicit `null`, the `{ frame?: ... }` preview-frame shape, and `engineClientLayer`.
+- Added/updated Phase 3 tests for:
+  - bearer request decoration;
+  - low-level generated-client wrapping;
+  - domain service delegation;
+  - desktop composition having no legacy transport service;
+  - desktop service logic using domain services instead of low-level `EngineClient`.
+
+Validation completed:
+
+```sh
+cd apps/desktop-electrobun && bun run typecheck
+cd packages/engine-client && bun run test && bun run typecheck
+bun run protocol:typecheck
+cd apps/desktop-electrobun && bun run test:vitest
+cd apps/desktop-electrobun && bun run test:bun
+```
+
+Phase 5 update: the desktop HTTP parity e2e coverage now launches the Rust native Windows/Linux engines directly. Legacy TypeScript Windows/Linux engines were removed instead of being ported to v2 HTTP.
+
+### Audit: Phases 1-3 Against `vendor/effect`
+
+Status: complete, no blocking Effect API mismatches found before Phase 4.
+
+Audited Effect APIs:
+
+- `vendor/effect/packages/effect/src/unstable/httpapi/HttpApi.ts`
+- `vendor/effect/packages/effect/src/unstable/httpapi/HttpApiEndpoint.ts`
+- `vendor/effect/packages/effect/src/unstable/httpapi/HttpApiGroup.ts`
+- `vendor/effect/packages/effect/src/unstable/httpapi/HttpApiClient.ts`
+- `vendor/effect/packages/effect/src/unstable/httpapi/HttpApiMiddleware.ts`
+- `vendor/effect/packages/effect/src/unstable/httpapi/OpenApi.ts`
+- `vendor/effect/packages/effect/src/unstable/http/HttpClient.ts`
+- `vendor/effect/packages/effect/src/unstable/http/HttpClientRequest.ts`
+
+Findings:
+
+- `HttpApi`/`HttpApiGroup` composition is correct for the documented ordering rules: groups are added before `.middleware(EngineAuthMiddleware)`, so the middleware applies to every current endpoint.
+- Endpoint declarations match `HttpApiEndpoint`'s model: method/path/payload/success/error/params/query schemas are declared at the contract layer and reflected into generated clients/OpenAPI.
+- `EngineAuthMiddleware` correctly uses `HttpApiMiddleware.Service` with `HttpApiSecurity.bearer`; OpenAPI generation emits an `EngineBearer` HTTP bearer scheme and every operation includes the security requirement.
+- `EngineAuthMiddleware` does not set `requiredForClient`, so `HttpApiMiddleware.layerClient` is not required by Effect's generated client type. Client-side auth is correctly implemented as a lower-level `HttpClient` transform.
+- `HttpApiClient.make` usage is aligned with Effect's constructor: `baseUrl` is passed through the generated client options, and bearer auth is applied with `transformClient`.
+- `HttpClient.mapRequest` + `HttpClientRequest.bearerToken` is aligned with Effect's HTTP client API; `bearerToken` sets the `Authorization: Bearer ...` header.
+- `OpenApi.fromApi(EngineHttpApi)` is the intended Effect-native OpenAPI generation path. Generated output is OpenAPI 3.1, deterministic, and contains no explicit `"null"` or `nullable` schema markers.
+- Desktop Phase 3 now depends on domain services derived from the low-level `EngineClient`; low-level `EngineClient` remains only at composition boundaries.
+- No source imports use `.js` extensions, broad barrels, old RPC client/server modules, or old transport desktop composition paths.
+
+Validation completed during audit:
+
+```sh
+cd packages/engine-contract && bun run check:contract:full
+cd packages/engine-client && bun run test && bun run typecheck
+cd apps/desktop-electrobun && bun run typecheck
+cargo check --manifest-path engines/protocol-rust/Cargo.toml
+swift build --package-path engines/protocol-swift
+```
+
+Additional audit checks:
+
+- Generated OpenAPI reports 28 operations and zero operations missing `EngineBearer` security.
+- Generated OpenAPI has no explicit `"null"` literal or `nullable` marker.
+- Searches found no desktop source use of legacy transport composition, `capture.statusStream`, legacy Effect RPC imports, or old consolidated engine package client/protocol imports.
+
+Non-blocking cleanup candidates after Phase 4:
+
+- Tighten remaining `any` casts in `packages/engine-client/src/service.ts` around generated `HttpApiClient` call shapes.
+- Either enforce `requestTimeoutMs` in the HTTP client layer or remove it from `EngineClientOptions` if timeout policy remains out of scope.
 
 ### Phase 4: Native Bindings and Server Helpers
 
-- Generate Rust DTOs/server helpers in `engines/protocol-rust`.
-- Generate Swift DTOs/server helpers in `engines/protocol-swift`.
-- Treat server-helper generation as first-class, not optional. Types alone are insufficient.
-- Server helpers should cover:
-  - route/method dispatch;
-  - bearer auth extraction and rejection;
-  - request body size limits;
-  - JSON body decoding;
-  - status-specific error encoding;
+Status: complete.
+
+Completed scope:
+
+- Generated Rust DTOs/server helpers in `engines/protocol-rust`:
+  - `src/models.rs` for generated DTOs;
+  - `src/apis/*` for status-specific response enums and implementation traits;
+  - `src/server/mod.rs` for generated Axum route registration, request decoding, auth extraction hooks, and response encoding.
+- Generated Swift DTOs/client/server helpers in `engines/protocol-swift` with Apple `swift-openapi-generator` configured for `types`, `client`, and `server` output.
+- Treated server-helper generation as first-class by testing generated server dispatch instead of testing DTOs only.
+- Added minimal policy-specific Swift middleware where the generator/runtime does not enforce local engine policy directly:
+  - `EngineBearerAuthMiddleware` for per-process bearer token enforcement;
+  - `EngineBodyLimitMiddleware` for known-size request body rejection.
+- Added golden fixtures under `docs/fixtures/engine-contract-v2/golden`:
+  - `capture-start-display.request.json`;
+  - `capture-status.response.json`;
+  - `engine-unauthorized.response.json`.
+- Added TS golden fixture tests in `packages/engine-contract/tests/golden-fixtures.test.ts` proving Effect Schema encodes request bodies and decodes native response/error fixture shapes.
+- Added Rust server-helper tests in `engines/protocol-rust/tests/server_helpers.rs` covering:
+  - generated route dispatch;
+  - unsupported method handling (`405`);
+  - unsupported route handling (`404`);
+  - bearer auth extraction/rejection;
+  - Axum JSON request decoding;
+  - Axum default request body limit behavior (`413` for oversized JSON);
+  - malformed JSON rejection;
   - success response encoding;
-  - unsupported route/method handling;
-  - fixture test hooks.
-- Add golden fixtures:
-  - TS encodes request body;
-  - Rust/Swift decode it;
-  - Rust/Swift encode response;
-  - TS decodes it.
+  - declared status-specific bad-request response encoding;
+  - golden fixture decode/encode hooks.
+- Added Swift server-helper tests in `engines/protocol-swift/Tests/EngineProtocolTests/EngineProtocolTests.swift` covering:
+  - generated DTO decode/encode against golden fixtures;
+  - bearer middleware allow/reject behavior;
+  - body limit middleware rejection;
+  - generated `APIProtocol.registerHandlers(on:)` execution through a test `ServerTransport`;
+  - JSON body decoding through the generated server helper;
+  - success response encoding through the generated server helper;
+  - declared bad-request response encoding through the generated server helper;
+  - unsupported route/method behavior in the test transport.
+
+Validation completed:
+
+```sh
+cd packages/engine-contract && bun run test
+cargo test --manifest-path engines/protocol-rust/Cargo.toml
+swift test --package-path engines/protocol-swift
+```
+
+Notes:
+
+- Rust request body limits are covered through Axum's generated `Json` extractor path and Axum's default 2MB body limit.
+- Swift bearer auth and body-size policy remain intentionally small hand-written middleware, not a broad helper layer, because Apple `swift-openapi-generator` provides route registration/decoding/encoding but does not automatically enforce OpenAPI bearer security.
 
 ### Phase 5: Native HTTP Servers
 
-- Replace socket server implementations with local HTTP servers.
-- Bind to `127.0.0.1:0`.
-- Enforce bearer auth.
-- Emit HTTP readiness envelope.
-- Implement endpoint handlers.
-- Add request-size limits and origin/CORS hardening.
+Status: complete.
+
+Research and Hummingbird/Swift client-operation spike findings are recorded in `docs/ENGINE_CONTRACT_V2_PHASE5_HTTP_SERVER_RESEARCH.md`.
+
+Completed so far:
+
+- Implemented the Rust/native-foundation local HTTP server path for Linux/Windows native engines using generated `engines/protocol-rust` Axum server helpers.
+- Removed the native-foundation legacy listener path; `GG_ENGINE_TRANSPORT` must be `http`.
+- Bound the Rust native HTTP server to `127.0.0.1:0`.
+- Enforced `Authorization: Bearer <GG_ENGINE_HTTP_AUTH_TOKEN>` through generated Rust bearer-auth hooks.
+- Emitted the v2 HTTP readiness envelope: `guerillaglass.engine.http.ready`.
+- Added Rust request hardening middleware for loopback `Host`, loopback/null/missing `Origin`, allowed `Sec-Fetch-Site`, and a 2 MiB request body limit.
+- Verified a launched Linux native engine returns `401` without auth, `200` for authenticated `GET /v1/system/ping`, `403` for hostile origin, and `405` for unsupported method.
+- Adopted Hummingbird for the macOS local HTTP server transport.
+- Root `Package.swift` now wires generated Swift OpenAPI runtime/plugin dependencies plus `Hummingbird` and `OpenAPIHummingbird`, and raises the root macOS platform to macOS 14.
+- macOS engine now requires `GG_ENGINE_TRANSPORT=http` and `GG_ENGINE_HTTP_AUTH_TOKEN`, binds to `127.0.0.1:0`, emits `guerillaglass.engine.http.ready`, registers the real `EngineService: APIProtocol` directly on a Hummingbird `Router`, and applies bearer/body-limit/Host-Origin middleware.
+- macOS legacy listener startup was removed from `EngineMain.swift`.
+- Removed the temporary `MacOSEngineHTTPAPI` adapter, fake in-memory HTTP state, generic JSON roundtrip helpers, and `Package.swift` exclusions for macOS `EngineService+*.swift` files.
+- Refactored macOS endpoint files to generated `APIProtocol` operation methods returning generated `Components.Schemas.*` DTOs directly.
+- Manually launched `.build/debug/guerillaglass-engine` and verified HTTP readiness, bearer rejection, authenticated `GET /v1/system/ping`, `GET /v1/engine/capabilities`, and `GET /v1/sources`.
+- Removed legacy Windows/Linux TypeScript engine targets and their shared implementation.
+- Updated desktop parity e2e coverage to build and launch `target/debug/guerillaglass-engine-windows` and `target/debug/guerillaglass-engine-linux`.
+- Regenerated Rust/Swift protocol bindings after the native parity run exposed a stale `SourcesResult` shape.
+- Fixed Rust native-foundation parity responses for export job status and project timeline state.
+- Added committed real-process launch/security e2e coverage for Windows/Linux native engines covering readiness, bearer rejection, success response, body limit, hostile origin, unsupported route, and unsupported method.
+- Completed the final stale legacy transport wording/import/test sweep for active docs/scripts/tests.
+- Expanded macOS project/export handlers to use native project persistence/recents and real `ExportPipeline` execution when a recording asset is available.
+- Expanded macOS agent handlers to enforce preflight tokens, runtime-budget validation, transcript-backed QA coverage, force gating, status polling, QA/destructive-intent apply gates, project agent metadata, and timeline application state.
 
 ### Phase 6: Desktop Integration
 
-- Replace `@guerillaglass/engine/client/liveBun` usage with `@guerillaglass/engine-client` services.
+- Replace old consolidated engine package Bun live layer usage with `@guerillaglass/engine-client` services.
 - Update `HostBridgeService` to call domain services.
-- Remove old `EngineTransport` dependencies.
+- Remove old transport service dependencies.
 - Keep Electrobun RPC only for renderer/Bun boundary.
 
 ### Phase 7: Removal
 
 Delete obsolete implementation:
 
-- old `packages/engine` RPC group/client/wire protocol;
-- old Rust socket protocol crate code;
-- old Swift socket protocol code;
-- old socket readiness env vars;
-- old wire protocol tests.
+- old consolidated engine package RPC group/client/protocol bridge;
+- old Rust legacy transport protocol crate code;
+- old Swift legacy transport protocol code;
+- old readiness env vars;
+- old protocol bridge tests.
 
 No shims.
 
@@ -651,7 +790,7 @@ golden fixture parity tests
 - Should `/healthz` require auth?
 - Should OpenAPI docs be generated only as a file, or also served in dev?
 - How much polling is acceptable for capture status before SSE is needed?
-- Should local HTTP later move to Unix sockets / named pipes while preserving OpenAPI-derived schemas?
+- Should local HTTP later move to named pipes or another OS-native local transport while preserving OpenAPI-derived schemas?
 
 ## Preferred End State
 
