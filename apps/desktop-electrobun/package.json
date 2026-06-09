@@ -4,7 +4,7 @@
   "description": "Guerillaglass desktop shell built with Electrobun + React + Tailwind",
   "type": "module",
   "scripts": {
-    "dev": "bun run build && electrobun dev",
+    "dev": "bun run build && GG_ENGINE_PATH=${GG_ENGINE_PATH:-$(cd ../.. && pwd)/.build/debug/guerillaglass-engine} electrobun dev",
     "dev:open": "bun run build && open build/dev-macos-arm64/Guerillaglass-dev.app",
     "dev:hmr": "concurrently \"bun run hmr\" \"bun run dev\"",
     "hmr": "vite",

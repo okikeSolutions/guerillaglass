@@ -1850,7 +1850,7 @@ function buildMarkdownReport(report: BenchmarkReport) {
 }
 
 async function writeReports(report: BenchmarkReport, outputDir: string) {
-  const timestamp = report.generatedAt.replaceAll(":", "-");
+  const timestamp = report.generatedAt.split(":").join("-");
   const reportDir = path.join(outputDir, timestamp);
   await mkdir(reportDir, { recursive: true });
 

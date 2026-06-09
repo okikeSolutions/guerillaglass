@@ -1,4 +1,4 @@
-import type { DesktopMenuMessages } from "@shared/localization";
+import type { DesktopMenuMessages } from "./localization";
 import {
   hostMenuCommands,
   type HostMenuCommand,

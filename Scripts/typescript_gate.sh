@@ -13,7 +13,7 @@ echo "==> i18n compile"
 bun run i18n:compile
 
 echo "==> js lint and typecheck (oxlint)"
-bun run js:lint
+bun run js:lint:ci
 
 echo "==> React effect-state lint"
 bun run js:lint:react-effects

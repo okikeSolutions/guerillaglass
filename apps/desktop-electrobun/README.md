@@ -37,17 +37,44 @@ Key points:
 ```bash
 bun install
 bun run i18n:compile
+
+# Builds .build/debug/guerillaglass-engine, the default engine used by desktop dev scripts.
 bun run swift:build
 ```
 
 ## Development
 
-```bash
-bun run desktop:dev
-bun run desktop:dev:hmr
+From the repository root:
 
-GG_ENGINE_TARGET=windows-native bun run desktop:dev
-GG_ENGINE_TARGET=linux-native bun run desktop:dev
+```bash
+# Builds the desktop bundle and launches Electrobun.
+# Defaults GG_ENGINE_PATH to .build/debug/guerillaglass-engine when unset.
+bun run desktop:dev
+
+# Runs Vite for renderer HMR and launches the Electrobun dev shell.
+# Also defaults GG_ENGINE_PATH to .build/debug/guerillaglass-engine when unset.
+bun run desktop:dev:hmr
+```
+
+From this package directory:
+
+```bash
+bun run dev
+bun run dev:hmr
+```
+
+To use a custom sidecar executable, pass an absolute `GG_ENGINE_PATH`:
+
+```bash
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev:hmr
+```
+
+Focused Rust native parity builds can be launched the same way:
+
+```bash
+cargo build --workspace
+GG_ENGINE_PATH="$PWD/target/debug/guerillaglass-engine-linux" bun run desktop:dev
 ```
 
 ## Test & Coverage
@@ -60,7 +87,9 @@ bun run desktop:test:e2e
 bun run desktop:test:ui
 ```
 
-The app-level `typecheck`, `build`, and test scripts generate Paraglide output first, so fresh clones and CI do not need generated files committed.
+The app-level `typecheck`, `build`, lint, and test scripts generate Paraglide output first, so fresh clones and CI do not need generated files committed.
+
+`bun run js:lint` at the repo root runs Oxlint with `--type-aware --type-check --deny-warnings`, so JavaScript/TypeScript lint warnings are treated as gate failures.
 
 ## Build
 

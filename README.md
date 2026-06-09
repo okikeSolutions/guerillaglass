@@ -11,7 +11,7 @@ North star:
 
 ## Current Architecture
 
-The repository now uses the completed Phase 1–7 architecture:
+The repository now uses the completed Engine Contract v2 architecture:
 
 - Desktop shell: Electrobun + React + Tailwind (`apps/desktop-electrobun`)
 - Desktop backend: one Effect app runtime composed from scoped services (`src/bun/app`)
@@ -43,27 +43,36 @@ bun install
 # Generate app-local Paraglide output used by typecheck/build/test
 bun run i18n:compile
 
-# Build native macOS engine
+# Build native macOS engine used by the desktop dev scripts
 bun run swift:build
 
-# Run desktop shell
+# Run desktop shell. In development this defaults GG_ENGINE_PATH to:
+# .build/debug/guerillaglass-engine
 bun run desktop:dev
+
+# Run desktop shell with Vite HMR for the renderer
+bun run desktop:dev:hmr
 
 # Run web app
 bun run web:dev
 ```
 
-Engine targets:
+Native engine path overrides:
 
 ```bash
-GG_ENGINE_TARGET=windows-native bun run desktop:dev
-GG_ENGINE_TARGET=linux-native bun run desktop:dev
+# Use a custom native engine executable. The path must be absolute.
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev:hmr
+
+# Rust sidecars can be built/launched explicitly for focused native parity work.
+cargo build --workspace
+GG_ENGINE_PATH="$PWD/target/debug/guerillaglass-engine-linux" bun run desktop:dev
 ```
 
 ## Verification
 
 ```bash
-bun run i18n:compile
+bun run js:lint
 bun run gate:typescript
 bun run gate:rust
 bun run desktop:test:e2e
