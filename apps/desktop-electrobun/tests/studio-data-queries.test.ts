@@ -14,11 +14,7 @@ describe("studio capture status stream events", () => {
           captureSessionId: "capture-session-1",
           recordingDurationSeconds: 12.5,
           recordingURL: "/tmp/recording.mov",
-          captureMetadata: null,
-          lastError: null,
-          eventsURL: null,
-          lastRecordingTelemetry: null,
-          telemetry: {
+                                                  telemetry: {
             sourceDroppedFrames: 1,
             writerDroppedFrames: 1,
             writerBackpressureDrops: 0,
@@ -58,10 +54,7 @@ describe("studio capture status stream events", () => {
       captureSessionId: "capture-session-1",
       recordingDurationSeconds: 12.5,
       recordingURL: "/tmp/recording.mov",
-      captureMetadata: null,
-      lastError: null,
-      eventsURL: null,
-      lastRecordingTelemetry: {
+                        lastRecordingTelemetry: {
         sourceDroppedFrames: 2,
         writerDroppedFrames: 0,
         writerBackpressureDrops: 0,

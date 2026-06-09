@@ -41,7 +41,7 @@ export function EditRoute() {
   const mediaRef = useRef<HTMLVideoElement | null>(null);
   const recordingMediaSource = useRecordingMediaSource(recordingURL);
   const activeCaptureMetadata =
-    captureStatusQuery.data?.captureMetadata ?? projectQuery.data?.captureMetadata ?? null;
+    captureStatusQuery.data?.captureMetadata ?? projectQuery.data?.captureMetadata;
   const activeCaptureTarget = formatCaptureTargetLabelFromMetadata({
     metadata: activeCaptureMetadata,
     displayLabel: ui.labels.display,

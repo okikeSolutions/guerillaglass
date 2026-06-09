@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import {
   isSelectedWindowUnavailableError,
   mergeFinishedCaptureStatus,
@@ -53,22 +53,14 @@ describe("window capture fallback", () => {
       {
         isRunning: false,
         isRecording: false,
-        captureSessionId: null,
-        recordingDurationSeconds: 25,
+                recordingDurationSeconds: 25,
         recordingURL: "/tmp/out.mov",
-        captureMetadata: null,
-        lastError: null,
-        eventsURL: null,
-        lastRecordingTelemetry: null,
-        telemetry: {
+                                        telemetry: {
           sourceDroppedFrames: 0,
           writerDroppedFrames: 0,
           writerBackpressureDrops: 0,
           achievedFps: 0,
-          cpuPercent: null,
-          memoryBytes: null,
-          recordingBitrateMbps: null,
-          captureCallbackMs: 0,
+                                        captureCallbackMs: 0,
           recordQueueLagMs: 0,
           writerAppendMs: 0,
           previewEncodeMs: 0,

@@ -21,8 +21,7 @@ function statusResult() {
     isRunning,
     isRecording: false,
     recordingDurationSeconds: 0,
-    recordingURL: null,
-    captureMetadata: isRunning
+        captureMetadata: isRunning
       ? {
           source: "window",
           window: {
@@ -34,18 +33,12 @@ function statusResult() {
           pixelScale: 1,
         }
       : null,
-    lastError: null,
-    eventsURL: null,
-    lastRecordingTelemetry: null,
-    telemetry: {
+                telemetry: {
       sourceDroppedFrames: 0,
       writerDroppedFrames: 0,
       writerBackpressureDrops: 0,
       achievedFps: 0,
-      cpuPercent: null,
-      memoryBytes: null,
-      recordingBitrateMbps: null,
-      captureCallbackMs: 0,
+                        captureCallbackMs: 0,
       recordQueueLagMs: 0,
       writerAppendMs: 0,
     },

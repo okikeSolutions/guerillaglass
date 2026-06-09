@@ -7,7 +7,7 @@ import type {
   ReviewSetWorkflowStatusResponse,
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
-import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { AppConfig } from "../app/AppConfig";
 import { ReviewBridgeError } from "../../shared/errors/desktopErrors";
 

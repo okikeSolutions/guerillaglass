@@ -7,7 +7,7 @@ import Electrobun, {
   Utils,
 } from "electrobun/bun";
 import { Effect, Layer, Option, Ref } from "effect";
-import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { AppConfig } from "../app/AppConfig";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
@@ -25,7 +25,7 @@ import {
 } from "../../shared/captureBenchmark";
 import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
 import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
-import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import {
   hostMenuStateSchema,
   hostReviewEventMessageSchema,

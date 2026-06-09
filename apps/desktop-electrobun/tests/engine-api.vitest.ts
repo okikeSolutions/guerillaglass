@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 import { beforeEach, describe, expect, test } from "vitest";
-import { reviewIdSchema } from "@guerillaglass/engine/protocol/schema-primitives";
+import { reviewIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   desktopApi,
   engineApi,
@@ -24,9 +24,9 @@ import {
 import {
   ContractDecodeError,
   EngineResponseError,
-} from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@guerillaglass/engine-client/errors";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
+import { EngineClient } from "@guerillaglass/engine-client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
@@ -38,10 +38,7 @@ const captureTelemetryFixture = {
   writerDroppedFrames: 0,
   writerBackpressureDrops: 0,
   achievedFps: 0,
-  cpuPercent: null,
-  memoryBytes: null,
-  recordingBitrateMbps: null,
-  captureCallbackMs: 0,
+        captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
   previewEncodeMs: 0,
@@ -52,14 +49,9 @@ function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     isRunning,
     isRecording: false,
-    captureSessionId: isRunning ? "capture-session-1" : null,
+    ...(isRunning ? { captureSessionId: "capture-session-1" } : {}),
     recordingDurationSeconds: 0,
-    recordingURL: null,
-    captureMetadata: null,
-    lastError: null,
-    eventsURL: null,
-    lastRecordingTelemetry: null,
-    telemetry: { ...captureTelemetryFixture },
+                        telemetry: { ...captureTelemetryFixture },
     ...overrides,
   };
 }
@@ -131,7 +123,7 @@ describe("renderer engine bridge", () => {
       ggEngineGetPermissions: async () => ({
         screenRecordingGranted: true,
         microphoneGranted: false,
-        inputMonitoring: "authorized",
+        inputMonitoring: "granted",
       }),
       ggEngineRequestScreenRecordingPermission: async () => ({
         success: true,
@@ -188,15 +180,12 @@ describe("renderer engine bridge", () => {
         ],
       }),
       ggEngineProjectCurrent: async () => ({
-        projectPath: null,
-        recordingURL: null,
-        eventsURL: null,
         autoZoom: {
           isEnabled: true,
           intensity: 1,
           minimumKeyframeInterval: 1 / 30,
         },
-        captureMetadata: null,
+        timeline: { version: 2, items: [] },
       }),
       ggEngineStartDisplayCapture: async (
         enableMic: boolean,
@@ -228,28 +217,26 @@ describe("renderer engine bridge", () => {
       ggEngineStopRecording: async () => ({
         ...makeCaptureStatus({ isRunning: true, isRecording: false }),
       }),
-      ggEngineRunExport: async () => ({ outputURL: "/tmp/out.mp4" }),
+      ggEngineRunExport: async () => ({ jobId: "export-job-1", status: "succeeded", outputURL: "/tmp/out.mp4" }),
       ggEngineProjectOpen: async () => ({
         projectPath: "/tmp/project.gglassproj",
         recordingURL: "/tmp/project.gglassproj/recording.mov",
-        eventsURL: null,
         autoZoom: {
           isEnabled: true,
           intensity: 1,
           minimumKeyframeInterval: 1 / 30,
         },
-        captureMetadata: null,
+        timeline: { version: 2, items: [] },
       }),
       ggEngineProjectSave: async () => ({
         projectPath: "/tmp/project.gglassproj",
         recordingURL: "/tmp/project.gglassproj/recording.mov",
-        eventsURL: null,
         autoZoom: {
           isEnabled: true,
           intensity: 1,
           minimumKeyframeInterval: 1 / 30,
         },
-        captureMetadata: null,
+        timeline: { version: 2, items: [] },
       }),
       ggEngineProjectRecents: async () => ({
         items: [
@@ -336,7 +323,7 @@ describe("renderer engine bridge", () => {
     const events = parseInputEventLog(eventsRaw);
 
     expect(ping.protocolVersion).toBe("2");
-    expect(permissions.inputMonitoring).toBe("authorized");
+    expect(permissions.inputMonitoring).toBe("granted");
     expect(requestedScreenPermission.success).toBe(true);
     expect(requestedMicPermission.success).toBe(true);
     expect(requestedInputPermission.success).toBe(true);
@@ -348,8 +335,8 @@ describe("renderer engine bridge", () => {
     expect(sources.displays[0]?.pixelScale).toBe(1);
     expect(sources.windows[0]?.refreshHz).toBe(60);
     expect(sources.windows[0]?.pixelScale).toBe(1);
-    expect(capture.captureSessionId).toBeNull();
-    expect(capture.eventsURL).toBeNull();
+    expect(capture.captureSessionId).toBeUndefined();
+    expect(capture.eventsURL).toBeUndefined();
     expect(exportInfo.presets[0]?.id).toBe("h264-1080p-30");
     expect(project.autoZoom.isEnabled).toBe(true);
     expect(started.isRunning).toBe(true);
@@ -365,7 +352,7 @@ describe("renderer engine bridge", () => {
     expect(recording.isRecording).toBe(true);
     expect(stoppedRecording.isRecording).toBe(false);
     expect(stoppedCapture.isRunning).toBe(false);
-    expect(stoppedCapture.captureSessionId).toBeNull();
+    expect(stoppedCapture.captureSessionId).toBeUndefined();
     expect(exportResult.outputURL).toContain("out.mp4");
     expect(openedProject.projectPath).toContain("project.gglassproj");
     expect(savedProject.projectPath).toContain("project.gglassproj");
@@ -516,10 +503,10 @@ describe("renderer engine bridge", () => {
         publishReviewEvent: () => Effect.void,
         dispose: Effect.void,
       }),
-      enableCaptureStatusStream: false,
+      enableCaptureStatusPolling: false,
       projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
       desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
-      engineTransportLayer: Layer.succeed(EngineTransport, {} as never),
+      engineClientLayer: Layer.succeed(EngineClient, {} as never),
       mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
     });
 

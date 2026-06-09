@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { getStudioMessages } from "@shared/localization";
-import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import { mapStudioActionErrorMessage } from "@studio/hooks/core/useStudioController";
 
 describe("studio action error notices", () => {

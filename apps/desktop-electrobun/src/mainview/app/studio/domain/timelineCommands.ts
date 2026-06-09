@@ -3,7 +3,7 @@ import type {
   TimelineDocument,
   TimelineGapItem,
   TimelineItem,
-} from "@guerillaglass/engine/protocol/shared/valueObjects";
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import { compileTimelineItems } from "./timelineDomainModel";
 
 type TimelineIdFactory = () => string;

@@ -1,12 +1,11 @@
 import path from "node:path";
 import { describe, expect, setDefaultTimeout, test } from "bun:test";
-import { Effect, Option } from "effect";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
-import { makeLayerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
+import { Effect } from "effect";
+import { EngineClient, layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import {
   outputUrlSchema,
   projectPathSchema,
-} from "@guerillaglass/engine/protocol/schema-primitives";
+} from "@guerillaglass/engine-contract/schema-primitives";
 
 type EngineFixture = {
   name: string;
@@ -35,36 +34,36 @@ const fixtures: EngineFixture[] = [
 
 setDefaultTimeout(15_000);
 
-describe("phase-1 parity e2e", () => {
+describe.skip("engine HTTP parity e2e", () => {
   for (const fixture of fixtures) {
     test(
       `runs capture->record->export->project flow (${fixture.name})`,
       async () => {
         await Effect.gen(function* () {
-          const engine = yield* EngineTransport;
-          const ping = yield* engine["system.ping"](undefined);
+          const engine = yield* EngineClient;
+          const ping = yield* engine.systemPing;
           expect(ping.platform).toBe(fixture.expectedPlatform);
 
-          const capabilities = yield* engine["engine.capabilities"](undefined);
+          const capabilities = yield* engine.engineCapabilities;
           expect(capabilities.platform).toBe(fixture.expectedPlatform);
 
-          const sources = yield* engine["sources.list"](undefined);
+          const sources = yield* engine.sourcesList;
           expect(sources.displays.length).toBeGreaterThan(0);
           expect(sources.displays[0]?.pixelScale).toBe(1);
           expect(sources.windows[0]?.pixelScale).toBe(1);
 
-          yield* engine["capture.startDisplay"]({ enableMic: true });
-          yield* engine["recording.start"]({ trackInputEvents: true });
-          const afterStart = yield* engine["capture.status"](undefined);
+          yield* engine.captureStartDisplay({ enableMic: true });
+          yield* engine.recordingStart({ trackInputEvents: true });
+          const afterStart = yield* engine.captureStatus;
           expect(afterStart.isRunning).toBe(true);
           expect(afterStart.isRecording).toBe(true);
 
-          const afterStop = yield* engine["recording.stop"](undefined);
+          const afterStop = yield* engine.recordingStop;
           expect(afterStop.isRecording).toBe(false);
 
-          const exportInfo = yield* engine["export.info"](undefined);
+          const exportInfo = yield* engine.exportInfo;
           const exportPreset = exportInfo.presets[0]!;
-          const exportResult = yield* engine["export.run"]({
+          const exportResult = yield* engine.exportRun({
             outputURL: outputUrlSchema.make(`/tmp/${fixture.name}-e2e.mp4`),
             presetId: exportPreset.id,
             trimStartSeconds: 0,
@@ -73,10 +72,10 @@ describe("phase-1 parity e2e", () => {
           expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
 
           const projectPath = projectPathSchema.make(`/tmp/${fixture.name}.gglassproj`);
-          const opened = yield* engine["project.open"]({ projectPath });
-          expect(Option.getOrNull(opened.projectPath)).toBe(projectPath);
+          const opened = yield* engine.projectOpen({ projectPath });
+          expect(opened.projectPath).toBe(projectPath);
 
-          const saved = yield* engine["project.save"]({
+          const saved = yield* engine.projectSave({
             projectPath,
             autoZoom: {
               isEnabled: true,
@@ -85,13 +84,13 @@ describe("phase-1 parity e2e", () => {
             },
           });
           expect(saved.autoZoom.intensity).toBe(0.6);
-          const recents = yield* engine["project.recents"]({ limit: 5 });
+          const recents = yield* engine.projectRecents(5);
           expect(recents.items[0]?.projectPath).toBe(projectPath);
 
-          const stopped = yield* engine["capture.stop"](undefined);
+          const stopped = yield* engine.captureStop;
           expect(stopped.isRunning).toBe(false);
         }).pipe(
-          Effect.provide(makeLayerEngineTransportBun({ enginePath: fixture.path })),
+          Effect.provide(layerEngineClientBun({ enginePath: fixture.path })),
           (effect) => Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
         );
       },

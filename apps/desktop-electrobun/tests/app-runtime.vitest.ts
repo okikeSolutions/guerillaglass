@@ -1,38 +1,30 @@
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer, Schema, Stream } from "effect";
+import { describe, expect, test } from "vitest";
+import { Effect, Fiber, Layer, Schema } from "effect";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
+} from "@guerillaglass/engine-contract/domains/capture";
+import { EngineClient } from "@guerillaglass/engine-client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
-import { makeCaptureStatusStreamEffect } from "../src/bun/app/AppLayer";
+import { makeCaptureStatusPollingEffect } from "../src/bun/app/AppLayer";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
 import { ProjectSession } from "../src/bun/session/ProjectSession";
 import { DesktopTempDirectory } from "../src/bun/security/DesktopTempDirectory";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
-function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): CaptureStatusResult {
+function makeCaptureStatus(overrides: Partial<CaptureStatusResult> = {}): CaptureStatusResult {
   const isRunning = overrides.isRunning === true;
   return {
     isRunning,
     isRecording: false,
-    captureSessionId: isRunning ? "capture-session-1" : null,
+    ...(isRunning ? { captureSessionId: "capture-session-1" } : {}),
     recordingDurationSeconds: 0,
-    recordingURL: null,
-    captureMetadata: null,
-    lastError: null,
-    eventsURL: null,
-    lastRecordingTelemetry: null,
     telemetry: {
       sourceDroppedFrames: 0,
       writerDroppedFrames: 0,
       writerBackpressureDrops: 0,
       achievedFps: 0,
-      cpuPercent: null,
-      memoryBytes: null,
-      recordingBitrateMbps: null,
       captureCallbackMs: 0,
       recordQueueLagMs: 0,
       writerAppendMs: 0,
@@ -41,21 +33,22 @@ function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}): Ca
   };
 }
 
-describe("desktop app runtime capture status stream", () => {
-  it.effect("forwards capture status stream chunks", () =>
-    Effect.gen(function* () {
-      const delivered: CaptureStatusResult[] = [];
-      const first = makeCaptureStatus({ isRunning: true, isRecording: true });
-      const second = makeCaptureStatus({ isRunning: true, isRecording: false });
-      const statusCodec = Schema.toCodecJson(captureStatusResultSchema);
-      const decodeStatus = Schema.decodeUnknownSync(statusCodec);
-      const encodeStatus = Schema.encodeUnknownSync(statusCodec);
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      yield* makeCaptureStatusStreamEffect().pipe(
+describe("desktop app runtime capture status polling", () => {
+  test("forwards capture status polling results", async () => {
+    const delivered: CaptureStatusResult[] = [];
+    const first = makeCaptureStatus({ isRunning: true, isRecording: true });
+    const statusCodec = Schema.toCodecJson(captureStatusResultSchema);
+    const decodeStatus = Schema.decodeUnknownSync(statusCodec);
+    const encodeStatus = Schema.encodeUnknownSync(statusCodec);
+
+    const fiber = Effect.runFork(
+      makeCaptureStatusPollingEffect(0, 50).pipe(
         Effect.provide(
           Layer.mergeAll(
-            Layer.succeed(EngineTransport, {
-              "capture.statusStream": () => Stream.make(decodeStatus(first), decodeStatus(second)),
+            Layer.succeed(EngineClient, {
+              captureStatus: Effect.succeed(decodeStatus(first)),
             } as never),
             Layer.succeed(DesktopShell, {
               start: () => Effect.void,
@@ -68,24 +61,24 @@ describe("desktop app runtime capture status stream", () => {
             }),
           ),
         ),
-      );
+      ) as Effect.Effect<void, never, never>,
+    );
 
-      expect(delivered).toEqual([
-        encodeStatus(decodeStatus(first)),
-        encodeStatus(decodeStatus(second)),
-      ]);
-    }),
-  );
+    await sleep(20);
+    await Effect.runPromise(Fiber.interrupt(fiber));
 
-  it.effect("logs and completes when capture status stream fails", () =>
-    Effect.gen(function* () {
-      const delivered: CaptureStatusResult[] = [];
+    expect(delivered[0]).toEqual(encodeStatus(decodeStatus(first)));
+  });
 
-      yield* makeCaptureStatusStreamEffect().pipe(
+  test("continues when capture status polling fails", async () => {
+    const delivered: CaptureStatusResult[] = [];
+
+    const fiber = Effect.runFork(
+      makeCaptureStatusPollingEffect(0, 50).pipe(
         Effect.provide(
           Layer.mergeAll(
-            Layer.succeed(EngineTransport, {
-              "capture.statusStream": () => Stream.fail("status probe failed"),
+            Layer.succeed(EngineClient, {
+              captureStatus: Effect.fail("status probe failed"),
             } as never),
             Layer.succeed(DesktopShell, {
               start: () => Effect.void,
@@ -98,50 +91,49 @@ describe("desktop app runtime capture status stream", () => {
             }),
           ),
         ),
-      );
+      ) as Effect.Effect<void, never, never>,
+    );
 
-      expect(delivered).toEqual([]);
-    }),
-  );
+    await sleep(20);
+    await Effect.runPromise(Fiber.interrupt(fiber));
 
-  it.effect("shares one engine transport acquisition with the capture status worker", () =>
-    Effect.gen(function* () {
-      let acquisitions = 0;
-      let releases = 0;
+    expect(delivered).toEqual([]);
+  });
 
-      const runtime = yield* Effect.promise(() =>
-        makeDesktopAppRuntime({
-          desktopShellLayer: Layer.succeed(DesktopShell, {
-            start: () => Effect.void,
-            publishCaptureStatus: () => Effect.void,
-            publishReviewEvent: () => Effect.void,
-            dispose: Effect.void,
+  test("shares one engine client acquisition with the capture status worker", async () => {
+    let acquisitions = 0;
+    let releases = 0;
+
+    const runtime = await makeDesktopAppRuntime({
+      desktopShellLayer: Layer.succeed(DesktopShell, {
+        start: () => Effect.void,
+        publishCaptureStatus: () => Effect.void,
+        publishReviewEvent: () => Effect.void,
+        dispose: Effect.void,
+      }),
+      projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
+      desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
+      engineClientLayer: Layer.effect(
+        EngineClient,
+        Effect.acquireRelease(
+          Effect.suspend(() => {
+            acquisitions += 1;
+            return Effect.succeed({
+              captureStatus: Effect.never,
+            } as never);
           }),
-          projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
-          desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
-          engineTransportLayer: Layer.effect(
-            EngineTransport,
-            Effect.acquireRelease(
-              Effect.suspend(() => {
-                acquisitions += 1;
-                return Effect.succeed({
-                  "capture.statusStream": () => Stream.never,
-                } as never);
-              }),
-              () =>
-                Effect.sync(() => {
-                  releases += 1;
-                }),
-            ),
-          ),
-          reviewGatewayLayer: Layer.succeed(ReviewGateway, {} as never),
-          mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
-        }),
-      );
+          () =>
+            Effect.sync(() => {
+              releases += 1;
+            }),
+        ),
+      ),
+      reviewGatewayLayer: Layer.succeed(ReviewGateway, {} as never),
+      mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
+    });
 
-      expect(acquisitions).toBe(1);
-      yield* Effect.promise(() => runtime.dispose());
-      expect(releases).toBe(1);
-    }),
-  );
+    expect(acquisitions).toBe(1);
+    await runtime.dispose();
+    expect(releases).toBe(1);
+  });
 });

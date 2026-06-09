@@ -204,7 +204,7 @@ describe("media HTTP routes", () => {
       const token = yield* registry.registerCapturePreview(
         Effect.sync(() => {
           calls += 1;
-          return calls === 1 ? { frameId: 1, bytesBase64: livePreviewBase64 } : null;
+          return calls === 1 ? { frame: { frameId: 1, bytesBase64: livePreviewBase64 } } : {};
         }),
       );
       const resolved = mediaURL(token);
@@ -227,7 +227,7 @@ describe("media HTTP routes", () => {
   effectTest("returns 404 when live preview has no frame and no cache", () =>
     Effect.gen(function* () {
       const { registry, handler } = yield* makeHarness;
-      const token = yield* registry.registerCapturePreview(Effect.succeed(null));
+      const token = yield* registry.registerCapturePreview(Effect.succeed({}));
       const response = yield* Effect.promise(() => dispatch(handler, mediaURL(token)));
       expect(response.status).toBe(404);
     }),

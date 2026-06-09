@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import { Context, Effect, FileSystem, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { AppConfig } from "../app/AppConfig";
 import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { copySafeFileSnapshot } from "../security/fileAccess";

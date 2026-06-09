@@ -4,25 +4,20 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import * as BunFileSystem from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunFileSystem.js";
-import * as BunPath from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunPath.js";
 import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
-import * as Layer from "../apps/desktop-electrobun/node_modules/effect/dist/Layer.js";
 import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
 import * as Schema from "../apps/desktop-electrobun/node_modules/effect/dist/Schema.js";
-import { EngineTransport } from "../packages/engine/src/client/service";
-import { makeLayerEngineTransportBun } from "../packages/engine/src/client/liveBun";
-import { resolveEnginePath } from "../packages/engine/src/client/config/paths";
+import { EngineClient, layerEngineClientBun } from "../packages/engine-client/src/service";
 import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
 import {
   sourcesResultSchema,
   type CaptureFrameRate,
   type SourcesResult,
-} from "../packages/engine/src/protocol/domains/sources";
+} from "../packages/engine-contract/src/domains/sources";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
-} from "../packages/engine/src/protocol/domains/capture";
+} from "../packages/engine-contract/src/domains/capture";
 
 export type BenchmarkScenarioID =
   | "display-30-no-mic"
@@ -77,9 +72,9 @@ type WindowSource = SourceListing["windows"][number];
 type DisplaySource = SourceListing["displays"][number];
 
 function createBenchmarkEngineClient(enginePath: string) {
-  const runtime = ManagedRuntime.make(makeLayerEngineTransportBun({ enginePath }));
+  const runtime = ManagedRuntime.make(layerEngineClientBun({ enginePath }));
   const run = <A>(effect: Effect.Effect<A, unknown, unknown>) =>
-    runtime.runPromise(effect as Effect.Effect<A, unknown, EngineTransport>);
+    runtime.runPromise(effect as Effect.Effect<A, unknown, EngineClient>);
   const runJson = <S extends Schema.Top>(schema: S, effect: Effect.Effect<unknown, unknown, unknown>) =>
     run(
       Effect.flatMap(effect, Schema.encodeUnknownEffect(Schema.toCodecJson(schema))) as Effect.Effect<
@@ -92,31 +87,17 @@ function createBenchmarkEngineClient(enginePath: string) {
     runJson(captureStatusResultSchema, effect) as Promise<CaptureStatusResult>;
   return {
     stop: () => runtime.dispose(),
-    getPermissions: () =>
-      run(Effect.flatMap(EngineTransport, (engine) => engine["permissions.get"](undefined))),
+    getPermissions: () => run(Effect.flatMap(EngineClient, (engine) => engine.permissionsGet)),
     requestScreenRecordingPermission: () =>
-      run(
-        Effect.flatMap(EngineTransport, (engine) =>
-          engine["permissions.requestScreenRecording"](undefined),
-        ),
-      ),
+      run(Effect.flatMap(EngineClient, (engine) => engine.permissionsRequestScreenRecording)),
     requestMicrophonePermission: () =>
-      run(
-        Effect.flatMap(EngineTransport, (engine) =>
-          engine["permissions.requestMicrophone"](undefined),
-        ),
-      ),
+      run(Effect.flatMap(EngineClient, (engine) => engine.permissionsRequestMicrophone)),
     requestInputMonitoringPermission: () =>
-      run(
-        Effect.flatMap(EngineTransport, (engine) =>
-          engine["permissions.requestInputMonitoring"](undefined),
-        ),
-      ),
+      run(Effect.flatMap(EngineClient, (engine) => engine.permissionsRequestInputMonitoring)),
     listSources: () =>
-      runJson(
-        sourcesResultSchema,
-        Effect.flatMap(EngineTransport, (engine) => engine["sources.list"](undefined)),
-      ).then((sources) => sources as SourceListing),
+      runJson(sourcesResultSchema, Effect.flatMap(EngineClient, (engine) => engine.sourcesList)).then(
+        (sources) => sources as SourceListing,
+      ),
     startDisplayCapture: (
       enableMic: boolean,
       captureFps: CaptureFrameRate,
@@ -124,8 +105,8 @@ function createBenchmarkEngineClient(enginePath: string) {
       enablePreview?: boolean,
     ) =>
       runCaptureStatus(
-        Effect.flatMap(EngineTransport, (engine) =>
-          engine["capture.startDisplay"]({ enableMic, captureFps, displayId, enablePreview }),
+        Effect.flatMap(EngineClient, (engine) =>
+          engine.captureStartDisplay({ enableMic, captureFps, displayId, enablePreview }),
         ),
       ),
     startWindowCapture: (
@@ -135,29 +116,26 @@ function createBenchmarkEngineClient(enginePath: string) {
       enablePreview?: boolean,
     ) =>
       runCaptureStatus(
-        Effect.flatMap(EngineTransport, (engine) =>
-          engine["capture.startWindow"]({ windowId, enableMic, captureFps, enablePreview }),
+        Effect.flatMap(EngineClient, (engine) =>
+          engine.captureStartWindow({ windowId, enableMic, captureFps, enablePreview }),
         ),
       ),
-    stopCapture: () =>
-      runCaptureStatus(
-        Effect.flatMap(EngineTransport, (engine) => engine["capture.stop"](undefined)),
-      ),
+    stopCapture: () => runCaptureStatus(Effect.flatMap(EngineClient, (engine) => engine.captureStop)),
     startRecording: (trackInputEvents: boolean) =>
       runCaptureStatus(
-        Effect.flatMap(EngineTransport, (engine) =>
-          engine["recording.start"]({ trackInputEvents }),
-        ),
+        Effect.flatMap(EngineClient, (engine) => engine.recordingStart({ trackInputEvents })),
       ),
     stopRecording: () =>
-      runCaptureStatus(
-        Effect.flatMap(EngineTransport, (engine) => engine["recording.stop"](undefined)),
-      ),
+      runCaptureStatus(Effect.flatMap(EngineClient, (engine) => engine.recordingStop)),
     captureStatus: () =>
-      runCaptureStatus(
-        Effect.flatMap(EngineTransport, (engine) => engine["capture.status"](undefined)),
-      ),
+      runCaptureStatus(Effect.flatMap(EngineClient, (engine) => engine.captureStatus)),
   };
+}
+
+function resolveBenchmarkEnginePath(): string {
+  const explicit = process.env.GG_ENGINE_PATH;
+  if (explicit && explicit.trim().length > 0) return path.resolve(explicit);
+  return path.resolve(process.cwd(), "engines/macos-swift/.build/debug/guerillaglass-engine");
 }
 
 export const benchmarkSceneWindow = Object.freeze<BenchmarkSceneWindow>({
@@ -1018,7 +996,7 @@ async function ensurePermissions(engine: EngineClientPromise, scenario: Scenario
     throw new Error("Microphone permission is required for the microphone benchmark scenario.");
   }
 
-  if (scenario.trackInputEvents && permissions.inputMonitoring !== "authorized") {
+  if (scenario.trackInputEvents && permissions.inputMonitoring !== "granted") {
     const response = await engine.requestInputMonitoringPermission();
     if (!response.success) {
       throw new Error("Input Monitoring permission request was rejected by the engine.");
@@ -1027,7 +1005,7 @@ async function ensurePermissions(engine: EngineClientPromise, scenario: Scenario
     permissions = await engine.getPermissions();
   }
 
-  if (scenario.trackInputEvents && permissions.inputMonitoring !== "authorized") {
+  if (scenario.trackInputEvents && permissions.inputMonitoring !== "granted") {
     throw new Error(
       "Input Monitoring permission is required for the input-tracking benchmark scenario.",
     );
@@ -1432,7 +1410,7 @@ async function runScenarioRun(
     finalStatus = await withTimeout(engine.stopRecording(), 15_000, "stopRecording");
     const recordingStatus = finalStatus!;
     await withTimeout(engine.stopCapture(), 15_000, "stopCapture");
-    const inputTracking = await loadInputTrackingDiagnostics(recordingStatus.eventsURL);
+    const inputTracking = await loadInputTrackingDiagnostics(recordingStatus.eventsURL ?? null);
 
     const sourceMetadata = recordingStatus.captureMetadata;
     const source = sourceMetadata
@@ -1459,8 +1437,8 @@ async function runScenarioRun(
           : null;
     const steadySamples = toSteadyStateSamples(samples);
     const averageAchievedFps =
-      mean(steadySamples.map((sample) => sample.telemetry.achievedFps)) ?? 0;
-    const minimumAchievedFps = minimum(steadySamples.map((sample) => sample.telemetry.achievedFps));
+      mean(steadySamples.map((sample) => sample.telemetry.achievedFps).filter((value): value is number => value != null)) ?? 0;
+    const minimumAchievedFps = minimum(steadySamples.map((sample) => sample.telemetry.achievedFps).filter((value): value is number => value != null));
     const averageCpuPercent = mean(
       steadySamples
         .map((sample) => sample.telemetry.cpuPercent)
@@ -1482,17 +1460,17 @@ async function runScenarioRun(
         .filter((value): value is number => value !== null),
     );
     const averageCaptureCallbackMs =
-      mean(steadySamples.map((sample) => sample.telemetry.captureCallbackMs)) ?? 0;
+      mean(steadySamples.map((sample) => sample.telemetry.captureCallbackMs).filter((value): value is number => value != null)) ?? 0;
     const peakCaptureCallbackMs =
-      maximum(steadySamples.map((sample) => sample.telemetry.captureCallbackMs)) ?? 0;
+      maximum(steadySamples.map((sample) => sample.telemetry.captureCallbackMs).filter((value): value is number => value != null)) ?? 0;
     const averageRecordQueueLagMs =
-      mean(steadySamples.map((sample) => sample.telemetry.recordQueueLagMs)) ?? 0;
+      mean(steadySamples.map((sample) => sample.telemetry.recordQueueLagMs).filter((value): value is number => value != null)) ?? 0;
     const peakRecordQueueLagMs =
-      maximum(steadySamples.map((sample) => sample.telemetry.recordQueueLagMs)) ?? 0;
+      maximum(steadySamples.map((sample) => sample.telemetry.recordQueueLagMs).filter((value): value is number => value != null)) ?? 0;
     const averageWriterAppendMs =
-      mean(steadySamples.map((sample) => sample.telemetry.writerAppendMs)) ?? 0;
+      mean(steadySamples.map((sample) => sample.telemetry.writerAppendMs).filter((value): value is number => value != null)) ?? 0;
     const peakWriterAppendMs =
-      maximum(steadySamples.map((sample) => sample.telemetry.writerAppendMs)) ?? 0;
+      maximum(steadySamples.map((sample) => sample.telemetry.writerAppendMs).filter((value): value is number => value != null)) ?? 0;
     const averagePreviewEncodeMs =
       mean(
         steadySamples
@@ -1506,7 +1484,7 @@ async function runScenarioRun(
           .filter((value): value is number => value != null),
       ) ?? 0;
     const overallDroppedFrames =
-      recordingStatus.telemetry.sourceDroppedFrames + recordingStatus.telemetry.writerDroppedFrames;
+      (recordingStatus.telemetry.sourceDroppedFrames ?? 0) + (recordingStatus.telemetry.writerDroppedFrames ?? 0);
     const expectedFrames = Math.max(
       1,
       recordingStatus.recordingDurationSeconds * Number(scenario.captureFps),
@@ -1520,11 +1498,11 @@ async function runScenarioRun(
       primingMs: startup.primingMs,
       status:
         (startup.primingMs ?? Number.POSITIVE_INFINITY) <= startupThresholds.maxPrimingMs &&
-        recordingStatus.telemetry.writerBackpressureDrops <=
+        (recordingStatus.telemetry.writerBackpressureDrops ?? 0) <=
           startupThresholds.maxWriterBackpressureDrops
           ? "passed"
           : "failed",
-      writerBackpressureDrops: recordingStatus.telemetry.writerBackpressureDrops,
+      writerBackpressureDrops: recordingStatus.telemetry.writerBackpressureDrops ?? 0,
     };
 
     const verdicts: ScenarioVerdicts = {
@@ -1537,7 +1515,7 @@ async function runScenarioRun(
           : averageCpuPercent <= scenarioThresholds.maxAverageCpuPercent,
       achievedFpsWithinTarget: averageAchievedFps >= scenarioThresholds.minAchievedFps,
       writerBackpressureClear:
-        recordingStatus.telemetry.writerBackpressureDrops <=
+        (recordingStatus.telemetry.writerBackpressureDrops ?? 0) <=
         scenarioThresholds.maxWriterBackpressureDrops,
       exact1080pDisplayMatched: scenario.captureType === "display" ? exact1080pMatched : null,
       retinaWindowMatched,
@@ -1588,8 +1566,8 @@ async function runScenarioRun(
         overallDroppedFramePercent,
       },
       verdicts,
-      recordingURL: recordingStatus.recordingURL,
-      eventsURL: recordingStatus.eventsURL,
+      recordingURL: recordingStatus.recordingURL ?? null,
+      eventsURL: recordingStatus.eventsURL ?? null,
       samples,
     };
   } catch (error) {
@@ -2068,9 +2046,7 @@ export function compareBenchmarkReports(
 
 async function main() {
   const config = parseArgs(process.argv.slice(2));
-  const enginePath = await Effect.runPromise(
-    resolveEnginePath().pipe(Effect.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer))),
-  );
+  const enginePath = resolveBenchmarkEnginePath();
   const engine = createBenchmarkEngineClient(enginePath);
   const scenarioReports: ScenarioSeriesReport[] = [];
   const baselineReport =

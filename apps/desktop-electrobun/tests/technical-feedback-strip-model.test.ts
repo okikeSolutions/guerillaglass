@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { CaptureTelemetry } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CaptureTelemetry } from "@guerillaglass/engine-contract/domains/capture";
 import {
   buildTechnicalFeedbackMetrics,
   formatTelemetryMemoryBytes,
@@ -83,9 +83,7 @@ describe("technical feedback strip model", () => {
       writerBackpressureDrops: 0,
       achievedFps: 23.4,
       cpuPercent: 10,
-      memoryBytes: null,
-      recordingBitrateMbps: null,
-      captureCallbackMs: 0.2,
+                  captureCallbackMs: 0.2,
       recordQueueLagMs: 0.1,
       writerAppendMs: 0.7,
     } satisfies CaptureTelemetry;
@@ -135,9 +133,7 @@ describe("technical feedback strip model", () => {
       writerBackpressureDrops: 0,
       achievedFps: 27.8,
       cpuPercent: 9,
-      memoryBytes: null,
-      recordingBitrateMbps: null,
-      captureCallbackMs: 0.2,
+                  captureCallbackMs: 0.2,
       recordQueueLagMs: 0.1,
       writerAppendMs: 0.8,
     } satisfies CaptureTelemetry;
@@ -148,7 +144,7 @@ describe("technical feedback strip model", () => {
         isCaptureRunning: false,
         isCaptureRecording: false,
         liveTelemetry: undefined,
-        lastRecordingTelemetry: null,
+        lastRecordingTelemetry: undefined,
         projectLastRecordingTelemetry,
       })?.achievedFps,
     ).toBe(27.8);
@@ -161,9 +157,7 @@ describe("technical feedback strip model", () => {
       writerBackpressureDrops: 0,
       achievedFps: 28.9,
       cpuPercent: 8,
-      memoryBytes: null,
-      recordingBitrateMbps: null,
-      captureCallbackMs: 0.2,
+                  captureCallbackMs: 0.2,
       recordQueueLagMs: 0.1,
       writerAppendMs: 0.8,
     } satisfies CaptureTelemetry;

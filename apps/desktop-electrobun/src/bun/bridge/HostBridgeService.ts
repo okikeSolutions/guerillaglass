@@ -1,8 +1,8 @@
 import { Context, Effect, Layer, Option, Schema } from "effect";
-import { isoDateTimeSchema } from "@guerillaglass/engine/protocol/schema-primitives";
+import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { capturePreviewFrameResultSchema } from "@guerillaglass/engine/protocol/domains/capture";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
+import { capturePreviewFrameResultSchema } from "@guerillaglass/engine-contract/domains/capture";
+import { EngineClient, type EngineClientService } from "@guerillaglass/engine-client/service";
 import { MediaSourceService } from "../media/service";
 import { ProjectSession } from "../session/ProjectSession";
 import { ReviewGateway } from "../review/service";
@@ -26,11 +26,11 @@ export class HostBridgeService extends Context.Service<HostBridgeService, HostBr
 ) {}
 
 const engine = <A, E>(
-  f: (transport: any) => Effect.Effect<A, E>,
-): Effect.Effect<A, E, EngineTransport> =>
+  f: (client: EngineClientService) => Effect.Effect<A, E>,
+): Effect.Effect<A, E, EngineClient> =>
   Effect.gen(function* () {
-    const transport = yield* EngineTransport;
-    return yield* f(transport);
+    const client = yield* EngineClient;
+    return yield* f(client);
   });
 
 function reviewEventCreated(comment: any): ReviewBridgeEvent {
@@ -77,71 +77,61 @@ export const layerHostBridgeService = Layer.succeed(
       const requestEffect = Effect.gen(function* () {
         switch (name) {
           case "ggEnginePing":
-            return yield* engine((transport) => transport["system.ping"](undefined));
+            return yield* engine((client) => client.systemPing);
           case "ggEngineGetPermissions":
-            return yield* engine((transport) => transport["permissions.get"](undefined));
+            return yield* engine((client) => client.permissionsGet);
           case "ggEngineAgentPreflight":
-            return yield* engine((transport) => transport["agent.preflight"](params as any));
+            return yield* engine((client) => client.agentPreflight(params as any));
           case "ggEngineAgentRun":
-            return yield* engine((transport) => transport["agent.run"](params as any));
+            return yield* engine((client) => client.agentRun(params as any));
           case "ggEngineAgentStatus":
-            return yield* engine((transport) => transport["agent.status"](params as any));
+            return yield* engine((client) => client.agentStatus((params as { jobId: string }).jobId));
           case "ggEngineAgentApply":
-            return yield* engine((transport) => transport["agent.apply"](params as any));
+            return yield* engine((client) =>
+              client.agentApply((params as { jobId: string }).jobId, params as any),
+            );
           case "ggEngineRequestScreenRecordingPermission":
-            return yield* engine((transport) =>
-              transport["permissions.requestScreenRecording"](undefined),
-            );
+            return yield* engine((client) => client.permissionsRequestScreenRecording);
           case "ggEngineRequestMicrophonePermission":
-            return yield* engine((transport) =>
-              transport["permissions.requestMicrophone"](undefined),
-            );
+            return yield* engine((client) => client.permissionsRequestMicrophone);
           case "ggEngineRequestInputMonitoringPermission":
-            return yield* engine((transport) =>
-              transport["permissions.requestInputMonitoring"](undefined),
-            );
+            return yield* engine((client) => client.permissionsRequestInputMonitoring);
           case "ggEngineOpenInputMonitoringSettings":
-            return yield* engine((transport) =>
-              transport["permissions.openInputMonitoringSettings"](undefined),
-            );
+            return yield* engine((client) => client.permissionsOpenInputMonitoringSettings);
           case "ggEngineListSources":
-            return yield* engine((transport) => transport["sources.list"](undefined));
+            return yield* engine((client) => client.sourcesList);
           case "ggEngineStartDisplayCapture":
-            return yield* engine((transport) => transport["capture.startDisplay"](params as any));
+            return yield* engine((client) => client.captureStartDisplay(params as any));
           case "ggEngineStartCurrentWindowCapture":
-            return yield* engine((transport) =>
-              transport["capture.startCurrentWindow"](params as any),
-            );
+            return yield* engine((client) => client.captureStartCurrentWindow(params as any));
           case "ggEngineStartWindowCapture":
-            return yield* engine((transport) => transport["capture.startWindow"](params as any));
+            return yield* engine((client) => client.captureStartWindow(params as any));
           case "ggEngineStopCapture":
-            return yield* engine((transport) => transport["capture.stop"](undefined));
+            return yield* engine((client) => client.captureStop);
           case "ggEngineStartRecording":
-            return yield* engine((transport) => transport["recording.start"](params as any));
+            return yield* engine((client) => client.recordingStart(params as any));
           case "ggEngineStopRecording":
-            return yield* engine((transport) => transport["recording.stop"](undefined));
+            return yield* engine((client) => client.recordingStop);
           case "ggEngineCaptureStatus":
-            return yield* engine((transport) => transport["capture.status"](undefined));
+            return yield* engine((client) => client.captureStatus);
           case "ggEngineCapturePreviewFrame":
-            return yield* engine((transport) => transport["capture.previewFrame"](undefined));
+            return yield* engine((client) => client.capturePreviewFrame);
           case "ggEngineExportInfo":
-            return yield* engine((transport) => transport["export.info"](undefined));
+            return yield* engine((client) => client.exportInfo);
           case "ggEngineRunExport": {
             const pathPolicy = yield* ProjectExportPathPolicy;
             const outputURL = yield* pathPolicy.validateExportOutputPath(
               (params as { outputURL: string }).outputURL,
             );
-            return yield* engine((transport) =>
-              transport["export.run"]({ ...(params as any), outputURL } as any),
-            );
+            return yield* engine((client) => client.exportRun({ ...(params as any), outputURL } as any));
           }
           case "ggEngineRunCutPlanExport": {
             const pathPolicy = yield* ProjectExportPathPolicy;
             const outputURL = yield* pathPolicy.validateExportOutputPath(
               (params as { outputURL: string }).outputURL,
             );
-            return yield* engine((transport) =>
-              transport["export.runCutPlan"]({ ...(params as any), outputURL } as any),
+            return yield* engine((client) =>
+              client.exportRunCutPlan({ ...(params as any), outputURL } as any),
             );
           }
           case "ggEngineProjectCurrent": {
@@ -268,10 +258,10 @@ export const layerHostBridgeService = Layer.succeed(
             return yield* mediaSourceService.resolveMediaSourceURL(allowedMediaPath);
           }
           case "ggGrantCapturePreviewCapability": {
-            const transport = yield* EngineTransport;
+            const client = yield* EngineClient;
             const capabilities = yield* CapabilityGrantService;
             const captureSessionId = (params as { captureSessionId: string }).captureSessionId;
-            const status = yield* transport["capture.status"](undefined);
+            const status = yield* client.captureStatus;
             if (!status.isRunning || captureSessionIdFromStatus(status) !== captureSessionId) {
               return yield* new CapabilityTokenError({
                 code: "CAPABILITY_TOKEN_INVALID",
@@ -285,7 +275,7 @@ export const layerHostBridgeService = Layer.succeed(
             });
           }
           case "ggResolveCapturePreviewURL": {
-            const transport = yield* EngineTransport;
+            const client = yield* EngineClient;
             const mediaSourceService = yield* MediaSourceService;
             const capabilities = yield* CapabilityGrantService;
             const captureSessionId = (params as { captureSessionId: string }).captureSessionId;
@@ -298,7 +288,7 @@ export const layerHostBridgeService = Layer.succeed(
               Schema.toCodecJson(capturePreviewFrameResultSchema),
             );
             return yield* mediaSourceService.resolveCapturePreviewURL(
-              transport["capture.previewFrame"](undefined).pipe(
+              client.capturePreviewFrame.pipe(
                 Effect.flatMap(encodePreviewFrame),
                 Effect.map((frame) => frame as any),
               ),

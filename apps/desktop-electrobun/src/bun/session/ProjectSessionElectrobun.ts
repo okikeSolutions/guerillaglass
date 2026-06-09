@@ -1,11 +1,11 @@
 import { Effect, FileSystem, Layer, Option, Ref, Schema } from "effect";
 import { Utils } from "electrobun/bun";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
+import { EngineClient } from "@guerillaglass/engine-client/service";
 import {
   projectStateSchema,
   type ProjectRecentsResult,
   type ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
+} from "@guerillaglass/engine-contract/domains/project";
 import { pickPathForModeEffect } from "../path/picker";
 import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { readAllowedTextFile, resolveAllowedMediaFilePath } from "../security/fileAccess";
@@ -60,33 +60,33 @@ export const layerProjectSession = Layer.effect(
       );
 
     const projectCurrent = Effect.gen(function* () {
-      const transport = yield* EngineTransport;
-      const projectState = yield* transport["project.current"](undefined);
+      const client = yield* EngineClient;
+      const projectState = yield* client.projectCurrent;
       yield* updateCurrentProjectPathFromState(currentProjectPathRef, projectState);
       return yield* encodeProjectStateEffect(projectState);
     });
 
     const projectOpen = (params: BridgeRequests["ggEngineProjectOpen"]["params"]) =>
       Effect.gen(function* () {
-        const transport = yield* EngineTransport;
-        const projectState = yield* transport["project.open"](params);
+        const client = yield* EngineClient;
+        const projectState = yield* client.projectOpen(params);
         yield* updateCurrentProjectPathFromState(currentProjectPathRef, projectState);
         return yield* encodeProjectStateEffect(projectState);
       });
 
     const projectSave = (params: BridgeRequests["ggEngineProjectSave"]["params"]) =>
       Effect.gen(function* () {
-        const transport = yield* EngineTransport;
-        const projectState = yield* transport["project.save"](params);
+        const client = yield* EngineClient;
+        const projectState = yield* client.projectSave(params);
         yield* updateCurrentProjectPathFromState(currentProjectPathRef, projectState);
         return yield* encodeProjectStateEffect(projectState);
       });
 
     const projectRecents = (params: BridgeRequests["ggEngineProjectRecents"]["params"]) =>
       Effect.gen(function* () {
-        const transport = yield* EngineTransport;
-        return yield* transport["project.recents"](params);
-      }) as Effect.Effect<ProjectRecentsResult, unknown, EngineTransport>;
+        const client = yield* EngineClient;
+        return yield* client.projectRecents(params.limit);
+      }) as Effect.Effect<ProjectRecentsResult, unknown, EngineClient>;
 
     const loadInitialProject = projectCurrent.pipe(
       Effect.catch((error) =>

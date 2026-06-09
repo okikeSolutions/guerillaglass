@@ -1,4 +1,4 @@
-import type { CaptureTelemetry } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CaptureTelemetry } from "@guerillaglass/engine-contract/domains/capture";
 
 type TelemetryFormatter = {
   formatInteger: (value: number) => string;

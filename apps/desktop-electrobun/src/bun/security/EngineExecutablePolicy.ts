@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Effect } from "effect";
-import { EngineClientError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { EngineProcessError } from "@guerillaglass/engine-client/errors";
 import { AppConfig, type DesktopAppConfig } from "../app/AppConfig";
 
 export function productionLikeEnvironment(config: DesktopAppConfig): boolean {
@@ -18,29 +18,29 @@ function configuredWindowsAuthenticodeTrust(config: DesktopAppConfig): boolean {
   );
 }
 
-function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, EngineClientError> {
+function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, EngineProcessError> {
   return Effect.try({
     try: () => {
       const overridePath = config.enginePath?.trim();
       if (overridePath) {
         if (productionLikeEnvironment(config) && !config.allowCustomEnginePath) {
-          throw new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "Custom GG_ENGINE_PATH overrides are disabled in production builds.",
+          throw new EngineProcessError({
+            code: "ENGINE_PATH_UNAVAILABLE",
+            message: "Custom GG_ENGINE_PATH overrides are disabled in production builds.",
           });
         }
 
         if (!path.isAbsolute(overridePath)) {
-          throw new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "GG_ENGINE_PATH must be an absolute path when provided.",
+          throw new EngineProcessError({
+            code: "ENGINE_PATH_UNAVAILABLE",
+            message: "GG_ENGINE_PATH must be an absolute path when provided.",
           });
         }
 
         if (productionLikeEnvironment(config) && overridePath.endsWith(".ts")) {
-          throw new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description: "TypeScript engine stubs are disabled in production builds.",
+          throw new EngineProcessError({
+            code: "ENGINE_PATH_UNAVAILABLE",
+            message: "TypeScript engine stubs are disabled in production builds.",
           });
         }
       }
@@ -48,9 +48,9 @@ function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, Eng
       const macosHelperPath = config.macosCodeSignatureHelperPath?.trim();
       if (process.platform === "darwin" && configuredMacosSignatureTrust(config)) {
         if (!macosHelperPath || !path.isAbsolute(macosHelperPath)) {
-          throw new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description:
+          throw new EngineProcessError({
+            code: "ENGINE_TRUST_REJECTED",
+            message:
               "GG_MACOS_CODE_SIGNATURE_HELPER_PATH must be an absolute path when macOS engine signature trust is configured.",
           });
         }
@@ -59,20 +59,20 @@ function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, Eng
       const windowsHelperPath = config.windowsAuthenticodeHelperPath?.trim();
       if (process.platform === "win32" && configuredWindowsAuthenticodeTrust(config)) {
         if (!windowsHelperPath || !path.isAbsolute(windowsHelperPath)) {
-          throw new EngineClientError({
-            code: "ENGINE_PROCESS_UNAVAILABLE",
-            description:
+          throw new EngineProcessError({
+            code: "ENGINE_TRUST_REJECTED",
+            message:
               "GG_WINDOWS_AUTHENTICODE_HELPER_PATH must be an absolute path when Windows engine Authenticode trust is configured.",
           });
         }
       }
     },
-    catch: (error) => error as EngineClientError,
+    catch: (error) => error as EngineProcessError,
   });
 }
 
 /** Validates development-only native engine executable overrides before the engine layer starts. */
-export const validateEngineExecutablePolicy: Effect.Effect<void, EngineClientError, AppConfig> =
+export const validateEngineExecutablePolicy: Effect.Effect<void, EngineProcessError, AppConfig> =
   Effect.gen(function* () {
     const config = yield* AppConfig;
     yield* validateStaticConfig(config);

@@ -1,7 +1,7 @@
 import { Utils } from "electrobun/bun";
 import * as BunServices from "@effect/platform-bun/BunServices";
 import { Effect, Layer } from "effect";
-import { makeLayerEngineTransportBun } from "@guerillaglass/engine/client/liveBun";
+import { layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
 import { AppConfig } from "./AppConfig";
 import { DesktopShell } from "../shell/DesktopShell";
@@ -31,12 +31,12 @@ function disposeDesktopAppOnProcessSignal() {
 process.once("SIGINT", disposeDesktopAppOnProcessSignal);
 process.once("SIGTERM", disposeDesktopAppOnProcessSignal);
 
-const guardedEngineTransportLayer = Layer.unwrap(
+const guardedEngineClientLayer = Layer.unwrap(
   Effect.gen(function* () {
     yield* validateEngineExecutablePolicy;
     const config = yield* AppConfig;
     const productionLike = productionLikeEnvironment(config);
-    return makeLayerEngineTransportBun({
+    return layerEngineClientBun({
       enginePath: config.enginePath ?? undefined,
       trustPolicy: {
         enabled: productionLike,
@@ -44,13 +44,7 @@ const guardedEngineTransportLayer = Layer.unwrap(
         rejectSymlinkExecutable: true,
         rejectWorldWritable: config.engineRejectWorldWritable,
         requireCurrentUserOwner: config.engineRequireCurrentUserOwner,
-        macosCodeSignatureHelperPath: config.macosCodeSignatureHelperPath,
-        macosExpectedTeamId: config.engineExpectedTeamId,
-        macosSigningRequirement: config.engineSigningRequirement,
-        windowsAuthenticodeHelperPath: config.windowsAuthenticodeHelperPath,
-        windowsExpectedPublisherSha256Thumbprint: config.windowsExpectedPublisherSha256Thumbprint,
-        windowsExpectedPublisherSubject: config.windowsExpectedPublisherSubject,
-        windowsAllowOfflineRevocation: config.windowsAllowOfflineRevocation,
+
       },
     });
   }),
@@ -59,7 +53,7 @@ const guardedEngineTransportLayer = Layer.unwrap(
 async function bootstrapApp() {
   desktopAppRuntime = await makeDesktopAppRuntime({
     desktopShellLayer: layerDesktopShellFromConfig,
-    engineTransportLayer: guardedEngineTransportLayer,
+    engineClientLayer: guardedEngineClientLayer,
     desktopTempDirectoryLayer: layerDesktopTempDirectory.pipe(Layer.provide(BunServices.layer)),
     projectSessionLayer: layerProjectSession.pipe(Layer.provide(BunServices.layer)),
   });

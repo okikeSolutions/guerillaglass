@@ -1,10 +1,9 @@
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
-import { Effect, Exit, Layer, Schema, Stream, Cause } from "effect";
-import { EngineTransport } from "@guerillaglass/engine/client/service";
-import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@guerillaglass/engine-contract/domains/capture";
+import { Effect, Exit, Layer, Schema, Cause } from "effect";
+import { EngineClient } from "@guerillaglass/engine-client/service";
 import { AppConfig, layerAppConfig } from "./AppConfig";
 import { layerAppLogging } from "./AppLogging";
 import { MediaSourceService, layerMediaSourceService } from "../media/service";
@@ -24,8 +23,12 @@ import {
   layerProjectExportPathPolicy,
 } from "../security/ProjectExportPathPolicy";
 
+function messageFromUnknownError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export type DesktopAppLayerOptions = {
-  engineTransportLayer: Layer.Layer<EngineTransport, unknown, AppConfig>;
+  engineClientLayer: Layer.Layer<EngineClient, unknown, AppConfig>;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, AppConfig>;
   mediaSourceServiceLayer?: Layer.Layer<
     MediaSourceService,
@@ -35,14 +38,15 @@ export type DesktopAppLayerOptions = {
   desktopShellLayer: Layer.Layer<DesktopShell, never, AppConfig>;
   projectSessionLayer: Layer.Layer<ProjectSession, never, AppConfig | DesktopTempDirectory>;
   desktopTempDirectoryLayer: Layer.Layer<DesktopTempDirectory, unknown, never>;
-  enableCaptureStatusStream?: boolean;
+  enableCaptureStatusPolling?: boolean;
   initialCaptureStatusDelayMs?: number;
+  captureStatusPollingIntervalMs?: number;
 };
 
 /** Services composed at the desktop app composition root. */
 export type DesktopAppServices =
   | AppConfig
-  | EngineTransport
+  | EngineClient
   | ReviewGateway
   | MediaSourceService
   | DesktopShell
@@ -54,31 +58,30 @@ export type DesktopAppServices =
   | ProjectExportPathPolicy
   | HostBridgeService;
 
-/** Creates the streaming program that forwards capture status updates through the app layer. */
-export function makeCaptureStatusStreamEffect(
+/** Creates the polling program that forwards capture status updates through the app layer. */
+export function makeCaptureStatusPollingEffect(
   initialDelayMs = 0,
-): Effect.Effect<void, never, EngineTransport | DesktopShell> {
+  intervalMs = 500,
+): Effect.Effect<void, never, EngineClient | DesktopShell> {
   return Effect.gen(function* () {
     if (initialDelayMs > 0) {
       yield* Effect.sleep(`${Math.max(0, initialDelayMs)} millis`);
     }
 
-    const transport = yield* EngineTransport;
+    const client = yield* EngineClient;
     const shell = yield* DesktopShell;
 
-    const statusStream = transport["capture.statusStream"](undefined) as Stream.Stream<
-      Schema.Schema.Type<typeof captureStatusResultSchema>,
-      unknown,
-      never
-    >;
-
-    yield* Stream.runForEach(statusStream, (captureStatus) =>
-      Effect.exit(
-        Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(
-          captureStatus,
-        ).pipe(
-          Effect.flatMap((encodedCaptureStatus) =>
-            shell.publishCaptureStatus(encodedCaptureStatus as CaptureStatusResult),
+    while (true) {
+      yield* Effect.exit(
+        client.captureStatus.pipe(
+          Effect.flatMap((captureStatus) =>
+            Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(
+              captureStatus,
+            ).pipe(
+              Effect.flatMap((encodedCaptureStatus) =>
+                shell.publishCaptureStatus(encodedCaptureStatus as CaptureStatusResult),
+              ),
+            ),
           ),
         ),
       ).pipe(
@@ -87,40 +90,35 @@ export function makeCaptureStatusStreamEffect(
             return Effect.void;
           }
           return Effect.logWarning(
-            `capture status delivery failed: ${messageFromUnknownError(
+            `capture status polling failed: ${messageFromUnknownError(
               Cause.squash(sendResult.cause),
-              "capture status delivery failed",
+              "capture status polling failed",
             )}`,
           );
         }),
-      ),
-    ).pipe(
-      Effect.catch((error) =>
-        Effect.logWarning(
-          `capture status stream failed: ${messageFromUnknownError(
-            error,
-            "capture status stream failed",
-          )}`,
-        ),
-      ),
-    );
+      );
+      yield* Effect.sleep(`${Math.max(50, intervalMs)} millis`);
+    }
   });
 }
 
-function makeCaptureStatusStreamLayer(
+function makeCaptureStatusPollingLayer(
   options: DesktopAppLayerOptions,
 ): Layer.Layer<never, never, DesktopAppServices> {
-  if (options.enableCaptureStatusStream === false) {
+  if (options.enableCaptureStatusPolling === false) {
     return Layer.empty;
   }
 
   return Layer.effectDiscard(
     Effect.gen(function* () {
       const config = yield* AppConfig;
-      const enabled = options.enableCaptureStatusStream ?? !config.captureBenchmarkEnabled;
+      const enabled = options.enableCaptureStatusPolling ?? !config.captureBenchmarkEnabled;
       if (!enabled) return;
       yield* Effect.forkScoped(
-        makeCaptureStatusStreamEffect(options.initialCaptureStatusDelayMs ?? 0),
+        makeCaptureStatusPollingEffect(
+          options.initialCaptureStatusDelayMs ?? 0,
+          options.captureStatusPollingIntervalMs ?? 500,
+        ),
       );
     }),
   );
@@ -143,7 +141,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   );
 
   const appServicesLayer = Layer.mergeAll(
-    options.engineTransportLayer,
+    options.engineClientLayer,
     options.reviewGatewayLayer ?? layerReviewGateway,
     mediaSourceServiceLayer,
     options.desktopShellLayer,
@@ -154,9 +152,9 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
 
   const servicesLayer = appServicesLayer.pipe(Layer.provideMerge(layerAppLogging));
 
-  if (options.enableCaptureStatusStream === false) {
+  if (options.enableCaptureStatusPolling === false) {
     return servicesLayer;
   }
 
-  return makeCaptureStatusStreamLayer(options).pipe(Layer.provideMerge(servicesLayer));
+  return makeCaptureStatusPollingLayer(options).pipe(Layer.provideMerge(servicesLayer));
 }

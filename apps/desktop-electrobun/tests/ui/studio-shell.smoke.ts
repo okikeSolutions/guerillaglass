@@ -26,11 +26,7 @@ function installMockBridge() {
     isRunning: false,
     isRecording: false,
     recordingDurationSeconds: 0,
-    recordingURL: null,
-    eventsURL: null,
-    lastError: null,
-    lastRecordingTelemetry: null,
-    projectPath: null,
+                    projectPath: null,
     autoZoom: {
       isEnabled: true,
       intensity: 1,

@@ -1,22 +1,22 @@
 import { useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
-import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
-import type { ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
-import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
+import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
+import type { ExportPreset } from "@guerillaglass/engine-contract/domains/export";
+import type { PermissionsResult } from "@guerillaglass/engine-contract/domains/permissions";
 import type {
   ProjectRecentsResult,
   ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
+} from "@guerillaglass/engine-contract/domains/project";
 import type {
   CaptureFrameRate,
   SourcesResult,
-} from "@guerillaglass/engine/protocol/domains/sources";
-import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
+} from "@guerillaglass/engine-contract/domains/sources";
+import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
 import type {
   AutoZoomSettings,
   TimelineDocument,
-} from "@guerillaglass/engine/protocol/shared/valueObjects";
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import type { StudioMessages } from "@shared/localization";
 import { engineApi } from "@lib/engine";
 import type { HostPathPickerMode } from "@shared/bridge/desktopBridgeContract";
@@ -24,7 +24,7 @@ import {
   CaptureWindowPickerUnsupportedError,
   StudioActionError,
 } from "@shared/errors/desktopErrors";
-import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
@@ -652,13 +652,14 @@ export function useStudioMutations({
           ? exportForm.state.values.trimEndSeconds
           : undefined;
 
-      return await engineApi.runExport({
+      const result = await engineApi.runExport({
         outputURL,
         presetId: selectedPreset.id,
         trimStartSeconds: trimStart,
         trimEndSeconds: trimEnd,
         timeline: timelineDocument,
       });
+      return { ...result, outputURL: result.outputURL ?? outputURL };
     },
     onSuccess: (result) => {
       if (!result) {

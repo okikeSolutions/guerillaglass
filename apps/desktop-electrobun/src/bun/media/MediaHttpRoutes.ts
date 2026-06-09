@@ -1,8 +1,8 @@
 import { Buffer } from "node:buffer";
 import { Effect, FileSystem, Layer, Option } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
-import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
+import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
 import { AppConfig } from "../app/AppConfig";
 import { guardMediaServerRequest } from "../security/MediaServerRequestGuard";
@@ -86,7 +86,7 @@ function previewHeaders(contentLength: number): Record<string, string> {
   };
 }
 
-function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult>): Uint8Array {
+function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult["frame"]>): Uint8Array {
   return Uint8Array.from(Buffer.from(frame.bytesBase64, "base64"));
 }
 
@@ -136,7 +136,8 @@ function handlePreviewRequest(
       ),
     );
 
-    if (!frame) {
+    const previewFrame = frame.frame;
+    if (!previewFrame) {
       if (entry.cachedJPEGBytes) {
         yield* logDebugEffect(
           `Live preview served cached frame (${token.slice(0, 8)}...) frame=${entry.cachedFrameId ?? 0}`,
@@ -151,10 +152,10 @@ function handlePreviewRequest(
       return textResponse(404, "Not found");
     }
 
-    const jpegBytes = decodePreviewFrame(frame);
-    yield* registry.updatePreviewCache(token, frame.frameId, jpegBytes);
+    const jpegBytes = decodePreviewFrame(previewFrame);
+    yield* registry.updatePreviewCache(token, previewFrame.frameId, jpegBytes);
     yield* logDebugEffect(
-      `Live preview served 200 (${token.slice(0, 8)}...) frame=${frame.frameId}`,
+      `Live preview served 200 (${token.slice(0, 8)}...) frame=${previewFrame.frameId}`,
     );
 
     return HttpServerResponse.uint8Array(jpegBytes, {

@@ -1,24 +1,24 @@
 import type {
   CapturePreviewFrameResult,
   CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
-import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
+} from "@guerillaglass/engine-contract/domains/capture";
+import type { PermissionsResult } from "@guerillaglass/engine-contract/domains/permissions";
 import type {
   ProjectRecentsResult,
   ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
+} from "@guerillaglass/engine-contract/domains/project";
 import {
   defaultCaptureFrameRate,
   type CaptureFrameRate,
   type SourcesResult,
-} from "@guerillaglass/engine/protocol/domains/sources";
-import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
+} from "@guerillaglass/engine-contract/domains/sources";
+import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
 import {
   inputEventLogSchema,
   type AutoZoomSettings,
   type InputEvent,
   type TimelineDocument,
-} from "@guerillaglass/engine/protocol/shared/valueObjects";
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import type {
   HostMenuState,
   HostPathPickerMode,
@@ -35,13 +35,13 @@ import {
   PathPickerError,
   isKnownTaggedError,
 } from "@shared/errors/desktopErrors";
-import { EngineResponseError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import {
   decodeUnknownWithSchemaSync,
   parseJsonStringSync,
   validateEncodedUnknownWithSchemaSync,
   type MutableDeep,
-} from "@guerillaglass/engine/client/errors/schemaContracts";
+} from "@guerillaglass/engine-client/schemaContracts";
 
 function requireBridge<K extends keyof WindowBridgeBindings>(
   name: K,

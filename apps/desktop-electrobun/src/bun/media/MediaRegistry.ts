@@ -1,8 +1,8 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { Context, Effect, FileSystem, Layer, Option, Ref } from "effect";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
-import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
+import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
 import { isSupportedMediaPath } from "./policy";
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { TimelineDocument } from "@guerillaglass/engine/protocol/shared/valueObjects";
+import type { TimelineDocument } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   deleteTimelineItems,
   liftTimelineItems,

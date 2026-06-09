@@ -1,15 +1,15 @@
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
+import { type ExportPreset } from "@guerillaglass/engine-contract/domains/export";
 import {
   defaultCaptureFrameRate,
   type CaptureFrameRate,
-} from "@guerillaglass/engine/protocol/domains/sources";
+} from "@guerillaglass/engine-contract/domains/sources";
 import {
   type AutoZoomSettings,
   type TimelineDocument,
-} from "@guerillaglass/engine/protocol/shared/valueObjects";
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import { getStudioMessages, type StudioMessages } from "@shared/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
 import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
@@ -27,7 +27,7 @@ import {
   EngineResponseError,
   JsonParseError,
   messageFromUnknownError,
-} from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@guerillaglass/engine-client/errors";
 import { createHostCommandRunnerFromHandlers } from "@shared/hostCommandRegistry";
 import {
   detectStudioShortcutPlatform,

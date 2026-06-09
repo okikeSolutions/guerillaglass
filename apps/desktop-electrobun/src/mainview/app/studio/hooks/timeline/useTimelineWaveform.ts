@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
+import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { desktopApi } from "@lib/engine";
 import { toMediaSourceURL } from "../../domain/mediaSourceUrl";
 import { buildEventWaveform, type TimelineWaveform } from "../../domain/timelineDomainModel";

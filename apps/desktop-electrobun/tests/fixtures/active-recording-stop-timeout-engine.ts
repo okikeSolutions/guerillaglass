@@ -36,9 +36,7 @@ function statusResult() {
           pixelScale: 1,
         }
       : null,
-    lastError: null,
-    eventsURL: null,
-    telemetry: {
+            telemetry: {
       sourceDroppedFrames: 0,
       writerDroppedFrames: 0,
       writerBackpressureDrops: 0,
