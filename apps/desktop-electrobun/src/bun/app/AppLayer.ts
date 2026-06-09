@@ -13,7 +13,7 @@ import { RecordingService } from "@guerillaglass/engine-client/services/Recordin
 import { SourcesService } from "@guerillaglass/engine-client/services/SourcesService";
 import { SystemService } from "@guerillaglass/engine-client/services/SystemService";
 import { AppConfig, layerAppConfig } from "./AppConfig";
-import { layerAppLogging } from "./AppLogging";
+import { layerAppLogging, layerEffectDevTools } from "./AppLogging";
 import { MediaSourceService, layerMediaSourceService } from "../media/service";
 import { ReviewGateway, layerReviewGateway } from "../review/service";
 import { DesktopShell } from "../shell/DesktopShell";
@@ -167,7 +167,9 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
     layerHostBridgeService,
   ).pipe(Layer.provideMerge(layerAppConfig));
 
-  const servicesLayer = appServicesLayer.pipe(Layer.provideMerge(layerAppLogging));
+  const servicesLayer = appServicesLayer.pipe(
+    Layer.provideMerge(Layer.mergeAll(layerAppLogging, layerEffectDevTools)),
+  );
 
   if (options.enableCaptureStatusPolling === false) {
     return servicesLayer;

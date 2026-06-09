@@ -811,6 +811,13 @@ Completed scope:
 - Removed final migration scaffolding and legacy references without shims.
   - Endpoint inventory and legacy Swift line-protocol target were removed.
   - Legacy readiness strings, native stream method names, and old transport bridge names were swept from active source/tests.
+- Added Effect/Bun-native observability for the v2 desktop integration path.
+  - `apps/desktop-electrobun/src/bun/app/index.ts` now runs the Bun host through `BunRuntime.runMain(...)` with `BunServices.layer`, `layerAppLogging`, optional `layerEffectDevTools`, and `Metric.enableRuntimeMetrics`.
+  - `apps/desktop-electrobun/src/bun/app/AppLogging.ts` centralizes console/file logging, process diagnostics, heartbeat logging, and optional DevTools wiring.
+  - `apps/desktop-electrobun/src/bun/app/AppLogPaths.ts` resolves the primary system JSONL log and dev repo mirror using Effect `FileSystem`/`Path` through the Bun platform layer.
+  - `apps/desktop-electrobun/src/bun/app/AppMetrics.ts` and `packages/engine-client/src/metrics.ts` define low-cardinality timers, counters, and gauges for desktop bootstrap, bridge requests, engine launch, capture operations, process memory, and Effect runtime fibers.
+  - Engine launch, bridge requests, capture service operations, project session loading, desktop shell startup, and desktop bootstrap now use `Effect.annotateLogs(...)`, `Effect.withLogSpan(...)`, `Effect.withSpan(...)`, and `Effect.trackDuration(...)` where applicable.
+  - Observability details are documented in `docs/OBSERVABILITY.md`, including regions/sectors/areas, log destinations, metrics, tracing spans, optional DevTools, and researched-but-not-wired OTLP/Prometheus exporters.
 
 Validation completed:
 

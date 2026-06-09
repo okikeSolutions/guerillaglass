@@ -1,9 +1,14 @@
-import { Effect } from "effect";
+import { Effect, Metric } from "effect";
 import { bridgeRequestNameList } from "../../shared/bridge/desktopBridgeContract";
 import { createBunBridgeHandlers } from "../../shared/bridge/desktopBridgeBindings";
 import type { BunBridgeRequestHandlerMap } from "../../shared/bridge/desktopBridgeContract";
 import type { DesktopAppRuntime } from "../app/AppRuntime";
 import type { DesktopAppServices } from "../app/AppLayer";
+import {
+  desktopBridgeRequestDuration,
+  desktopBridgeRequestFailuresTotal,
+  desktopBridgeRequestsTotal,
+} from "../app/AppMetrics";
 import { redactBridgeErrorForRendererEffect } from "../security/BridgeErrorRedaction";
 import { HostBridgeService } from "./HostBridgeService";
 
@@ -27,7 +32,27 @@ export function createEngineBridgeHandlers({
             Effect.gen(function* () {
               const bridge = yield* HostBridgeService;
               return yield* bridge.handle(name, params as never);
-            }),
+            }).pipe(
+              Effect.ensuring(
+                Metric.update(
+                  Metric.withAttributes(desktopBridgeRequestsTotal, { request: name }),
+                  1,
+                ),
+              ),
+              Effect.trackDuration(
+                Metric.withAttributes(desktopBridgeRequestDuration, { request: name }),
+              ),
+              Effect.annotateLogs({
+                bridgeRequest: name,
+                component: "desktop-bridge",
+              }),
+              Effect.withLogSpan("bridge-request"),
+              Effect.withSpan(`bridge.${name}`, {
+                attributes: {
+                  "bridge.request": name,
+                },
+              }),
+            ),
           ),
       ]),
     ) as never,
@@ -41,6 +66,12 @@ export function createEngineBridgeHandlers({
         if (response.ok) {
           return response;
         }
+        await run(
+          Metric.update(
+            Metric.withAttributes(desktopBridgeRequestFailuresTotal, { request: name }),
+            1,
+          ),
+        );
         const error = await run(redactBridgeErrorForRendererEffect(response.error));
         return { ...response, error };
       },

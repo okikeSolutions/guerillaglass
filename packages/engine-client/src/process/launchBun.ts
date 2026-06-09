@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
-import { Effect, Option, Redacted, Scope } from "effect";
+import { Effect, Metric, Option, Redacted, Scope } from "effect";
 import { EngineProcessError } from "../errors";
+import { engineLaunchDuration, engineLaunchFailuresTotal } from "../metrics";
 import { EnginePathConfig, EngineProcessConfig } from "./config";
 import { engineHttpBaseUrl, parseEngineHttpReadyLine, type EngineHttpAddress } from "./readiness";
 import { validateEngineExecutableTrust, type EngineExecutableTrustPolicy } from "./trust";
@@ -245,10 +246,12 @@ export function makeEngineHttpProcess(
       yield* validateEngineExecutableTrust(enginePath, options.trustPolicy);
       const [command, args] = resolveEngineCommand(enginePath);
       const bearerToken = makeEngineBearerToken();
-      yield* Effect.logInfo("spawning engine process", {
-        enginePath,
-        transport: "http",
-      });
+      yield* Effect.logInfo("spawning engine process").pipe(
+        Effect.annotateLogs({
+          enginePath,
+          transport: "http",
+        }),
+      );
       const subprocess = Bun.spawn([command, ...args], {
         stdin: "ignore",
         stdout: "pipe",
@@ -273,13 +276,21 @@ export function makeEngineHttpProcess(
                 cause,
               }),
       });
-      yield* Effect.logInfo("engine process ready", {
-        enginePath,
-        host: address.host,
-        port: address.port,
-      });
+      yield* Effect.logInfo("engine process ready").pipe(
+        Effect.annotateLogs({
+          enginePath,
+          host: address.host,
+          port: address.port,
+        }),
+      );
       return { process: subprocess, address, baseUrl: engineHttpBaseUrl(address), bearerToken };
-    }),
+    }).pipe(
+      Effect.tapError(() => Metric.update(engineLaunchFailuresTotal, 1)),
+      Effect.trackDuration(engineLaunchDuration),
+      Effect.annotateLogs({ component: "engine-process", transport: "http" }),
+      Effect.withLogSpan("engine-launch"),
+      Effect.withSpan("engine-launch", { attributes: { "engine.transport": "http" } }),
+    ),
     (engineProcess) =>
       Effect.sync(() => {
         engineProcess.process.kill();
