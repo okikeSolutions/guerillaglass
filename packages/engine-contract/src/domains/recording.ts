@@ -1,7 +1,4 @@
-import {
-  captureStatusResultSchema,
-  type CaptureStatusResult,
-} from "./capture";
+import { captureStatusResultSchema, type CaptureStatusResult } from "./capture";
 
 /**
  * Recording lifecycle status; intentionally aliases capture status in v2.

@@ -15,7 +15,6 @@
     "./domains/system": "./src/domains/system.ts",
     "./domains/timeline": "./src/domains/timeline.ts",
     "./errors": "./src/errors.ts",
-    "./endpointInventory": "./src/endpointInventory.ts",
     "./httpApi": "./src/httpApi.ts",
     "./openApi": "./src/openApi.ts",
     "./schema-primitives": "./src/schema-primitives.ts",

@@ -52,7 +52,9 @@ export const projectRecentsResultSchema = Schema.Struct({
 /**
  * Runtime TypeScript type for stored Agent Mode analysis metadata.
  */
-export type ProjectAgentAnalysisSummary = Schema.Schema.Type<typeof projectAgentAnalysisSummarySchema>;
+export type ProjectAgentAnalysisSummary = Schema.Schema.Type<
+  typeof projectAgentAnalysisSummarySchema
+>;
 
 /**
  * Runtime TypeScript type for project state responses.

@@ -1,16 +1,43 @@
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi";
 import { Schema } from "effect";
-import { agentJobIdSchema, exportJobIdSchema, exportPresetIdSchema, outputUrlSchema, projectPathSchema } from "./schema-primitives";
-import { RuntimeBudgetMinutesSchema, ProjectRecentsLimitSchema, NonEmptyString, NonNegativeInt, NonNegativeNumber } from "./shared/helpers";
+import {
+  agentJobIdSchema,
+  exportJobIdSchema,
+  exportPresetIdSchema,
+  outputUrlSchema,
+  projectPathSchema,
+} from "./schema-primitives";
+import {
+  RuntimeBudgetMinutesSchema,
+  ProjectRecentsLimitSchema,
+  NonEmptyString,
+  NonNegativeInt,
+  NonNegativeNumber,
+} from "./shared/helpers";
 import { autoZoomSettingsSchema, timelineDocumentSchema } from "./shared/valueObjects";
-import { agentPreflightResultSchema, agentRunResultSchema, agentStatusResultSchema, transcriptionProviderSchema } from "./domains/agent";
+import {
+  agentPreflightResultSchema,
+  agentRunResultSchema,
+  agentStatusResultSchema,
+  transcriptionProviderSchema,
+} from "./domains/agent";
 import { capturePreviewFrameResultSchema, captureStatusResultSchema } from "./domains/capture";
 import { captureFrameRateSchema, sourcesResultSchema } from "./domains/sources";
 import { actionResultSchema, permissionsResultSchema } from "./domains/permissions";
-import { exportInfoResultSchema, exportRunCutPlanResultSchema, exportRunResultSchema } from "./domains/export";
+import {
+  exportInfoResultSchema,
+  exportRunCutPlanResultSchema,
+  exportRunResultSchema,
+} from "./domains/export";
 import { projectRecentsResultSchema, projectStateSchema } from "./domains/project";
 import { capabilitiesResultSchema, pingResultSchema } from "./domains/system";
-import { EngineAuthMiddleware, EngineCommonErrors, EngineMutationErrors, EngineNotFoundError, EngineRuntimeError } from "./errors";
+import {
+  EngineAuthMiddleware,
+  EngineCommonErrors,
+  EngineMutationErrors,
+  EngineNotFoundError,
+  EngineRuntimeError,
+} from "./errors";
 
 export const agentPreflightPayloadSchema = Schema.Struct({
   runtimeBudgetMinutes: Schema.optionalKey(RuntimeBudgetMinutesSchema),
@@ -118,22 +145,34 @@ const PermissionsGroup = HttpApiGroup.make("permissions").add(
     success: permissionsResultSchema,
     error: EngineCommonErrors,
   }),
-  HttpApiEndpoint.post("permissionsRequestScreenRecording", "/v1/permissions/screen-recording/request", {
-    success: actionResultSchema,
-    error: EngineMutationErrors,
-  }),
+  HttpApiEndpoint.post(
+    "permissionsRequestScreenRecording",
+    "/v1/permissions/screen-recording/request",
+    {
+      success: actionResultSchema,
+      error: EngineMutationErrors,
+    },
+  ),
   HttpApiEndpoint.post("permissionsRequestMicrophone", "/v1/permissions/microphone/request", {
     success: actionResultSchema,
     error: EngineMutationErrors,
   }),
-  HttpApiEndpoint.post("permissionsRequestInputMonitoring", "/v1/permissions/input-monitoring/request", {
-    success: actionResultSchema,
-    error: EngineMutationErrors,
-  }),
-  HttpApiEndpoint.post("permissionsOpenInputMonitoringSettings", "/v1/permissions/input-monitoring/open-settings", {
-    success: actionResultSchema,
-    error: EngineMutationErrors,
-  }),
+  HttpApiEndpoint.post(
+    "permissionsRequestInputMonitoring",
+    "/v1/permissions/input-monitoring/request",
+    {
+      success: actionResultSchema,
+      error: EngineMutationErrors,
+    },
+  ),
+  HttpApiEndpoint.post(
+    "permissionsOpenInputMonitoringSettings",
+    "/v1/permissions/input-monitoring/open-settings",
+    {
+      success: actionResultSchema,
+      error: EngineMutationErrors,
+    },
+  ),
 );
 
 const SourcesGroup = HttpApiGroup.make("sources").add(

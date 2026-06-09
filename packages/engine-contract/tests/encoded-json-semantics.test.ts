@@ -28,7 +28,9 @@ function readFixture(name: string): unknown {
  * @returns The decoded value.
  */
 function decodeSync<S extends Schema.Top>(schema: S, value: unknown): Schema.Schema.Type<S> {
-  return Effect.runSync(Schema.decodeUnknownEffect(schema)(value) as Effect.Effect<Schema.Schema.Type<S>, never, never>);
+  return Effect.runSync(
+    Schema.decodeUnknownEffect(schema)(value) as Effect.Effect<Schema.Schema.Type<S>, never, never>,
+  );
 }
 
 /**
@@ -39,7 +41,9 @@ function decodeSync<S extends Schema.Top>(schema: S, value: unknown): Schema.Sch
  * @returns The encoded JSON value.
  */
 function encodeSync<S extends Schema.Top>(schema: S, value: Schema.Schema.Type<S>): unknown {
-  return Effect.runSync(Schema.encodeUnknownEffect(schema)(value) as Effect.Effect<unknown, never, never>);
+  return Effect.runSync(
+    Schema.encodeUnknownEffect(schema)(value) as Effect.Effect<unknown, never, never>,
+  );
 }
 
 describe("encoded JSON semantics", () => {
@@ -50,7 +54,9 @@ describe("encoded JSON semantics", () => {
     expect(decoded).toEqual({});
     expect(encodeSync(capturePreviewFrameResultSchema, decoded)).toEqual({});
 
-    const nullExit = Effect.runSyncExit(Schema.decodeUnknownEffect(capturePreviewFrameResultSchema)({ frame: null }));
+    const nullExit = Effect.runSyncExit(
+      Schema.decodeUnknownEffect(capturePreviewFrameResultSchema)({ frame: null }),
+    );
     expect(nullExit._tag).toBe("Failure");
   });
 
@@ -69,7 +75,12 @@ describe("encoded JSON semantics", () => {
     expect(decoded.displayName).toBe("Built-in Display");
     expect(encodeSync(displaySourceSchema, decoded)).toEqual(fixture);
 
-    const invalidExit = Effect.runSyncExit(Schema.decodeUnknownEffect(displaySourceSchema)({ ...(fixture as object), supportedCaptureFrameRates: [25] }) as Effect.Effect<unknown, unknown, never>);
+    const invalidExit = Effect.runSyncExit(
+      Schema.decodeUnknownEffect(displaySourceSchema)({
+        ...(fixture as object),
+        supportedCaptureFrameRates: [25],
+      }) as Effect.Effect<unknown, unknown, never>,
+    );
     expect(invalidExit._tag).toBe("Failure");
   });
 
@@ -81,14 +92,20 @@ describe("encoded JSON semantics", () => {
     expect(encodeSync(projectRecentItemSchema, decoded)).toEqual(fixture);
 
     const emptyPathExit = Effect.runSyncExit(
-      Schema.decodeUnknownEffect(projectRecentItemSchema)({ ...(fixture as object), projectPath: "" }),
+      Schema.decodeUnknownEffect(projectRecentItemSchema)({
+        ...(fixture as object),
+        projectPath: "",
+      }),
     );
     expect(emptyPathExit._tag).toBe("Failure");
   });
 
   test("OpenAPI output contains no explicit null schema and marks optional keys as not required", () => {
     const serialized = JSON.stringify(EngineOpenApi);
-    const schemas = EngineOpenApi.components.schemas as Record<string, { readonly required?: ReadonlyArray<string> }>;
+    const schemas = EngineOpenApi.components.schemas as Record<
+      string,
+      { readonly required?: ReadonlyArray<string> }
+    >;
 
     expect(serialized.includes('"null"')).toBe(false);
     expect(schemas.CapturePreviewFrameResult?.required ?? []).not.toContain("frame");

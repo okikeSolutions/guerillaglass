@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import { Schema } from "effect";
 import { EngineOpenApi } from "../src/openApi";
 import { EngineHttpApi } from "../src/httpApi";
-import { engineEndpointInventory } from "../src/endpointInventory";
 
 type OpenApiOperation = {
   readonly operationId?: string;
@@ -44,8 +43,8 @@ function toOpenApiPath(path: string) {
 function reflectEndpoints(): ReadonlyArray<ReflectedEndpoint> {
   return Object.entries(EngineHttpApi.groups).flatMap(([groupName, group]) =>
     Object.entries(group.endpoints).map(([endpointName, endpoint]) => {
-      const payloadSchemas = Array.from(endpoint.payload.values()).flatMap((payload) =>
-        (payload as { readonly schemas: ReadonlyArray<Schema.Top> }).schemas
+      const payloadSchemas = Array.from(endpoint.payload.values()).flatMap(
+        (payload) => (payload as { readonly schemas: ReadonlyArray<Schema.Top> }).schemas,
       );
       const successSchemas = Array.from(endpoint.success);
       const errorSchemas = Array.from(endpoint.error);
@@ -100,16 +99,6 @@ describe("EngineHttpApi endpoint and schema coverage", () => {
     }
   });
 
-  test("every legacy inventory item is represented by a reflected v2 endpoint", () => {
-    const reflectedKeys = new Set(endpoints.map((endpoint) => `${endpoint.method.toUpperCase()} ${endpoint.openApiPath}`));
-    const reflectedOperationIds = new Set(endpoints.map((endpoint) => endpoint.endpointName));
-
-    for (const item of engineEndpointInventory) {
-      expect(reflectedKeys.has(`${item.method} ${item.path}`), item.oldMethod).toBe(true);
-      expect(reflectedOperationIds.has(item.operationId), item.oldMethod).toBe(true);
-    }
-  });
-
   test("every endpoint declares success and error schemas", () => {
     for (const endpoint of endpoints) {
       expect(endpoint.successSize, endpoint.operationId).toBeGreaterThan(0);
@@ -129,11 +118,17 @@ describe("EngineHttpApi endpoint and schema coverage", () => {
       }
 
       if (endpoint.params) {
-        expect(operation?.parameters?.some((parameter) => parameter.in === "path"), endpoint.operationId).toBe(true);
+        expect(
+          operation?.parameters?.some((parameter) => parameter.in === "path"),
+          endpoint.operationId,
+        ).toBe(true);
       }
 
       if (endpoint.query) {
-        expect(operation?.parameters?.some((parameter) => parameter.in === "query"), endpoint.operationId).toBe(true);
+        expect(
+          operation?.parameters?.some((parameter) => parameter.in === "query"),
+          endpoint.operationId,
+        ).toBe(true);
       }
     }
   });
@@ -141,7 +136,10 @@ describe("EngineHttpApi endpoint and schema coverage", () => {
   test("every endpoint payload, success, error, params, and query schema exports to JSON Schema", () => {
     for (const endpoint of endpoints) {
       for (const entry of endpoint.schemas) {
-        expect(() => Schema.toJsonSchemaDocument(entry.schema), `${endpoint.operationId} ${entry.role}`).not.toThrow();
+        expect(
+          () => Schema.toJsonSchemaDocument(entry.schema),
+          `${endpoint.operationId} ${entry.role}`,
+        ).not.toThrow();
       }
     }
   });

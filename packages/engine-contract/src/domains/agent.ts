@@ -71,7 +71,9 @@ export const agentQAReportSchema = Schema.Struct({
     payoff: Schema.Boolean,
     takeaway: Schema.Boolean,
   }),
-  missingBeats: Schema.optionalKey(Schema.Array(Schema.Literals(["hook", "action", "payoff", "takeaway"]))),
+  missingBeats: Schema.optionalKey(
+    Schema.Array(Schema.Literals(["hook", "action", "payoff", "takeaway"])),
+  ),
 }).annotate({ identifier: "AgentQAReport" });
 
 /**

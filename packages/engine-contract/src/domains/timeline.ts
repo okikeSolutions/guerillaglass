@@ -1,14 +1,8 @@
 import {
   timelineDocumentSchema,
-  timelineSegmentSchema,
   type TimelineDocument,
   type TimelineSegment,
 } from "../shared/valueObjects";
-
-/**
- * Compatibility name for timeline segments while migrating timeline terminology.
- */
-export const legacyTimelineSegmentSchema = timelineSegmentSchema;
 
 /**
  * Project-facing alias for the versioned timeline document schema.

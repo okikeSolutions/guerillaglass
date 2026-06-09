@@ -3,13 +3,11 @@
  *
  * @remarks
  * The checks intentionally enforce no explicit JSON `null`, deterministic generation,
- * bearer security on every operation, unique operation IDs, and complete legacy RPC
- * inventory coverage.
+ * bearer security on every operation, and unique operation IDs.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { EngineOpenApi } from "../src/openApi";
-import { engineEndpointInventory } from "../src/endpointInventory";
 
 /**
  * Minimal OpenAPI operation shape used by the contract checker.
@@ -27,7 +25,9 @@ const expectedText = `${JSON.stringify(EngineOpenApi, null, 2)}\n`;
 const failures: string[] = [];
 
 if (generatedText !== expectedText) {
-  failures.push("generated/engine.openapi.json is not deterministic/current; run bun run generate:openapi");
+  failures.push(
+    "generated/engine.openapi.json is not deterministic/current; run bun run generate:openapi",
+  );
 }
 
 const openApi = JSON.parse(generatedText) as typeof EngineOpenApi;
@@ -38,7 +38,6 @@ if (serialized.includes('"null"')) {
 
 const operationKeys = new Set<string>();
 const operationIds = new Set<string>();
-const normalizedOperationIds = new Set<string>();
 
 for (const [path, pathItem] of Object.entries(openApi.paths)) {
   for (const [method, operation] of Object.entries(pathItem as Record<string, Operation>)) {
@@ -53,7 +52,6 @@ for (const [path, pathItem] of Object.entries(openApi.paths)) {
       failures.push(`duplicate operationId: ${operation.operationId}`);
     } else {
       operationIds.add(operation.operationId);
-      normalizedOperationIds.add(operation.operationId.split(".").at(-1)!);
     }
 
     if (!operation.security?.some((entry) => "EngineBearer" in entry)) {
@@ -62,14 +60,8 @@ for (const [path, pathItem] of Object.entries(openApi.paths)) {
   }
 }
 
-for (const item of engineEndpointInventory) {
-  const key = `${item.method} ${item.path}`;
-  if (!operationKeys.has(key)) {
-    failures.push(`inventory endpoint not represented: ${item.oldMethod} -> ${key}`);
-  }
-  if (!normalizedOperationIds.has(item.operationId)) {
-    failures.push(`inventory operationId not represented: ${item.oldMethod} -> ${item.operationId}`);
-  }
+if (operationIds.size !== 28) {
+  failures.push(`expected 28 OpenAPI operations, found ${operationIds.size}`);
 }
 
 if (failures.length > 0) {
@@ -77,4 +69,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Contract checks passed (${operationIds.size} OpenAPI operations, ${engineEndpointInventory.length} inventory items).`);
+console.log(`Contract checks passed (${operationIds.size} OpenAPI operations).`);

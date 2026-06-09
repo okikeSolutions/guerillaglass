@@ -1,5 +1,10 @@
 import { Schema } from "effect";
-import { HttpApiMiddleware, HttpApiSchema, HttpApiSecurity, OpenApi } from "effect/unstable/httpapi";
+import {
+  HttpApiMiddleware,
+  HttpApiSchema,
+  HttpApiSecurity,
+  OpenApi,
+} from "effect/unstable/httpapi";
 import { NonEmptyString } from "./shared/helpers";
 
 /**
@@ -18,7 +23,11 @@ export const engineErrorCodeSchema = Schema.Literals([
   "runtime_error",
 ]);
 
-const makeEngineError = <const Name extends string>(name: Name, status: number, codes: readonly [string, ...string[]]) =>
+const makeEngineError = <const Name extends string>(
+  name: Name,
+  status: number,
+  codes: readonly [string, ...string[]],
+) =>
   Schema.Struct({
     code: Schema.Literals(codes),
     message: NonEmptyString,
@@ -101,7 +110,10 @@ export const EngineMutationErrors = [
  * Bearer-token security scheme used by all local engine endpoints.
  */
 export const EngineBearerSecurity = HttpApiSecurity.bearer.pipe(
-  HttpApiSecurity.annotate(OpenApi.Description, "Per-process bearer token for the local native engine."),
+  HttpApiSecurity.annotate(
+    OpenApi.Description,
+    "Per-process bearer token for the local native engine.",
+  ),
 );
 
 /**
