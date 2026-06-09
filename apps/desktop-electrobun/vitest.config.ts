@@ -10,7 +10,6 @@ export default defineConfig({
       "@lib": resolvePath("./src/mainview/lib"),
       "@shared": resolvePath("./src/shared"),
       "@studio": resolvePath("./src/mainview/app/studio"),
-      "@guerillaglass/engine": resolvePath("../../packages/engine/src"),
     },
   },
   test: {

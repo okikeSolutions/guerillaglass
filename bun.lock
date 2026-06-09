@@ -126,20 +126,6 @@
         "vitest": "^4.1.8",
       },
     },
-    "packages/engine": {
-      "name": "@guerillaglass/engine",
-      "version": "1.0.0",
-      "dependencies": {
-        "@effect/platform-bun": "4.0.0-beta.78",
-        "effect": "4.0.0-beta.78",
-      },
-      "devDependencies": {
-        "@guerillaglass/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "@types/node": "^25.9.2",
-        "typescript": "^6.0.3",
-      },
-    },
     "packages/engine-client": {
       "name": "@guerillaglass/engine-client",
       "version": "1.0.0",
@@ -173,7 +159,6 @@
       "name": "@guerillaglass/review-protocol",
       "version": "1.0.0",
       "dependencies": {
-        "@guerillaglass/engine": "workspace:*",
         "effect": "4.0.0-beta.78",
       },
       "devDependencies": {
@@ -426,8 +411,6 @@
     "@fontsource-variable/inter": ["@fontsource-variable/inter@5.2.8", "", {}, "sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ=="],
 
     "@guerillaglass/desktop-electrobun": ["@guerillaglass/desktop-electrobun@workspace:apps/desktop-electrobun"],
-
-    "@guerillaglass/engine": ["@guerillaglass/engine@workspace:packages/engine"],
 
     "@guerillaglass/engine-client": ["@guerillaglass/engine-client@workspace:packages/engine-client"],
 
