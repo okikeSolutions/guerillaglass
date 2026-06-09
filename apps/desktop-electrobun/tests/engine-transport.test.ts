@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Effect, Layer, ManagedRuntime } from "effect";
 import { EngineClient, type EngineClientService } from "@guerillaglass/engine-client/service";
 

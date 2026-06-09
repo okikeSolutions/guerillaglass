@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { createResizeHandleKeyDown } from "@studio/hooks/useEditorWorkspaceLayout";
 
 function createKeyEvent(key: string, shiftKey = false) {

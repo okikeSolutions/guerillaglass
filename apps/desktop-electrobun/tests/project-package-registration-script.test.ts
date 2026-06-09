@@ -1,9 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
+import { describe, expect, test } from "vitest";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const SCRIPT_PATH = path.resolve(import.meta.dir, "../scripts/configure-macos-project-package.ts");
+const SCRIPT_PATH = path.resolve(
+  import.meta.dirname,
+  "../scripts/configure-macos-project-package.ts",
+);
 const PROJECT_UTI = "com.okikeSolutions.guerillaglass.project";
 
 const BASE_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
@@ -24,11 +28,12 @@ const BASE_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>`;
 
 function runCommand(command: string[], env?: Record<string, string>) {
-  return Bun.spawnSync(command, {
+  const [commandName, ...args] = command;
+  return spawnSync(commandName!, args, {
     cwd: process.cwd(),
     env: { ...process.env, GG_SKIP_CODE_SIGNATURE_HELPER_INSTALL: "1", ...env },
-    stdout: "pipe",
-    stderr: "pipe",
+    encoding: "utf8",
+    stdio: "pipe",
   });
 }
 
@@ -46,7 +51,7 @@ async function createFixtureAppBundle(
 
 function parseInfoPlistAsJson(infoPlistPath: string): Record<string, unknown> {
   const plistAsJson = runCommand(["plutil", "-convert", "json", "-o", "-", infoPlistPath]);
-  expect(plistAsJson.exitCode).toBe(0);
+  expect(plistAsJson.status).toBe(0);
   return JSON.parse(plistAsJson.stdout.toString()) as Record<string, unknown>;
 }
 
@@ -67,11 +72,11 @@ describe("project package registration hook", () => {
       };
 
       const firstRun = runCommand([process.execPath, SCRIPT_PATH], env);
-      expect(firstRun.exitCode).toBe(0);
+      expect(firstRun.status).toBe(0);
       expect(firstRun.stdout.toString()).toContain("updated+validated");
 
       const secondRun = runCommand([process.execPath, SCRIPT_PATH], env);
-      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.status).toBe(0);
       expect(secondRun.stdout.toString()).toContain("already configured");
 
       const plistContents = JSON.stringify(parseInfoPlistAsJson(infoPlistPath));
@@ -95,7 +100,7 @@ describe("project package registration hook", () => {
         ELECTROBUN_OS: "linux",
         ELECTROBUN_BUILD_DIR: temporaryDirectory,
       });
-      expect(run.exitCode).toBe(0);
+      expect(run.status).toBe(0);
       expect(run.stdout.toString()).toBe("");
 
       const nextContents = await readFile(infoPlistPath, "utf8");
@@ -115,7 +120,7 @@ describe("project package registration hook", () => {
       ELECTROBUN_BUILD_DIR: "",
     });
 
-    expect(run.exitCode).not.toBe(0);
+    expect(run.status).not.toBe(0);
     expect(run.stderr.toString()).toContain("ELECTROBUN_BUILD_DIR is not set");
   });
 
@@ -137,7 +142,7 @@ describe("project package registration hook", () => {
         ELECTROBUN_WRAPPER_BUNDLE_PATH: appDirectory,
       });
 
-      expect(run.exitCode).toBe(0);
+      expect(run.status).toBe(0);
       const plistContents = JSON.stringify(parseInfoPlistAsJson(infoPlistPath));
       expect(plistContents).toContain(`"UTTypeIdentifier":"${PROJECT_UTI}"`);
       expect(plistContents).toContain('"CFBundleTypeExtensions":["gglassproj"]');
@@ -200,7 +205,7 @@ describe("project package registration hook", () => {
         ELECTROBUN_BUILD_DIR: temporaryDirectory,
       });
 
-      expect(run.exitCode).toBe(0);
+      expect(run.status).toBe(0);
       const plist = parseInfoPlistAsJson(infoPlistPath);
       const documentTypes = (plist.CFBundleDocumentTypes as unknown[]) ?? [];
       const utExportedTypes = (plist.UTExportedTypeDeclarations as unknown[]) ?? [];

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { parseStudioShortcutOverrides } from "@studio/contracts/studioShortcutOverridesModel";
 
 describe("studio shortcut overrides model", () => {

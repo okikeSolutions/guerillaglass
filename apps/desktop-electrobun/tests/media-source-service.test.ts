@@ -68,9 +68,7 @@ describe("media source service", () => {
           );
           writeFileSync(sourcePath, "fixture-media");
           const mediaURL = yield* mediaSourceService.resolveMediaSourceURL(sourcePath);
-          const previewURL = yield* mediaSourceService.resolveCapturePreviewURL(
-            Effect.succeed({}),
-          );
+          const previewURL = yield* mediaSourceService.resolveCapturePreviewURL(Effect.succeed({}));
 
           expect(mediaURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
           expect(previewURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);

@@ -1,7 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Schema } from "effect";
 
-import { engineEndpointInventory } from "@guerillaglass/engine-contract/endpointInventory";
+import { EngineOpenApi } from "@guerillaglass/engine-contract/openApi";
 import { projectRecentsResultSchema } from "@guerillaglass/engine-contract/domains/project";
 
 function decodeSchemaSync<S extends Schema.Top>(schema: S, raw: unknown): Schema.Schema.Type<S> {
@@ -9,17 +9,25 @@ function decodeSchemaSync<S extends Schema.Top>(schema: S, raw: unknown): Schema
 }
 
 describe("engine HTTP contract", () => {
-  test("declares the v2 HTTP endpoint inventory as protocol source of truth", () => {
-    const names = new Set(engineEndpointInventory.map((endpoint) => endpoint.oldMethod));
-
-    expect(names.has("engine.capabilities")).toBe(true);
-    expect(names.has("capture.status")).toBe(true);
-    expect(names.has("project.save")).toBe(true);
+  test("declares v2 HTTP endpoints as protocol source of truth", () => {
+    expect(EngineOpenApi.paths["/v1/engine/capabilities"]?.get?.operationId).toBe(
+      "system.engineCapabilities",
+    );
+    expect(EngineOpenApi.paths["/v1/capture/status"]?.get?.operationId).toBe(
+      "capture.captureStatus",
+    );
+    expect(EngineOpenApi.paths["/v1/project/save"]?.post?.operationId).toBe("project.projectSave");
   });
 
   test("validates contract response payloads", () => {
     const recents = decodeSchemaSync(projectRecentsResultSchema, {
-      items: [{ projectPath: "/tmp/fixture.gglassproj", displayName: "fixture", lastOpenedAt: "2026-02-19T10:00:00.000Z" }],
+      items: [
+        {
+          projectPath: "/tmp/fixture.gglassproj",
+          displayName: "fixture",
+          lastOpenedAt: "2026-02-19T10:00:00.000Z",
+        },
+      ],
     });
     expect(recents.items[0]?.displayName).toBe("fixture");
   });

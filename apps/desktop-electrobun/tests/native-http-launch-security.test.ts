@@ -49,7 +49,9 @@ function readReadyEnvelope(child: ChildProcessWithoutNullStreams): Promise<Ready
     let stdout = "";
     let stderr = "";
     const timeout = setTimeout(() => {
-      reject(new Error(`Timed out waiting for engine readiness. stdout=${stdout} stderr=${stderr}`));
+      reject(
+        new Error(`Timed out waiting for engine readiness. stdout=${stdout} stderr=${stderr}`),
+      );
     }, 10_000);
 
     child.stdout.setEncoding("utf8");
@@ -71,7 +73,11 @@ function readReadyEnvelope(child: ChildProcessWithoutNullStreams): Promise<Ready
     });
     child.once("exit", (code, signal) => {
       clearTimeout(timeout);
-      reject(new Error(`Engine exited before readiness code=${code} signal=${signal} stdout=${stdout} stderr=${stderr}`));
+      reject(
+        new Error(
+          `Engine exited before readiness code=${code} signal=${signal} stdout=${stdout} stderr=${stderr}`,
+        ),
+      );
     });
   });
 }
@@ -79,7 +85,9 @@ function readReadyEnvelope(child: ChildProcessWithoutNullStreams): Promise<Ready
 async function launchEngine(
   fixture: EngineFixture,
 ): Promise<{ readonly child: ChildProcessWithoutNullStreams; readonly baseUrl: string }> {
-  const tempRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), `gg-${fixture.name}-http-security-`));
+  const tempRoot = fs.mkdtempSync(
+    path.join(fs.realpathSync(os.tmpdir()), `gg-${fixture.name}-http-security-`),
+  );
   const child = spawn(fixture.enginePath, [], {
     cwd: repoRoot,
     env: {
@@ -118,7 +126,10 @@ function authorizedHeaders(extra?: HeadersInit): HeadersInit {
 }
 
 function postOversizedBodyWithCurl(baseUrl: string): number {
-  const tempFile = path.join(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gg-body-limit-")), "oversized.json");
+  const tempFile = path.join(
+    fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gg-body-limit-")),
+    "oversized.json",
+  );
   fs.writeFileSync(
     tempFile,
     JSON.stringify({
@@ -161,42 +172,40 @@ afterEach(async () => {
 
 describe("native engine HTTP launch/security e2e", () => {
   for (const fixture of fixtures) {
-    test(
-      `covers readiness, bearer auth, success, body limit, origin guard, unsupported route, and unsupported method (${fixture.name})`,
-      async () => {
-        const { child, baseUrl } = await launchEngine(fixture);
-        try {
-          const missingAuth = await fetch(`${baseUrl}/v1/system/ping`);
-          expect(missingAuth.status).toBe(401);
+    test(`covers readiness, bearer auth, success, body limit, origin guard, unsupported route, and unsupported method (${fixture.name})`, async () => {
+      const { child, baseUrl } = await launchEngine(fixture);
+      try {
+        const missingAuth = await fetch(`${baseUrl}/v1/system/ping`);
+        expect(missingAuth.status).toBe(401);
 
-          const ping = await fetch(`${baseUrl}/v1/system/ping`, { headers: authorizedHeaders() });
-          expect(ping.status).toBe(200);
-          await expect(ping.json()).resolves.toMatchObject({
-            app: "guerillaglass",
-            platform: fixture.expectedPlatform,
-            protocolVersion: "2",
-          });
+        const ping = await fetch(`${baseUrl}/v1/system/ping`, { headers: authorizedHeaders() });
+        expect(ping.status).toBe(200);
+        await expect(ping.json()).resolves.toMatchObject({
+          app: "guerillaglass",
+          platform: fixture.expectedPlatform,
+          protocolVersion: "2",
+        });
 
-          const hostileOrigin = await fetch(`${baseUrl}/v1/system/ping`, {
-            headers: authorizedHeaders({ origin: "https://evil.example" }),
-          });
-          expect(hostileOrigin.status).toBe(403);
+        const hostileOrigin = await fetch(`${baseUrl}/v1/system/ping`, {
+          headers: authorizedHeaders({ origin: "https://evil.example" }),
+        });
+        expect(hostileOrigin.status).toBe(403);
 
-          const unsupportedRoute = await fetch(`${baseUrl}/v1/does-not-exist`, { headers: authorizedHeaders() });
-          expect(unsupportedRoute.status).toBe(404);
+        const unsupportedRoute = await fetch(`${baseUrl}/v1/does-not-exist`, {
+          headers: authorizedHeaders(),
+        });
+        expect(unsupportedRoute.status).toBe(404);
 
-          const unsupportedMethod = await fetch(`${baseUrl}/v1/system/ping`, {
-            headers: authorizedHeaders(),
-            method: "POST",
-          });
-          expect(unsupportedMethod.status).toBe(405);
+        const unsupportedMethod = await fetch(`${baseUrl}/v1/system/ping`, {
+          headers: authorizedHeaders(),
+          method: "POST",
+        });
+        expect(unsupportedMethod.status).toBe(405);
 
-          expect(postOversizedBodyWithCurl(baseUrl)).toBe(413);
-        } finally {
-          await stopEngine(child);
-        }
-      },
-      30_000,
-    );
+        expect(postOversizedBodyWithCurl(baseUrl)).toBe(413);
+      } finally {
+        await stopEngine(child);
+      }
+    }, 30_000);
   }
 });

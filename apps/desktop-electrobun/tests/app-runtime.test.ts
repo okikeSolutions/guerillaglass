@@ -4,8 +4,8 @@ import {
   captureStatusResultSchema,
   type CaptureStatusResult,
 } from "@guerillaglass/engine-contract/domains/capture";
-import { EngineClient } from "@guerillaglass/engine-client/service";
 import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
+import type { EngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
 import { makeCaptureStatusPollingEffect } from "../src/bun/app/AppLayer";
@@ -101,7 +101,7 @@ describe("desktop app runtime capture status polling", () => {
     expect(delivered).toEqual([]);
   });
 
-  test("shares one engine client acquisition with the capture status worker", async () => {
+  test("shares one engine domain service acquisition with the capture status worker", async () => {
     let acquisitions = 0;
     let releases = 0;
 
@@ -114,13 +114,13 @@ describe("desktop app runtime capture status polling", () => {
       }),
       projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
       desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
-      engineClientLayer: Layer.effect(
-        EngineClient,
+      engineDomainServicesLayer: Layer.effect(
+        CaptureService,
         Effect.acquireRelease(
           Effect.suspend(() => {
             acquisitions += 1;
             return Effect.succeed({
-              captureStatus: Effect.never,
+              status: Effect.never,
             } as never);
           }),
           () =>
@@ -128,7 +128,7 @@ describe("desktop app runtime capture status polling", () => {
               releases += 1;
             }),
         ),
-      ),
+      ) as Layer.Layer<EngineDomainServices>,
       reviewGatewayLayer: Layer.succeed(ReviewGateway, {} as never),
       mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
     });

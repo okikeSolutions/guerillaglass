@@ -53,14 +53,14 @@ describe("window capture fallback", () => {
       {
         isRunning: false,
         isRecording: false,
-                recordingDurationSeconds: 25,
+        recordingDurationSeconds: 25,
         recordingURL: "/tmp/out.mov",
-                                        telemetry: {
+        telemetry: {
           sourceDroppedFrames: 0,
           writerDroppedFrames: 0,
           writerBackpressureDrops: 0,
           achievedFps: 0,
-                                        captureCallbackMs: 0,
+          captureCallbackMs: 0,
           recordQueueLagMs: 0,
           writerAppendMs: 0,
           previewEncodeMs: 0,

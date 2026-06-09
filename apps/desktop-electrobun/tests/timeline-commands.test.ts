@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { TimelineDocument } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   deleteTimelineItems,

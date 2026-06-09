@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { CaptureTelemetry } from "@guerillaglass/engine-contract/domains/capture";
 import {
   buildCaptureTelemetryPresentation,
@@ -31,7 +31,7 @@ describe("capture telemetry presentation", () => {
       writerDroppedFrames: 5,
       writerBackpressureDrops: 2,
       achievedFps: 59.8,
-                        captureCallbackMs: 0.44,
+      captureCallbackMs: 0.44,
       recordQueueLagMs: 0.21,
       writerAppendMs: 1.37,
     } satisfies CaptureTelemetry;

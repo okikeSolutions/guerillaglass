@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-const indexHtmlPath = path.resolve(import.meta.dir, "../src/mainview/index.html");
+const indexHtmlPath = path.resolve(import.meta.dirname, "../src/mainview/index.html");
 
 describe("desktop renderer CSP", () => {
   test("allows loopback image and media sources for live preview", async () => {

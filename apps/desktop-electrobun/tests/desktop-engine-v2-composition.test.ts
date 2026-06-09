@@ -21,7 +21,9 @@ describe("desktop engine v2 composition", () => {
     const sourceRoot = path.resolve(import.meta.dirname, "../src");
     const legacyServiceName = ["Engine", "Transport"].join("");
     const legacyLayerName = ["makeLayerEngine", "TransportBun"].join("");
-    const legacyPattern = new RegExp(`\\b${legacyServiceName}\\b|capture\\.statusStream|${legacyLayerName}`);
+    const legacyPattern = new RegExp(
+      `\\b${legacyServiceName}\\b|capture\\.statusStream|${legacyLayerName}`,
+    );
     const matches = sourceFiles(sourceRoot)
       .map((filePath) => ({ filePath, contents: readFileSync(filePath, "utf8") }))
       .filter(({ contents }) => legacyPattern.test(contents))
@@ -32,14 +34,16 @@ describe("desktop engine v2 composition", () => {
 
   test("desktop service logic depends on domain services instead of low-level EngineClient", () => {
     const sourceRoot = path.resolve(import.meta.dirname, "../src");
-    const allowed = new Set(["bun/app/AppLayer.ts", "bun/app/index.ts"]);
+    const allowed = new Set(["bun/app/index.ts"]);
     const matches = sourceFiles(sourceRoot)
       .map((filePath) => ({
         relativePath: path.relative(sourceRoot, filePath),
         contents: readFileSync(filePath, "utf8"),
       }))
       .filter(({ relativePath }) => !allowed.has(relativePath))
-      .filter(({ contents }) => /@guerillaglass\/engine-client\/service["']|\bEngineClient\b/.test(contents))
+      .filter(({ contents }) =>
+        /@guerillaglass\/engine-client\/service["']|\bEngineClient\b/.test(contents),
+      )
       .map(({ relativePath }) => relativePath);
 
     expect(matches).toEqual([]);

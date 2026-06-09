@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 const resolvePath = (path: string) => fileURLToPath(new URL(path, import.meta.url));
@@ -13,13 +14,19 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["tests/**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["tests/ui/**/*.smoke.ts", "tests/ui/**/*.browser.test.{ts,tsx}"],
-    coverage: {
-      provider: "v8",
-      reporter: ["text", "json-summary", "lcov"],
-      reportsDirectory: "../../target/coverage/typescript",
-      exclude: ["src/paraglide/**", "tests/**", "build/**", "dist/**"],
+    include: ["tests/ui/**/*.browser.test.{ts,tsx}"],
+    browser: {
+      enabled: true,
+      provider: playwright(),
+      headless: true,
+      instances: [
+        {
+          browser: "chromium",
+          viewport: { width: 1440, height: 1000 },
+        },
+      ],
+      screenshotDirectory: "test-results/screenshots",
+      trace: "retain-on-failure",
     },
   },
 });

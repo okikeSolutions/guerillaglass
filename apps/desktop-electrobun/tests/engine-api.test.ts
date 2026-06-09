@@ -21,12 +21,9 @@ import {
   CaptureWindowPickerUnsupportedError,
   MediaServerError,
 } from "@shared/errors/desktopErrors";
-import {
-  ContractDecodeError,
-  EngineResponseError,
-} from "@guerillaglass/engine-client/errors";
+import { ContractDecodeError, EngineResponseError } from "@guerillaglass/engine-client/errors";
+import type { EngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
-import { EngineClient } from "@guerillaglass/engine-client/service";
 import { MediaSourceService } from "../src/bun/media/service";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
@@ -38,7 +35,7 @@ const captureTelemetryFixture = {
   writerDroppedFrames: 0,
   writerBackpressureDrops: 0,
   achievedFps: 0,
-        captureCallbackMs: 0,
+  captureCallbackMs: 0,
   recordQueueLagMs: 0,
   writerAppendMs: 0,
   previewEncodeMs: 0,
@@ -51,7 +48,7 @@ function makeCaptureStatus(overrides: Partial<Record<string, unknown>> = {}) {
     isRecording: false,
     ...(isRunning ? { captureSessionId: "capture-session-1" } : {}),
     recordingDurationSeconds: 0,
-                        telemetry: { ...captureTelemetryFixture },
+    telemetry: { ...captureTelemetryFixture },
     ...overrides,
   };
 }
@@ -217,7 +214,11 @@ describe("renderer engine bridge", () => {
       ggEngineStopRecording: async () => ({
         ...makeCaptureStatus({ isRunning: true, isRecording: false }),
       }),
-      ggEngineRunExport: async () => ({ jobId: "export-job-1", status: "succeeded", outputURL: "/tmp/out.mp4" }),
+      ggEngineRunExport: async () => ({
+        jobId: "export-job-1",
+        status: "succeeded",
+        outputURL: "/tmp/out.mp4",
+      }),
       ggEngineProjectOpen: async () => ({
         projectPath: "/tmp/project.gglassproj",
         recordingURL: "/tmp/project.gglassproj/recording.mov",
@@ -506,7 +507,7 @@ describe("renderer engine bridge", () => {
       enableCaptureStatusPolling: false,
       projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
       desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
-      engineClientLayer: Layer.succeed(EngineClient, {} as never),
+      engineDomainServicesLayer: Layer.empty as Layer.Layer<EngineDomainServices>,
       mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
     });
 
