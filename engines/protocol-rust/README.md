@@ -1,19 +1,23 @@
 # protocol-rust
 
-Shared Rust protocol package for native engines.
+Generated Rust server bindings for the GuerillaGlass Engine Contract v2 HTTP/OpenAPI API.
 
-## Scope
+## Source of truth
 
-- Stable Guerillaglass socket wire messages: request, response, error, chunk, ping, pong, interrupt
-- Request envelope decoding (`id`, `method`, `params`, `authToken`)
-- Response/error/chunk envelope encoding
-- Canonical method enum (`EngineMethod`) including `engine.capabilities`
-- Monotonic timing primitives (`CaptureClock`, `RunningDuration`)
+- TypeScript/Effect contract: `packages/engine-contract/src/httpApi.ts`
+- Generated OpenAPI: `packages/engine-contract/generated/engine.openapi.json`
+- Rust generator config: `engines/protocol-rust/openapi-generator-config.json`
 
-Native engines use this stable wire contract. Effect RPC serialization remains TypeScript-internal in `packages/engine/src/client/wireProtocol.ts`.
+This package is intentionally v2-only. It does not expose the legacy socket protocol, JSON-RPC envelopes, or Effect RPC method helpers.
 
-## Test
+## Regenerate
 
 ```bash
-cargo test --manifest-path engines/protocol-rust/Cargo.toml
+bun run protocol:generate-bindings
+```
+
+## Check
+
+```bash
+cargo check --manifest-path engines/protocol-rust/Cargo.toml
 ```

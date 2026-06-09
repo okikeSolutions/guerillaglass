@@ -14,7 +14,8 @@ let package = Package(
         .target(
             name: "EngineProtocol",
             dependencies: [],
-            path: "engines/protocol-swift"
+            path: "engines/protocol-swift/Sources/EngineProtocol",
+            exclude: ["openapi.json", "openapi-generator-config.yaml"]
         ),
         .executableTarget(
             name: "guerillaglass-engine",

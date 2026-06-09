@@ -1,14 +1,28 @@
-//! Shared Rust protocol types and helpers for Guerillaglass native engines.
+#![allow(
+    missing_docs,
+    trivial_casts,
+    unused_variables,
+    unused_mut,
+    unused_extern_crates,
+    non_camel_case_types,
+    unused_imports,
+    unused_attributes,
+)]
+#![allow(
+    clippy::derive_partial_eq_without_eq,
+    clippy::disallowed_names,
+    clippy::too_many_arguments
+)]
 
-/// Capture timing primitives.
-pub mod clock;
-/// Protocol request and response message types.
-pub mod messages;
+pub const BASE_PATH: &str = "";
+pub const API_VERSION: &str = "0.0.1";
 
-/// Re-exported capture clock primitives.
-pub use clock::{CaptureClock, RunningDuration};
-/// Re-exported protocol message helpers and constants.
-pub use messages::{
-    chunk, decode_request_line, encode_response_line, failure, success, EngineMethod,
-    EngineRequest, EngineResponse, JsonRpcId, ProtocolErrorCode, PROTOCOL_VERSION,
-};
+#[cfg(feature = "server")]
+pub mod server;
+
+pub mod models;
+pub mod types;
+pub mod apis;
+
+#[cfg(feature = "server")]
+pub(crate) mod header;
