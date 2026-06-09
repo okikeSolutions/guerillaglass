@@ -22,6 +22,13 @@ let package = Package(
             plugins: [
                 .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator")
             ]
+        ),
+        .testTarget(
+            name: "EngineProtocolTests",
+            dependencies: [
+                "EngineProtocol",
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime")
+            ]
         )
     ]
 )

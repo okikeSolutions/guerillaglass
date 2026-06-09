@@ -3278,10 +3278,18 @@
         ],
         "additionalProperties": false
       },
-      "Source": {
+      "DisplaySource": {
         "type": "object",
         "properties": {
           "id": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "displayName": {
             "type": "string",
             "allOf": [
               {
@@ -3289,20 +3297,8 @@
               }
             ]
           },
-          "name": {
-            "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "display",
-              "window"
-            ]
+          "isPrimary": {
+            "type": "boolean"
           },
           "width": {
             "type": "integer",
@@ -3320,34 +3316,140 @@
               }
             ]
           },
-          "processId": {
+          "pixelScale": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "refreshHz": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "supportedCaptureFrameRates": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "enum": [
+                24,
+                30,
+                60,
+                120
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "isPrimary",
+          "width",
+          "height",
+          "supportedCaptureFrameRates"
+        ],
+        "additionalProperties": false
+      },
+      "WindowSource": {
+        "type": "object",
+        "properties": {
+          "id": {
             "type": "integer",
             "allOf": [
               {
                 "minimum": 0
               }
             ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "appName": {
+            "type": "string"
+          },
+          "width": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "height": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "isOnScreen": {
+            "type": "boolean"
+          },
+          "pixelScale": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "refreshHz": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "supportedCaptureFrameRates": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "enum": [
+                24,
+                30,
+                60,
+                120
+              ]
+            }
           }
         },
         "required": [
           "id",
-          "name",
-          "kind"
+          "title",
+          "appName",
+          "width",
+          "height",
+          "isOnScreen",
+          "supportedCaptureFrameRates"
         ],
         "additionalProperties": false
       },
       "SourcesResult": {
         "type": "object",
         "properties": {
-          "sources": {
+          "displays": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Source"
+              "$ref": "#/components/schemas/DisplaySource"
+            }
+          },
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WindowSource"
             }
           }
         },
         "required": [
-          "sources"
+          "displays",
+          "windows"
         ],
         "additionalProperties": false
       },
@@ -3369,11 +3471,12 @@
             "type": "boolean"
           },
           "captureFps": {
-            "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
+            "type": "number",
+            "enum": [
+              24,
+              30,
+              60,
+              120
             ]
           }
         },
@@ -3504,31 +3607,73 @@
           "captureMetadata": {
             "type": "object",
             "properties": {
-              "sourceId": {
+              "window": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "minimum": 0
+                      }
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "appName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "appName"
+                ],
+                "additionalProperties": false
+              },
+              "source": {
                 "type": "string",
-                "allOf": [
-                  {
-                    "minLength": 1
-                  }
+                "enum": [
+                  "display",
+                  "window"
                 ]
               },
-              "sourceName": {
-                "type": "string",
-                "allOf": [
-                  {
-                    "minLength": 1
+              "contentRect": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "height": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
                   }
-                ]
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
               },
-              "width": {
-                "type": "number",
-                "allOf": [
-                  {
-                    "exclusiveMinimum": 0
-                  }
-                ]
-              },
-              "height": {
+              "pixelScale": {
                 "type": "number",
                 "allOf": [
                   {
@@ -3545,6 +3690,11 @@
                 ]
               }
             },
+            "required": [
+              "source",
+              "contentRect",
+              "pixelScale"
+            ],
             "additionalProperties": false
           },
           "lastError": {
@@ -3578,11 +3728,12 @@
             "type": "boolean"
           },
           "captureFps": {
-            "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
+            "type": "number",
+            "enum": [
+              24,
+              30,
+              60,
+              120
             ]
           }
         },
@@ -3606,11 +3757,12 @@
             "type": "boolean"
           },
           "captureFps": {
-            "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
+            "type": "number",
+            "enum": [
+              24,
+              30,
+              60,
+              120
             ]
           }
         },
@@ -3786,47 +3938,90 @@
               "items": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "allOf": [
-                        {
-                          "minLength": 1
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
                     },
-                    "startSeconds": {
-                      "type": "number",
-                      "allOf": [
-                        {
-                          "minimum": 0
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
                         }
-                      ]
-                    },
-                    "endSeconds": {
-                      "type": "number",
-                      "allOf": [
-                        {
-                          "minimum": 0
-                        }
-                      ]
-                    },
-                    "label": {
-                      "type": "string",
-                      "allOf": [
-                        {
-                          "minLength": 1
-                        }
-                      ]
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "id",
-                    "startSeconds",
-                    "endSeconds"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               },
               "updatedAt": {
@@ -4062,47 +4257,90 @@
               "items": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "allOf": [
-                        {
-                          "minLength": 1
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
                     },
-                    "startSeconds": {
-                      "type": "number",
-                      "allOf": [
-                        {
-                          "minimum": 0
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
                         }
-                      ]
-                    },
-                    "endSeconds": {
-                      "type": "number",
-                      "allOf": [
-                        {
-                          "minimum": 0
-                        }
-                      ]
-                    },
-                    "label": {
-                      "type": "string",
-                      "allOf": [
-                        {
-                          "minLength": 1
-                        }
-                      ]
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "id",
-                    "startSeconds",
-                    "endSeconds"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               },
               "updatedAt": {
@@ -4123,31 +4361,73 @@
           "captureMetadata": {
             "type": "object",
             "properties": {
-              "sourceId": {
+              "window": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "minimum": 0
+                      }
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "appName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "appName"
+                ],
+                "additionalProperties": false
+              },
+              "source": {
                 "type": "string",
-                "allOf": [
-                  {
-                    "minLength": 1
-                  }
+                "enum": [
+                  "display",
+                  "window"
                 ]
               },
-              "sourceName": {
-                "type": "string",
-                "allOf": [
-                  {
-                    "minLength": 1
+              "contentRect": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "height": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
                   }
-                ]
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
               },
-              "width": {
-                "type": "number",
-                "allOf": [
-                  {
-                    "exclusiveMinimum": 0
-                  }
-                ]
-              },
-              "height": {
+              "pixelScale": {
                 "type": "number",
                 "allOf": [
                   {
@@ -4164,6 +4444,11 @@
                 ]
               }
             },
+            "required": [
+              "source",
+              "contentRect",
+              "pixelScale"
+            ],
             "additionalProperties": false
           },
           "agentAnalysis": {
@@ -4246,47 +4531,90 @@
               "items": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "allOf": [
-                        {
-                          "minLength": 1
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
                         }
-                      ]
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
                     },
-                    "startSeconds": {
-                      "type": "number",
-                      "allOf": [
-                        {
-                          "minimum": 0
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
                         }
-                      ]
-                    },
-                    "endSeconds": {
-                      "type": "number",
-                      "allOf": [
-                        {
-                          "minimum": 0
-                        }
-                      ]
-                    },
-                    "label": {
-                      "type": "string",
-                      "allOf": [
-                        {
-                          "minLength": 1
-                        }
-                      ]
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "id",
-                    "startSeconds",
-                    "endSeconds"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               },
               "updatedAt": {

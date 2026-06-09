@@ -1,0 +1,15 @@
+{
+  "isRunning": true,
+  "isRecording": false,
+  "captureSessionId": "capture-session-1",
+  "recordingDurationSeconds": 0,
+  "telemetry": {
+    "sourceDroppedFrames": 0,
+    "writerDroppedFrames": 0,
+    "writerBackpressureDrops": 0,
+    "achievedFps": 30,
+    "captureCallbackMs": 0.1,
+    "recordQueueLagMs": 0.2,
+    "writerAppendMs": 0.3
+  }
+}

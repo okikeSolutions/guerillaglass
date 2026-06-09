@@ -8,7 +8,7 @@ Generated Swift bindings for the GuerillaGlass Engine Contract v2 HTTP/OpenAPI A
 - Generated OpenAPI: `packages/engine-contract/generated/engine.openapi.json`
 - Swift generator config: `engines/protocol-swift/Sources/EngineProtocol/openapi-generator-config.yaml`
 
-This package is intentionally v2-only. It does not expose the legacy socket protocol, JSON-RPC envelopes, or Effect RPC method helpers.
+This package is intentionally v2-only. It only exposes generated HTTP/OpenAPI bindings and server helpers.
 
 ## Regenerate input
 

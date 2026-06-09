@@ -2791,9 +2791,10 @@ pub struct CaptureStartCurrentWindowPayload {
     #[serde(skip_serializing_if="Option::is_none")]
     pub enable_preview: Option<bool>,
 
+    /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "captureFps")]
     #[serde(skip_serializing_if="Option::is_none")]
-    pub capture_fps: Option<i32>,
+    pub capture_fps: Option<f64>,
 
 }
 
@@ -2859,7 +2860,7 @@ impl std::str::FromStr for CaptureStartCurrentWindowPayload {
         struct IntermediateRep {
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
-            pub capture_fps: Vec<i32>,
+            pub capture_fps: Vec<f64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -2882,7 +2883,7 @@ impl std::str::FromStr for CaptureStartCurrentWindowPayload {
                     #[allow(clippy::redundant_clone)]
                     "enablePreview" => intermediate_rep.enable_preview.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "captureFps" => intermediate_rep.capture_fps.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "captureFps" => intermediate_rep.capture_fps.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     _ => return std::result::Result::Err("Unexpected key while parsing CaptureStartCurrentWindowPayload".to_string())
                 }
             }
@@ -2949,9 +2950,10 @@ pub struct CaptureStartDisplayPayload {
     #[serde(skip_serializing_if="Option::is_none")]
     pub enable_preview: Option<bool>,
 
+    /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "captureFps")]
     #[serde(skip_serializing_if="Option::is_none")]
-    pub capture_fps: Option<i32>,
+    pub capture_fps: Option<f64>,
 
 }
 
@@ -3027,7 +3029,7 @@ impl std::str::FromStr for CaptureStartDisplayPayload {
             pub display_id: Vec<i32>,
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
-            pub capture_fps: Vec<i32>,
+            pub capture_fps: Vec<f64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -3052,7 +3054,7 @@ impl std::str::FromStr for CaptureStartDisplayPayload {
                     #[allow(clippy::redundant_clone)]
                     "enablePreview" => intermediate_rep.enable_preview.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "captureFps" => intermediate_rep.capture_fps.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "captureFps" => intermediate_rep.capture_fps.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     _ => return std::result::Result::Err("Unexpected key while parsing CaptureStartDisplayPayload".to_string())
                 }
             }
@@ -3119,9 +3121,10 @@ pub struct CaptureStartWindowPayload {
     #[serde(skip_serializing_if="Option::is_none")]
     pub enable_preview: Option<bool>,
 
+    /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "captureFps")]
     #[serde(skip_serializing_if="Option::is_none")]
-    pub capture_fps: Option<i32>,
+    pub capture_fps: Option<f64>,
 
 }
 
@@ -3193,7 +3196,7 @@ impl std::str::FromStr for CaptureStartWindowPayload {
             pub window_id: Vec<i32>,
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
-            pub capture_fps: Vec<i32>,
+            pub capture_fps: Vec<f64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -3218,7 +3221,7 @@ impl std::str::FromStr for CaptureStartWindowPayload {
                     #[allow(clippy::redundant_clone)]
                     "enablePreview" => intermediate_rep.enable_preview.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "captureFps" => intermediate_rep.capture_fps.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "captureFps" => intermediate_rep.capture_fps.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     _ => return std::result::Result::Err("Unexpected key while parsing CaptureStartWindowPayload".to_string())
                 }
             }
@@ -3514,23 +3517,22 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStatu
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureStatusResultCaptureMetadata {
-    #[serde(rename = "sourceId")]
+    #[serde(rename = "window")]
+          #[validate(nested)]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub window: Option<models::CaptureStatusResultCaptureMetadataWindow>,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "source")]
           #[validate(custom(function = "check_xss_string"))]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub source_id: Option<String>,
+    pub source: String,
 
-    #[serde(rename = "sourceName")]
-          #[validate(custom(function = "check_xss_string"))]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub source_name: Option<String>,
+    #[serde(rename = "contentRect")]
+          #[validate(nested)]
+    pub content_rect: models::CaptureStatusResultCaptureMetadataContentRect,
 
-    #[serde(rename = "width")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub width: Option<f64>,
-
-    #[serde(rename = "height")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub height: Option<f64>,
+    #[serde(rename = "pixelScale")]
+    pub pixel_scale: f64,
 
     #[serde(rename = "fps")]
     #[serde(skip_serializing_if="Option::is_none")]
@@ -3542,12 +3544,12 @@ pub struct CaptureStatusResultCaptureMetadata {
 
 impl CaptureStatusResultCaptureMetadata {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new() -> CaptureStatusResultCaptureMetadata {
+    pub fn new(source: String, content_rect: models::CaptureStatusResultCaptureMetadataContentRect, pixel_scale: f64, ) -> CaptureStatusResultCaptureMetadata {
         CaptureStatusResultCaptureMetadata {
- source_id: None,
- source_name: None,
- width: None,
- height: None,
+ window: None,
+ source,
+ content_rect,
+ pixel_scale,
  fps: None,
         }
     }
@@ -3559,37 +3561,17 @@ impl CaptureStatusResultCaptureMetadata {
 impl std::fmt::Display for CaptureStatusResultCaptureMetadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let params: Vec<Option<String>> = vec![
-
-            self.source_id.as_ref().map(|source_id| {
-                [
-                    "sourceId".to_string(),
-                    source_id.to_string(),
-                ].join(",")
-            }),
+            // Skipping window in query parameter serialization
 
 
-            self.source_name.as_ref().map(|source_name| {
-                [
-                    "sourceName".to_string(),
-                    source_name.to_string(),
-                ].join(",")
-            }),
+            Some("source".to_string()),
+            Some(self.source.to_string()),
+
+            // Skipping contentRect in query parameter serialization
 
 
-            self.width.as_ref().map(|width| {
-                [
-                    "width".to_string(),
-                    width.to_string(),
-                ].join(",")
-            }),
-
-
-            self.height.as_ref().map(|height| {
-                [
-                    "height".to_string(),
-                    height.to_string(),
-                ].join(",")
-            }),
+            Some("pixelScale".to_string()),
+            Some(self.pixel_scale.to_string()),
 
 
             self.fps.as_ref().map(|fps| {
@@ -3616,10 +3598,10 @@ impl std::str::FromStr for CaptureStatusResultCaptureMetadata {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub source_id: Vec<String>,
-            pub source_name: Vec<String>,
-            pub width: Vec<f64>,
-            pub height: Vec<f64>,
+            pub window: Vec<models::CaptureStatusResultCaptureMetadataWindow>,
+            pub source: Vec<String>,
+            pub content_rect: Vec<models::CaptureStatusResultCaptureMetadataContentRect>,
+            pub pixel_scale: Vec<f64>,
             pub fps: Vec<f64>,
         }
 
@@ -3639,13 +3621,13 @@ impl std::str::FromStr for CaptureStatusResultCaptureMetadata {
                 #[allow(clippy::match_single_binding)]
                 match key {
                     #[allow(clippy::redundant_clone)]
-                    "sourceId" => intermediate_rep.source_id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "window" => intermediate_rep.window.push(<models::CaptureStatusResultCaptureMetadataWindow as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "sourceName" => intermediate_rep.source_name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "source" => intermediate_rep.source.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "width" => intermediate_rep.width.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "contentRect" => intermediate_rep.content_rect.push(<models::CaptureStatusResultCaptureMetadataContentRect as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "height" => intermediate_rep.height.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "pixelScale" => intermediate_rep.pixel_scale.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "fps" => intermediate_rep.fps.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     _ => return std::result::Result::Err("Unexpected key while parsing CaptureStatusResultCaptureMetadata".to_string())
@@ -3658,10 +3640,10 @@ impl std::str::FromStr for CaptureStatusResultCaptureMetadata {
 
         // Use the intermediate representation to return the struct
         std::result::Result::Ok(CaptureStatusResultCaptureMetadata {
-            source_id: intermediate_rep.source_id.into_iter().next(),
-            source_name: intermediate_rep.source_name.into_iter().next(),
-            width: intermediate_rep.width.into_iter().next(),
-            height: intermediate_rep.height.into_iter().next(),
+            window: intermediate_rep.window.into_iter().next(),
+            source: intermediate_rep.source.into_iter().next().ok_or_else(|| "source missing in CaptureStatusResultCaptureMetadata".to_string())?,
+            content_rect: intermediate_rep.content_rect.into_iter().next().ok_or_else(|| "contentRect missing in CaptureStatusResultCaptureMetadata".to_string())?,
+            pixel_scale: intermediate_rep.pixel_scale.into_iter().next().ok_or_else(|| "pixelScale missing in CaptureStatusResultCaptureMetadata".to_string())?,
             fps: intermediate_rep.fps.into_iter().next(),
         })
     }
@@ -3692,6 +3674,298 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStatu
                     match <CaptureStatusResultCaptureMetadata as std::str::FromStr>::from_str(value) {
                         std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
                         std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into CaptureStatusResultCaptureMetadata - {err}"#))
+                    }
+             },
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
+        }
+    }
+}
+
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct CaptureStatusResultCaptureMetadataContentRect {
+    #[serde(rename = "x")]
+    pub x: f64,
+
+    #[serde(rename = "y")]
+    pub y: f64,
+
+    #[serde(rename = "width")]
+    pub width: f64,
+
+    #[serde(rename = "height")]
+    pub height: f64,
+
+}
+
+
+
+impl CaptureStatusResultCaptureMetadataContentRect {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(x: f64, y: f64, width: f64, height: f64, ) -> CaptureStatusResultCaptureMetadataContentRect {
+        CaptureStatusResultCaptureMetadataContentRect {
+ x,
+ y,
+ width,
+ height,
+        }
+    }
+}
+
+/// Converts the CaptureStatusResultCaptureMetadataContentRect value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for CaptureStatusResultCaptureMetadataContentRect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+
+            Some("x".to_string()),
+            Some(self.x.to_string()),
+
+
+            Some("y".to_string()),
+            Some(self.y.to_string()),
+
+
+            Some("width".to_string()),
+            Some(self.width.to_string()),
+
+
+            Some("height".to_string()),
+            Some(self.height.to_string()),
+
+        ];
+
+        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a CaptureStatusResultCaptureMetadataContentRect value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for CaptureStatusResultCaptureMetadataContentRect {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub x: Vec<f64>,
+            pub y: Vec<f64>,
+            pub width: Vec<f64>,
+            pub height: Vec<f64>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => return std::result::Result::Err("Missing value while parsing CaptureStatusResultCaptureMetadataContentRect".to_string())
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "x" => intermediate_rep.x.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "y" => intermediate_rep.y.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "width" => intermediate_rep.width.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "height" => intermediate_rep.height.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    _ => return std::result::Result::Err("Unexpected key while parsing CaptureStatusResultCaptureMetadataContentRect".to_string())
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(CaptureStatusResultCaptureMetadataContentRect {
+            x: intermediate_rep.x.into_iter().next().ok_or_else(|| "x missing in CaptureStatusResultCaptureMetadataContentRect".to_string())?,
+            y: intermediate_rep.y.into_iter().next().ok_or_else(|| "y missing in CaptureStatusResultCaptureMetadataContentRect".to_string())?,
+            width: intermediate_rep.width.into_iter().next().ok_or_else(|| "width missing in CaptureStatusResultCaptureMetadataContentRect".to_string())?,
+            height: intermediate_rep.height.into_iter().next().ok_or_else(|| "height missing in CaptureStatusResultCaptureMetadataContentRect".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<CaptureStatusResultCaptureMetadataContentRect> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<CaptureStatusResultCaptureMetadataContentRect>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(hdr_value: header::IntoHeaderValue<CaptureStatusResultCaptureMetadataContentRect>) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+             std::result::Result::Ok(value) => std::result::Result::Ok(value),
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for CaptureStatusResultCaptureMetadataContentRect - value: {hdr_value} is invalid {e}"#))
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStatusResultCaptureMetadataContentRect> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+             std::result::Result::Ok(value) => {
+                    match <CaptureStatusResultCaptureMetadataContentRect as std::str::FromStr>::from_str(value) {
+                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
+                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into CaptureStatusResultCaptureMetadataContentRect - {err}"#))
+                    }
+             },
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
+        }
+    }
+}
+
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct CaptureStatusResultCaptureMetadataWindow {
+    #[serde(rename = "id")]
+    pub id: i32,
+
+    #[serde(rename = "title")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub title: String,
+
+    #[serde(rename = "appName")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub app_name: String,
+
+}
+
+
+
+impl CaptureStatusResultCaptureMetadataWindow {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(id: i32, title: String, app_name: String, ) -> CaptureStatusResultCaptureMetadataWindow {
+        CaptureStatusResultCaptureMetadataWindow {
+ id,
+ title,
+ app_name,
+        }
+    }
+}
+
+/// Converts the CaptureStatusResultCaptureMetadataWindow value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for CaptureStatusResultCaptureMetadataWindow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+
+
+            Some("title".to_string()),
+            Some(self.title.to_string()),
+
+
+            Some("appName".to_string()),
+            Some(self.app_name.to_string()),
+
+        ];
+
+        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a CaptureStatusResultCaptureMetadataWindow value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for CaptureStatusResultCaptureMetadataWindow {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub id: Vec<i32>,
+            pub title: Vec<String>,
+            pub app_name: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => return std::result::Result::Err("Missing value while parsing CaptureStatusResultCaptureMetadataWindow".to_string())
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "id" => intermediate_rep.id.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "title" => intermediate_rep.title.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "appName" => intermediate_rep.app_name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    _ => return std::result::Result::Err("Unexpected key while parsing CaptureStatusResultCaptureMetadataWindow".to_string())
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(CaptureStatusResultCaptureMetadataWindow {
+            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in CaptureStatusResultCaptureMetadataWindow".to_string())?,
+            title: intermediate_rep.title.into_iter().next().ok_or_else(|| "title missing in CaptureStatusResultCaptureMetadataWindow".to_string())?,
+            app_name: intermediate_rep.app_name.into_iter().next().ok_or_else(|| "appName missing in CaptureStatusResultCaptureMetadataWindow".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<CaptureStatusResultCaptureMetadataWindow> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<CaptureStatusResultCaptureMetadataWindow>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(hdr_value: header::IntoHeaderValue<CaptureStatusResultCaptureMetadataWindow>) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+             std::result::Result::Ok(value) => std::result::Result::Ok(value),
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for CaptureStatusResultCaptureMetadataWindow - value: {hdr_value} is invalid {e}"#))
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStatusResultCaptureMetadataWindow> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+             std::result::Result::Ok(value) => {
+                    match <CaptureStatusResultCaptureMetadataWindow as std::str::FromStr>::from_str(value) {
+                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
+                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into CaptureStatusResultCaptureMetadataWindow - {err}"#))
                     }
              },
              std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
@@ -3982,6 +4256,216 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureTelem
                     match <CaptureTelemetry as std::str::FromStr>::from_str(value) {
                         std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
                         std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into CaptureTelemetry - {err}"#))
+                    }
+             },
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
+        }
+    }
+}
+
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct DisplaySource {
+    #[serde(rename = "id")]
+    pub id: i32,
+
+    #[serde(rename = "displayName")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub display_name: String,
+
+    #[serde(rename = "isPrimary")]
+    pub is_primary: bool,
+
+    #[serde(rename = "width")]
+    pub width: i32,
+
+    #[serde(rename = "height")]
+    pub height: i32,
+
+    #[serde(rename = "pixelScale")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub pixel_scale: Option<f64>,
+
+    #[serde(rename = "refreshHz")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub refresh_hz: Option<f64>,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "supportedCaptureFrameRates")]
+    pub supported_capture_frame_rates: Vec<f64>,
+
+}
+
+
+
+impl DisplaySource {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(id: i32, display_name: String, is_primary: bool, width: i32, height: i32, supported_capture_frame_rates: Vec<f64>, ) -> DisplaySource {
+        DisplaySource {
+ id,
+ display_name,
+ is_primary,
+ width,
+ height,
+ pixel_scale: None,
+ refresh_hz: None,
+ supported_capture_frame_rates,
+        }
+    }
+}
+
+/// Converts the DisplaySource value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for DisplaySource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+
+
+            Some("displayName".to_string()),
+            Some(self.display_name.to_string()),
+
+
+            Some("isPrimary".to_string()),
+            Some(self.is_primary.to_string()),
+
+
+            Some("width".to_string()),
+            Some(self.width.to_string()),
+
+
+            Some("height".to_string()),
+            Some(self.height.to_string()),
+
+
+            self.pixel_scale.as_ref().map(|pixel_scale| {
+                [
+                    "pixelScale".to_string(),
+                    pixel_scale.to_string(),
+                ].join(",")
+            }),
+
+
+            self.refresh_hz.as_ref().map(|refresh_hz| {
+                [
+                    "refreshHz".to_string(),
+                    refresh_hz.to_string(),
+                ].join(",")
+            }),
+
+
+            Some("supportedCaptureFrameRates".to_string()),
+            Some(self.supported_capture_frame_rates.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")),
+
+        ];
+
+        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a DisplaySource value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for DisplaySource {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub id: Vec<i32>,
+            pub display_name: Vec<String>,
+            pub is_primary: Vec<bool>,
+            pub width: Vec<i32>,
+            pub height: Vec<i32>,
+            pub pixel_scale: Vec<f64>,
+            pub refresh_hz: Vec<f64>,
+            pub supported_capture_frame_rates: Vec<Vec<f64>>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => return std::result::Result::Err("Missing value while parsing DisplaySource".to_string())
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "id" => intermediate_rep.id.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "displayName" => intermediate_rep.display_name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "isPrimary" => intermediate_rep.is_primary.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "width" => intermediate_rep.width.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "height" => intermediate_rep.height.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "pixelScale" => intermediate_rep.pixel_scale.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "refreshHz" => intermediate_rep.refresh_hz.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "supportedCaptureFrameRates" => return std::result::Result::Err("Parsing a container in this style is not supported in DisplaySource".to_string()),
+                    _ => return std::result::Result::Err("Unexpected key while parsing DisplaySource".to_string())
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(DisplaySource {
+            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in DisplaySource".to_string())?,
+            display_name: intermediate_rep.display_name.into_iter().next().ok_or_else(|| "displayName missing in DisplaySource".to_string())?,
+            is_primary: intermediate_rep.is_primary.into_iter().next().ok_or_else(|| "isPrimary missing in DisplaySource".to_string())?,
+            width: intermediate_rep.width.into_iter().next().ok_or_else(|| "width missing in DisplaySource".to_string())?,
+            height: intermediate_rep.height.into_iter().next().ok_or_else(|| "height missing in DisplaySource".to_string())?,
+            pixel_scale: intermediate_rep.pixel_scale.into_iter().next(),
+            refresh_hz: intermediate_rep.refresh_hz.into_iter().next(),
+            supported_capture_frame_rates: intermediate_rep.supported_capture_frame_rates.into_iter().next().ok_or_else(|| "supportedCaptureFrameRates missing in DisplaySource".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<DisplaySource> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<DisplaySource>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(hdr_value: header::IntoHeaderValue<DisplaySource>) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+             std::result::Result::Ok(value) => std::result::Result::Ok(value),
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for DisplaySource - value: {hdr_value} is invalid {e}"#))
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<DisplaySource> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+             std::result::Result::Ok(value) => {
+                    match <DisplaySource as std::str::FromStr>::from_str(value) {
+                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
+                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into DisplaySource - {err}"#))
                     }
              },
              std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
@@ -5826,69 +6310,21 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportRunPay
 
 
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
-#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
-pub struct ExportRunPayloadTimelineItemsInner {
-    #[serde(rename = "id")]
-          #[validate(custom(function = "check_xss_string"))]
-    pub id: String,
-
-    #[serde(rename = "startSeconds")]
-    pub start_seconds: f64,
-
-    #[serde(rename = "endSeconds")]
-    pub end_seconds: f64,
-
-    #[serde(rename = "label")]
-          #[validate(custom(function = "check_xss_string"))]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub label: Option<String>,
-
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+#[allow(non_camel_case_types, clippy::large_enum_variant)]
+pub enum ExportRunPayloadTimelineItemsInner {
+    ExportRunPayloadTimelineItemsInnerAnyOf(models::ExportRunPayloadTimelineItemsInnerAnyOf),
+    ExportRunPayloadTimelineItemsInnerAnyOf1(models::ExportRunPayloadTimelineItemsInnerAnyOf1),
 }
 
-
-
-impl ExportRunPayloadTimelineItemsInner {
-    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(id: String, start_seconds: f64, end_seconds: f64, ) -> ExportRunPayloadTimelineItemsInner {
-        ExportRunPayloadTimelineItemsInner {
- id,
- start_seconds,
- end_seconds,
- label: None,
+impl validator::Validate for ExportRunPayloadTimelineItemsInner
+{
+    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
+        match self {
+            Self::ExportRunPayloadTimelineItemsInnerAnyOf(v) => v.validate(),
+            Self::ExportRunPayloadTimelineItemsInnerAnyOf1(v) => v.validate(),
         }
-    }
-}
-
-/// Converts the ExportRunPayloadTimelineItemsInner value to the Query Parameters representation (style=form, explode=false)
-/// specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde serializer
-impl std::fmt::Display for ExportRunPayloadTimelineItemsInner {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let params: Vec<Option<String>> = vec![
-
-            Some("id".to_string()),
-            Some(self.id.to_string()),
-
-
-            Some("startSeconds".to_string()),
-            Some(self.start_seconds.to_string()),
-
-
-            Some("endSeconds".to_string()),
-            Some(self.end_seconds.to_string()),
-
-
-            self.label.as_ref().map(|label| {
-                [
-                    "label".to_string(),
-                    label.to_string(),
-                ].join(",")
-            }),
-
-        ];
-
-        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
     }
 }
 
@@ -5896,6 +6332,105 @@ impl std::fmt::Display for ExportRunPayloadTimelineItemsInner {
 /// as specified in https://swagger.io/docs/specification/serialization/
 /// Should be implemented in a serde deserializer
 impl std::str::FromStr for ExportRunPayloadTimelineItemsInner {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+
+impl From<models::ExportRunPayloadTimelineItemsInnerAnyOf> for ExportRunPayloadTimelineItemsInner {
+    fn from(value: models::ExportRunPayloadTimelineItemsInnerAnyOf) -> Self {
+        Self::ExportRunPayloadTimelineItemsInnerAnyOf(value)
+    }
+}
+impl From<models::ExportRunPayloadTimelineItemsInnerAnyOf1> for ExportRunPayloadTimelineItemsInner {
+    fn from(value: models::ExportRunPayloadTimelineItemsInnerAnyOf1) -> Self {
+        Self::ExportRunPayloadTimelineItemsInnerAnyOf1(value)
+    }
+}
+
+
+
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct ExportRunPayloadTimelineItemsInnerAnyOf {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    #[serde(rename = "id")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub id: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "sourceAssetId")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub source_asset_id: String,
+
+    #[serde(rename = "sourceStartSeconds")]
+    pub source_start_seconds: f64,
+
+    #[serde(rename = "sourceEndSeconds")]
+    pub source_end_seconds: f64,
+
+}
+
+
+
+impl ExportRunPayloadTimelineItemsInnerAnyOf {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, id: String, source_asset_id: String, source_start_seconds: f64, source_end_seconds: f64, ) -> ExportRunPayloadTimelineItemsInnerAnyOf {
+        ExportRunPayloadTimelineItemsInnerAnyOf {
+ kind,
+ id,
+ source_asset_id,
+ source_start_seconds,
+ source_end_seconds,
+        }
+    }
+}
+
+/// Converts the ExportRunPayloadTimelineItemsInnerAnyOf value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for ExportRunPayloadTimelineItemsInnerAnyOf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+
+
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+
+
+            Some("sourceAssetId".to_string()),
+            Some(self.source_asset_id.to_string()),
+
+
+            Some("sourceStartSeconds".to_string()),
+            Some(self.source_start_seconds.to_string()),
+
+
+            Some("sourceEndSeconds".to_string()),
+            Some(self.source_end_seconds.to_string()),
+
+        ];
+
+        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a ExportRunPayloadTimelineItemsInnerAnyOf value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for ExportRunPayloadTimelineItemsInnerAnyOf {
     type Err = String;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -5903,10 +6438,11 @@ impl std::str::FromStr for ExportRunPayloadTimelineItemsInner {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
+            pub kind: Vec<String>,
             pub id: Vec<String>,
-            pub start_seconds: Vec<f64>,
-            pub end_seconds: Vec<f64>,
-            pub label: Vec<String>,
+            pub source_asset_id: Vec<String>,
+            pub source_start_seconds: Vec<f64>,
+            pub source_end_seconds: Vec<f64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -5918,21 +6454,23 @@ impl std::str::FromStr for ExportRunPayloadTimelineItemsInner {
         while key_result.is_some() {
             let val = match string_iter.next() {
                 Some(x) => x,
-                None => return std::result::Result::Err("Missing value while parsing ExportRunPayloadTimelineItemsInner".to_string())
+                None => return std::result::Result::Err("Missing value while parsing ExportRunPayloadTimelineItemsInnerAnyOf".to_string())
             };
 
             if let Some(key) = key_result {
                 #[allow(clippy::match_single_binding)]
                 match key {
                     #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "startSeconds" => intermediate_rep.start_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "sourceAssetId" => intermediate_rep.source_asset_id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "endSeconds" => intermediate_rep.end_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "sourceStartSeconds" => intermediate_rep.source_start_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "label" => intermediate_rep.label.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    _ => return std::result::Result::Err("Unexpected key while parsing ExportRunPayloadTimelineItemsInner".to_string())
+                    "sourceEndSeconds" => intermediate_rep.source_end_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    _ => return std::result::Result::Err("Unexpected key while parsing ExportRunPayloadTimelineItemsInnerAnyOf".to_string())
                 }
             }
 
@@ -5941,40 +6479,183 @@ impl std::str::FromStr for ExportRunPayloadTimelineItemsInner {
         }
 
         // Use the intermediate representation to return the struct
-        std::result::Result::Ok(ExportRunPayloadTimelineItemsInner {
-            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in ExportRunPayloadTimelineItemsInner".to_string())?,
-            start_seconds: intermediate_rep.start_seconds.into_iter().next().ok_or_else(|| "startSeconds missing in ExportRunPayloadTimelineItemsInner".to_string())?,
-            end_seconds: intermediate_rep.end_seconds.into_iter().next().ok_or_else(|| "endSeconds missing in ExportRunPayloadTimelineItemsInner".to_string())?,
-            label: intermediate_rep.label.into_iter().next(),
+        std::result::Result::Ok(ExportRunPayloadTimelineItemsInnerAnyOf {
+            kind: intermediate_rep.kind.into_iter().next().ok_or_else(|| "kind missing in ExportRunPayloadTimelineItemsInnerAnyOf".to_string())?,
+            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in ExportRunPayloadTimelineItemsInnerAnyOf".to_string())?,
+            source_asset_id: intermediate_rep.source_asset_id.into_iter().next().ok_or_else(|| "sourceAssetId missing in ExportRunPayloadTimelineItemsInnerAnyOf".to_string())?,
+            source_start_seconds: intermediate_rep.source_start_seconds.into_iter().next().ok_or_else(|| "sourceStartSeconds missing in ExportRunPayloadTimelineItemsInnerAnyOf".to_string())?,
+            source_end_seconds: intermediate_rep.source_end_seconds.into_iter().next().ok_or_else(|| "sourceEndSeconds missing in ExportRunPayloadTimelineItemsInnerAnyOf".to_string())?,
         })
     }
 }
 
-// Methods for converting between header::IntoHeaderValue<ExportRunPayloadTimelineItemsInner> and HeaderValue
+// Methods for converting between header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf> and HeaderValue
 
 #[cfg(feature = "server")]
-impl std::convert::TryFrom<header::IntoHeaderValue<ExportRunPayloadTimelineItemsInner>> for HeaderValue {
+impl std::convert::TryFrom<header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf>> for HeaderValue {
     type Error = String;
 
-    fn try_from(hdr_value: header::IntoHeaderValue<ExportRunPayloadTimelineItemsInner>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(hdr_value: header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf>) -> std::result::Result<Self, Self::Error> {
         let hdr_value = hdr_value.to_string();
         match HeaderValue::from_str(&hdr_value) {
              std::result::Result::Ok(value) => std::result::Result::Ok(value),
-             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for ExportRunPayloadTimelineItemsInner - value: {hdr_value} is invalid {e}"#))
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for ExportRunPayloadTimelineItemsInnerAnyOf - value: {hdr_value} is invalid {e}"#))
         }
     }
 }
 
 #[cfg(feature = "server")]
-impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportRunPayloadTimelineItemsInner> {
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf> {
     type Error = String;
 
     fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
         match hdr_value.to_str() {
              std::result::Result::Ok(value) => {
-                    match <ExportRunPayloadTimelineItemsInner as std::str::FromStr>::from_str(value) {
+                    match <ExportRunPayloadTimelineItemsInnerAnyOf as std::str::FromStr>::from_str(value) {
                         std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
-                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into ExportRunPayloadTimelineItemsInner - {err}"#))
+                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into ExportRunPayloadTimelineItemsInnerAnyOf - {err}"#))
+                    }
+             },
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
+        }
+    }
+}
+
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct ExportRunPayloadTimelineItemsInnerAnyOf1 {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    #[serde(rename = "id")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub id: String,
+
+    #[serde(rename = "durationSeconds")]
+    pub duration_seconds: f64,
+
+}
+
+
+
+impl ExportRunPayloadTimelineItemsInnerAnyOf1 {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, id: String, duration_seconds: f64, ) -> ExportRunPayloadTimelineItemsInnerAnyOf1 {
+        ExportRunPayloadTimelineItemsInnerAnyOf1 {
+ kind,
+ id,
+ duration_seconds,
+        }
+    }
+}
+
+/// Converts the ExportRunPayloadTimelineItemsInnerAnyOf1 value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for ExportRunPayloadTimelineItemsInnerAnyOf1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+
+
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+
+
+            Some("durationSeconds".to_string()),
+            Some(self.duration_seconds.to_string()),
+
+        ];
+
+        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a ExportRunPayloadTimelineItemsInnerAnyOf1 value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for ExportRunPayloadTimelineItemsInnerAnyOf1 {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub id: Vec<String>,
+            pub duration_seconds: Vec<f64>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => return std::result::Result::Err("Missing value while parsing ExportRunPayloadTimelineItemsInnerAnyOf1".to_string())
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "id" => intermediate_rep.id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "durationSeconds" => intermediate_rep.duration_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    _ => return std::result::Result::Err("Unexpected key while parsing ExportRunPayloadTimelineItemsInnerAnyOf1".to_string())
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(ExportRunPayloadTimelineItemsInnerAnyOf1 {
+            kind: intermediate_rep.kind.into_iter().next().ok_or_else(|| "kind missing in ExportRunPayloadTimelineItemsInnerAnyOf1".to_string())?,
+            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in ExportRunPayloadTimelineItemsInnerAnyOf1".to_string())?,
+            duration_seconds: intermediate_rep.duration_seconds.into_iter().next().ok_or_else(|| "durationSeconds missing in ExportRunPayloadTimelineItemsInnerAnyOf1".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf1> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf1>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(hdr_value: header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf1>) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+             std::result::Result::Ok(value) => std::result::Result::Ok(value),
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for ExportRunPayloadTimelineItemsInnerAnyOf1 - value: {hdr_value} is invalid {e}"#))
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportRunPayloadTimelineItemsInnerAnyOf1> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+             std::result::Result::Ok(value) => {
+                    match <ExportRunPayloadTimelineItemsInnerAnyOf1 as std::str::FromStr>::from_str(value) {
+                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
+                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into ExportRunPayloadTimelineItemsInnerAnyOf1 - {err}"#))
                     }
              },
              std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
@@ -7595,204 +8276,14 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<RecordingSta
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
-pub struct Source {
-    #[serde(rename = "id")]
-          #[validate(custom(function = "check_xss_string"))]
-    pub id: String,
-
-    #[serde(rename = "name")]
-          #[validate(custom(function = "check_xss_string"))]
-    pub name: String,
-
-    /// Note: inline enums are not fully supported by openapi-generator
-    #[serde(rename = "kind")]
-          #[validate(custom(function = "check_xss_string"))]
-    pub kind: String,
-
-    #[serde(rename = "width")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub width: Option<i32>,
-
-    #[serde(rename = "height")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub height: Option<i32>,
-
-    #[serde(rename = "processId")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub process_id: Option<i32>,
-
-}
-
-
-
-impl Source {
-    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(id: String, name: String, kind: String, ) -> Source {
-        Source {
- id,
- name,
- kind,
- width: None,
- height: None,
- process_id: None,
-        }
-    }
-}
-
-/// Converts the Source value to the Query Parameters representation (style=form, explode=false)
-/// specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde serializer
-impl std::fmt::Display for Source {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let params: Vec<Option<String>> = vec![
-
-            Some("id".to_string()),
-            Some(self.id.to_string()),
-
-
-            Some("name".to_string()),
-            Some(self.name.to_string()),
-
-
-            Some("kind".to_string()),
-            Some(self.kind.to_string()),
-
-
-            self.width.as_ref().map(|width| {
-                [
-                    "width".to_string(),
-                    width.to_string(),
-                ].join(",")
-            }),
-
-
-            self.height.as_ref().map(|height| {
-                [
-                    "height".to_string(),
-                    height.to_string(),
-                ].join(",")
-            }),
-
-
-            self.process_id.as_ref().map(|process_id| {
-                [
-                    "processId".to_string(),
-                    process_id.to_string(),
-                ].join(",")
-            }),
-
-        ];
-
-        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a Source value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for Source {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        /// An intermediate representation of the struct to use for parsing.
-        #[derive(Default)]
-        #[allow(dead_code)]
-        struct IntermediateRep {
-            pub id: Vec<String>,
-            pub name: Vec<String>,
-            pub kind: Vec<String>,
-            pub width: Vec<i32>,
-            pub height: Vec<i32>,
-            pub process_id: Vec<i32>,
-        }
-
-        let mut intermediate_rep = IntermediateRep::default();
-
-        // Parse into intermediate representation
-        let mut string_iter = s.split(',');
-        let mut key_result = string_iter.next();
-
-        while key_result.is_some() {
-            let val = match string_iter.next() {
-                Some(x) => x,
-                None => return std::result::Result::Err("Missing value while parsing Source".to_string())
-            };
-
-            if let Some(key) = key_result {
-                #[allow(clippy::match_single_binding)]
-                match key {
-                    #[allow(clippy::redundant_clone)]
-                    "id" => intermediate_rep.id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
-                    "name" => intermediate_rep.name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
-                    "kind" => intermediate_rep.kind.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
-                    "width" => intermediate_rep.width.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
-                    "height" => intermediate_rep.height.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
-                    "processId" => intermediate_rep.process_id.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    _ => return std::result::Result::Err("Unexpected key while parsing Source".to_string())
-                }
-            }
-
-            // Get the next key
-            key_result = string_iter.next();
-        }
-
-        // Use the intermediate representation to return the struct
-        std::result::Result::Ok(Source {
-            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in Source".to_string())?,
-            name: intermediate_rep.name.into_iter().next().ok_or_else(|| "name missing in Source".to_string())?,
-            kind: intermediate_rep.kind.into_iter().next().ok_or_else(|| "kind missing in Source".to_string())?,
-            width: intermediate_rep.width.into_iter().next(),
-            height: intermediate_rep.height.into_iter().next(),
-            process_id: intermediate_rep.process_id.into_iter().next(),
-        })
-    }
-}
-
-// Methods for converting between header::IntoHeaderValue<Source> and HeaderValue
-
-#[cfg(feature = "server")]
-impl std::convert::TryFrom<header::IntoHeaderValue<Source>> for HeaderValue {
-    type Error = String;
-
-    fn try_from(hdr_value: header::IntoHeaderValue<Source>) -> std::result::Result<Self, Self::Error> {
-        let hdr_value = hdr_value.to_string();
-        match HeaderValue::from_str(&hdr_value) {
-             std::result::Result::Ok(value) => std::result::Result::Ok(value),
-             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for Source - value: {hdr_value} is invalid {e}"#))
-        }
-    }
-}
-
-#[cfg(feature = "server")]
-impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<Source> {
-    type Error = String;
-
-    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
-        match hdr_value.to_str() {
-             std::result::Result::Ok(value) => {
-                    match <Source as std::str::FromStr>::from_str(value) {
-                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
-                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into Source - {err}"#))
-                    }
-             },
-             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
-        }
-    }
-}
-
-
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
-#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct SourcesResult {
-    #[serde(rename = "sources")]
+    #[serde(rename = "displays")]
           #[validate(nested)]
-    pub sources: Vec<models::Source>,
+    pub displays: Vec<models::DisplaySource>,
+
+    #[serde(rename = "windows")]
+          #[validate(nested)]
+    pub windows: Vec<models::WindowSource>,
 
 }
 
@@ -7800,9 +8291,10 @@ pub struct SourcesResult {
 
 impl SourcesResult {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(sources: Vec<models::Source>, ) -> SourcesResult {
+    pub fn new(displays: Vec<models::DisplaySource>, windows: Vec<models::WindowSource>, ) -> SourcesResult {
         SourcesResult {
- sources,
+ displays,
+ windows,
         }
     }
 }
@@ -7813,7 +8305,9 @@ impl SourcesResult {
 impl std::fmt::Display for SourcesResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let params: Vec<Option<String>> = vec![
-            // Skipping sources in query parameter serialization
+            // Skipping displays in query parameter serialization
+
+            // Skipping windows in query parameter serialization
 
         ];
 
@@ -7832,7 +8326,8 @@ impl std::str::FromStr for SourcesResult {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub sources: Vec<Vec<models::Source>>,
+            pub displays: Vec<Vec<models::DisplaySource>>,
+            pub windows: Vec<Vec<models::WindowSource>>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -7850,7 +8345,8 @@ impl std::str::FromStr for SourcesResult {
             if let Some(key) = key_result {
                 #[allow(clippy::match_single_binding)]
                 match key {
-                    "sources" => return std::result::Result::Err("Parsing a container in this style is not supported in SourcesResult".to_string()),
+                    "displays" => return std::result::Result::Err("Parsing a container in this style is not supported in SourcesResult".to_string()),
+                    "windows" => return std::result::Result::Err("Parsing a container in this style is not supported in SourcesResult".to_string()),
                     _ => return std::result::Result::Err("Unexpected key while parsing SourcesResult".to_string())
                 }
             }
@@ -7861,7 +8357,8 @@ impl std::str::FromStr for SourcesResult {
 
         // Use the intermediate representation to return the struct
         std::result::Result::Ok(SourcesResult {
-            sources: intermediate_rep.sources.into_iter().next().ok_or_else(|| "sources missing in SourcesResult".to_string())?,
+            displays: intermediate_rep.displays.into_iter().next().ok_or_else(|| "displays missing in SourcesResult".to_string())?,
+            windows: intermediate_rep.windows.into_iter().next().ok_or_else(|| "windows missing in SourcesResult".to_string())?,
         })
     }
 }
@@ -7891,6 +8388,229 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<SourcesResul
                     match <SourcesResult as std::str::FromStr>::from_str(value) {
                         std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
                         std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into SourcesResult - {err}"#))
+                    }
+             },
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
+        }
+    }
+}
+
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct WindowSource {
+    #[serde(rename = "id")]
+    pub id: i32,
+
+    #[serde(rename = "title")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub title: String,
+
+    #[serde(rename = "appName")]
+          #[validate(custom(function = "check_xss_string"))]
+    pub app_name: String,
+
+    #[serde(rename = "width")]
+    pub width: f64,
+
+    #[serde(rename = "height")]
+    pub height: f64,
+
+    #[serde(rename = "isOnScreen")]
+    pub is_on_screen: bool,
+
+    #[serde(rename = "pixelScale")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub pixel_scale: Option<f64>,
+
+    #[serde(rename = "refreshHz")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub refresh_hz: Option<f64>,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "supportedCaptureFrameRates")]
+    pub supported_capture_frame_rates: Vec<f64>,
+
+}
+
+
+
+impl WindowSource {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(id: i32, title: String, app_name: String, width: f64, height: f64, is_on_screen: bool, supported_capture_frame_rates: Vec<f64>, ) -> WindowSource {
+        WindowSource {
+ id,
+ title,
+ app_name,
+ width,
+ height,
+ is_on_screen,
+ pixel_scale: None,
+ refresh_hz: None,
+ supported_capture_frame_rates,
+        }
+    }
+}
+
+/// Converts the WindowSource value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for WindowSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+
+
+            Some("title".to_string()),
+            Some(self.title.to_string()),
+
+
+            Some("appName".to_string()),
+            Some(self.app_name.to_string()),
+
+
+            Some("width".to_string()),
+            Some(self.width.to_string()),
+
+
+            Some("height".to_string()),
+            Some(self.height.to_string()),
+
+
+            Some("isOnScreen".to_string()),
+            Some(self.is_on_screen.to_string()),
+
+
+            self.pixel_scale.as_ref().map(|pixel_scale| {
+                [
+                    "pixelScale".to_string(),
+                    pixel_scale.to_string(),
+                ].join(",")
+            }),
+
+
+            self.refresh_hz.as_ref().map(|refresh_hz| {
+                [
+                    "refreshHz".to_string(),
+                    refresh_hz.to_string(),
+                ].join(",")
+            }),
+
+
+            Some("supportedCaptureFrameRates".to_string()),
+            Some(self.supported_capture_frame_rates.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")),
+
+        ];
+
+        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a WindowSource value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for WindowSource {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub id: Vec<i32>,
+            pub title: Vec<String>,
+            pub app_name: Vec<String>,
+            pub width: Vec<f64>,
+            pub height: Vec<f64>,
+            pub is_on_screen: Vec<bool>,
+            pub pixel_scale: Vec<f64>,
+            pub refresh_hz: Vec<f64>,
+            pub supported_capture_frame_rates: Vec<Vec<f64>>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => return std::result::Result::Err("Missing value while parsing WindowSource".to_string())
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "id" => intermediate_rep.id.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "title" => intermediate_rep.title.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "appName" => intermediate_rep.app_name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "width" => intermediate_rep.width.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "height" => intermediate_rep.height.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "isOnScreen" => intermediate_rep.is_on_screen.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "pixelScale" => intermediate_rep.pixel_scale.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "refreshHz" => intermediate_rep.refresh_hz.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "supportedCaptureFrameRates" => return std::result::Result::Err("Parsing a container in this style is not supported in WindowSource".to_string()),
+                    _ => return std::result::Result::Err("Unexpected key while parsing WindowSource".to_string())
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(WindowSource {
+            id: intermediate_rep.id.into_iter().next().ok_or_else(|| "id missing in WindowSource".to_string())?,
+            title: intermediate_rep.title.into_iter().next().ok_or_else(|| "title missing in WindowSource".to_string())?,
+            app_name: intermediate_rep.app_name.into_iter().next().ok_or_else(|| "appName missing in WindowSource".to_string())?,
+            width: intermediate_rep.width.into_iter().next().ok_or_else(|| "width missing in WindowSource".to_string())?,
+            height: intermediate_rep.height.into_iter().next().ok_or_else(|| "height missing in WindowSource".to_string())?,
+            is_on_screen: intermediate_rep.is_on_screen.into_iter().next().ok_or_else(|| "isOnScreen missing in WindowSource".to_string())?,
+            pixel_scale: intermediate_rep.pixel_scale.into_iter().next(),
+            refresh_hz: intermediate_rep.refresh_hz.into_iter().next(),
+            supported_capture_frame_rates: intermediate_rep.supported_capture_frame_rates.into_iter().next().ok_or_else(|| "supportedCaptureFrameRates missing in WindowSource".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<WindowSource> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<WindowSource>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(hdr_value: header::IntoHeaderValue<WindowSource>) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+             std::result::Result::Ok(value) => std::result::Result::Ok(value),
+             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for WindowSource - value: {hdr_value} is invalid {e}"#))
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<WindowSource> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+             std::result::Result::Ok(value) => {
+                    match <WindowSource as std::str::FromStr>::from_str(value) {
+                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
+                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into WindowSource - {err}"#))
                     }
              },
              std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))

@@ -8,7 +8,7 @@ Generated Rust server bindings for the GuerillaGlass Engine Contract v2 HTTP/Ope
 - Generated OpenAPI: `packages/engine-contract/generated/engine.openapi.json`
 - Rust generator config: `engines/protocol-rust/openapi-generator-config.json`
 
-This package is intentionally v2-only. It does not expose the legacy socket protocol, JSON-RPC envelopes, or Effect RPC method helpers.
+This package is intentionally v2-only. It only exposes generated HTTP/OpenAPI bindings and server helpers.
 
 ## Regenerate
 
