@@ -15,7 +15,7 @@ type BridgeHandlerDependencies = {
 export function createEngineBridgeHandlers({
   runtime,
 }: BridgeHandlerDependencies): BunBridgeRequestHandlerMap {
-  const run = (effect: Effect.Effect<unknown, unknown, unknown>): Promise<any> =>
+  const run = (effect: Effect.Effect<unknown, unknown, unknown>): Promise<unknown> =>
     runtime.runPromise(effect as Effect.Effect<unknown, unknown, DesktopAppServices>);
 
   const handlers = createBunBridgeHandlers(
@@ -38,7 +38,9 @@ export function createEngineBridgeHandlers({
       name,
       async (params: never) => {
         const response = await handlers[name](params);
-        if (response.ok) return response;
+        if (response.ok) {
+          return response;
+        }
         const error = await run(redactBridgeErrorForRendererEffect(response.error));
         return { ...response, error };
       },

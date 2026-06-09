@@ -73,7 +73,9 @@ export function validateEngineExecutableTrust(
   enginePath: string,
   policy: EngineExecutableTrustPolicy | undefined,
 ): Effect.Effect<void, EngineProcessError> {
-  if (policy?.enabled !== true) return Effect.void;
+  if (policy?.enabled !== true) {
+    return Effect.void;
+  }
 
   return Effect.tryPromise({
     try: async () => {

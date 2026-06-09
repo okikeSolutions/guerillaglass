@@ -25,15 +25,21 @@ function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
     ? `${trimmedRangeHeader.split(",")[0]?.trim() ?? ""}`
     : trimmedRangeHeader;
   const match = /^bytes=(\d*)-(\d*)$/.exec(firstRangeHeader);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   const rawStart = match[1] ?? "";
   const rawEnd = match[2] ?? "";
-  if (rawStart.length === 0 && rawEnd.length === 0) return null;
+  if (rawStart.length === 0 && rawEnd.length === 0) {
+    return null;
+  }
 
   if (rawStart.length === 0) {
     const suffixLength = Number.parseInt(rawEnd, 10);
-    if (!Number.isFinite(suffixLength) || suffixLength <= 0) return null;
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      return null;
+    }
     const start = Math.max(size - suffixLength, 0);
     const end = size - 1;
     return start <= end ? { start, end } : null;
@@ -44,7 +50,9 @@ function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
     return null;
   }
-  if (start >= size) return null;
+  if (start >= size) {
+    return null;
+  }
   return { start, end: Math.min(end, size - 1) };
 }
 
@@ -109,7 +117,9 @@ function logDebugWarningEffect(message: string): Effect.Effect<void> {
 }
 
 function validateToken(rawToken: string): string | null {
-  if (rawToken.length === 0 || rawToken.length > maxTokenPathSegmentLength) return null;
+  if (rawToken.length === 0 || rawToken.length > maxTokenPathSegmentLength) {
+    return null;
+  }
   let token: string;
   try {
     token = decodeURIComponent(rawToken);

@@ -80,7 +80,9 @@ export function makeCapabilityGrantService(
     }
     while (records.size > maxEntries) {
       const oldest = records.keys().next().value as string | undefined;
-      if (!oldest) break;
+      if (!oldest) {
+        break;
+      }
       records.delete(oldest);
     }
   }

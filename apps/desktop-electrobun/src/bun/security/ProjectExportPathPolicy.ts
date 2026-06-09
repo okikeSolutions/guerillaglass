@@ -65,7 +65,9 @@ function requireGranted(
 ): Effect.Effect<string, FileAccessPolicyError> {
   return grants.isGrantedPath(kind, filePath).pipe(
     Effect.flatMap((isGranted) => {
-      if (isGranted) return Effect.succeed(filePath);
+      if (isGranted) {
+        return Effect.succeed(filePath);
+      }
       return Effect.fail(
         new FileAccessPolicyError({
           code: "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS",

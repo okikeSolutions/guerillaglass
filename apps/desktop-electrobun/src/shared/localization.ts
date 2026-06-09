@@ -6,8 +6,12 @@ export type StudioLocale = Locale;
 
 export function normalizeStudioLocale(locale: string | null | undefined): StudioLocale {
   const normalized = locale?.trim().toLowerCase();
-  if (normalized === "de" || normalized === "de-de") return "de-DE";
-  if (normalized === "en" || normalized === "en-us") return "en-US";
+  if (normalized === "de" || normalized === "de-de") {
+    return "de-DE";
+  }
+  if (normalized === "en" || normalized === "en-us") {
+    return "en-US";
+  }
   return baseLocale;
 }
 

@@ -30,8 +30,7 @@ type PlistPrimitive = string | number | boolean | null;
 interface PlistObject {
   [key: string]: PlistValue;
 }
-interface PlistArray extends Array<PlistValue> {}
-type PlistValue = PlistPrimitive | PlistObject | PlistArray;
+type PlistValue = PlistPrimitive | PlistObject | PlistValue[];
 
 const DESIRED_UT_TYPE_DECLARATION: PlistObject = {
   UTTypeIdentifier: PROJECT_UTI,

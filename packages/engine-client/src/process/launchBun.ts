@@ -182,7 +182,9 @@ async function waitForReady(
     buffer = lines.pop() ?? "";
     for (const line of lines) {
       const ready = parseEngineHttpReadyLine(line.trim());
-      if (ready) return ready;
+      if (ready) {
+        return ready;
+      }
     }
   }
 
@@ -199,13 +201,17 @@ async function waitForReady(
  */
 function drainStderr(subprocess: Bun.Subprocess): void {
   const stderr = subprocess.stderr;
-  if (!stderr || typeof stderr === "number") return;
+  if (!stderr || typeof stderr === "number") {
+    return;
+  }
   void new Response(stderr)
     .text()
     .then((text) => {
       for (const line of text.split(/\r?\n/)) {
         const trimmed = line.trimEnd();
-        if (trimmed.length > 0) console.warn("engine stderr", trimmed);
+        if (trimmed.length > 0) {
+          process.stderr.write(`engine stderr ${trimmed}\n`);
+        }
       }
     })
     .catch(() => undefined);

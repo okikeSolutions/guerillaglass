@@ -280,7 +280,7 @@ export function useStudioRenderDiagnostics(
     if (typeof annotations?.route === "string") {
       diagnosticsState.activeRoute = annotations.route;
     }
-  });
+  }, undefined);
 }
 
 export function recordStudioPlaybackActive(isActive: boolean): void {

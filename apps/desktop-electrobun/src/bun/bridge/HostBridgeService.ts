@@ -31,7 +31,9 @@ export class HostBridgeService extends Context.Service<HostBridgeService, HostBr
   "@guerillaglass/desktop/HostBridgeService",
 ) {}
 
-function reviewEventCreated(comment: any): ReviewBridgeEvent {
+function reviewEventCreated(
+  comment: BridgeRequests["ggReviewCreateComment"]["response"],
+): ReviewBridgeEvent {
   return {
     type: "comment.created",
     reviewId: comment.reviewId,
@@ -52,14 +54,22 @@ function capturePreviewSubject(captureSessionId: string): string {
   return `capture:${captureSessionId}`;
 }
 
-function captureSessionIdFromStatus(status: any): string | null {
+function captureSessionIdFromStatus(
+  status: BridgeRequests["ggEngineCaptureStatus"]["response"],
+): string | null {
   const value = status?.captureSessionId;
-  if (typeof value === "string") return value;
-  if (Option.isOption(value)) return Option.getOrNull(value) as string | null;
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Option.isOption(value)) {
+    return Option.getOrNull(value) as string | null;
+  }
   return null;
 }
 
-function reviewWorkflowChanged(response: any): ReviewBridgeEvent {
+function reviewWorkflowChanged(
+  response: BridgeRequests["ggReviewSetWorkflowStatus"]["response"],
+): ReviewBridgeEvent {
   return {
     type: "workflow.statusChanged",
     reviewId: response.reviewId,
@@ -84,11 +94,11 @@ export const layerHostBridgeService = Layer.succeed(
           }
           case "ggEngineAgentPreflight": {
             const agent = yield* AgentService;
-            return yield* agent.preflight(params as any);
+            return yield* agent.preflight(params as never);
           }
           case "ggEngineAgentRun": {
             const agent = yield* AgentService;
-            return yield* agent.run(params as any);
+            return yield* agent.run(params as never);
           }
           case "ggEngineAgentStatus": {
             const agent = yield* AgentService;
@@ -96,7 +106,7 @@ export const layerHostBridgeService = Layer.succeed(
           }
           case "ggEngineAgentApply": {
             const agent = yield* AgentService;
-            return yield* agent.apply((params as { jobId: string }).jobId, params as any);
+            return yield* agent.apply((params as { jobId: string }).jobId, params as never);
           }
           case "ggEngineRequestScreenRecordingPermission": {
             const permissions = yield* PermissionsService;
@@ -120,15 +130,15 @@ export const layerHostBridgeService = Layer.succeed(
           }
           case "ggEngineStartDisplayCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.startDisplay(params as any);
+            return yield* capture.startDisplay(params as never);
           }
           case "ggEngineStartCurrentWindowCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.startCurrentWindow(params as any);
+            return yield* capture.startCurrentWindow(params as never);
           }
           case "ggEngineStartWindowCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.startWindow(params as any);
+            return yield* capture.startWindow(params as never);
           }
           case "ggEngineStopCapture": {
             const capture = yield* CaptureService;
@@ -136,7 +146,7 @@ export const layerHostBridgeService = Layer.succeed(
           }
           case "ggEngineStartRecording": {
             const recording = yield* RecordingService;
-            return yield* recording.start(params as any);
+            return yield* recording.start(params as never);
           }
           case "ggEngineStopRecording": {
             const recording = yield* RecordingService;
@@ -160,7 +170,10 @@ export const layerHostBridgeService = Layer.succeed(
               (params as { outputURL: string }).outputURL,
             );
             const exportService = yield* ExportService;
-            return yield* exportService.run({ ...(params as any), outputURL } as any);
+            return yield* exportService.run({
+              ...(params as BridgeRequests["ggEngineRunExport"]["params"]),
+              outputURL,
+            } as never);
           }
           case "ggEngineRunCutPlanExport": {
             const pathPolicy = yield* ProjectExportPathPolicy;
@@ -168,7 +181,10 @@ export const layerHostBridgeService = Layer.succeed(
               (params as { outputURL: string }).outputURL,
             );
             const exportService = yield* ExportService;
-            return yield* exportService.runCutPlan({ ...(params as any), outputURL } as any);
+            return yield* exportService.runCutPlan({
+              ...(params as BridgeRequests["ggEngineRunCutPlanExport"]["params"]),
+              outputURL,
+            } as never);
           }
           case "ggEngineProjectCurrent": {
             const session = yield* ProjectSession;
@@ -180,7 +196,10 @@ export const layerHostBridgeService = Layer.succeed(
             const projectPath = yield* pathPolicy.validateProjectOpenPath(
               (params as { projectPath: string }).projectPath,
             );
-            return yield* session.projectOpen({ ...(params as any), projectPath } as any);
+            return yield* session.projectOpen({
+              ...(params as BridgeRequests["ggEngineProjectOpen"]["params"]),
+              projectPath,
+            } as never);
           }
           case "ggEngineProjectSave": {
             const session = yield* ProjectSession;
@@ -189,19 +208,19 @@ export const layerHostBridgeService = Layer.succeed(
             if (projectPath) {
               const validatedProjectPath = yield* pathPolicy.validateProjectSavePath(projectPath);
               return yield* session.projectSave({
-                ...(params as any),
+                ...(params as BridgeRequests["ggEngineProjectSave"]["params"]),
                 projectPath: validatedProjectPath,
-              } as any);
+              } as never);
             }
-            return yield* session.projectSave(params as any);
+            return yield* session.projectSave(params as never);
           }
           case "ggEngineProjectRecents": {
             const session = yield* ProjectSession;
-            return yield* session.projectRecents(params as any);
+            return yield* session.projectRecents(params as never);
           }
           case "ggReviewSessionSnapshot": {
             const reviewGateway = yield* ReviewGateway;
-            return yield* reviewGateway.sessionSnapshot(params as any);
+            return yield* reviewGateway.sessionSnapshot(params as never);
           }
           case "ggGrantReviewMutationCapability": {
             const capabilities = yield* CapabilityGrantService;
@@ -228,7 +247,7 @@ export const layerHostBridgeService = Layer.succeed(
               scope: "review:mutate",
               subject: reviewMutationSubject(reviewId),
             });
-            const comment = yield* reviewGateway.createComment(params as any);
+            const comment = yield* reviewGateway.createComment(params as never);
             yield* shell.publishReviewEvent(reviewEventCreated(comment));
             return comment;
           }
@@ -242,16 +261,19 @@ export const layerHostBridgeService = Layer.succeed(
               scope: "review:mutate",
               subject: reviewMutationSubject(reviewId),
             });
-            const response = yield* reviewGateway.setWorkflowStatus(params as any);
+            const response = yield* reviewGateway.setWorkflowStatus(params as never);
             yield* shell.publishReviewEvent(reviewWorkflowChanged(response));
             return response;
           }
           case "ggPickPath": {
             const session = yield* ProjectSession;
             const grants = yield* FileAccessGrants;
-            const pickedPath = yield* session.pickPath(params as any);
+            const pickedPath = yield* session.pickPath(params as never);
             if (pickedPath) {
-              yield* grants.grantPickedPath((params as { mode: any }).mode, pickedPath);
+              yield* grants.grantPickedPath(
+                (params as BridgeRequests["ggPickPath"]["params"]).mode,
+                pickedPath,
+              );
             }
             return pickedPath;
           }
@@ -326,7 +348,9 @@ export const layerHostBridgeService = Layer.succeed(
             return yield* mediaSourceService.resolveCapturePreviewURL(
               capture.previewFrame.pipe(
                 Effect.flatMap(encodePreviewFrame),
-                Effect.map((frame) => frame as any),
+                Effect.map(
+                  (frame) => frame as BridgeRequests["ggEngineCapturePreviewFrame"]["response"],
+                ),
               ),
             );
           }

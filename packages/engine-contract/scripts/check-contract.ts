@@ -43,7 +43,9 @@ for (const [path, pathItem] of Object.entries(openApi.paths)) {
   for (const [method, operation] of Object.entries(pathItem as Record<string, Operation>)) {
     const upperMethod = method.toUpperCase();
     const key = `${upperMethod} ${path}`;
-    if (operationKeys.has(key)) failures.push(`duplicate operation key: ${key}`);
+    if (operationKeys.has(key)) {
+      failures.push(`duplicate operation key: ${key}`);
+    }
     operationKeys.add(key);
 
     if (!operation.operationId) {

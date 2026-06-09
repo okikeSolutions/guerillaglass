@@ -36,9 +36,9 @@ export default defineConfig({
     "unicorn/catch-error-name": "warn",
     "unicorn/consistent-function-scoping": "warn",
     "unicorn/numeric-separators-style": "warn",
-    "unicorn/prefer-at": "warn",
+    "unicorn/prefer-at": "off",
     "unicorn/prefer-string-replace-all": "warn",
-    "unicorn/prefer-top-level-await": "warn",
+    "unicorn/prefer-top-level-await": "off",
     "react-hooks/exhaustive-deps": "warn",
     "react-hooks-js/refs": "warn",
   },
@@ -54,7 +54,7 @@ export default defineConfig({
       },
     },
     {
-      files: ["Scripts/**/*.mjs", "Scripts/**/*.ts"],
+      files: ["Scripts/**/*.mjs", "Scripts/**/*.ts", "packages/*/scripts/**/*.ts"],
       globals: {
         console: "readonly",
         process: "readonly",

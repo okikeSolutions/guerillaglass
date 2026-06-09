@@ -107,7 +107,9 @@ async function launchNativeEngine(fixture: EngineFixture, home: string): Promise
     },
   );
 
-  if (!address) throw new Error(`${fixture.name} emitted invalid readiness`);
+  if (!address) {
+    throw new Error(`${fixture.name} emitted invalid readiness`);
+  }
   return {
     process: subprocess,
     baseUrl: engineHttpBaseUrl(address),

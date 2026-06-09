@@ -48,7 +48,8 @@ export function CaptureRoute() {
   const captureSessionId = isCaptureRunning
     ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
     : null;
-  const liveCapturePreview = useLiveCapturePreview(captureSessionId);
+  const { hasFrame: liveCapturePreviewHasFrame, imageRef: liveCapturePreviewImageRef } =
+    useLiveCapturePreview(captureSessionId);
 
   return (
     <EditorWorkspace
@@ -242,14 +243,14 @@ export function CaptureRoute() {
                     {isCaptureRunning ? (
                       <div className="relative h-full w-full overflow-hidden rounded-md">
                         <img
-                          ref={liveCapturePreview.imageRef}
+                          ref={liveCapturePreviewImageRef}
                           alt={studio.ui.helper.activePreviewTitle}
                           className={cn(
                             "h-full w-full object-contain",
-                            liveCapturePreview.hasFrame ? "block" : "hidden",
+                            liveCapturePreviewHasFrame ? "block" : "hidden",
                           )}
                         />
-                        {!liveCapturePreview.hasFrame ? (
+                        {!liveCapturePreviewHasFrame ? (
                           <div className="flex h-full w-full items-center justify-center text-center">
                             <p className="text-sm font-medium">
                               {studio.ui.helper.activePreviewTitle}

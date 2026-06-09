@@ -81,6 +81,12 @@ function menuStateChanged(previous: HostMenuState, next: HostMenuState): boolean
   );
 }
 
+function ignoreDesktopShellEffectBeforeRuntimeStart<A, E>(
+  _effect: Effect.Effect<A, E, never>,
+): void {
+  console.warn("Desktop shell effect ignored before managed runtime start");
+}
+
 function makeDesktopRuntimeFlags(options: DesktopShellLayerOptions): DesktopRuntimeFlags {
   return {
     captureBenchmarkEnabled: options.captureBenchmarkEnabled === true,
@@ -103,9 +109,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const studioDiagnosticsEnabled = runtimeFlags.studioDiagnosticsEnabled;
         const devServerPort = options.devServerPort ?? DEFAULT_DEV_SERVER_PORT;
         const devURL = devServerURL(devServerPort);
-        let runShellEffect = <A, E>(_effect: Effect.Effect<A, E, never>) => {
-          console.warn("Desktop shell effect ignored before managed runtime start");
-        };
+        let runShellEffect = ignoreDesktopShellEffectBeforeRuntimeStart;
 
         const getElectrobunChannel = Effect.promise(() => Updater.localInfo.channel());
 

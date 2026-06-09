@@ -71,7 +71,7 @@ describe("project/export path grants", () => {
   test("rejects an expired grant", async () => {
     const projectPath = path.join(tmpdir(), "expired.gglassproj");
     vi.spyOn(Date, "now")
-      .mockReturnValueOnce(1_000)
+      .mockReturnValueOnce(1000)
       .mockReturnValueOnce(31 * 60 * 1000);
 
     const exit = await Effect.runPromise(

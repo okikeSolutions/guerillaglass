@@ -84,7 +84,9 @@ export const layerBridgeRequestLimits = Layer.effect(
 
     const semaphoreFor = (name: BridgeRequestName) => {
       const existing = semaphores.get(name);
-      if (existing) return existing;
+      if (existing) {
+        return existing;
+      }
       const semaphore = Semaphore.makeUnsafe(ruleFor(name).maxConcurrent);
       semaphores.set(name, semaphore);
       return semaphore;
@@ -99,7 +101,7 @@ export const layerBridgeRequestLimits = Layer.effect(
             .withPermit(effect)
             .pipe(
               Effect.timeoutOrElse({
-                duration: timeout as any,
+                duration: timeout as Duration.Input,
                 orElse: () =>
                   Effect.fail(
                     new BridgeRequestTimeoutError({

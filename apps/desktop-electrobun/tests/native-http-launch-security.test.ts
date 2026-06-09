@@ -63,7 +63,9 @@ function readReadyEnvelope(child: ChildProcessWithoutNullStreams): Promise<Ready
       stdout += chunk;
       for (const line of stdout.split(/\r?\n/)) {
         const trimmed = line.trim();
-        if (!trimmed.startsWith("{")) continue;
+        if (!trimmed.startsWith("{")) {
+          continue;
+        }
         const envelope = JSON.parse(trimmed) as ReadyEnvelope;
         if (envelope.type === "guerillaglass.engine.http.ready") {
           clearTimeout(timeout);
@@ -106,11 +108,15 @@ async function launchEngine(
 }
 
 async function stopEngine(child: ChildProcessWithoutNullStreams): Promise<void> {
-  if (!launchedProcesses.delete(child)) return;
-  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (!launchedProcesses.delete(child)) {
+    return;
+  }
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
   child.kill();
   await new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, 1_000);
+    const timeout = setTimeout(resolve, 1000);
     child.once("exit", () => {
       clearTimeout(timeout);
       resolve();

@@ -87,7 +87,7 @@ describe("engine process config", () => {
     vi.stubGlobal("Bun", { spawn });
 
     const launched = await Effect.runPromise(
-      Effect.scoped(makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1_000 })),
+      Effect.scoped(makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1000 })),
     );
 
     expect(spawn).toHaveBeenCalledWith(
@@ -100,7 +100,7 @@ describe("engine process config", () => {
       }),
     );
 
-    expect(launched.address).toEqual({ host: "127.0.0.1", port: 49152 });
+    expect(launched.address).toEqual({ host: "127.0.0.1", port: 49_152 });
     expect(launched.baseUrl.toString()).toBe("http://127.0.0.1:49152/");
     expect(Redacted.value(launched.bearerToken)).toMatch(/^[a-f0-9]{64}$/);
   });
@@ -121,7 +121,7 @@ describe("engine process config", () => {
 
     await expect(
       Effect.runPromise(
-        Effect.scoped(makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1_000 })),
+        Effect.scoped(makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1000 })),
       ),
     ).rejects.toMatchObject({ code: "ENGINE_EXITED_BEFORE_READINESS" });
   });

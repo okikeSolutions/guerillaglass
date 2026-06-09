@@ -134,7 +134,7 @@ function createBenchmarkEngineClient(enginePath: string) {
 
 function resolveBenchmarkEnginePath(): string {
   const explicit = process.env.GG_ENGINE_PATH;
-  if (explicit && explicit.trim().length > 0) return path.resolve(explicit);
+  if (explicit && explicit.trim().length > 0) {return path.resolve(explicit);}
   return path.resolve(process.cwd(), "engines/macos-swift/.build/debug/guerillaglass-engine");
 }
 
@@ -1850,7 +1850,7 @@ function buildMarkdownReport(report: BenchmarkReport) {
 }
 
 async function writeReports(report: BenchmarkReport, outputDir: string) {
-  const timestamp = report.generatedAt.replace(/:/g, "-");
+  const timestamp = report.generatedAt.replaceAll(":", "-");
   const reportDir = path.join(outputDir, timestamp);
   await mkdir(reportDir, { recursive: true });
 

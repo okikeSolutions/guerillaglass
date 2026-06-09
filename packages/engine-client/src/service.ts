@@ -264,6 +264,7 @@ export function makeRawEngineHttpApiClient(
  * @returns The low-level EngineClient service implementation.
  */
 export function makeEngineClientService(rawClient: RawEngineHttpApiClient): EngineClientService {
+  // oxlint-disable-next-line typescript/no-explicit-any -- Effect HttpApiClient currently exposes a generated callable group shape that TypeScript cannot preserve here.
   const client = rawClient as any;
   return {
     systemPing: asClientEffect(client.system.systemPing({})),

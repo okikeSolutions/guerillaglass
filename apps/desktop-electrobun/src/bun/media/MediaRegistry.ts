@@ -66,7 +66,9 @@ function pruneTokenMap(tokens: Map<string, TokenEntry>, now: number): Map<string
   }
   while (next.size > maxMediaTokens) {
     const firstToken = next.keys().next().value;
-    if (!firstToken) break;
+    if (!firstToken) {
+      break;
+    }
     next.delete(firstToken);
   }
   return next;
@@ -180,7 +182,9 @@ export const makeMediaRegistryService: Effect.Effect<MediaRegistryService> = Eff
       updatePreviewCache: (token, frameId, jpegBytes) =>
         Ref.update(tokensRef, (tokens) => {
           const entry = tokens.get(token);
-          if (!entry || entry.kind !== "capturePreview") return tokens;
+          if (!entry || entry.kind !== "capturePreview") {
+            return tokens;
+          }
           const next = new Map(tokens);
           next.set(token, {
             ...entry,

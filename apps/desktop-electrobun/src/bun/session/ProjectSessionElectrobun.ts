@@ -33,6 +33,13 @@ function encodeProjectStateEffect(projectState: unknown) {
   );
 }
 
+function loadProjectRecents(params: BridgeRequests["ggEngineProjectRecents"]["params"]) {
+  return Effect.gen(function* () {
+    const project = yield* ProjectService;
+    return yield* project.recents(params.limit);
+  }) as Effect.Effect<ProjectRecentsResult, unknown, ProjectService>;
+}
+
 function updateCurrentProjectPathFromState(
   currentProjectPathRef: Ref.Ref<Option.Option<string>>,
   projectState: unknown,
@@ -82,11 +89,7 @@ export const layerProjectSession = Layer.effect(
         return yield* encodeProjectStateEffect(projectState);
       });
 
-    const projectRecents = (params: BridgeRequests["ggEngineProjectRecents"]["params"]) =>
-      Effect.gen(function* () {
-        const project = yield* ProjectService;
-        return yield* project.recents(params.limit);
-      }) as Effect.Effect<ProjectRecentsResult, unknown, ProjectService>;
+    const projectRecents = loadProjectRecents;
 
     const loadInitialProject = projectCurrent.pipe(
       Effect.catch((error) =>

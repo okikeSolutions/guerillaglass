@@ -327,8 +327,7 @@ Readiness line:
 
 ```json
 {
-  "type": "guerillaglass.engine.ready",
-  "protocol": "http",
+  "type": "guerillaglass.engine.http.ready",
   "host": "127.0.0.1",
   "port": 54231
 }
@@ -719,24 +718,72 @@ Completed so far:
 
 ### Phase 6: Desktop Integration
 
-- Replace old consolidated engine package Bun live layer usage with `@guerillaglass/engine-client` services.
-- Update `HostBridgeService` to call domain services.
-- Remove old transport service dependencies.
-- Keep Electrobun RPC only for renderer/Bun boundary.
+Status: complete.
+
+Completed scope:
+
+- Replaced old consolidated engine package Bun live layer usage with `@guerillaglass/engine-client` services.
+  - `apps/desktop-electrobun/src/bun/app/index.ts` is the only desktop source composition root importing `layerEngineClientBun` from `@guerillaglass/engine-client/service`.
+  - `packages/engine-client/src/services/domainServices.ts` now exposes `layerEngineDomainServices`, which derives all domain services from the low-level `EngineClient`.
+  - `apps/desktop-electrobun/src/bun/app/AppLayer.ts` consumes an `engineDomainServicesLayer` instead of composing or exposing the low-level `EngineClient` directly.
+- Updated `HostBridgeService` to call domain services.
+  - Engine bridge requests resolve `SystemService`, `PermissionsService`, `SourcesService`, `CaptureService`, `RecordingService`, `ExportService`, and `AgentService` directly.
+  - Project commands still route through `ProjectSession`, with `ProjectSessionElectrobun` using `ProjectService`, preserving desktop path grants/session policy.
+- Removed old transport service dependencies from desktop source.
+  - Search verified no desktop source references to legacy `EngineTransport`, `makeLayerEngineTransportBun`, or `capture.statusStream`.
+  - Capture status publishing uses `CaptureService.status` polling through `makeCaptureStatusPollingEffect`.
+- Kept Electrobun RPC only for the renderer/Bun boundary.
+  - `requestHandlers.ts` remains a thin adapter that validates bridge envelopes, runs `HostBridgeService.handle(...)` inside the managed runtime, and redacts serialized errors.
+  - Renderer code continues to use `electrobunRpcBridge.ts`/window bridge bindings rather than direct engine HTTP/client access.
+- Tightened regression coverage.
+  - `apps/desktop-electrobun/tests/desktop-engine-v2-composition.test.ts` now allows raw `EngineClient` usage only in `bun/app/index.ts` and rejects legacy transport/status-stream references.
+
+Validation completed:
+
+```sh
+cd apps/desktop-electrobun && bunx vitest run tests/desktop-engine-v2-composition.test.ts -c vitest.config.ts
+cd packages/engine-client && bun run typecheck
+cd apps/desktop-electrobun && bun run typecheck
+```
 
 ### Phase 7: Removal
 
-Delete obsolete implementation:
+Status: complete.
 
-- old consolidated engine package RPC group/client/protocol bridge;
-- old Rust legacy transport protocol crate code;
-- old Swift legacy transport protocol code;
-- old readiness env vars;
-- old protocol bridge tests.
+Completed scope:
 
-No shims.
+- Deleted obsolete Swift line-protocol bridge tests.
+  - Removed `Tests/engineProtocolTests/EngineProtocolTests.swift`.
+  - Removed the root `EngineProtocolTests` test target from `Package.swift`.
+  - The remaining Swift protocol tests live under `engines/protocol-swift/Tests/EngineProtocolTests` and cover generated OpenAPI types/server helpers, not the old line codec.
+- Removed stale Rust legacy protocol dispatch.
+  - Deleted `capture.statusStream` and `capture.previewFrameStream` method mappings from `engines/native-foundation/src/wire.rs`.
+  - Removed the obsolete stream entries from `packages/engine-contract/src/endpointInventory.ts`.
+  - Removed runtime string-method bridge construction from `engines/native-foundation/src/transport.rs`; generated HTTP handlers now dispatch through explicit `EngineMethod` variants.
+  - Simplified `engines/native-foundation/src/handlers.rs` so status and preview are regular HTTP-polled operations only.
+- Removed stale legacy readiness documentation.
+  - Updated the startup readiness example to emit `guerillaglass.engine.http.ready` without the old protocol discriminator field.
+- Verified no active source remains for the old consolidated engine package, legacy desktop transport layer, Swift line codec types, or native legacy stream methods.
 
-### Phase 8: Gates
+No shims were added.
+
+Validation completed:
+
+```sh
+bun run protocol:typecheck
+cd apps/desktop-electrobun && bun run typecheck
+cd apps/desktop-electrobun && bun run test:bun
+cd apps/desktop-electrobun && bunx vitest run tests/desktop-engine-v2-composition.test.ts -c vitest.config.ts
+cargo test --manifest-path engines/native-foundation/Cargo.toml
+cargo test --manifest-path engines/protocol-rust/Cargo.toml
+swift test
+```
+
+### Phase 8: Final Gates
+
+- Veriy all tests are up to date and use the new v2 engine, where applicable
+- Testing strategy outline in this doc is implemented and passes coverage by testing edge case and critical paths e2e
+- Migrate all typescript tests to vitest, because we can also write our UI tests with vitest not with @vitest/browser-playwright 
 
 Required checks:
 
@@ -744,6 +791,8 @@ Required checks:
 bun run protocol:typecheck
 bun run desktop:typecheck
 bun run desktop:test
+bun run gate
+bun run coverage:check
 cargo test ...
 swift test
 OpenAPI generation check

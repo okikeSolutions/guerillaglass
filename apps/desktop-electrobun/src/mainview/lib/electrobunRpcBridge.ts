@@ -68,7 +68,7 @@ export function initializeElectrobunRpcBridge(): void {
               }),
             );
           } catch (error) {
-            console.warn("Rejected invalid host review event payload", error);
+            globalThis.reportError?.(error);
           }
         },
         desktopRuntimeFlags: (flags: DesktopRuntimeFlags) => {

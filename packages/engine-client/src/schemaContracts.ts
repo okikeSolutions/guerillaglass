@@ -56,8 +56,8 @@ export function parseJsonString(
 export function parseJsonStringSync(raw: string, source: string): unknown {
   try {
     return JSON.parse(raw) as unknown;
-  } catch (cause) {
-    throw new JsonParseError({ source, cause });
+  } catch (error) {
+    throw new JsonParseError({ source, cause: error });
   }
 }
 

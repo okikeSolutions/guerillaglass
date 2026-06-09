@@ -28,13 +28,17 @@ function requestUsesLoopbackHost(request: HttpServerRequest): boolean {
     return isLoopbackHost(url.hostname);
   } catch {
     const hostHeader = request.headers.host;
-    if (!hostHeader) return true;
+    if (!hostHeader) {
+      return true;
+    }
     return isLoopbackHost(hostHeaderHostname(hostHeader));
   }
 }
 
 function originIsAllowed(origin: string | undefined): boolean {
-  if (!origin || origin === "null") return true;
+  if (!origin || origin === "null") {
+    return true;
+  }
   try {
     const url = new URL(origin);
     return url.protocol === "http:" && isLoopbackHost(url.hostname);

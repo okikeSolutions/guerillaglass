@@ -12,10 +12,10 @@ describe("engine HTTP readiness", () => {
         JSON.stringify({
           type: "guerillaglass.engine.http.ready",
           host: "127.0.0.1",
-          port: 49152,
+          port: 49_152,
         }),
       ),
-    ).toEqual({ host: "127.0.0.1", port: 49152 });
+    ).toEqual({ host: "127.0.0.1", port: 49_152 });
 
     expect(isLoopbackReadyHost("localhost")).toBe(true);
     expect(isLoopbackReadyHost("::1")).toBe(true);
@@ -28,7 +28,7 @@ describe("engine HTTP readiness", () => {
         JSON.stringify({
           type: "guerillaglass.engine.http.ready",
           host: "0.0.0.0",
-          port: 49152,
+          port: 49_152,
         }),
       ),
     ).toBeUndefined();
@@ -45,7 +45,7 @@ describe("engine HTTP readiness", () => {
   });
 
   test("builds local HTTP base URLs from readiness addresses", () => {
-    expect(engineHttpBaseUrl({ host: "127.0.0.1", port: 49152 }).toString()).toBe(
+    expect(engineHttpBaseUrl({ host: "127.0.0.1", port: 49_152 }).toString()).toBe(
       "http://127.0.0.1:49152/",
     );
   });

@@ -227,7 +227,9 @@ export async function copySafeFileSnapshot(
     let copiedBytes = 0;
     while (true) {
       const { bytesRead } = await sourceHandle.read(buffer, 0, buffer.byteLength, null);
-      if (bytesRead === 0) break;
+      if (bytesRead === 0) {
+        break;
+      }
       copiedBytes += bytesRead;
       if (copiedBytes > maxBytes) {
         throw new FileAccessPolicyError({

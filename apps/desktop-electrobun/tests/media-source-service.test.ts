@@ -50,7 +50,7 @@ describe("media source service", () => {
       Layer.provide(BunFileSystem.layer),
       Layer.provide(
         Layer.succeed(HttpServer.HttpServer, {
-          address: { _tag: "TcpAddress", hostname: "127.0.0.1", port: 43210 },
+          address: { _tag: "TcpAddress", hostname: "127.0.0.1", port: 43_210 },
           serve: () => Effect.void,
         }),
       ),

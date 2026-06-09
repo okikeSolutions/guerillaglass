@@ -128,7 +128,9 @@ function makeCaptureStatusPollingLayer(
     Effect.gen(function* () {
       const config = yield* AppConfig;
       const enabled = options.enableCaptureStatusPolling ?? !config.captureBenchmarkEnabled;
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       yield* Effect.forkScoped(
         makeCaptureStatusPollingEffect(
           options.initialCaptureStatusDelayMs ?? 0,
