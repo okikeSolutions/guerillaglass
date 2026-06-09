@@ -7,6 +7,7 @@
   "exports": {
     "./config": "./src/config.ts",
     "./errors": "./src/errors.ts",
+    "./process/config": "./src/process/config.ts",
     "./process/launchBun": "./src/process/launchBun.ts",
     "./process/readiness": "./src/process/readiness.ts",
     "./process/trust": "./src/process/trust.ts",

@@ -4,6 +4,14 @@ import {
 } from "@guerillaglass/engine-contract/domains/capture";
 import { Effect, Exit, Layer, Schema, Cause } from "effect";
 import { EngineClient } from "@guerillaglass/engine-client/service";
+import { AgentService, layerAgentService } from "@guerillaglass/engine-client/services/AgentService";
+import { CaptureService, layerCaptureService } from "@guerillaglass/engine-client/services/CaptureService";
+import { ExportService, layerExportService } from "@guerillaglass/engine-client/services/ExportService";
+import { PermissionsService, layerPermissionsService } from "@guerillaglass/engine-client/services/PermissionsService";
+import { ProjectService, layerProjectService } from "@guerillaglass/engine-client/services/ProjectService";
+import { RecordingService, layerRecordingService } from "@guerillaglass/engine-client/services/RecordingService";
+import { SourcesService, layerSourcesService } from "@guerillaglass/engine-client/services/SourcesService";
+import { SystemService, layerSystemService } from "@guerillaglass/engine-client/services/SystemService";
 import { AppConfig, layerAppConfig } from "./AppConfig";
 import { layerAppLogging } from "./AppLogging";
 import { MediaSourceService, layerMediaSourceService } from "../media/service";
@@ -47,6 +55,14 @@ export type DesktopAppLayerOptions = {
 export type DesktopAppServices =
   | AppConfig
   | EngineClient
+  | AgentService
+  | CaptureService
+  | ExportService
+  | PermissionsService
+  | ProjectService
+  | RecordingService
+  | SourcesService
+  | SystemService
   | ReviewGateway
   | MediaSourceService
   | DesktopShell
@@ -62,18 +78,18 @@ export type DesktopAppServices =
 export function makeCaptureStatusPollingEffect(
   initialDelayMs = 0,
   intervalMs = 500,
-): Effect.Effect<void, never, EngineClient | DesktopShell> {
+): Effect.Effect<void, never, CaptureService | DesktopShell> {
   return Effect.gen(function* () {
     if (initialDelayMs > 0) {
       yield* Effect.sleep(`${Math.max(0, initialDelayMs)} millis`);
     }
 
-    const client = yield* EngineClient;
+    const capture = yield* CaptureService;
     const shell = yield* DesktopShell;
 
     while (true) {
       yield* Effect.exit(
-        client.captureStatus.pipe(
+        capture.status.pipe(
           Effect.flatMap((captureStatus) =>
             Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(
               captureStatus,
@@ -140,8 +156,19 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
     Layer.provideMerge(tempDirectoryLayer),
   );
 
+  const engineDomainServicesLayer = Layer.mergeAll(
+    layerSystemService,
+    layerPermissionsService,
+    layerSourcesService,
+    layerCaptureService,
+    layerRecordingService,
+    layerProjectService,
+    layerExportService,
+    layerAgentService,
+  ).pipe(Layer.provideMerge(options.engineClientLayer));
+
   const appServicesLayer = Layer.mergeAll(
-    options.engineClientLayer,
+    engineDomainServicesLayer,
     options.reviewGatewayLayer ?? layerReviewGateway,
     mediaSourceServiceLayer,
     options.desktopShellLayer,

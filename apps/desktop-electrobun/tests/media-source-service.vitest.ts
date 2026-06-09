@@ -16,7 +16,7 @@ function firstFailure(cause: Cause.Cause<unknown>): unknown {
 }
 
 describe("media source service", () => {
-  it.effect("fails layer acquisition with a typed error for Unix socket HTTP servers", () =>
+  it.effect("fails layer acquisition with a typed error for non-TCP HTTP servers", () =>
     Effect.gen(function* () {
       const layer = layerMediaSourceServiceCore.pipe(
         Layer.provideMerge(layerMediaRegistry),

@@ -21,8 +21,11 @@ echo "==> desktop typecheck"
 echo "==> web app typecheck"
 (cd apps/web && bun run typecheck)
 
-echo "==> engine package typecheck"
-(cd packages/engine && bun run typecheck)
+echo "==> engine contract check"
+(cd packages/engine-contract && bun run check:contract:full)
+
+echo "==> engine client typecheck"
+(cd packages/engine-client && bun run typecheck)
 
 echo "==> review protocol typecheck"
 (cd packages/review-protocol && bun run typecheck)

@@ -5,6 +5,7 @@ import {
   type CaptureStatusResult,
 } from "@guerillaglass/engine-contract/domains/capture";
 import { EngineClient } from "@guerillaglass/engine-client/service";
+import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
 import { makeCaptureStatusPollingEffect } from "../src/bun/app/AppLayer";
@@ -47,8 +48,8 @@ describe("desktop app runtime capture status polling", () => {
       makeCaptureStatusPollingEffect(0, 50).pipe(
         Effect.provide(
           Layer.mergeAll(
-            Layer.succeed(EngineClient, {
-              captureStatus: Effect.succeed(decodeStatus(first)),
+            Layer.succeed(CaptureService, {
+              status: Effect.succeed(decodeStatus(first)),
             } as never),
             Layer.succeed(DesktopShell, {
               start: () => Effect.void,
@@ -77,8 +78,8 @@ describe("desktop app runtime capture status polling", () => {
       makeCaptureStatusPollingEffect(0, 50).pipe(
         Effect.provide(
           Layer.mergeAll(
-            Layer.succeed(EngineClient, {
-              captureStatus: Effect.fail("status probe failed"),
+            Layer.succeed(CaptureService, {
+              status: Effect.fail("status probe failed"),
             } as never),
             Layer.succeed(DesktopShell, {
               start: () => Effect.void,

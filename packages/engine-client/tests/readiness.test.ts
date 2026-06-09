@@ -14,7 +14,7 @@ describe("engine HTTP readiness", () => {
     expect(isLoopbackReadyHost("[::1]")).toBe(true);
   });
 
-  test("rejects legacy socket readiness and non-loopback hosts", () => {
+  test("rejects non-HTTP readiness and non-loopback hosts", () => {
     expect(parseEngineHttpReadyLine(JSON.stringify({
       type: "guerillaglass.engine.ready",
       host: "127.0.0.1",

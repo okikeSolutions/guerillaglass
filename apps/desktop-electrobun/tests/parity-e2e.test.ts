@@ -1,5 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, setDefaultTimeout, test } from "bun:test";
+import { beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import { Effect } from "effect";
 import { EngineClient, layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import {
@@ -15,31 +17,44 @@ type EngineFixture = {
 
 const fixtures: EngineFixture[] = [
   {
-    name: "windows-stub",
-    path: path.resolve(
-      import.meta.dir,
-      "../../../engines/windows-stub/guerillaglass-engine-windows-stub.ts",
-    ),
+    name: "windows-native",
+    path: path.resolve(import.meta.dir, "../../../target/debug/guerillaglass-engine-windows"),
     expectedPlatform: "windows",
   },
   {
-    name: "linux-stub",
-    path: path.resolve(
-      import.meta.dir,
-      "../../../engines/linux-stub/guerillaglass-engine-linux-stub.ts",
-    ),
+    name: "linux-native",
+    path: path.resolve(import.meta.dir, "../../../target/debug/guerillaglass-engine-linux"),
     expectedPlatform: "linux",
   },
 ];
 
-setDefaultTimeout(15_000);
+setDefaultTimeout(30_000);
 
-describe.skip("engine HTTP parity e2e", () => {
+function buildNativeEngine(manifestPath: string): void {
+  const result = Bun.spawnSync({
+    cmd: ["cargo", "build", "--manifest-path", manifestPath],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (!result.success) {
+    throw new Error(
+      `Failed to build ${manifestPath}\n${new TextDecoder().decode(result.stderr)}`,
+    );
+  }
+}
+
+describe("engine HTTP parity e2e", () => {
+  beforeAll(() => {
+    buildNativeEngine(path.resolve(import.meta.dir, "../../../engines/windows-native/Cargo.toml"));
+    buildNativeEngine(path.resolve(import.meta.dir, "../../../engines/linux-native/Cargo.toml"));
+  });
   for (const fixture of fixtures) {
     test(
       `runs capture->record->export->project flow (${fixture.name})`,
       async () => {
-        await Effect.gen(function* () {
+        const tempRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), `${fixture.name}-e2e-`));
+        try {
+          await Effect.gen(function* () {
           const engine = yield* EngineClient;
           const ping = yield* engine.systemPing;
           expect(ping.platform).toBe(fixture.expectedPlatform);
@@ -64,14 +79,14 @@ describe.skip("engine HTTP parity e2e", () => {
           const exportInfo = yield* engine.exportInfo;
           const exportPreset = exportInfo.presets[0]!;
           const exportResult = yield* engine.exportRun({
-            outputURL: outputUrlSchema.make(`/tmp/${fixture.name}-e2e.mp4`),
+            outputURL: outputUrlSchema.make(path.join(tempRoot, `${fixture.name}-e2e.mp4`)),
             presetId: exportPreset.id,
             trimStartSeconds: 0,
             trimEndSeconds: 3,
           });
           expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
 
-          const projectPath = projectPathSchema.make(`/tmp/${fixture.name}.gglassproj`);
+          const projectPath = projectPathSchema.make(path.join(tempRoot, `${fixture.name}.gglassproj`));
           const opened = yield* engine.projectOpen({ projectPath });
           expect(opened.projectPath).toBe(projectPath);
 
@@ -89,10 +104,18 @@ describe.skip("engine HTTP parity e2e", () => {
 
           const stopped = yield* engine.captureStop;
           expect(stopped.isRunning).toBe(false);
-        }).pipe(
-          Effect.provide(layerEngineClientBun({ enginePath: fixture.path })),
-          (effect) => Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
-        );
+          }).pipe(
+            Effect.provide(
+              layerEngineClientBun({
+                enginePath: fixture.path,
+                env: { HOME: tempRoot, USERPROFILE: tempRoot },
+              }),
+            ),
+            (effect) => Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
+          );
+        } finally {
+          fs.rmSync(tempRoot, { force: true, recursive: true });
+        }
       },
       { timeout: 15_000 },
     );

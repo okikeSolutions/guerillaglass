@@ -1,6 +1,7 @@
 import { stat } from "node:fs/promises";
-import { Effect, Redacted, Scope } from "effect";
+import { Effect, Option, Redacted, Scope } from "effect";
 import { EngineProcessError } from "../errors";
+import { EnginePathConfig, EngineProcessConfig } from "./config";
 import { engineHttpBaseUrl, parseEngineHttpReadyLine, type EngineHttpAddress } from "./readiness";
 import { validateEngineExecutableTrust, type EngineExecutableTrustPolicy } from "./trust";
 
@@ -9,7 +10,7 @@ import { validateEngineExecutableTrust, type EngineExecutableTrustPolicy } from 
  */
 export type EngineHttpProcessOptions = {
   /**
-   * Absolute path to the native engine executable or TypeScript stub.
+   * Absolute path to the native engine executable.
    */
   readonly enginePath?: string;
   /**
@@ -22,6 +23,12 @@ export type EngineHttpProcessOptions = {
    * @defaultValue 10000
    */
   readonly readinessTimeoutMs?: number;
+  /**
+   * Extra environment variables for the engine subprocess.
+   *
+   * @remarks Values override inherited `process.env` entries.
+   */
+  readonly env?: NodeJS.ProcessEnv;
 };
 
 /**
@@ -66,33 +73,44 @@ export function makeEngineBearerToken(): Redacted.Redacted<string> {
  * @returns An effect that succeeds with an executable path.
  */
 export function resolveEnginePath(enginePath?: string): Effect.Effect<string, EngineProcessError> {
-  return Effect.tryPromise({
-    try: async () => {
-      const resolved = enginePath ?? process.env.GG_ENGINE_PATH;
-      if (!resolved?.trim()) {
-        throw new EngineProcessError({
-          code: "ENGINE_PATH_UNAVAILABLE",
-          message: "Engine executable path is required. Pass enginePath or set GG_ENGINE_PATH.",
-        });
-      }
-      const path = resolved.trim();
-      const fileStat = await stat(path);
-      if (!fileStat.isFile()) {
-        throw new EngineProcessError({
-          code: "ENGINE_PATH_UNAVAILABLE",
-          message: `Engine executable path does not point to a regular file: ${path}`,
-        });
-      }
-      return path;
-    },
-    catch: (cause) =>
-      cause instanceof EngineProcessError
-        ? cause
-        : new EngineProcessError({
+  return Effect.gen(function* () {
+    const configuredPath = enginePath === undefined
+      ? yield* EnginePathConfig.pipe(
+        Effect.mapError((cause) =>
+          new EngineProcessError({
             code: "ENGINE_PATH_UNAVAILABLE",
-            message: "Unable to resolve engine executable path.",
+            message: "Unable to load engine executable path configuration.",
             cause,
           }),
+        ),
+      )
+      : Option.none<string>();
+    const resolved = enginePath ?? Option.getOrUndefined(configuredPath);
+    if (!resolved?.trim()) {
+      return yield* new EngineProcessError({
+        code: "ENGINE_PATH_UNAVAILABLE",
+        message: "Engine executable path is required. Pass enginePath or set GG_ENGINE_PATH.",
+      });
+    }
+    const path = resolved.trim();
+    const fileStat = yield* Effect.tryPromise({
+      try: () => stat(path),
+      catch: (cause) =>
+        cause instanceof EngineProcessError
+          ? cause
+          : new EngineProcessError({
+              code: "ENGINE_PATH_UNAVAILABLE",
+              message: "Unable to resolve engine executable path.",
+              cause,
+            }),
+    });
+    if (!fileStat.isFile()) {
+      return yield* new EngineProcessError({
+        code: "ENGINE_PATH_UNAVAILABLE",
+        message: `Engine executable path does not point to a regular file: ${path}`,
+      });
+    }
+    return path;
   });
 }
 
@@ -103,7 +121,7 @@ export function resolveEnginePath(enginePath?: string): Effect.Effect<string, En
  * @returns Command tuple for `Bun.spawn`.
  */
 function resolveEngineCommand(enginePath: string): readonly [string, readonly string[]] {
-  return enginePath.endsWith(".ts") ? (["bun", [enginePath]] as const) : ([enginePath, []] as const);
+  return [enginePath, []] as const;
 }
 
 /**
@@ -196,7 +214,16 @@ export function makeEngineHttpProcess(
 ): Effect.Effect<EngineHttpProcess, EngineProcessError, Scope.Scope> {
   return Effect.acquireRelease(
     Effect.gen(function* () {
-      const enginePath = yield* resolveEnginePath(options.enginePath);
+      const processConfig = yield* EngineProcessConfig.pipe(
+        Effect.mapError((cause) =>
+          new EngineProcessError({
+            code: "ENGINE_READINESS_INVALID",
+            message: "Unable to load engine process configuration.",
+            cause,
+          }),
+        ),
+      );
+      const enginePath = yield* resolveEnginePath(options.enginePath ?? Option.getOrUndefined(processConfig.enginePath));
       yield* validateEngineExecutableTrust(enginePath, options.trustPolicy);
       const [command, args] = resolveEngineCommand(enginePath);
       const bearerToken = makeEngineBearerToken();
@@ -206,13 +233,14 @@ export function makeEngineHttpProcess(
         stderr: "pipe",
         env: {
           ...process.env,
+          ...options.env,
           GG_ENGINE_TRANSPORT: "http",
           GG_ENGINE_HTTP_AUTH_TOKEN: Redacted.value(bearerToken),
         },
       });
       drainStderr(subprocess);
       const address = yield* Effect.tryPromise({
-        try: () => waitForReady(subprocess, options.readinessTimeoutMs ?? 10_000),
+        try: () => waitForReady(subprocess, options.readinessTimeoutMs ?? processConfig.readinessTimeoutMs),
         catch: (cause) =>
           cause instanceof EngineProcessError
             ? cause

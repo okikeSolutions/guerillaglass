@@ -1,6 +1,6 @@
 import { Effect, FileSystem, Layer, Option, Ref, Schema } from "effect";
 import { Utils } from "electrobun/bun";
-import { EngineClient } from "@guerillaglass/engine-client/service";
+import { ProjectService } from "@guerillaglass/engine-client/services/ProjectService";
 import {
   projectStateSchema,
   type ProjectRecentsResult,
@@ -60,33 +60,33 @@ export const layerProjectSession = Layer.effect(
       );
 
     const projectCurrent = Effect.gen(function* () {
-      const client = yield* EngineClient;
-      const projectState = yield* client.projectCurrent;
+      const project = yield* ProjectService;
+      const projectState = yield* project.current;
       yield* updateCurrentProjectPathFromState(currentProjectPathRef, projectState);
       return yield* encodeProjectStateEffect(projectState);
     });
 
     const projectOpen = (params: BridgeRequests["ggEngineProjectOpen"]["params"]) =>
       Effect.gen(function* () {
-        const client = yield* EngineClient;
-        const projectState = yield* client.projectOpen(params);
+        const project = yield* ProjectService;
+        const projectState = yield* project.open(params);
         yield* updateCurrentProjectPathFromState(currentProjectPathRef, projectState);
         return yield* encodeProjectStateEffect(projectState);
       });
 
     const projectSave = (params: BridgeRequests["ggEngineProjectSave"]["params"]) =>
       Effect.gen(function* () {
-        const client = yield* EngineClient;
-        const projectState = yield* client.projectSave(params);
+        const project = yield* ProjectService;
+        const projectState = yield* project.save(params);
         yield* updateCurrentProjectPathFromState(currentProjectPathRef, projectState);
         return yield* encodeProjectStateEffect(projectState);
       });
 
     const projectRecents = (params: BridgeRequests["ggEngineProjectRecents"]["params"]) =>
       Effect.gen(function* () {
-        const client = yield* EngineClient;
-        return yield* client.projectRecents(params.limit);
-      }) as Effect.Effect<ProjectRecentsResult, unknown, EngineClient>;
+        const project = yield* ProjectService;
+        return yield* project.recents(params.limit);
+      }) as Effect.Effect<ProjectRecentsResult, unknown, ProjectService>;
 
     const loadInitialProject = projectCurrent.pipe(
       Effect.catch((error) =>

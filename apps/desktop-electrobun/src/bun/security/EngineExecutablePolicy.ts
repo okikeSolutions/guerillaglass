@@ -40,7 +40,7 @@ function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, Eng
         if (productionLikeEnvironment(config) && overridePath.endsWith(".ts")) {
           throw new EngineProcessError({
             code: "ENGINE_PATH_UNAVAILABLE",
-            message: "TypeScript engine stubs are disabled in production builds.",
+            message: "TypeScript engine executables are disabled in production builds.",
           });
         }
       }

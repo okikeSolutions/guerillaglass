@@ -39,7 +39,7 @@ mkdir -p "$COVERAGE_DIR"
 # The desktop shell refactor increased reportable TS lines significantly.
 # Keep this baseline realistic and raise it incrementally as coverage grows.
 TS_LINES_MIN="${TS_LINES_MIN:-68}"
-TS_PROCESS_BUN_LINES_MIN="${TS_PROCESS_BUN_LINES_MIN:-40}"
+TS_ENGINE_CLIENT_LAUNCH_LINES_MIN="${TS_ENGINE_CLIENT_LAUNCH_LINES_MIN:-40}"
 RUST_LINES_MIN="${RUST_LINES_MIN:-75}"
 RUST_FUNCTIONS_MIN="${RUST_FUNCTIONS_MIN:-80}"
 RUST_NATIVE_FOUNDATION_LINES_MIN="${RUST_NATIVE_FOUNDATION_LINES_MIN:-80}"
@@ -100,8 +100,8 @@ TS_REPORT="$COVERAGE_DIR/typescript-coverage.txt"
 bun run desktop:test:coverage 2>&1 | tee "$TS_REPORT"
 
 ts_all_lines="$(awk -F'|' '$1 ~ /All files/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT")"
-ts_process_bun_lines="$(
-  awk -F'|' 'NF >= 3 && $1 ~ /packages\/engine\/src\/client\/processBun.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+ts_engine_client_launch_lines="$(
+  awk -F'|' 'NF >= 3 && $1 ~ /packages\/engine-client\/src\/process\/launchBun.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
 )"
 ts_engine_lines="$(
   awk -F'|' 'NF >= 3 && $1 ~ /src\/mainview\/lib\/engine.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
@@ -113,7 +113,7 @@ ts_capture_telemetry_lines="$(
 echo "==> rust coverage report"
 RUST_REPORT="$COVERAGE_DIR/rust-summary.json"
 # Keep aggregate Rust thresholds focused on unit-testable protocol/foundation code.
-# Platform entrypoints and socket transport are covered by parity/integration gates instead.
+# Platform entrypoints and local HTTP transport are covered by parity/integration gates instead.
 cargo llvm-cov \
   --workspace \
   --all-targets \
@@ -158,7 +158,7 @@ swift_asset_writer_lifecycle_lines="$(swift_file_lines "engines/macos-swift/modu
 
 echo "==> coverage thresholds"
 check_min "TypeScript total lines" "$ts_all_lines" "$TS_LINES_MIN"
-check_min "TypeScript processBun lines" "$ts_process_bun_lines" "$TS_PROCESS_BUN_LINES_MIN"
+check_min "TypeScript engine-client launchBun lines" "$ts_engine_client_launch_lines" "$TS_ENGINE_CLIENT_LAUNCH_LINES_MIN"
 check_nonzero "TypeScript engine.ts lines" "$ts_engine_lines"
 check_nonzero "TypeScript captureTelemetryViewModel lines" "$ts_capture_telemetry_lines"
 check_min "Rust total lines" "$rust_total_lines" "$RUST_LINES_MIN"
