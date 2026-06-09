@@ -103,11 +103,6 @@ let package = Package(
             name: "ExportTests",
             dependencies: ["Export"],
             path: "Tests/exportTests"
-        ),
-        .testTarget(
-            name: "EngineProtocolTests",
-            dependencies: ["EngineProtocol"],
-            path: "Tests/engineProtocolTests"
         )
     ]
 )

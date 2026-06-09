@@ -6,13 +6,20 @@ import XCTest
 
 actor CallFlag {
     private var value = false
-    func set() { value = true }
-    func get() -> Bool { value }
+    func set() {
+        value = true
+    }
+
+    func get() -> Bool {
+        value
+    }
 }
 
 func goldenFixtureData(_ name: String) throws -> Data {
     var url = URL(fileURLWithPath: #filePath)
-    for _ in 0..<5 { url.deleteLastPathComponent() }
+    for _ in 0 ..< 5 {
+        url.deleteLastPathComponent()
+    }
     url.appendPathComponent("docs/fixtures/engine-contract-v2/golden/\(name)")
     return try Data(contentsOf: url)
 }
@@ -122,7 +129,7 @@ final class EngineProtocolTests: XCTestCase {
         let wasCalled = await nextCalled.get()
         XCTAssertFalse(wasCalled)
         XCTAssertEqual(response.status, .contentTooLarge)
-        let bytes = try await Array(collecting: try XCTUnwrap(responseBody), upTo: 1024)
+        let bytes = try await Array(collecting: XCTUnwrap(responseBody), upTo: 1024)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any])
         XCTAssertEqual(object["code"] as? String, "bad_request")
     }
@@ -136,7 +143,7 @@ final class EngineProtocolTests: XCTestCase {
         let (response, body) = try await transport.respond(method: .get, path: "/v1/system/ping", headers: headers)
 
         XCTAssertEqual(response.status, .ok)
-        let bytes = try await Array(collecting: try XCTUnwrap(body), upTo: 2048)
+        let bytes = try await Array(collecting: XCTUnwrap(body), upTo: 2048)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any])
         XCTAssertEqual(object["app"] as? String, "guerillaglass")
         XCTAssertEqual(object["protocolVersion"] as? String, "2")
@@ -148,12 +155,12 @@ final class EngineProtocolTests: XCTestCase {
         var headers = HTTPFields()
         headers[.authorization] = "Bearer test-token"
         headers[.contentType] = "application/json"
-        let body = HTTPBody(try goldenFixtureData("capture-start-display.request.json"))
+        let body = try HTTPBody(goldenFixtureData("capture-start-display.request.json"))
 
         let (response, responseBody) = try await transport.respond(method: .post, path: "/v1/capture/start-display", headers: headers, body: body)
 
         XCTAssertEqual(response.status, .ok)
-        let bytes = try await Array(collecting: try XCTUnwrap(responseBody), upTo: 4096)
+        let bytes = try await Array(collecting: XCTUnwrap(responseBody), upTo: 4096)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any])
         XCTAssertEqual(object["isRunning"] as? Bool, true)
         XCTAssertEqual(object["captureSessionId"] as? String, "capture-session-1")
@@ -171,7 +178,7 @@ final class EngineProtocolTests: XCTestCase {
         let (response, responseBody) = try await transport.respond(method: .post, path: "/v1/capture/start-display", headers: headers, body: body)
 
         XCTAssertEqual(response.status, .badRequest)
-        let bytes = try await Array(collecting: try XCTUnwrap(responseBody), upTo: 2048)
+        let bytes = try await Array(collecting: XCTUnwrap(responseBody), upTo: 2048)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any])
         XCTAssertEqual(object["code"] as? String, "invalid_request")
         XCTAssertEqual(object["message"] as? String, "Invalid display.")
@@ -187,41 +194,130 @@ final class EngineProtocolTests: XCTestCase {
         let wrongRoute = try await transport.respond(method: .get, path: "/v1/does-not-exist")
         XCTAssertEqual(wrongRoute.0.status, .notFound)
     }
-
 }
-
 
 struct UnimplementedOperation: Error {}
 
 extension APIProtocol {
-    func system_period_systemPing(_ input: Operations.system_period_systemPing.Input) async throws -> Operations.system_period_systemPing.Output { throw UnimplementedOperation() }
-    func system_period_engineCapabilities(_ input: Operations.system_period_engineCapabilities.Input) async throws -> Operations.system_period_engineCapabilities.Output { throw UnimplementedOperation() }
-    func agent_period_agentPreflight(_ input: Operations.agent_period_agentPreflight.Input) async throws -> Operations.agent_period_agentPreflight.Output { throw UnimplementedOperation() }
-    func agent_period_agentRun(_ input: Operations.agent_period_agentRun.Input) async throws -> Operations.agent_period_agentRun.Output { throw UnimplementedOperation() }
-    func agent_period_agentStatus(_ input: Operations.agent_period_agentStatus.Input) async throws -> Operations.agent_period_agentStatus.Output { throw UnimplementedOperation() }
-    func agent_period_agentApply(_ input: Operations.agent_period_agentApply.Input) async throws -> Operations.agent_period_agentApply.Output { throw UnimplementedOperation() }
-    func permissions_period_permissionsGet(_ input: Operations.permissions_period_permissionsGet.Input) async throws -> Operations.permissions_period_permissionsGet.Output { throw UnimplementedOperation() }
-    func permissions_period_permissionsRequestScreenRecording(_ input: Operations.permissions_period_permissionsRequestScreenRecording.Input) async throws -> Operations.permissions_period_permissionsRequestScreenRecording.Output { throw UnimplementedOperation() }
-    func permissions_period_permissionsRequestMicrophone(_ input: Operations.permissions_period_permissionsRequestMicrophone.Input) async throws -> Operations.permissions_period_permissionsRequestMicrophone.Output { throw UnimplementedOperation() }
-    func permissions_period_permissionsRequestInputMonitoring(_ input: Operations.permissions_period_permissionsRequestInputMonitoring.Input) async throws -> Operations.permissions_period_permissionsRequestInputMonitoring.Output { throw UnimplementedOperation() }
-    func permissions_period_permissionsOpenInputMonitoringSettings(_ input: Operations.permissions_period_permissionsOpenInputMonitoringSettings.Input) async throws -> Operations.permissions_period_permissionsOpenInputMonitoringSettings.Output { throw UnimplementedOperation() }
-    func sources_period_sourcesList(_ input: Operations.sources_period_sourcesList.Input) async throws -> Operations.sources_period_sourcesList.Output { throw UnimplementedOperation() }
-    func capture_period_captureStartDisplay(_ input: Operations.capture_period_captureStartDisplay.Input) async throws -> Operations.capture_period_captureStartDisplay.Output { throw UnimplementedOperation() }
-    func capture_period_captureStartCurrentWindow(_ input: Operations.capture_period_captureStartCurrentWindow.Input) async throws -> Operations.capture_period_captureStartCurrentWindow.Output { throw UnimplementedOperation() }
-    func capture_period_captureStartWindow(_ input: Operations.capture_period_captureStartWindow.Input) async throws -> Operations.capture_period_captureStartWindow.Output { throw UnimplementedOperation() }
-    func capture_period_captureStop(_ input: Operations.capture_period_captureStop.Input) async throws -> Operations.capture_period_captureStop.Output { throw UnimplementedOperation() }
-    func capture_period_captureStatus(_ input: Operations.capture_period_captureStatus.Input) async throws -> Operations.capture_period_captureStatus.Output { throw UnimplementedOperation() }
-    func capture_period_capturePreviewFrame(_ input: Operations.capture_period_capturePreviewFrame.Input) async throws -> Operations.capture_period_capturePreviewFrame.Output { throw UnimplementedOperation() }
-    func recording_period_recordingStart(_ input: Operations.recording_period_recordingStart.Input) async throws -> Operations.recording_period_recordingStart.Output { throw UnimplementedOperation() }
-    func recording_period_recordingStop(_ input: Operations.recording_period_recordingStop.Input) async throws -> Operations.recording_period_recordingStop.Output { throw UnimplementedOperation() }
-    func export_period_exportInfo(_ input: Operations.export_period_exportInfo.Input) async throws -> Operations.export_period_exportInfo.Output { throw UnimplementedOperation() }
-    func export_period_exportRun(_ input: Operations.export_period_exportRun.Input) async throws -> Operations.export_period_exportRun.Output { throw UnimplementedOperation() }
-    func export_period_exportRunCutPlan(_ input: Operations.export_period_exportRunCutPlan.Input) async throws -> Operations.export_period_exportRunCutPlan.Output { throw UnimplementedOperation() }
-    func export_period_exportGet(_ input: Operations.export_period_exportGet.Input) async throws -> Operations.export_period_exportGet.Output { throw UnimplementedOperation() }
-    func project_period_projectCurrent(_ input: Operations.project_period_projectCurrent.Input) async throws -> Operations.project_period_projectCurrent.Output { throw UnimplementedOperation() }
-    func project_period_projectOpen(_ input: Operations.project_period_projectOpen.Input) async throws -> Operations.project_period_projectOpen.Output { throw UnimplementedOperation() }
-    func project_period_projectSave(_ input: Operations.project_period_projectSave.Input) async throws -> Operations.project_period_projectSave.Output { throw UnimplementedOperation() }
-    func project_period_projectRecents(_ input: Operations.project_period_projectRecents.Input) async throws -> Operations.project_period_projectRecents.Output { throw UnimplementedOperation() }
+    func system_period_systemPing(_: Operations.system_period_systemPing.Input) async throws -> Operations.system_period_systemPing.Output {
+        throw UnimplementedOperation()
+    }
+
+    func system_period_engineCapabilities(_: Operations.system_period_engineCapabilities.Input) async throws -> Operations.system_period_engineCapabilities.Output {
+        throw UnimplementedOperation()
+    }
+
+    func agent_period_agentPreflight(_: Operations.agent_period_agentPreflight.Input) async throws -> Operations.agent_period_agentPreflight.Output {
+        throw UnimplementedOperation()
+    }
+
+    func agent_period_agentRun(_: Operations.agent_period_agentRun.Input) async throws -> Operations.agent_period_agentRun.Output {
+        throw UnimplementedOperation()
+    }
+
+    func agent_period_agentStatus(_: Operations.agent_period_agentStatus.Input) async throws -> Operations.agent_period_agentStatus.Output {
+        throw UnimplementedOperation()
+    }
+
+    func agent_period_agentApply(_: Operations.agent_period_agentApply.Input) async throws -> Operations.agent_period_agentApply.Output {
+        throw UnimplementedOperation()
+    }
+
+    func permissions_period_permissionsGet(_: Operations.permissions_period_permissionsGet.Input) async throws -> Operations.permissions_period_permissionsGet.Output {
+        throw UnimplementedOperation()
+    }
+
+    func permissions_period_permissionsRequestScreenRecording(
+        _: Operations.permissions_period_permissionsRequestScreenRecording.Input
+    ) async throws -> Operations.permissions_period_permissionsRequestScreenRecording.Output {
+        throw UnimplementedOperation()
+    }
+
+    func permissions_period_permissionsRequestMicrophone(
+        _: Operations.permissions_period_permissionsRequestMicrophone.Input
+    ) async throws -> Operations.permissions_period_permissionsRequestMicrophone.Output {
+        throw UnimplementedOperation()
+    }
+
+    func permissions_period_permissionsRequestInputMonitoring(
+        _: Operations.permissions_period_permissionsRequestInputMonitoring.Input
+    ) async throws -> Operations.permissions_period_permissionsRequestInputMonitoring.Output {
+        throw UnimplementedOperation()
+    }
+
+    func permissions_period_permissionsOpenInputMonitoringSettings(
+        _: Operations.permissions_period_permissionsOpenInputMonitoringSettings.Input
+    ) async throws -> Operations.permissions_period_permissionsOpenInputMonitoringSettings.Output {
+        throw UnimplementedOperation()
+    }
+
+    func sources_period_sourcesList(_: Operations.sources_period_sourcesList.Input) async throws -> Operations.sources_period_sourcesList.Output {
+        throw UnimplementedOperation()
+    }
+
+    func capture_period_captureStartDisplay(_: Operations.capture_period_captureStartDisplay.Input) async throws -> Operations.capture_period_captureStartDisplay.Output {
+        throw UnimplementedOperation()
+    }
+
+    func capture_period_captureStartCurrentWindow(_: Operations.capture_period_captureStartCurrentWindow.Input) async throws -> Operations.capture_period_captureStartCurrentWindow.Output {
+        throw UnimplementedOperation()
+    }
+
+    func capture_period_captureStartWindow(_: Operations.capture_period_captureStartWindow.Input) async throws -> Operations.capture_period_captureStartWindow.Output {
+        throw UnimplementedOperation()
+    }
+
+    func capture_period_captureStop(_: Operations.capture_period_captureStop.Input) async throws -> Operations.capture_period_captureStop.Output {
+        throw UnimplementedOperation()
+    }
+
+    func capture_period_captureStatus(_: Operations.capture_period_captureStatus.Input) async throws -> Operations.capture_period_captureStatus.Output {
+        throw UnimplementedOperation()
+    }
+
+    func capture_period_capturePreviewFrame(_: Operations.capture_period_capturePreviewFrame.Input) async throws -> Operations.capture_period_capturePreviewFrame.Output {
+        throw UnimplementedOperation()
+    }
+
+    func recording_period_recordingStart(_: Operations.recording_period_recordingStart.Input) async throws -> Operations.recording_period_recordingStart.Output {
+        throw UnimplementedOperation()
+    }
+
+    func recording_period_recordingStop(_: Operations.recording_period_recordingStop.Input) async throws -> Operations.recording_period_recordingStop.Output {
+        throw UnimplementedOperation()
+    }
+
+    func export_period_exportInfo(_: Operations.export_period_exportInfo.Input) async throws -> Operations.export_period_exportInfo.Output {
+        throw UnimplementedOperation()
+    }
+
+    func export_period_exportRun(_: Operations.export_period_exportRun.Input) async throws -> Operations.export_period_exportRun.Output {
+        throw UnimplementedOperation()
+    }
+
+    func export_period_exportRunCutPlan(_: Operations.export_period_exportRunCutPlan.Input) async throws -> Operations.export_period_exportRunCutPlan.Output {
+        throw UnimplementedOperation()
+    }
+
+    func export_period_exportGet(_: Operations.export_period_exportGet.Input) async throws -> Operations.export_period_exportGet.Output {
+        throw UnimplementedOperation()
+    }
+
+    func project_period_projectCurrent(_: Operations.project_period_projectCurrent.Input) async throws -> Operations.project_period_projectCurrent.Output {
+        throw UnimplementedOperation()
+    }
+
+    func project_period_projectOpen(_: Operations.project_period_projectOpen.Input) async throws -> Operations.project_period_projectOpen.Output {
+        throw UnimplementedOperation()
+    }
+
+    func project_period_projectSave(_: Operations.project_period_projectSave.Input) async throws -> Operations.project_period_projectSave.Output {
+        throw UnimplementedOperation()
+    }
+
+    func project_period_projectRecents(_: Operations.project_period_projectRecents.Input) async throws -> Operations.project_period_projectRecents.Output {
+        throw UnimplementedOperation()
+    }
 }
 
 typealias TestHandler = @Sendable (HTTPRequest, HTTPBody?, ServerRequestMetadata) async throws -> (HTTPResponse, HTTPBody?)
@@ -250,7 +346,7 @@ final class TestServerTransport: ServerTransport {
 }
 
 struct TestEngineAPI: APIProtocol {
-    func system_period_systemPing(_ input: Operations.system_period_systemPing.Input) async throws -> Operations.system_period_systemPing.Output {
+    func system_period_systemPing(_: Operations.system_period_systemPing.Input) async throws -> Operations.system_period_systemPing.Output {
         .ok(.init(body: .json(.init(
             app: .init(value1: "guerillaglass"),
             engineVersion: .init(value1: "0.0.0-test"),
@@ -260,9 +356,8 @@ struct TestEngineAPI: APIProtocol {
     }
 
     func capture_period_captureStartDisplay(_ input: Operations.capture_period_captureStartDisplay.Input) async throws -> Operations.capture_period_captureStartDisplay.Output {
-        let payload: Components.Schemas.CaptureStartDisplayPayload
-        switch input.body {
-        case let .json(body): payload = body
+        let payload: Components.Schemas.CaptureStartDisplayPayload = switch input.body {
+        case let .json(body): body
         }
         if payload.displayId?.value1 == 400 {
             return .badRequest(.init(body: .json(.init(

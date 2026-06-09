@@ -8,14 +8,14 @@ public struct EngineBearerAuthMiddleware: ServerMiddleware {
 
     /// Creates a bearer-auth middleware for the expected token value.
     public init(token: String) {
-        self.expectedAuthorizationHeader = "Bearer \(token)"
+        expectedAuthorizationHeader = "Bearer \(token)"
     }
 
     public func intercept(
         _ request: HTTPRequest,
         body: HTTPBody?,
         metadata: ServerRequestMetadata,
-        operationID: String,
+        operationID _: String,
         next: @Sendable (HTTPRequest, HTTPBody?, ServerRequestMetadata) async throws -> (HTTPResponse, HTTPBody?)
     ) async throws -> (HTTPResponse, HTTPBody?) {
         guard request.headerFields[.authorization] == expectedAuthorizationHeader else {

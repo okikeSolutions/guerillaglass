@@ -13,28 +13,16 @@ use crate::{models, types::*};
 #[allow(clippy::large_enum_variant)]
 pub enum SourcesSourcesListResponse {
     /// SourcesResult
-    Status200_SourcesResult
-    (models::SourcesResult)
-    ,
+    Status200_SourcesResult(models::SourcesResult),
     /// EngineBadRequestError response body.
-    Status400_EngineBadRequestErrorResponseBody
-    (models::EngineBadRequestError)
-    ,
+    Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody
-    (models::AgentAgentPreflight401Response)
-    ,
+    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
-    Status403_EngineForbiddenErrorResponseBody
-    (models::EngineForbiddenError)
-    ,
+    Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineRuntimeError response body.
-    Status500_EngineRuntimeErrorResponseBody
-    (models::EngineRuntimeError)
+    Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
-
-
-
 
 /// Sources
 #[async_trait]
@@ -44,11 +32,11 @@ pub trait Sources<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
 
     /// SourcesSourcesList - GET /v1/sources
     async fn sources_sources_list(
-    &self,
-    
-    method: &Method,
-    host: &Host,
-    cookies: &CookieJar,
+        &self,
+
+        method: &Method,
+        host: &Host,
+        cookies: &CookieJar,
         claims: &Self::Claims,
     ) -> Result<SourcesSourcesListResponse, E>;
 }
