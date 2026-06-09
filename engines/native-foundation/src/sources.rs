@@ -1,5 +1,5 @@
 use crate::DEFAULT_CAPTURE_FRAME_RATES;
-use protocol_rust::{success, EngineResponse, JsonRpcId};
+use crate::wire::{success, EngineResponse, JsonRpcId};
 use serde_json::json;
 
 pub(crate) fn list(id: &JsonRpcId) -> EngineResponse {

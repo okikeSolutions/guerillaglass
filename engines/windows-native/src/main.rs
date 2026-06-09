@@ -20,6 +20,14 @@ fn default_recents_index_path() -> PathBuf {
             .join("Library")
             .join("library.native.json");
     }
+    if let Some(home) = env::var_os("HOME") {
+        return PathBuf::from(home)
+            .join(".local")
+            .join("share")
+            .join("guerillaglass")
+            .join("Library")
+            .join("library.native.json");
+    }
     PathBuf::from("guerillaglass-library.native.json")
 }
 

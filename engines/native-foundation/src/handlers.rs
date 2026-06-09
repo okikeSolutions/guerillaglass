@@ -1,9 +1,7 @@
 use crate::agent::agent_preflight;
 use crate::state::State;
 use crate::{capture, export, permissions, project, sources, system};
-use protocol_rust::{
-    failure, success, EngineMethod, EngineRequest, EngineResponse, ProtocolErrorCode,
-};
+use crate::wire::{failure, success, EngineMethod, EngineRequest, EngineResponse, ProtocolErrorCode};
 
 pub(crate) fn handle_request(
     platform: &str,

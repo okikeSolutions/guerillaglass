@@ -5,8 +5,27 @@ import Foundation
 import InputTracking
 import Project
 
+struct EngineAgentPreflightSession {
+    let token: String
+    let runtimeBudgetMinutes: Int
+    let transcriptionProvider: String
+    let importedTranscriptPath: String?
+    let projectPath: String?
+    let recordingURL: String?
+    let createdAt: Date
+}
+
+struct EngineAgentRunRecord {
+    let jobId: String
+    let status: Components.Schemas.AgentRunSummary.statusPayload
+    let runtimeBudgetMinutes: Int
+    let qaReport: Components.Schemas.AgentQAReport
+    let blockingReason: Components.Schemas.AgentRunSummary.blockingReasonPayload?
+    let updatedAt: String
+}
+
 @MainActor
-final class EngineService {
+final class EngineService: APIProtocol {
     let captureEngine = CaptureEngine()
     let exportPipeline = ExportPipeline()
     let projectStore = ProjectStore()
@@ -19,60 +38,10 @@ final class EngineService {
     var currentProjectDocument = ProjectDocument()
     var currentEventsURL: URL?
     var hasUnsavedProjectChanges = false
-    var agentPreflightSessions: [String: AgentPreflightSession] = [:]
-
-    func handleLine(_ line: String) async -> EngineResponse {
-        do {
-            let request = try EngineLineCodec.decodeRequest(from: line)
-            return await handle(request)
-        } catch {
-            return .failure(id: "unknown", code: "invalid_request", message: error.localizedDescription)
-        }
-    }
-
-    private typealias MethodHandler = (_ id: String, _ params: [String: JSONValue]) async -> EngineResponse
-
-    private func handle(_ request: EngineRequest) async -> EngineResponse {
-        let handlers: [String: MethodHandler] = [
-            "system.ping": { id, _ in self.pingResponse(id: id) },
-            "engine.capabilities": { id, _ in self.capabilitiesResponse(id: id) },
-            "agent.preflight": { id, params in await self.agentPreflightResponse(id: id, params: params) },
-            "agent.run": { id, params in await self.agentRunResponse(id: id, params: params) },
-            "agent.status": { id, params in self.agentStatusResponse(id: id, params: params) },
-            "agent.apply": { id, params in self.agentApplyResponse(id: id, params: params) },
-            "permissions.get": { id, _ in self.permissionsGet(id: id) },
-            "permissions.requestScreenRecording": { id, _ in await self.permissionsRequestScreenRecording(id: id) },
-            "permissions.requestMicrophone": { id, _ in await self.permissionsRequestMicrophone(id: id) },
-            "permissions.requestInputMonitoring": { id, _ in self.permissionsRequestInputMonitoring(id: id) },
-            "permissions.openInputMonitoringSettings": { id, _ in self.permissionsOpenInputMonitoringSettings(id: id) },
-            "sources.list": { id, _ in await self.sourcesListResponse(id: id) },
-            "capture.startDisplay": { id, params in await self.startDisplayResponse(id: id, params: params) },
-            "capture.startCurrentWindow": { id, params in
-                await self.startCurrentWindowResponse(id: id, params: params)
-            },
-            "capture.startWindow": { id, params in await self.startWindowResponse(id: id, params: params) },
-            "capture.stop": { id, _ in await self.stopCaptureResponse(id: id) },
-            "recording.start": { id, params in await self.startRecordingResponse(id: id, params: params) },
-            "recording.stop": { id, _ in await self.stopRecordingResponse(id: id) },
-            "capture.status": { id, _ in self.captureStatusResponse(id: id) },
-            "capture.previewFrame": { id, _ in self.capturePreviewFrameResponse(id: id) },
-            "export.info": { id, _ in self.exportInfoResponse(id: id) },
-            "export.run": { id, params in await self.exportRunResponse(id: id, params: params) },
-            "export.runCutPlan": { id, params in await self.exportRunCutPlanResponse(id: id, params: params) },
-            "project.current": { id, _ in self.projectStateResponse(id: id) },
-            "project.open": { id, params in self.projectOpenResponse(id: id, params: params) },
-            "project.save": { id, params in self.projectSaveResponse(id: id, params: params) },
-            "project.recents": { id, params in self.projectRecentsResponse(id: id, params: params) }
-        ]
-
-        guard let handler = handlers[request.method] else {
-            return .failure(
-                id: request.id,
-                code: "unsupported_method",
-                message: "Unsupported method: \(request.method)"
-            )
-        }
-
-        return await handler(request.id, request.params)
-    }
+    var latestAgentJobId: String?
+    var latestAgentUpdatedAt: String?
+    var agentRuns: [String: EngineAgentRunRecord] = [:]
+    var preflightSessions: [String: EngineAgentPreflightSession] = [:]
+    var latestExportJobId: String?
+    var latestExportOutputURL: URL?
 }

@@ -12,7 +12,9 @@ mod sources;
 mod state;
 mod system;
 mod transport;
+mod wire;
 
+#[cfg(test)]
 pub(crate) use handlers::handle_request;
 #[cfg(test)]
 pub(crate) use state::record_recent_project;
@@ -25,7 +27,6 @@ pub const ENGINE_PHASE: &str = "foundation";
 pub(crate) const DEFAULT_RECENTS_LIMIT: usize = 10;
 pub(crate) const PREFLIGHT_TOKEN_TTL_SECONDS: i64 = 60;
 pub(crate) const DEFAULT_CAPTURE_FRAME_RATES: [u64; 3] = [24, 30, 60];
-pub(crate) const MAX_SOCKET_FRAME_BYTES: usize = 1024 * 1024;
 
 /// Runtime configuration for the native foundation engine loop.
 pub struct EngineRuntimeConfig {
@@ -46,8 +47,7 @@ mod tests {
         is_valid_recent_project_item, load_recent_projects, save_recent_projects,
         MAX_RECENT_PROJECTS,
     };
-    use crate::transport::read_bounded_line;
-    use protocol_rust::{EngineRequest, EngineResponse, ProtocolErrorCode};
+    use crate::wire::{EngineRequest, EngineResponse, ProtocolErrorCode};
     use serde_json::{json, Value};
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -79,11 +79,9 @@ mod tests {
 
     fn request(id: &str, method: &str, params: Value) -> EngineRequest {
         EngineRequest {
-            message_type: "request".to_string(),
-            id: id.to_string().into(),
+            id: id.to_string(),
             method: method.to_string(),
             params,
-            auth_token: None,
         }
     }
 
@@ -168,9 +166,6 @@ mod tests {
                 "expected success response, got error: {:?}: {}",
                 error.code, error.message
             ),
-            EngineResponse::Chunk { values, .. } => {
-                panic!("expected success response, got chunk: {values:?}")
-            }
         }
     }
 
@@ -183,24 +178,7 @@ mod tests {
                 assert_eq!(error.code, code);
                 error.message
             }
-            EngineResponse::Chunk { values, .. } => {
-                panic!("expected error response, got chunk: {values:?}")
-            }
         }
-    }
-
-    #[test]
-    fn bounded_line_rejects_oversized_frame() {
-        let mut input = std::io::Cursor::new(vec![b'a'; 8]);
-        let error = read_bounded_line(&mut input, 4).expect_err("oversized frame should fail");
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
-    }
-
-    #[test]
-    fn bounded_line_rejects_malformed_utf8() {
-        let mut input = std::io::Cursor::new(vec![0xff, b'\n']);
-        let error = read_bounded_line(&mut input, 16).expect_err("invalid utf8 should fail");
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
     }
 
     fn ready_preflight_token(state: &mut State, params: Value) -> String {

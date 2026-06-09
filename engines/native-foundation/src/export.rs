@@ -1,7 +1,7 @@
 use crate::params::{ExportRunCutPlanParams, ExportRunParams};
 use crate::path_security::{reject_final_symlink, write_file_no_symlink};
 use crate::state::State;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
+use crate::wire::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
@@ -85,7 +85,11 @@ pub(crate) fn run(id: &JsonRpcId, params: &Value) -> EngineResponse {
         );
     }
 
-    success(id, json!({ "outputURL": output_url }))
+    success(id, json!({
+        "jobId": format!("export-{}", id),
+        "status": "succeeded",
+        "outputURL": output_url,
+    }))
 }
 
 pub(crate) fn run_cut_plan(id: &JsonRpcId, state: &State, params: &Value) -> EngineResponse {
@@ -166,6 +170,8 @@ pub(crate) fn run_cut_plan(id: &JsonRpcId, state: &State, params: &Value) -> Eng
     success(
         id,
         json!({
+            "jobId": format!("export-cut-plan-{}", id),
+            "status": "succeeded",
             "outputURL": output_url,
             "appliedSegments": applied_segments,
         }),

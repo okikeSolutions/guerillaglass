@@ -1,4 +1,4 @@
-use protocol_rust::{success, EngineResponse, JsonRpcId};
+use crate::wire::{success, EngineResponse, JsonRpcId};
 use serde_json::json;
 
 pub(crate) fn get(id: &JsonRpcId) -> EngineResponse {

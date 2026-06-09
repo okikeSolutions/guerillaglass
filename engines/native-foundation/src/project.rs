@@ -4,7 +4,7 @@ use crate::path_security::{
 };
 use crate::state::{record_recent_project, State};
 use crate::DEFAULT_RECENTS_LIMIT;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
+use crate::wire::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 

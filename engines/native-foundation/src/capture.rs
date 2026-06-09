@@ -1,7 +1,7 @@
 use crate::params::{CaptureStartParams, RecordingStartParams};
 use crate::state::State;
 use crate::DEFAULT_CAPTURE_FRAME_RATES;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
+use crate::wire::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 
 fn decode_params<T>(params: &Value) -> T

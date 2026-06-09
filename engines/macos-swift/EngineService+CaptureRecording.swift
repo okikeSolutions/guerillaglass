@@ -2,262 +2,131 @@ import Capture
 import CoreGraphics
 import EngineProtocol
 import Foundation
-import InputTracking
-import Project
 
 extension EngineService {
-    private func resolveCaptureFrameRate(from params: [String: JSONValue]) -> Int? {
-        let frameRate = params["captureFps"]?.intValue ?? CaptureFrameRatePolicy.defaultValue
-        guard CaptureFrameRatePolicy.isSupported(frameRate) else {
-            return nil
-        }
-        return frameRate
+    private func resolvedFrameRate(_ value: Double?) -> Int? {
+        let frameRate = Int(value ?? Double(CaptureFrameRatePolicy.defaultValue))
+        return CaptureFrameRatePolicy.isSupported(frameRate) ? frameRate : nil
     }
 
-    private func captureFrameRateValidationMessage() -> String {
-        let supportedValues = CaptureFrameRatePolicy.supportedValues
-            .map(String.init)
-            .joined(separator: ", ")
-        return "captureFps must be one of \(supportedValues)"
-    }
-
-    private func captureStartFailureResponse(id: String, error: Error) -> EngineResponse {
-        if case .unsupportedCaptureFrameRate = error as? CaptureError {
-            return .failure(id: id, code: "invalid_params", message: error.localizedDescription)
-        }
-        return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
-    }
-
-    private func telemetryPayload(
-        from telemetry: CaptureEngine.CaptureTelemetrySnapshot
-    ) -> JSONValue {
-        .object([
-            "sourceDroppedFrames": .number(Double(telemetry.sourceDroppedFrames)),
-            "writerDroppedFrames": .number(Double(telemetry.writerDroppedFrames)),
-            "writerBackpressureDrops": .number(Double(telemetry.writerBackpressureDrops)),
-            "achievedFps": .number(telemetry.achievedFps),
-            "cpuPercent": telemetry.cpuPercent.map { .number($0) } ?? .null,
-            "memoryBytes": telemetry.memoryBytes.map { .number(Double($0)) } ?? .null,
-            "recordingBitrateMbps": telemetry.recordingBitrateMbps.map { .number($0) } ?? .null,
-            "captureCallbackMs": .number(telemetry.captureCallbackMs),
-            "recordQueueLagMs": .number(telemetry.recordQueueLagMs),
-            "writerAppendMs": .number(telemetry.writerAppendMs),
-            "previewEncodeMs": .number(telemetry.previewEncodeMs)
-        ])
-    }
-
-    private func capturePreviewFramePayload(
-        from previewFrame: CapturePreviewFrameSnapshot
-    ) -> JSONValue {
-        .object([
-            "frameId": .number(Double(previewFrame.frameId)),
-            "bytesBase64": .string(previewFrame.bytesBase64)
-        ])
-    }
-
-    func startDisplayResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
-        let displayID = params["displayId"]?.intValue.map { CGDirectDisplayID($0) }
-        let enableMic = params["enableMic"]?.boolValue ?? false
-        let enablePreview = params["enablePreview"]?.boolValue ?? true
-        guard let captureFps = resolveCaptureFrameRate(from: params) else {
-            return .failure(
-                id: id,
-                code: "invalid_params",
-                message: captureFrameRateValidationMessage()
-            )
-        }
-        do {
-            try await captureEngine.startDisplayCapture(
-                displayID: displayID,
-                enableMic: enableMic,
-                targetFrameRate: captureFps,
-                enablePreview: enablePreview
-            )
-            return captureStatusResponse(id: id)
-        } catch {
-            return captureStartFailureResponse(id: id, error: error)
-        }
-    }
-
-    func startWindowResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
-        guard let windowID = params["windowId"]?.intValue else {
-            return .failure(id: id, code: "invalid_params", message: "windowId is required")
-        }
-        let enableMic = params["enableMic"]?.boolValue ?? false
-        let enablePreview = params["enablePreview"]?.boolValue ?? true
-        guard let captureFps = resolveCaptureFrameRate(from: params) else {
-            return .failure(
-                id: id,
-                code: "invalid_params",
-                message: captureFrameRateValidationMessage()
-            )
-        }
-
-        do {
-            if windowID == 0 {
-                if #available(macOS 14.0, *) {
-                    try await captureEngine.startCaptureUsingPicker(
-                        enableMic: enableMic,
-                        targetFrameRate: captureFps,
-                        enablePreview: enablePreview
-                    )
-                } else {
-                    return .failure(
-                        id: id,
-                        code: "invalid_params",
-                        message: "windowId must be greater than 0 on macOS 13"
-                    )
-                }
-            } else {
-                try await captureEngine.startWindowCapture(
-                    windowID: CGWindowID(windowID),
-                    enableMic: enableMic,
-                    targetFrameRate: captureFps,
-                    enablePreview: enablePreview
-                )
-            }
-            return captureStatusResponse(id: id)
-        } catch {
-            return captureStartFailureResponse(id: id, error: error)
-        }
-    }
-
-    func startCurrentWindowResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
-        let enableMic = params["enableMic"]?.boolValue ?? false
-        let enablePreview = params["enablePreview"]?.boolValue ?? true
-        guard let captureFps = resolveCaptureFrameRate(from: params) else {
-            return .failure(
-                id: id,
-                code: "invalid_params",
-                message: captureFrameRateValidationMessage()
-            )
-        }
-
-        do {
-            try await captureEngine.startCurrentWindowCapture(
-                enableMic: enableMic,
-                targetFrameRate: captureFps,
-                enablePreview: enablePreview
-            )
-            return captureStatusResponse(id: id)
-        } catch {
-            return captureStartFailureResponse(id: id, error: error)
-        }
-    }
-
-    func stopCaptureResponse(id: String) async -> EngineResponse {
-        await captureEngine.stopCapture()
-        await stopInputTrackingIfNeeded()
-        return captureStatusResponse(id: id)
-    }
-
-    func startRecordingResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
-        let shouldTrackInputEvents = params["trackInputEvents"]?.boolValue ?? false
-
-        do {
-            try await captureEngine.startRecording()
-            currentProjectDocument.project.lastRecordingTelemetry = nil
-            currentEventsURL = nil
-            currentProjectDocument.eventsFileName = nil
-
-            trackInputEventsWhileRecording = false
-            if shouldTrackInputEvents, inputPermissionManager.status() == .authorized {
-                trackInputEventsWhileRecording = true
-                let referenceTime = CaptureClock().now().seconds
-                await MainActor.run {
-                    inputSession.start(referenceTime: referenceTime)
-                }
-            }
-            if let descriptor = captureEngine.captureDescriptor {
-                currentProjectDocument.project.captureMetadata = makeCaptureMetadata(from: descriptor)
-            }
-            hasUnsavedProjectChanges = true
-            return captureStatusResponse(id: id)
-        } catch {
-            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
-        }
-    }
-
-    func stopRecordingResponse(id: String) async -> EngineResponse {
-        await captureEngine.stopRecording()
-        await stopInputTrackingIfNeeded()
-
-        if let recordingURL = captureEngine.recordingURL {
-            currentProjectDocument.recordingFileName = recordingURL.lastPathComponent
-        }
-        if let lastRecordingTelemetry = captureEngine.lastRecordingTelemetry {
-            currentProjectDocument.project.lastRecordingTelemetry = captureTelemetrySummary(
-                from: lastRecordingTelemetry
-            )
-        }
-        hasUnsavedProjectChanges = true
-
-        return captureStatusResponse(id: id)
-    }
-
-    func stopInputTrackingIfNeeded() async {
-        guard trackInputEventsWhileRecording else { return }
-        trackInputEventsWhileRecording = false
-
-        let result = await MainActor.run {
-            inputSession.stop()
-        }
-
-        guard !result.log.events.isEmpty else { return }
-
-        let eventsURL = makeEventsURL()
-        try? result.log.write(to: eventsURL)
-        try? InputTrackingMetricsStore(metrics: result.metrics).write(to: makeEventsMetricsURL(for: eventsURL))
-        currentEventsURL = eventsURL
-        currentProjectDocument.eventsFileName = ProjectFile.eventsJSON
-    }
-
-    func makeEventsURL() -> URL {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
-        let timestamp = formatter.string(from: Date())
-        return FileManager.default.temporaryDirectory
-            .appendingPathComponent("guerillaglass-events-\(timestamp).json")
-    }
-
-    func makeEventsMetricsURL(for eventsURL: URL) -> URL {
-        let baseName = eventsURL.deletingPathExtension().lastPathComponent
-        return eventsURL.deletingLastPathComponent()
-            .appendingPathComponent("\(baseName).stats.json")
-    }
-
-    func captureStatusResponse(id: String) -> EngineResponse {
-        let recordingDurationSeconds = captureEngine.recordingDuration
-        let telemetry = captureEngine.telemetrySnapshot()
-        let captureMetadataPayload: JSONValue
-        if let descriptor = captureEngine.captureDescriptor {
-            let metadata = makeCaptureMetadata(from: descriptor)
-            captureMetadataPayload = captureMetadataJSON(from: metadata)
-        } else {
-            captureMetadataPayload = .null
-        }
-
-        return .success(
-            id: id,
-            result: .object([
-                "isRunning": .bool(captureEngine.isRunning),
-                "isRecording": .bool(captureEngine.isRecording),
-                "captureSessionId": captureEngine.captureSessionID.map { .string($0) } ?? .null,
-                "recordingDurationSeconds": .number(recordingDurationSeconds),
-                "recordingURL": captureEngine.recordingURL.map { .string($0.path) } ?? .null,
-                "captureMetadata": captureMetadataPayload,
-                "lastError": captureEngine.lastError.map { .string($0) } ?? .null,
-                "eventsURL": currentEventsURL.map { .string($0.path) } ?? .null,
-                "lastRecordingTelemetry": captureEngine.lastRecordingTelemetry.map(telemetryPayload(from:))
-                    ?? .null,
-                "telemetry": telemetryPayload(from: telemetry)
-            ])
+    private func frameRateError() -> Components.Schemas.EngineBadRequestError {
+        badRequest(
+            .invalid_params,
+            "captureFps must be one of \(CaptureFrameRatePolicy.supportedValues.map(String.init).joined(separator: ", "))"
         )
     }
 
-    func capturePreviewFrameResponse(id: String) -> EngineResponse {
-        let previewFramePayload = captureEngine.latestPreviewFrame().map(capturePreviewFramePayload)
-            ?? .null
-        return .success(id: id, result: previewFramePayload)
+    func capture_period_captureStartDisplay(
+        _ input: Operations.capture_period_captureStartDisplay.Input
+    ) async throws -> Operations.capture_period_captureStartDisplay.Output {
+        let payload: Components.Schemas.CaptureStartDisplayPayload
+        switch input.body { case let .json(body): payload = body }
+        guard let fps = resolvedFrameRate(payload.captureFps) else {
+            return .badRequest(.init(body: .json(frameRateError())))
+        }
+        do {
+            try await captureEngine.startDisplayCapture(
+                displayID: payload.displayId.map { CGDirectDisplayID($0.value1) },
+                enableMic: payload.enableMic ?? false,
+                targetFrameRate: fps,
+                enablePreview: payload.enablePreview ?? true
+            )
+            return .ok(.init(body: .json(captureStatus())))
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+        }
+    }
+
+    func capture_period_captureStartCurrentWindow(
+        _ input: Operations.capture_period_captureStartCurrentWindow.Input
+    ) async throws -> Operations.capture_period_captureStartCurrentWindow.Output {
+        let payload: Components.Schemas.CaptureStartCurrentWindowPayload
+        switch input.body { case let .json(body): payload = body }
+        guard let fps = resolvedFrameRate(payload.captureFps) else {
+            return .badRequest(.init(body: .json(frameRateError())))
+        }
+        do {
+            try await captureEngine.startCurrentWindowCapture(
+                enableMic: payload.enableMic ?? false,
+                targetFrameRate: fps,
+                enablePreview: payload.enablePreview ?? true
+            )
+            return .ok(.init(body: .json(captureStatus())))
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+        }
+    }
+
+    func capture_period_captureStartWindow(
+        _ input: Operations.capture_period_captureStartWindow.Input
+    ) async throws -> Operations.capture_period_captureStartWindow.Output {
+        let payload: Components.Schemas.CaptureStartWindowPayload
+        switch input.body { case let .json(body): payload = body }
+        guard let fps = resolvedFrameRate(payload.captureFps) else {
+            return .badRequest(.init(body: .json(frameRateError())))
+        }
+        let windowId = CGWindowID(payload.windowId.value1)
+        do {
+            if windowId == 0 {
+                try await captureEngine.startCaptureUsingPicker(
+                    enableMic: payload.enableMic ?? false,
+                    targetFrameRate: fps,
+                    enablePreview: payload.enablePreview ?? true
+                )
+            } else {
+                try await captureEngine.startWindowCapture(
+                    windowID: windowId,
+                    enableMic: payload.enableMic ?? false,
+                    targetFrameRate: fps,
+                    enablePreview: payload.enablePreview ?? true
+                )
+            }
+            return .ok(.init(body: .json(captureStatus())))
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+        }
+    }
+
+    func capture_period_captureStop(
+        _ input: Operations.capture_period_captureStop.Input
+    ) async throws -> Operations.capture_period_captureStop.Output {
+        await captureEngine.stopCapture()
+        return .ok(.init(body: .json(captureStatus())))
+    }
+
+    func capture_period_captureStatus(
+        _ input: Operations.capture_period_captureStatus.Input
+    ) async throws -> Operations.capture_period_captureStatus.Output {
+        .ok(.init(body: .json(captureStatus())))
+    }
+
+    func capture_period_capturePreviewFrame(
+        _ input: Operations.capture_period_capturePreviewFrame.Input
+    ) async throws -> Operations.capture_period_capturePreviewFrame.Output {
+        let frame = captureEngine.latestPreviewFrame().map {
+            Components.Schemas.CapturePreviewFrame(
+                frameId: .init(value1: Double($0.frameId)),
+                bytesBase64: .init(value1: $0.bytesBase64)
+            )
+        }
+        return .ok(.init(body: .json(.init(frame: frame))))
+    }
+
+    func recording_period_recordingStart(
+        _ input: Operations.recording_period_recordingStart.Input
+    ) async throws -> Operations.recording_period_recordingStart.Output {
+        do {
+            try await captureEngine.startRecording()
+            return .ok(.init(body: .json(captureStatus())))
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+        }
+    }
+
+    func recording_period_recordingStop(
+        _ input: Operations.recording_period_recordingStop.Input
+    ) async throws -> Operations.recording_period_recordingStop.Output {
+        await captureEngine.stopRecording()
+        return .ok(.init(body: .json(captureStatus())))
     }
 }

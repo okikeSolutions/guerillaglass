@@ -1,5 +1,5 @@
 use crate::{ENGINE_PHASE, ENGINE_VERSION};
-use protocol_rust::{success, EngineResponse, JsonRpcId, PROTOCOL_VERSION};
+use crate::wire::{success, EngineResponse, JsonRpcId, PROTOCOL_VERSION};
 use serde_json::json;
 
 pub(crate) fn ping(id: &JsonRpcId, platform: &str) -> EngineResponse {

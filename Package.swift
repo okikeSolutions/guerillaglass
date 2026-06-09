@@ -4,22 +4,43 @@ import PackageDescription
 let package = Package(
     name: "guerillaglass",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v14)
     ],
     products: [
         .executable(name: "guerillaglass-engine", targets: ["guerillaglass-engine"]),
         .executable(name: "guerillaglass-code-signature-checker", targets: ["guerillaglass-code-signature-checker"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-openapi-generator", exact: "1.12.2"),
+        .package(url: "https://github.com/apple/swift-openapi-runtime", exact: "1.12.0"),
+        .package(url: "https://github.com/apple/swift-openapi-urlsession", exact: "1.3.0"),
+        .package(url: "https://github.com/hummingbird-project/hummingbird.git", exact: "2.25.0"),
+        .package(url: "https://github.com/swift-server/swift-openapi-hummingbird.git", exact: "2.0.1")
+    ],
     targets: [
         .target(
             name: "EngineProtocol",
-            dependencies: [],
+            dependencies: [
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession")
+            ],
             path: "engines/protocol-swift/Sources/EngineProtocol",
-            exclude: ["openapi.json", "openapi-generator-config.yaml"]
+            plugins: [
+                .plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator")
+            ]
         ),
         .executableTarget(
             name: "guerillaglass-engine",
-            dependencies: ["EngineProtocol", "Capture", "InputTracking", "Export", "Project"],
+            dependencies: [
+                "EngineProtocol",
+                "Capture",
+                "InputTracking",
+                "Export",
+                "Project",
+                .product(name: "Hummingbird", package: "hummingbird"),
+                .product(name: "OpenAPIHummingbird", package: "swift-openapi-hummingbird"),
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime")
+            ],
             path: "engines/macos-swift",
             exclude: ["modules"]
         ),

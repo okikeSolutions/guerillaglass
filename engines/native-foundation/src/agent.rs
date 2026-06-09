@@ -1,7 +1,7 @@
 use crate::params::{AgentRunParams, JobParams};
 use crate::state::{now_iso8601, AgentRunState, PreflightSession, State};
 use crate::PREFLIGHT_TOKEN_TTL_SECONDS;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
+use crate::wire::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 use std::fs;
 use time::OffsetDateTime;
