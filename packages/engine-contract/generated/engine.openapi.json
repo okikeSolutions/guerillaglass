@@ -1,0 +1,4724 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Api",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/v1/system/ping": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "system.systemPing",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PingResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PingResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/engine/capabilities": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "operationId": "system.engineCapabilities",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CapabilitiesResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent/preflight": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "operationId": "agent.agentPreflight",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "AgentPreflightResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPreflightResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentPreflightPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/agent/runs": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "operationId": "agent.agentRun",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "AgentRunResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRunResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRunPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/agent/runs/{jobId}": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "operationId": "agent.agentStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "allOf": [
+                {
+                  "minLength": 1
+                }
+              ]
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "AgentRunSummary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentRunSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "EngineNotFoundError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineNotFoundError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent/runs/{jobId}/apply": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "operationId": "agent.agentApply",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "allOf": [
+                {
+                  "minLength": 1
+                }
+              ]
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActionResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "EngineNotFoundError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineNotFoundError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentApplyPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/permissions": {
+      "get": {
+        "tags": [
+          "permissions"
+        ],
+        "operationId": "permissions.permissionsGet",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PermissionsResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/permissions/screen-recording/request": {
+      "post": {
+        "tags": [
+          "permissions"
+        ],
+        "operationId": "permissions.permissionsRequestScreenRecording",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActionResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/permissions/microphone/request": {
+      "post": {
+        "tags": [
+          "permissions"
+        ],
+        "operationId": "permissions.permissionsRequestMicrophone",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActionResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/permissions/input-monitoring/request": {
+      "post": {
+        "tags": [
+          "permissions"
+        ],
+        "operationId": "permissions.permissionsRequestInputMonitoring",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActionResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/permissions/input-monitoring/open-settings": {
+      "post": {
+        "tags": [
+          "permissions"
+        ],
+        "operationId": "permissions.permissionsOpenInputMonitoringSettings",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActionResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sources": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "operationId": "sources.sourcesList",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SourcesResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourcesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capture/start-display": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture.captureStartDisplay",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureStartDisplayPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/capture/start-current-window": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture.captureStartCurrentWindow",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureStartCurrentWindowPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/capture/start-window": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture.captureStartWindow",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureStartWindowPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/capture/stop": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture.captureStop",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capture/status": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture.captureStatus",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capture/preview-frame": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "operationId": "capture.capturePreviewFrame",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CapturePreviewFrameResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapturePreviewFrameResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recording/start": {
+      "post": {
+        "tags": [
+          "recording"
+        ],
+        "operationId": "recording.recordingStart",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingStartPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/recording/stop": {
+      "post": {
+        "tags": [
+          "recording"
+        ],
+        "operationId": "recording.recordingStop",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CaptureStatusResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/export/info": {
+      "get": {
+        "tags": [
+          "export"
+        ],
+        "operationId": "export.exportInfo",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ExportInfoResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportInfoResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exports": {
+      "post": {
+        "tags": [
+          "export"
+        ],
+        "operationId": "export.exportRun",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ExportRunResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportRunResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRunPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/exports/from-cut-plan": {
+      "post": {
+        "tags": [
+          "export"
+        ],
+        "operationId": "export.exportRunCutPlan",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ExportRunCutPlanResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportRunCutPlanResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRunCutPlanPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/exports/{jobId}": {
+      "get": {
+        "tags": [
+          "export"
+        ],
+        "operationId": "export.exportGet",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "allOf": [
+                {
+                  "minLength": 1
+                }
+              ]
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ExportRunResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportRunResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "EngineNotFoundError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineNotFoundError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/project/current": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "operationId": "project.projectCurrent",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ProjectState",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/project/open": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "operationId": "project.projectOpen",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ProjectState",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectOpenPayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/project/save": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "operationId": "project.projectSave",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ProjectState",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectSavePayload"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/project/recents": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "operationId": "project.projectRecents",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "allOf": [
+                {
+                  "pattern": "^[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
+                }
+              ]
+            },
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ProjectRecentsResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRecentsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EngineUnauthorizedError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PingResult": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "engineVersion": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "protocolVersion": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "platform": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "app",
+          "engineVersion",
+          "protocolVersion",
+          "platform"
+        ],
+        "additionalProperties": false
+      },
+      "EngineRuntimeError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "runtime_error"
+                ]
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineRuntimeError response body."
+      },
+      "EngineUnauthorizedError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "permission_denied"
+                ]
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineUnauthorizedError response body."
+      },
+      "CapabilitiesAgent": {
+        "type": "object",
+        "properties": {
+          "preflight": {
+            "type": "boolean"
+          },
+          "run": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "apply": {
+            "type": "boolean"
+          },
+          "localOnly": {
+            "type": "boolean"
+          },
+          "runtimeBudgetMinutes": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "preflight",
+          "run",
+          "status",
+          "apply"
+        ],
+        "additionalProperties": false
+      },
+      "CapabilitiesResult": {
+        "type": "object",
+        "properties": {
+          "protocolVersion": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "platform": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "stub",
+              "foundation",
+              "native"
+            ]
+          },
+          "capture": {
+            "type": "object",
+            "properties": {
+              "display": {
+                "type": "boolean"
+              },
+              "window": {
+                "type": "boolean"
+              },
+              "systemAudio": {
+                "type": "boolean"
+              },
+              "microphone": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "display",
+              "window",
+              "systemAudio",
+              "microphone"
+            ],
+            "additionalProperties": false
+          },
+          "recording": {
+            "type": "object",
+            "properties": {
+              "inputTracking": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "inputTracking"
+            ],
+            "additionalProperties": false
+          },
+          "export": {
+            "type": "object",
+            "properties": {
+              "presets": {
+                "type": "boolean"
+              },
+              "cutPlan": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "presets"
+            ],
+            "additionalProperties": false
+          },
+          "project": {
+            "type": "object",
+            "properties": {
+              "openSave": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "openSave"
+            ],
+            "additionalProperties": false
+          },
+          "agent": {
+            "$ref": "#/components/schemas/CapabilitiesAgent"
+          }
+        },
+        "required": [
+          "protocolVersion",
+          "platform",
+          "phase",
+          "capture",
+          "recording",
+          "export",
+          "project"
+        ],
+        "additionalProperties": false
+      },
+      "AgentPreflightPayload": {
+        "type": "object",
+        "properties": {
+          "runtimeBudgetMinutes": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              },
+              {
+                "maximum": 60
+              }
+            ]
+          },
+          "transcriptionProvider": {
+            "type": "string",
+            "enum": [
+              "none",
+              "imported_transcript"
+            ]
+          },
+          "importedTranscriptPath": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "AgentPreflightResult": {
+        "type": "object",
+        "properties": {
+          "ready": {
+            "type": "boolean"
+          },
+          "blockingReasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "missing_project",
+                "missing_recording",
+                "invalid_runtime_budget",
+                "source_too_long",
+                "source_duration_invalid",
+                "missing_local_model",
+                "missing_imported_transcript",
+                "invalid_imported_transcript",
+                "no_audio_track",
+                "silent_audio"
+              ]
+            }
+          },
+          "canApplyDestructive": {
+            "type": "boolean"
+          },
+          "transcriptionProvider": {
+            "type": "string",
+            "enum": [
+              "none",
+              "imported_transcript"
+            ]
+          },
+          "preflightToken": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "ready",
+          "blockingReasons",
+          "canApplyDestructive",
+          "transcriptionProvider"
+        ],
+        "additionalProperties": false
+      },
+      "EngineBadRequestError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "invalid_params",
+              "unsupported_method"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineBadRequestError response body."
+      },
+      "EngineForbiddenError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "permission_denied"
+                ]
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineForbiddenError response body."
+      },
+      "EngineConflictError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "needs_confirmation"
+                ]
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineConflictError response body."
+      },
+      "EngineUnprocessableError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "qa_failed",
+              "missing_local_model",
+              "invalid_cut_plan"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineUnprocessableError response body."
+      },
+      "AgentRunPayload": {
+        "type": "object",
+        "properties": {
+          "preflightToken": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "runtimeBudgetMinutes": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              },
+              {
+                "maximum": 60
+              }
+            ]
+          },
+          "transcriptionProvider": {
+            "type": "string",
+            "enum": [
+              "none",
+              "imported_transcript"
+            ]
+          },
+          "importedTranscriptPath": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "force": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "preflightToken"
+        ],
+        "additionalProperties": false
+      },
+      "AgentRunResult": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled",
+              "blocked"
+            ]
+          }
+        },
+        "required": [
+          "jobId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "AgentQAReport": {
+        "type": "object",
+        "properties": {
+          "passed": {
+            "type": "boolean"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "NaN"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "Infinity"
+                    ]
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "-Infinity"
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity",
+                  "-Infinity",
+                  "NaN"
+                ]
+              }
+            ]
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "hook": {
+                "type": "boolean"
+              },
+              "action": {
+                "type": "boolean"
+              },
+              "payoff": {
+                "type": "boolean"
+              },
+              "takeaway": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "hook",
+              "action",
+              "payoff",
+              "takeaway"
+            ],
+            "additionalProperties": false
+          },
+          "missingBeats": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "hook",
+                "action",
+                "payoff",
+                "takeaway"
+              ]
+            }
+          }
+        },
+        "required": [
+          "passed",
+          "score",
+          "coverage"
+        ],
+        "additionalProperties": false
+      },
+      "AgentRunSummary": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled",
+              "blocked"
+            ]
+          },
+          "runtimeBudgetMinutes": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "qaReport": {
+            "$ref": "#/components/schemas/AgentQAReport"
+          },
+          "blockingReason": {
+            "type": "string",
+            "enum": [
+              "missing_project",
+              "missing_recording",
+              "invalid_runtime_budget",
+              "source_too_long",
+              "source_duration_invalid",
+              "missing_local_model",
+              "missing_imported_transcript",
+              "invalid_imported_transcript",
+              "no_audio_track",
+              "silent_audio",
+              "empty_transcript",
+              "weak_narrative_structure"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "allOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+              }
+            ]
+          }
+        },
+        "required": [
+          "jobId",
+          "status",
+          "runtimeBudgetMinutes",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "EngineNotFoundError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "not_found"
+                ]
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineNotFoundError response body."
+      },
+      "AgentApplyPayload": {
+        "type": "object",
+        "properties": {
+          "destructiveIntent": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActionResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "additionalProperties": false
+      },
+      "PermissionsResult": {
+        "type": "object",
+        "properties": {
+          "screenRecordingGranted": {
+            "type": "boolean"
+          },
+          "microphoneGranted": {
+            "type": "boolean"
+          },
+          "inputMonitoring": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "granted",
+              "denied"
+            ]
+          }
+        },
+        "required": [
+          "screenRecordingGranted",
+          "microphoneGranted",
+          "inputMonitoring"
+        ],
+        "additionalProperties": false
+      },
+      "DisplaySource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "displayName": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "width": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "height": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "pixelScale": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "refreshHz": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "supportedCaptureFrameRates": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "enum": [
+                24,
+                30,
+                60,
+                120
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "isPrimary",
+          "width",
+          "height",
+          "supportedCaptureFrameRates"
+        ],
+        "additionalProperties": false
+      },
+      "WindowSource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "appName": {
+            "type": "string"
+          },
+          "width": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "height": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "isOnScreen": {
+            "type": "boolean"
+          },
+          "pixelScale": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "refreshHz": {
+            "type": "number",
+            "allOf": [
+              {
+                "exclusiveMinimum": 0
+              }
+            ]
+          },
+          "supportedCaptureFrameRates": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "enum": [
+                24,
+                30,
+                60,
+                120
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "appName",
+          "width",
+          "height",
+          "isOnScreen",
+          "supportedCaptureFrameRates"
+        ],
+        "additionalProperties": false
+      },
+      "SourcesResult": {
+        "type": "object",
+        "properties": {
+          "displays": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisplaySource"
+            }
+          },
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WindowSource"
+            }
+          }
+        },
+        "required": [
+          "displays",
+          "windows"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureStartDisplayPayload": {
+        "type": "object",
+        "properties": {
+          "displayId": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "enableMic": {
+            "type": "boolean"
+          },
+          "enablePreview": {
+            "type": "boolean"
+          },
+          "captureFps": {
+            "type": "number",
+            "enum": [
+              24,
+              30,
+              60,
+              120
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CaptureTelemetry": {
+        "type": "object",
+        "properties": {
+          "sourceDroppedFrames": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "writerDroppedFrames": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "writerBackpressureDrops": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "achievedFps": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "cpuPercent": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "memoryBytes": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "recordingBitrateMbps": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "captureCallbackMs": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "recordQueueLagMs": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "writerAppendMs": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "previewEncodeMs": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CaptureStatusResult": {
+        "type": "object",
+        "properties": {
+          "isRunning": {
+            "type": "boolean"
+          },
+          "isRecording": {
+            "type": "boolean"
+          },
+          "captureSessionId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "recordingDurationSeconds": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "recordingURL": {
+            "type": "string"
+          },
+          "captureMetadata": {
+            "type": "object",
+            "properties": {
+              "window": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "minimum": 0
+                      }
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "appName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "appName"
+                ],
+                "additionalProperties": false
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "display",
+                  "window"
+                ]
+              },
+              "contentRect": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "height": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              "pixelScale": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "exclusiveMinimum": 0
+                  }
+                ]
+              },
+              "fps": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "exclusiveMinimum": 0
+                  }
+                ]
+              }
+            },
+            "required": [
+              "source",
+              "contentRect",
+              "pixelScale"
+            ],
+            "additionalProperties": false
+          },
+          "lastError": {
+            "$ref": "#/components/schemas/EngineBadRequestError"
+          },
+          "eventsURL": {
+            "type": "string"
+          },
+          "lastRecordingTelemetry": {
+            "$ref": "#/components/schemas/CaptureTelemetry"
+          },
+          "telemetry": {
+            "$ref": "#/components/schemas/CaptureTelemetry"
+          }
+        },
+        "required": [
+          "isRunning",
+          "isRecording",
+          "recordingDurationSeconds",
+          "telemetry"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureStartCurrentWindowPayload": {
+        "type": "object",
+        "properties": {
+          "enableMic": {
+            "type": "boolean"
+          },
+          "enablePreview": {
+            "type": "boolean"
+          },
+          "captureFps": {
+            "type": "number",
+            "enum": [
+              24,
+              30,
+              60,
+              120
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CaptureStartWindowPayload": {
+        "type": "object",
+        "properties": {
+          "windowId": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "enableMic": {
+            "type": "boolean"
+          },
+          "enablePreview": {
+            "type": "boolean"
+          },
+          "captureFps": {
+            "type": "number",
+            "enum": [
+              24,
+              30,
+              60,
+              120
+            ]
+          }
+        },
+        "required": [
+          "windowId"
+        ],
+        "additionalProperties": false
+      },
+      "CapturePreviewFrame": {
+        "type": "object",
+        "properties": {
+          "frameId": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "bytesBase64": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "frameId",
+          "bytesBase64"
+        ],
+        "additionalProperties": false
+      },
+      "CapturePreviewFrameResult": {
+        "type": "object",
+        "properties": {
+          "frame": {
+            "$ref": "#/components/schemas/CapturePreviewFrame"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RecordingStartPayload": {
+        "type": "object",
+        "properties": {
+          "trackInputEvents": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExportPreset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "width": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "height": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "fps": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "fileType": {
+            "type": "string",
+            "enum": [
+              "mp4",
+              "mov"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "width",
+          "height",
+          "fps",
+          "fileType"
+        ],
+        "additionalProperties": false
+      },
+      "ExportInfoResult": {
+        "type": "object",
+        "properties": {
+          "presets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExportPreset"
+            }
+          }
+        },
+        "required": [
+          "presets"
+        ],
+        "additionalProperties": false
+      },
+      "ExportRunPayload": {
+        "type": "object",
+        "properties": {
+          "outputURL": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "presetId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "trimStartSeconds": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "trimEndSeconds": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "timeline": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "updatedAt": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "version",
+              "items"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "outputURL",
+          "presetId"
+        ],
+        "additionalProperties": false
+      },
+      "ExportRunResult": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "outputURL": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "jobId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "ExportRunCutPlanPayload": {
+        "type": "object",
+        "properties": {
+          "outputURL": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "presetId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "jobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "outputURL",
+          "presetId",
+          "jobId"
+        ],
+        "additionalProperties": false
+      },
+      "ExportRunCutPlanResult": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "outputURL": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "appliedSegments": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          }
+        },
+        "required": [
+          "jobId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectAgentAnalysisSummary": {
+        "type": "object",
+        "properties": {
+          "latestJobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "latestStatus": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed",
+              "cancelled",
+              "blocked"
+            ]
+          },
+          "qaPassed": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string",
+            "allOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectState": {
+        "type": "object",
+        "properties": {
+          "projectPath": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "recordingURL": {
+            "type": "string"
+          },
+          "eventsURL": {
+            "type": "string"
+          },
+          "lastRecordingTelemetry": {
+            "$ref": "#/components/schemas/CaptureTelemetry"
+          },
+          "autoZoom": {
+            "type": "object",
+            "properties": {
+              "isEnabled": {
+                "type": "boolean"
+              },
+              "intensity": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "minimum": 0
+                  }
+                ]
+              },
+              "minimumKeyframeInterval": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "minimum": 0
+                  }
+                ]
+              }
+            },
+            "required": [
+              "isEnabled",
+              "intensity",
+              "minimumKeyframeInterval"
+            ],
+            "additionalProperties": false
+          },
+          "timeline": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "updatedAt": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "version",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          "captureMetadata": {
+            "type": "object",
+            "properties": {
+              "window": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "allOf": [
+                      {
+                        "minimum": 0
+                      }
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "appName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "appName"
+                ],
+                "additionalProperties": false
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "display",
+                  "window"
+                ]
+              },
+              "contentRect": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "width": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  },
+                  "height": {
+                    "type": "number",
+                    "allOf": [
+                      {
+                        "exclusiveMinimum": 0
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              "pixelScale": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "exclusiveMinimum": 0
+                  }
+                ]
+              },
+              "fps": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "exclusiveMinimum": 0
+                  }
+                ]
+              }
+            },
+            "required": [
+              "source",
+              "contentRect",
+              "pixelScale"
+            ],
+            "additionalProperties": false
+          },
+          "agentAnalysis": {
+            "$ref": "#/components/schemas/ProjectAgentAnalysisSummary"
+          }
+        },
+        "required": [
+          "autoZoom",
+          "timeline"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectOpenPayload": {
+        "type": "object",
+        "properties": {
+          "projectPath": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectPath"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectSavePayload": {
+        "type": "object",
+        "properties": {
+          "projectPath": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "autoZoom": {
+            "type": "object",
+            "properties": {
+              "isEnabled": {
+                "type": "boolean"
+              },
+              "intensity": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "minimum": 0
+                  }
+                ]
+              },
+              "minimumKeyframeInterval": {
+                "type": "number",
+                "allOf": [
+                  {
+                    "minimum": 0
+                  }
+                ]
+              }
+            },
+            "required": [
+              "isEnabled",
+              "intensity",
+              "minimumKeyframeInterval"
+            ],
+            "additionalProperties": false
+          },
+          "timeline": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "allOf": [
+                            {
+                              "minLength": 1
+                            }
+                          ]
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "allOf": [
+                            {
+                              "minimum": 0
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "updatedAt": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "version",
+              "items"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectRecentItem": {
+        "type": "object",
+        "properties": {
+          "projectPath": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "displayName": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "lastOpenedAt": {
+            "type": "string",
+            "allOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+              }
+            ]
+          }
+        },
+        "required": [
+          "projectPath",
+          "displayName",
+          "lastOpenedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ProjectRecentsResult": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectRecentItem"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "EngineBearer": {
+        "description": "Per-process bearer token for the local native engine.",
+        "type": "http",
+        "scheme": "Bearer"
+      }
+    }
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "system"
+    },
+    {
+      "name": "agent"
+    },
+    {
+      "name": "permissions"
+    },
+    {
+      "name": "sources"
+    },
+    {
+      "name": "capture"
+    },
+    {
+      "name": "recording"
+    },
+    {
+      "name": "export"
+    },
+    {
+      "name": "project"
+    }
+  ]
+}

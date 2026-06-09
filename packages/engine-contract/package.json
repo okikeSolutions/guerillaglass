@@ -1,0 +1,41 @@
+{
+  "name": "@guerillaglass/engine-contract",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Effect HttpApi and OpenAPI contract for Guerillaglass native engines",
+  "type": "module",
+  "exports": {
+    "./domains/agent": "./src/domains/agent.ts",
+    "./domains/capture": "./src/domains/capture.ts",
+    "./domains/export": "./src/domains/export.ts",
+    "./domains/permissions": "./src/domains/permissions.ts",
+    "./domains/project": "./src/domains/project.ts",
+    "./domains/recording": "./src/domains/recording.ts",
+    "./domains/sources": "./src/domains/sources.ts",
+    "./domains/system": "./src/domains/system.ts",
+    "./domains/timeline": "./src/domains/timeline.ts",
+    "./errors": "./src/errors.ts",
+    "./endpointInventory": "./src/endpointInventory.ts",
+    "./httpApi": "./src/httpApi.ts",
+    "./openApi": "./src/openApi.ts",
+    "./schema-primitives": "./src/schema-primitives.ts",
+    "./shared/helpers": "./src/shared/helpers.ts",
+    "./shared/valueObjects": "./src/shared/valueObjects.ts"
+  },
+  "scripts": {
+    "check:contract": "bun scripts/check-contract.ts",
+    "check:contract:full": "bun run typecheck && bun run check:contract && bun run test",
+    "generate:openapi": "bun scripts/generate-openapi.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "effect": "4.0.0-beta.78"
+  },
+  "devDependencies": {
+    "@guerillaglass/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
