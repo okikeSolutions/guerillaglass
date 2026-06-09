@@ -3,7 +3,7 @@ use std::time::Instant;
 
 pub(crate) const PROTOCOL_VERSION: &str = "2";
 
-pub(crate) type JsonRpcId = String;
+pub(crate) type EngineCallId = str;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,29 +44,36 @@ pub(crate) struct EngineError {
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) enum EngineResponse {
-    Success { id: JsonRpcId, result: Value },
-    Error { id: JsonRpcId, error: EngineError },
+    Success { id: String, result: Value },
+    Error { id: String, error: EngineError },
 }
 
-pub(crate) fn success(id: &JsonRpcId, result: Value) -> EngineResponse {
-    EngineResponse::Success { id: id.clone(), result }
+pub(crate) fn success(id: &EngineCallId, result: Value) -> EngineResponse {
+    EngineResponse::Success {
+        id: id.to_string(),
+        result,
+    }
 }
 
 pub(crate) fn failure(
-    id: &JsonRpcId,
+    id: &EngineCallId,
     code: ProtocolErrorCode,
     message: impl Into<String>,
 ) -> EngineResponse {
     EngineResponse::Error {
-        id: id.clone(),
-        error: EngineError { code, message: message.into() },
+        id: id.to_string(),
+        error: EngineError {
+            code,
+            message: message.into(),
+        },
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone)]
 pub(crate) struct EngineRequest {
-    pub(crate) id: JsonRpcId,
-    pub(crate) method: String,
+    pub(crate) id: String,
+    pub(crate) method: EngineMethod,
     pub(crate) params: Value,
 }
 
@@ -91,9 +98,7 @@ pub(crate) enum EngineMethod {
     RecordingStart,
     RecordingStop,
     CaptureStatus,
-    CaptureStatusStream,
     CapturePreviewFrame,
-    CapturePreviewFrameStream,
     ExportInfo,
     ExportRun,
     ExportRunCutPlan,
@@ -103,40 +108,39 @@ pub(crate) enum EngineMethod {
     ProjectRecents,
 }
 
-impl EngineRequest {
-    pub(crate) fn method_kind(&self) -> Option<EngineMethod> {
-        Some(match self.method.as_str() {
-            "system.ping" => EngineMethod::SystemPing,
-            "engine.capabilities" => EngineMethod::EngineCapabilities,
-            "agent.preflight" => EngineMethod::AgentPreflight,
-            "agent.run" => EngineMethod::AgentRun,
-            "agent.status" => EngineMethod::AgentStatus,
-            "agent.apply" => EngineMethod::AgentApply,
-            "permissions.get" => EngineMethod::PermissionsGet,
-            "permissions.requestScreenRecording" => EngineMethod::PermissionsRequestScreenRecording,
-            "permissions.requestMicrophone" => EngineMethod::PermissionsRequestMicrophone,
-            "permissions.requestInputMonitoring" => EngineMethod::PermissionsRequestInputMonitoring,
-            "permissions.openInputMonitoringSettings" => EngineMethod::PermissionsOpenInputMonitoringSettings,
-            "sources.list" => EngineMethod::SourcesList,
-            "capture.startDisplay" => EngineMethod::CaptureStartDisplay,
-            "capture.startCurrentWindow" => EngineMethod::CaptureStartCurrentWindow,
-            "capture.startWindow" => EngineMethod::CaptureStartWindow,
-            "capture.stop" => EngineMethod::CaptureStop,
-            "recording.start" => EngineMethod::RecordingStart,
-            "recording.stop" => EngineMethod::RecordingStop,
-            "capture.status" => EngineMethod::CaptureStatus,
-            "capture.statusStream" => EngineMethod::CaptureStatusStream,
-            "capture.previewFrame" => EngineMethod::CapturePreviewFrame,
-            "capture.previewFrameStream" => EngineMethod::CapturePreviewFrameStream,
-            "export.info" => EngineMethod::ExportInfo,
-            "export.run" => EngineMethod::ExportRun,
-            "export.runCutPlan" => EngineMethod::ExportRunCutPlan,
-            "project.current" => EngineMethod::ProjectCurrent,
-            "project.open" => EngineMethod::ProjectOpen,
-            "project.save" => EngineMethod::ProjectSave,
-            "project.recents" => EngineMethod::ProjectRecents,
-            _ => return None,
-        })
+impl EngineMethod {
+    pub(crate) fn call_id(self) -> &'static EngineCallId {
+        match self {
+            EngineMethod::SystemPing => "system.ping",
+            EngineMethod::EngineCapabilities => "engine.capabilities",
+            EngineMethod::AgentPreflight => "agent.preflight",
+            EngineMethod::AgentRun => "agent.run",
+            EngineMethod::AgentStatus => "agent.status",
+            EngineMethod::AgentApply => "agent.apply",
+            EngineMethod::PermissionsGet => "permissions.get",
+            EngineMethod::PermissionsRequestScreenRecording => "permissions.requestScreenRecording",
+            EngineMethod::PermissionsRequestMicrophone => "permissions.requestMicrophone",
+            EngineMethod::PermissionsRequestInputMonitoring => "permissions.requestInputMonitoring",
+            EngineMethod::PermissionsOpenInputMonitoringSettings => {
+                "permissions.openInputMonitoringSettings"
+            }
+            EngineMethod::SourcesList => "sources.list",
+            EngineMethod::CaptureStartDisplay => "capture.startDisplay",
+            EngineMethod::CaptureStartCurrentWindow => "capture.startCurrentWindow",
+            EngineMethod::CaptureStartWindow => "capture.startWindow",
+            EngineMethod::CaptureStop => "capture.stop",
+            EngineMethod::RecordingStart => "recording.start",
+            EngineMethod::RecordingStop => "recording.stop",
+            EngineMethod::CaptureStatus => "capture.status",
+            EngineMethod::CapturePreviewFrame => "capture.previewFrame",
+            EngineMethod::ExportInfo => "export.info",
+            EngineMethod::ExportRun => "export.run",
+            EngineMethod::ExportRunCutPlan => "export.runCutPlan",
+            EngineMethod::ProjectCurrent => "project.current",
+            EngineMethod::ProjectOpen => "project.open",
+            EngineMethod::ProjectSave => "project.save",
+            EngineMethod::ProjectRecents => "project.recents",
+        }
     }
 }
 
@@ -147,7 +151,9 @@ pub(crate) struct CaptureClock {
 
 impl Default for CaptureClock {
     fn default() -> Self {
-        Self { started: Instant::now() }
+        Self {
+            started: Instant::now(),
+        }
     }
 }
 

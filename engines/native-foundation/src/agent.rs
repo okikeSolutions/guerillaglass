@@ -1,7 +1,7 @@
 use crate::params::{AgentRunParams, JobParams};
 use crate::state::{now_iso8601, AgentRunState, PreflightSession, State};
+use crate::wire::{failure, success, EngineCallId, EngineResponse, ProtocolErrorCode};
 use crate::PREFLIGHT_TOKEN_TTL_SECONDS;
-use crate::wire::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 use std::fs;
 use time::OffsetDateTime;
@@ -325,7 +325,7 @@ pub(crate) fn build_agent_run(
     }
 }
 
-pub(crate) fn run(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn run(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
     let agent_params: AgentRunParams = decode_params(params);
     let token = agent_params.preflight_token.as_deref().unwrap_or("");
     if let Err(message) = validate_preflight_token(state, token, params) {
@@ -413,7 +413,7 @@ pub(crate) fn run(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineRe
     success(id, json!({ "jobId": job_id, "status": status }))
 }
 
-pub(crate) fn status(id: &JsonRpcId, state: &State, params: &Value) -> EngineResponse {
+pub(crate) fn status(id: &EngineCallId, state: &State, params: &Value) -> EngineResponse {
     let job_params: JobParams = decode_params(params);
     let job_id = match job_params.job_id {
         Some(value) => value,
@@ -442,7 +442,7 @@ pub(crate) fn status(id: &JsonRpcId, state: &State, params: &Value) -> EngineRes
     )
 }
 
-pub(crate) fn apply(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn apply(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
     let job_params: JobParams = decode_params(params);
     let job_id = match job_params.job_id {
         Some(value) => value,

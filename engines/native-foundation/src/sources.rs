@@ -1,8 +1,8 @@
+use crate::wire::{success, EngineCallId, EngineResponse};
 use crate::DEFAULT_CAPTURE_FRAME_RATES;
-use crate::wire::{success, EngineResponse, JsonRpcId};
 use serde_json::json;
 
-pub(crate) fn list(id: &JsonRpcId) -> EngineResponse {
+pub(crate) fn list(id: &EngineCallId) -> EngineResponse {
     success(
         id,
         json!({

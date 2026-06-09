@@ -4,7 +4,7 @@ import Project
 
 extension EngineService {
     func project_period_projectCurrent(
-        _ input: Operations.project_period_projectCurrent.Input
+        _: Operations.project_period_projectCurrent.Input
     ) async throws -> Operations.project_period_projectCurrent.Output {
         .ok(.init(body: .json(projectState())))
     }
@@ -12,8 +12,7 @@ extension EngineService {
     func project_period_projectOpen(
         _ input: Operations.project_period_projectOpen.Input
     ) async throws -> Operations.project_period_projectOpen.Output {
-        let payload: Components.Schemas.ProjectOpenPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.ProjectOpenPayload = switch input.body { case let .json(body): body }
         let projectURL = URL(fileURLWithPath: payload.projectPath.value1, isDirectory: true)
         do {
             let openedURL: URL
@@ -43,8 +42,7 @@ extension EngineService {
     func project_period_projectSave(
         _ input: Operations.project_period_projectSave.Input
     ) async throws -> Operations.project_period_projectSave.Output {
-        let payload: Components.Schemas.ProjectSavePayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.ProjectSavePayload = switch input.body { case let .json(body): body }
         if let projectPath = payload.projectPath?.value1 {
             currentProjectURL = URL(fileURLWithPath: projectPath, isDirectory: true)
         }

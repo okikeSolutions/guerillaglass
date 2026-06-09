@@ -40,7 +40,7 @@ extension EngineService {
         let items = currentProjectDocument.project.timeline.items.map { item in
             switch item {
             case let .clip(clip):
-                return ItemPayload(value1: ClipPayload(
+                ItemPayload(value1: ClipPayload(
                     kind: .clip,
                     id: .init(value1: clip.id),
                     sourceAssetId: .recording,
@@ -48,7 +48,7 @@ extension EngineService {
                     sourceEndSeconds: .init(value1: clip.sourceEndSeconds)
                 ))
             case let .gap(gap):
-                return ItemPayload(value2: GapPayload(
+                ItemPayload(value2: GapPayload(
                     kind: .gap,
                     id: .init(value1: gap.id),
                     durationSeconds: .init(value1: gap.durationSeconds)

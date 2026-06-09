@@ -3,7 +3,7 @@ import Foundation
 
 extension EngineService {
     func system_period_systemPing(
-        _ input: Operations.system_period_systemPing.Input
+        _: Operations.system_period_systemPing.Input
     ) async throws -> Operations.system_period_systemPing.Output {
         .ok(.init(body: .json(.init(
             app: .init(value1: "guerillaglass"),
@@ -14,7 +14,7 @@ extension EngineService {
     }
 
     func system_period_engineCapabilities(
-        _ input: Operations.system_period_engineCapabilities.Input
+        _: Operations.system_period_engineCapabilities.Input
     ) async throws -> Operations.system_period_engineCapabilities.Output {
         .ok(.init(body: .json(.init(
             protocolVersion: .init(value1: "2"),

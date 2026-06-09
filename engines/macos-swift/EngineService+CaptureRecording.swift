@@ -19,8 +19,7 @@ extension EngineService {
     func capture_period_captureStartDisplay(
         _ input: Operations.capture_period_captureStartDisplay.Input
     ) async throws -> Operations.capture_period_captureStartDisplay.Output {
-        let payload: Components.Schemas.CaptureStartDisplayPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.CaptureStartDisplayPayload = switch input.body { case let .json(body): body }
         guard let fps = resolvedFrameRate(payload.captureFps) else {
             return .badRequest(.init(body: .json(frameRateError())))
         }
@@ -40,8 +39,7 @@ extension EngineService {
     func capture_period_captureStartCurrentWindow(
         _ input: Operations.capture_period_captureStartCurrentWindow.Input
     ) async throws -> Operations.capture_period_captureStartCurrentWindow.Output {
-        let payload: Components.Schemas.CaptureStartCurrentWindowPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.CaptureStartCurrentWindowPayload = switch input.body { case let .json(body): body }
         guard let fps = resolvedFrameRate(payload.captureFps) else {
             return .badRequest(.init(body: .json(frameRateError())))
         }
@@ -60,8 +58,7 @@ extension EngineService {
     func capture_period_captureStartWindow(
         _ input: Operations.capture_period_captureStartWindow.Input
     ) async throws -> Operations.capture_period_captureStartWindow.Output {
-        let payload: Components.Schemas.CaptureStartWindowPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.CaptureStartWindowPayload = switch input.body { case let .json(body): body }
         guard let fps = resolvedFrameRate(payload.captureFps) else {
             return .badRequest(.init(body: .json(frameRateError())))
         }
@@ -88,20 +85,20 @@ extension EngineService {
     }
 
     func capture_period_captureStop(
-        _ input: Operations.capture_period_captureStop.Input
+        _: Operations.capture_period_captureStop.Input
     ) async throws -> Operations.capture_period_captureStop.Output {
         await captureEngine.stopCapture()
         return .ok(.init(body: .json(captureStatus())))
     }
 
     func capture_period_captureStatus(
-        _ input: Operations.capture_period_captureStatus.Input
+        _: Operations.capture_period_captureStatus.Input
     ) async throws -> Operations.capture_period_captureStatus.Output {
         .ok(.init(body: .json(captureStatus())))
     }
 
     func capture_period_capturePreviewFrame(
-        _ input: Operations.capture_period_capturePreviewFrame.Input
+        _: Operations.capture_period_capturePreviewFrame.Input
     ) async throws -> Operations.capture_period_capturePreviewFrame.Output {
         let frame = captureEngine.latestPreviewFrame().map {
             Components.Schemas.CapturePreviewFrame(
@@ -113,7 +110,7 @@ extension EngineService {
     }
 
     func recording_period_recordingStart(
-        _ input: Operations.recording_period_recordingStart.Input
+        _: Operations.recording_period_recordingStart.Input
     ) async throws -> Operations.recording_period_recordingStart.Output {
         do {
             try await captureEngine.startRecording()
@@ -124,7 +121,7 @@ extension EngineService {
     }
 
     func recording_period_recordingStop(
-        _ input: Operations.recording_period_recordingStop.Input
+        _: Operations.recording_period_recordingStop.Input
     ) async throws -> Operations.recording_period_recordingStop.Output {
         await captureEngine.stopRecording()
         return .ok(.init(body: .json(captureStatus())))

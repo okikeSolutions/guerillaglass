@@ -5,7 +5,7 @@ import Foundation
 
 extension EngineService {
     func export_period_exportInfo(
-        _ input: Operations.export_period_exportInfo.Input
+        _: Operations.export_period_exportInfo.Input
     ) async throws -> Operations.export_period_exportInfo.Output {
         let presets = Presets.all.map { preset in
             Components.Schemas.ExportPreset(
@@ -23,8 +23,7 @@ extension EngineService {
     func export_period_exportRun(
         _ input: Operations.export_period_exportRun.Input
     ) async throws -> Operations.export_period_exportRun.Output {
-        let payload: Components.Schemas.ExportRunPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.ExportRunPayload = switch input.body { case let .json(body): body }
         guard let preset = Presets.all.first(where: { $0.id == payload.presetId.value1 }) else {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }
@@ -54,8 +53,7 @@ extension EngineService {
     func export_period_exportRunCutPlan(
         _ input: Operations.export_period_exportRunCutPlan.Input
     ) async throws -> Operations.export_period_exportRunCutPlan.Output {
-        let payload: Components.Schemas.ExportRunCutPlanPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.ExportRunCutPlanPayload = switch input.body { case let .json(body): body }
         guard let preset = Presets.all.first(where: { $0.id == payload.presetId.value1 }) else {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }

@@ -16,7 +16,7 @@ struct EngineHostOriginGuardMiddleware: ServerMiddleware {
         _ request: HTTPRequest,
         body: HTTPBody?,
         metadata: ServerRequestMetadata,
-        operationID: String,
+        operationID _: String,
         next: @Sendable (HTTPRequest, HTTPBody?, ServerRequestMetadata) async throws -> (HTTPResponse, HTTPBody?)
     ) async throws -> (HTTPResponse, HTTPBody?) {
         guard isAllowedHost(request.authority) else {

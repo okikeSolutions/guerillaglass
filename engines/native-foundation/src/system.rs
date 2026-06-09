@@ -1,8 +1,8 @@
+use crate::wire::{success, EngineCallId, EngineResponse, PROTOCOL_VERSION};
 use crate::{ENGINE_PHASE, ENGINE_VERSION};
-use crate::wire::{success, EngineResponse, JsonRpcId, PROTOCOL_VERSION};
 use serde_json::json;
 
-pub(crate) fn ping(id: &JsonRpcId, platform: &str) -> EngineResponse {
+pub(crate) fn ping(id: &EngineCallId, platform: &str) -> EngineResponse {
     success(
         id,
         json!({
@@ -14,7 +14,7 @@ pub(crate) fn ping(id: &JsonRpcId, platform: &str) -> EngineResponse {
     )
 }
 
-pub(crate) fn capabilities(id: &JsonRpcId, platform: &str) -> EngineResponse {
+pub(crate) fn capabilities(id: &EngineCallId, platform: &str) -> EngineResponse {
     success(
         id,
         json!({

@@ -25,8 +25,7 @@ extension EngineService {
     func agent_period_agentPreflight(
         _ input: Operations.agent_period_agentPreflight.Input
     ) async throws -> Operations.agent_period_agentPreflight.Output {
-        let payload: Components.Schemas.AgentPreflightPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.AgentPreflightPayload = switch input.body { case let .json(body): body }
         let evaluation = evaluateAgentPreflight(
             runtimeBudgetMinutes: Int(payload.runtimeBudgetMinutes?.value1 ?? 10),
             transcriptionProvider: payload.transcriptionProvider?.rawValue ?? "none",
@@ -60,8 +59,7 @@ extension EngineService {
     func agent_period_agentRun(
         _ input: Operations.agent_period_agentRun.Input
     ) async throws -> Operations.agent_period_agentRun.Output {
-        let payload: Components.Schemas.AgentRunPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.AgentRunPayload = switch input.body { case let .json(body): body }
         let runtimeBudgetMinutes = Int(payload.runtimeBudgetMinutes?.value1 ?? 10)
         let transcriptionProvider = payload.transcriptionProvider?.rawValue ?? "none"
         let importedTranscriptPath = payload.importedTranscriptPath?.value1
@@ -122,8 +120,7 @@ extension EngineService {
     func agent_period_agentApply(
         _ input: Operations.agent_period_agentApply.Input
     ) async throws -> Operations.agent_period_agentApply.Output {
-        let payload: Components.Schemas.AgentApplyPayload
-        switch input.body { case let .json(body): payload = body }
+        let payload: Components.Schemas.AgentApplyPayload = switch input.body { case let .json(body): body }
         guard let run = agentRuns[input.path.jobId.value1] else {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown jobId: \(input.path.jobId.value1)"))))
         }
@@ -163,7 +160,9 @@ extension EngineService {
         let payoff: Bool
         let takeaway: Bool
 
-        var passed: Bool { hook && action && payoff && takeaway }
+        var passed: Bool {
+            hook && action && payoff && takeaway
+        }
     }
 
     private func evaluateAgentPreflight(
@@ -172,7 +171,7 @@ extension EngineService {
         importedTranscriptPath: String?
     ) -> AgentPreflightEvaluation {
         var reasons: [Components.Schemas.AgentPreflightResult.blockingReasonsPayloadPayload] = []
-        if !(1...10).contains(runtimeBudgetMinutes) { reasons.append(.invalid_runtime_budget) }
+        if !(1 ... 10).contains(runtimeBudgetMinutes) { reasons.append(.invalid_runtime_budget) }
         if currentProjectURL == nil { reasons.append(.missing_project) }
         if availableAgentRecordingURL() == nil { reasons.append(.missing_recording) }
         switch transcriptionProvider {
@@ -262,7 +261,8 @@ extension EngineService {
 
     private func coverageForAgentRun(transcriptionProvider: String, importedTranscriptPath: String?) -> AgentCoverage {
         if transcriptionProvider == "imported_transcript", let importedTranscriptPath,
-           let tokens = normalizedTranscriptTokens(path: importedTranscriptPath) {
+           let tokens = normalizedTranscriptTokens(path: importedTranscriptPath)
+        {
             return AgentCoverage(
                 hook: tokens.contains("hook") || tokens.contains("intro") || tokens.contains("opening"),
                 action: tokens.contains("action") || tokens.contains("step") || tokens.contains("steps") || tokens.contains("process"),
