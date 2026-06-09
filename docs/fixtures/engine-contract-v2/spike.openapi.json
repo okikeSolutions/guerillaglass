@@ -1,0 +1,286 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Guerillaglass Engine Contract v2 Spike",
+    "version": "0.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "54321"
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "EngineBearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "EngineBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "ProjectPath": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Absolute local project path."
+      },
+      "OutputUrl": {
+        "type": "string",
+        "format": "uri",
+        "description": "File URL or local output URL."
+      },
+      "CaptureMode": {
+        "type": "string",
+        "enum": ["display", "window", "current_window"]
+      },
+      "EngineErrorCode": {
+        "type": "string",
+        "enum": [
+          "invalid_request",
+          "invalid_params",
+          "permission_denied",
+          "not_found",
+          "runtime_error"
+        ]
+      },
+      "EngineErrorBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/EngineErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "SystemPingResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["app", "protocolVersion"],
+        "properties": {
+          "app": {
+            "type": "string",
+            "minLength": 1
+          },
+          "protocolVersion": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "CaptureStartWindowRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["windowId"],
+        "properties": {
+          "windowId": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enableMic": {
+            "type": "boolean"
+          },
+          "captureFps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "mode": {
+            "$ref": "#/components/schemas/CaptureMode"
+          },
+          "projectPath": {
+            "$ref": "#/components/schemas/ProjectPath"
+          },
+          "importedTranscriptPath": {
+            "$ref": "#/components/schemas/ProjectPath"
+          }
+        }
+      },
+      "CaptureStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["isRunning", "recordingDurationSeconds", "events"],
+        "properties": {
+          "isRunning": {
+            "type": "boolean"
+          },
+          "captureSessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recordingDurationSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "lastError": {
+            "$ref": "#/components/schemas/EngineErrorBody"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["started", "stopped", "dropped_frame"]
+            }
+          }
+        }
+      },
+      "ExportJobStatus": {
+        "type": "string",
+        "enum": ["queued", "running", "succeeded", "failed"]
+      },
+      "ExportJobResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["jobId", "status"],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportJobStatus"
+          },
+          "outputURL": {
+            "$ref": "#/components/schemas/OutputUrl"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/system/ping": {
+      "get": {
+        "operationId": "systemPing",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemPingResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Runtime error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capture/start-window": {
+      "post": {
+        "operationId": "captureStartWindow",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureStartWindowRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid params",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineErrorBody"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Runtime error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exports/{jobId}": {
+      "get": {
+        "operationId": "exportGet",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

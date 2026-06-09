@@ -1,0 +1,6 @@
+{
+  "generatorName": "rust-axum",
+  "additionalProperties": {
+    "packageName": "engine_contract_v2_spike"
+  }
+}
