@@ -34,6 +34,8 @@ playground.xcworkspace
 .vscode/
 guerillaglass.app/
 node_modules/
+.env.local
+apps/*/.env.local
 apps/*/dist/
 apps/*/build/
 apps/*/src/paraglide/

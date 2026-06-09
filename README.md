@@ -43,11 +43,11 @@ bun install
 # Generate app-local Paraglide output used by typecheck/build/test
 bun run i18n:compile
 
-# Build native macOS engine used by the desktop dev scripts
+# Build native macOS engine. Desktop dev scripts launch this engine via GG_ENGINE_PATH.
 bun run swift:build
 
-# Run desktop shell. In development this defaults GG_ENGINE_PATH to:
-# .build/debug/guerillaglass-engine
+# Run desktop shell. The desktop scripts build the native macOS engine first
+# and pass GG_ENGINE_PATH to Electrobun.
 bun run desktop:dev
 
 # Run desktop shell with Vite HMR for the renderer

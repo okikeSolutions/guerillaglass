@@ -38,7 +38,7 @@ Key points:
 bun install
 bun run i18n:compile
 
-# Builds .build/debug/guerillaglass-engine, the default engine used by desktop dev scripts.
+# Builds the macOS native engine used by desktop dev scripts.
 bun run swift:build
 ```
 
@@ -47,12 +47,12 @@ bun run swift:build
 From the repository root:
 
 ```bash
-# Builds the desktop bundle and launches Electrobun.
-# Defaults GG_ENGINE_PATH to .build/debug/guerillaglass-engine when unset.
+# Builds the native macOS engine, packages the desktop bundle, launches Electrobun,
+# and enables Electrobun's app-bundle watch mode.
 bun run desktop:dev
 
-# Runs Vite for renderer HMR and launches the Electrobun dev shell.
-# Also defaults GG_ENGINE_PATH to .build/debug/guerillaglass-engine when unset.
+# Runs Vite for renderer HMR and launches the Electrobun dev shell without
+# the duplicate Electrobun build pass.
 bun run desktop:dev:hmr
 ```
 
@@ -63,7 +63,7 @@ bun run dev
 bun run dev:hmr
 ```
 
-To use a custom sidecar executable, pass an absolute `GG_ENGINE_PATH`:
+By default the desktop dev scripts launch the SwiftPM-built macOS engine at `.build/debug/guerillaglass-engine`. To use a custom sidecar executable, pass an absolute `GG_ENGINE_PATH`:
 
 ```bash
 GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev
@@ -97,14 +97,11 @@ The app-level `typecheck`, `build`, lint, and test scripts generate Paraglide ou
 bun run desktop:build
 ```
 
-## Project Package Registration (macOS)
+## Project File Registration (macOS)
 
-- Guerilla Glass projects use the `.gglassproj` package format.
-- During desktop build packaging, Electrobun hooks run `scripts/configure-macos-project-package.ts`.
-- The hook updates and validates generated `Info.plist` entries:
-  - `UTExportedTypeDeclarations` for `com.okikeSolutions.guerillaglass.project`
-  - `CFBundleDocumentTypes` with `LSItemContentTypes` and `LSTypeIsPackage=true`
-- Finder treats `.gglassproj` as a single package item by default.
+- Guerilla Glass projects use the `.gglassproj` project directory format.
+- Electrobun registers `.gglassproj` through `app.fileAssociations` in `electrobun.config.ts`.
+- Finder package-directory behavior is left to the standard Electrobun file association behavior.
 
 ## Key Paths
 

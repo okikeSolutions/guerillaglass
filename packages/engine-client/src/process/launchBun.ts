@@ -181,7 +181,8 @@ async function waitForReady(
     const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() ?? "";
     for (const line of lines) {
-      const ready = parseEngineHttpReadyLine(line.trim());
+      const trimmed = line.trim();
+      const ready = parseEngineHttpReadyLine(trimmed);
       if (ready) {
         return ready;
       }
@@ -244,6 +245,10 @@ export function makeEngineHttpProcess(
       yield* validateEngineExecutableTrust(enginePath, options.trustPolicy);
       const [command, args] = resolveEngineCommand(enginePath);
       const bearerToken = makeEngineBearerToken();
+      yield* Effect.logInfo("spawning engine process", {
+        enginePath,
+        transport: "http",
+      });
       const subprocess = Bun.spawn([command, ...args], {
         stdin: "ignore",
         stdout: "pipe",
@@ -267,6 +272,11 @@ export function makeEngineHttpProcess(
                 message: "Unable to read engine HTTP readiness.",
                 cause,
               }),
+      });
+      yield* Effect.logInfo("engine process ready", {
+        enginePath,
+        host: address.host,
+        port: address.port,
       });
       return { process: subprocess, address, baseUrl: engineHttpBaseUrl(address), bearerToken };
     }),

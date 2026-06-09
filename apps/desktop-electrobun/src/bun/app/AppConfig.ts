@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Config, Context, Effect, Layer, Option } from "effect";
 
 export type DesktopAppConfig = {
@@ -31,14 +29,6 @@ export class AppConfig extends Context.Service<AppConfig, DesktopAppConfig>()(
 
 const optionalString = (name: string) => Config.option(Config.string(name));
 
-function bundledNativeHelperPath(relativePath: string): string | null {
-  if (typeof process.execPath !== "string" || process.execPath.length === 0) {
-    return null;
-  }
-  const candidate = path.resolve(path.dirname(process.execPath), "..", "Resources", relativePath);
-  return fs.existsSync(candidate) ? candidate : null;
-}
-
 const optionalUrlString = (name: string) =>
   Config.option(Config.url(name)).pipe(Config.map((value) => Option.map(value, String)));
 
@@ -68,9 +58,9 @@ const appConfigEffect = Effect.gen(function* () {
     engineSigningRequirement: Option.getOrNull(
       yield* optionalString("GG_ENGINE_SIGNING_REQUIREMENT"),
     ),
-    macosCodeSignatureHelperPath:
-      Option.getOrNull(yield* optionalString("GG_MACOS_CODE_SIGNATURE_HELPER_PATH")) ??
-      bundledNativeHelperPath("native/macos/guerillaglass-code-signature-checker"),
+    macosCodeSignatureHelperPath: Option.getOrNull(
+      yield* optionalString("GG_MACOS_CODE_SIGNATURE_HELPER_PATH"),
+    ),
     windowsAuthenticodeHelperPath: Option.getOrNull(
       yield* optionalString("GG_WINDOWS_AUTHENTICODE_HELPER_PATH"),
     ),

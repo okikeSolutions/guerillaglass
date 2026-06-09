@@ -1,4 +1,6 @@
-import { Config, Effect, Layer, Logger, References } from "effect";
+import { Config, Duration, Effect, Layer, Logger, Option, References } from "effect";
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import { desktopDiagnosticsLogPath } from "./AppDiagnostics";
 
 const minimumLogLevelLayer = Layer.unwrap(
   Effect.gen(function* () {
@@ -16,10 +18,30 @@ const minimumLogLevelLayer = Layer.unwrap(
 const loggerLayer = Layer.unwrap(
   Effect.gen(function* () {
     const nodeEnv = yield* Config.string("NODE_ENV").pipe(Config.withDefault("development"));
-    if (nodeEnv === "production") {
-      return Logger.layer([Logger.consoleJson]);
+    const fileLogEnabled = yield* Config.boolean("GG_DESKTOP_FILE_LOG").pipe(
+      Config.withDefault(true),
+    );
+    const configuredLogPath = yield* Config.option(Config.string("GG_DESKTOP_DIAGNOSTICS_LOG"));
+    const logPath = Option.getOrElse(configuredLogPath, () => desktopDiagnosticsLogPath());
+
+    const consoleLogger = nodeEnv === "production" ? Logger.consoleJson : Logger.consolePretty();
+    if (!fileLogEnabled || !logPath) {
+      return Logger.layer([consoleLogger]);
     }
-    return Logger.layer([Logger.defaultLogger]);
+
+    const fileLogger = Logger.formatJson.pipe(
+      Logger.toFile(logPath, {
+        flag: "a",
+        batchWindow: Duration.millis(100),
+      }),
+      Effect.catchCause((cause) =>
+        Effect.logWarning("Desktop file logger unavailable; continuing with console logging", {
+          cause,
+        }).pipe(Effect.as(Logger.consoleJson)),
+      ),
+    );
+
+    return Logger.layer([consoleLogger, fileLogger]).pipe(Layer.provide(BunFileSystem.layer));
   }),
 );
 

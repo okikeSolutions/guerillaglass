@@ -536,8 +536,8 @@ Fallback behavior:
 Project container:
 
 - File extension: `.gglassproj`
-- macOS: treated as a **package** (single file in Finder, directory on disk)
-- Desktop shell build hooks register `.gglassproj` as a package document type on macOS by writing `UTExportedTypeDeclarations` (custom project UTI) and `CFBundleDocumentTypes` (`LSItemContentTypes` + `LSTypeIsPackage`) into generated `Info.plist`.
+- macOS: project data is a directory with the `.gglassproj` extension.
+- Desktop shell registers `.gglassproj` through Electrobun `app.fileAssociations`.
 - Cross‑platform: other OSes see a folder with the same contents
 
 Project directory contents:
