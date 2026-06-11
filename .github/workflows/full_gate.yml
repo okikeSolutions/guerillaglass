@@ -35,8 +35,21 @@ jobs:
       - name: Install Playwright Chromium
         run: cd apps/desktop-electrobun && bun run test:ui:install
 
-      - name: TypeScript gate
+      - name: TypeScript lint/type/contract gate
         run: bun run gate:typescript
+        env:
+          SKIP_DESKTOP_TESTS: "1"
+
+      - name: Install coverage dependencies
+        run: brew install jq
+
+      - name: TypeScript coverage thresholds
+        run: bun run coverage:check
+        env:
+          COVERAGE_SCOPE: typescript
+
+      - name: Desktop browser tests
+        run: cd apps/desktop-electrobun && bun run test:ui:ci -- --run
 
   rust:
     name: Rust
@@ -56,8 +69,18 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Cargo tests
-        run: cargo test --workspace --all-targets
+      - name: Install Rust coverage tooling
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov
+
+      - name: Install coverage dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Rust coverage thresholds
+        run: bash ./Scripts/coverage_check.sh
+        env:
+          COVERAGE_SCOPE: rust
 
   swift:
     name: Swift
@@ -78,8 +101,13 @@ jobs:
       - name: SwiftLint
         run: swiftlint --quiet
 
-      - name: Swift tests
-        run: swift test
+      - name: Install coverage dependencies
+        run: brew install jq
+
+      - name: Swift coverage thresholds
+        run: bash ./Scripts/coverage_check.sh
+        env:
+          COVERAGE_SCOPE: swift
 
   protocol-generation:
     name: Protocol generation determinism
@@ -109,35 +137,3 @@ jobs:
 
       - name: Assert generated files are current
         run: git diff --exit-code
-
-  coverage:
-    name: Coverage thresholds
-    # Run threshold checks on PRs too so coverage regressions block before merge.
-    # `Scripts/coverage_check.sh` excludes desktop parity/native launch e2e tests that
-    # are already covered by the TypeScript and desktop-parity-matrix jobs.
-    runs-on: macos-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Rust coverage tooling
-        run: |
-          rustup component add llvm-tools-preview
-          cargo install cargo-llvm-cov
-
-      - name: Install coverage dependencies
-        run: brew install jq
-
-      - name: Install JavaScript dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Coverage threshold gate
-        run: bun run coverage:check

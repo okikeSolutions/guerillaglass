@@ -21,11 +21,15 @@ bun run js:lint:react-effects
 echo "==> engine contract check"
 (cd packages/engine-contract && bun run check:contract && bun run test)
 
-echo "==> desktop tests"
-if [[ "${CI:-}" == "true" ]]; then
-  (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run --exclude tests/parity-e2e.test.ts --exclude tests/native-http-launch-security.test.ts && bun run test:ui:ci -- --run)
+if [[ "${SKIP_DESKTOP_TESTS:-}" == "1" ]]; then
+  echo "==> desktop tests skipped by SKIP_DESKTOP_TESTS=1"
 else
-  (cd apps/desktop-electrobun && bun run test:ci)
+  echo "==> desktop tests"
+  if [[ "${CI:-}" == "true" ]]; then
+    (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run --exclude tests/parity-e2e.test.ts --exclude tests/native-http-launch-security.test.ts && bun run test:ui:ci -- --run)
+  else
+    (cd apps/desktop-electrobun && bun run test:ci)
+  fi
 fi
 
 echo "==> typescript gate passed"
