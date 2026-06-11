@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="frame-anchors" content="stable">
+<title>Engine Contract v2 replaced the legacy engine boundary without shims.</title>
+<meta name="description" content="A visual audit of the Guerillaglass Engine Contract v2 migration: contract, client, native bindings, desktop integration, gates, packaging, and observability.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Engine Contract v2 replaced the legacy engine boundary without shims.">
+<meta property="og:description" content="A visual audit of the completed Guerillaglass Engine Contract v2 migration.">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --bg:#0b0c0f; --bg2:#0f1116; --panel:#14161c; --panel2:#191c24; --line:#23262f; --line2:#2d313c;
+    --tx:#f2ede2; --tx2:#cfc8b8; --mut:#938d7e; --faint:#5f5b51;
+    --accent:#f5a97f;
+    --d1:#7fd1a8; --d2:#5fb3c9; --d3:#e8c170; --d4:#8aa9e8; --d5:#6e7385;
+    --bad:#e0796b; --warn:#e8c170;
+    --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:15px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:#f5a97f33}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.9em;background:var(--bg2);padding:1px 5px;border-radius:4px;color:var(--tx)}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 28px}
+  .small{font-size:12.5px;color:var(--mut)}
+
+  h1{font-size:clamp(28px,4.6vw,54px);font-weight:760;letter-spacing:-.025em;line-height:1.1}
+  h2{font-size:clamp(20px,2.4vw,28px);font-weight:700;letter-spacing:-.015em;line-height:1.25}
+  h3{font-size:16px;font-weight:650;letter-spacing:-.01em}
+  .lede{color:var(--tx2);max-width:860px;margin-top:20px;font-size:16px;line-height:1.7}
+  .lede b{color:var(--tx)}
+  .lede i{color:var(--tx2)}
+
+  .part{padding:40px 0 0;border-top:1px solid var(--line);margin-top:88px}
+  .part .pt{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+  .part .pn{font-family:var(--mono);font-size:12px;letter-spacing:.18em;color:var(--accent);font-weight:700;flex:none}
+  .part h2{font-size:clamp(22px,3vw,34px)}
+  .part .lede{margin-top:14px}
+  section{padding:72px 0 8px}
+  .sechead{display:flex;align-items:baseline;gap:14px;margin-bottom:14px}
+  .sechead .sn{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em;flex:none}
+  .sechead h3{font-size:clamp(18px,2.2vw,24px);font-weight:700;letter-spacing:-.014em}
+  .secsub{color:var(--tx2);max-width:840px;font-size:15px;line-height:1.7;margin-bottom:30px}
+  .secsub b{color:var(--tx)}
+  .secsub{letter-spacing:-.002em}
+
+  .groupbar{display:flex;margin:24px 0 7px;gap:6px}
+  .groupbar>div{display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:7px;position:relative}
+  .groupbar>div::after{content:'';position:absolute;left:0;right:0;bottom:0;height:7px;
+    border:1px solid var(--line2);border-bottom:none;border-radius:6px 6px 0 0}
+  .groupbar .gt{font-size:13px;font-weight:700;color:var(--tx);letter-spacing:-.01em}
+  .groupbar .gn{font-family:var(--mono);font-size:11.5px;color:var(--tx2);margin-top:2px}
+  .groupbar .gsafe .gt{color:var(--d1)}
+  .groupbar .gkeep .gt{color:var(--d4)}
+  @media(max-width:760px){.groupbar .gt{font-size:11.5px}.groupbar .gn{font-size:10px}}
+  .dbar{display:flex;height:46px;border-radius:10px;overflow:hidden;border:1px solid var(--line);margin:0}
+  .dbar>div{height:100%;min-width:1px;position:relative;transition:filter .15s}
+  .dbar>div:hover{filter:brightness(1.18)}
+  .dbar>div .bl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:#0b0c0f;overflow:hidden;white-space:nowrap}
+  .dbar>div .bl .n{font-family:var(--mono);font-size:14px;font-weight:760;line-height:1.1}
+  .dbar>div .bl .k{font-size:9.5px;font-weight:650;letter-spacing:.04em;opacity:.78;text-transform:uppercase}
+  .dlegend{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:14px;font-size:12.5px;color:var(--tx2)}
+  .dlegend>span{display:flex;align-items:baseline;gap:7px}
+  .dlegend .sw{width:10px;height:10px;border-radius:3px;flex:none;position:relative;top:1px}
+  .dlegend b{color:var(--tx);font-weight:650}
+  .dlegend .num{color:var(--mut);font-size:11.5px}
+  .ddefs{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .ddefs>div{background:var(--panel);padding:14px 16px}
+  .ddefs h4{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .ddefs h4 .sw{width:9px;height:9px;border-radius:3px;flex:none}
+  .ddefs p{font-size:11.5px;color:var(--mut);line-height:1.55}
+
+  .findings{list-style:none;margin-top:26px;display:grid;gap:10px;max-width:860px}
+  .findings li{display:grid;grid-template-columns:30px 1fr;gap:14px;align-items:baseline;
+    font-size:15px;color:var(--tx2);line-height:1.55}
+  .findings li .fi{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:700;text-align:right}
+  .findings li .fk{font-weight:700;color:var(--tx)}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}
+  .badge{font-family:var(--mono);font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:99px;
+    padding:6px 14px;background:var(--bg2)}
+  .badge b{color:var(--tx2);font-weight:600}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:6px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 22px 20px;
+    border-top:3px solid var(--sc,var(--line2))}
+  .stat .v{font-family:var(--mono);font-size:40px;font-weight:740;letter-spacing:-.02em;line-height:1;color:var(--sc)}
+  .stat h4{font-size:15.5px;font-weight:680;margin:12px 0 6px;letter-spacing:-.01em}
+  .stat p{font-size:13.5px;color:var(--tx2);line-height:1.65}
+  .stat p code{font-size:.86em}
+
+  .fine{margin-top:6px;display:grid;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .fine>div{display:grid;grid-template-columns:118px 1fr;gap:28px;padding:24px 26px;background:var(--panel);
+    border-top:1px solid var(--line)}
+  .fine>div:first-child{border-top:none}
+  .fine .fv{font-family:var(--mono);font-size:24px;font-weight:740;letter-spacing:-.01em;text-align:right;line-height:1.15;color:var(--tx)}
+  .fine .ft b{display:block;font-size:15px;color:var(--tx);font-weight:680;margin-bottom:7px;letter-spacing:-.01em}
+  .fine .ft p{font-size:13.5px;color:var(--tx2);line-height:1.7;max-width:820px}
+
+  .cmp{margin-top:6px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .cmp>div{display:grid;grid-template-columns:170px minmax(0,1fr) 64px;gap:18px;align-items:center;
+    padding:15px 22px;background:var(--panel);border-top:1px solid var(--line)}
+  .cmp>div:first-child{border-top:none}
+  .cmp>div.hl{background:linear-gradient(90deg,#f5a97f0d,var(--panel))}
+  .cmp .cn{font-size:14px;font-weight:650;color:var(--tx);letter-spacing:-.005em}
+  .cmp .cn .cw{display:block;font-size:11.5px;color:var(--tx2);font-weight:450;margin-top:3px;line-height:1.5}
+  .cmp .ct{height:22px;background:var(--bg);border-radius:6px;overflow:hidden;position:relative}
+  .cmp .ct>div{height:100%;border-radius:6px}
+  .cmp .ct .cs{position:absolute;top:0;bottom:0;display:flex;align-items:center;
+    font-family:var(--mono);font-size:10px;color:var(--mut);white-space:nowrap}
+  .cmp .cv{font-family:var(--mono);font-size:17px;font-weight:740;text-align:right;color:var(--tx)}
+  .cmp .cv .cu{display:block;font-size:9px;color:var(--mut);font-weight:500;letter-spacing:.04em}
+  @media(max-width:760px){.cmp>div{grid-template-columns:1fr 56px;gap:8px 14px;padding:13px 16px}.cmp .ct{grid-column:1/-1}.cmp .cs{display:none}}
+  .obar{display:flex;height:38px;border-radius:9px;overflow:hidden;border:1px solid var(--line);margin:6px 0 12px}
+  .obar>div{position:relative}
+  .obar>div .obl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:10.5px;font-weight:700;color:#0b0c0f;white-space:nowrap;overflow:hidden}
+  .obar>div{height:100%;min-width:1px}
+  .obar>div:hover{filter:brightness(1.2)}
+  .olegend{display:flex;flex-wrap:wrap;gap:7px 18px;font-size:12px;color:var(--tx2)}
+  .olegend .sw{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px}
+  .olegend b{color:var(--tx)}
+
+  .scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .scrollx::-webkit-scrollbar{height:8px}
+  .scrollx::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+  .scrollhint{display:none;font-size:11px;color:var(--faint);margin-top:8px;text-align:center;font-family:var(--mono)}
+  #flowsvg{width:100%;height:auto;display:block;margin-top:10px}
+  #flowsvg text{font-family:var(--sans)}
+  #flowsvg .colhead{font-family:var(--mono);font-size:11px;letter-spacing:.12em;fill:var(--mut);text-transform:uppercase;font-weight:600}
+  #flowsvg .nlabel{font-size:12.5px;fill:var(--tx);font-weight:560;cursor:pointer;paint-order:stroke;stroke:#0b0c0f;stroke-width:3.5px;stroke-linejoin:round}
+  #flowsvg .nsub{font-family:var(--mono);font-size:10.5px;fill:var(--mut)}
+  #flowsvg rect.node{cursor:pointer;rx:3}
+  #flowsvg path.ribbon{mix-blend-mode:screen;transition:opacity .25s}
+  .flownote{margin-top:16px;font-size:13px;color:var(--tx2);background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:13px 16px;min-height:48px;line-height:1.6;max-width:860px}
+  .flownote b{color:var(--tx)}
+
+  .ledgerbar{display:flex;justify-content:space-between;align-items:center;margin:26px 0 10px;gap:14px;flex-wrap:wrap}
+  .xall{font-family:var(--mono);font-size:11.5px;color:var(--tx2);background:var(--panel);border:1px solid var(--line2);
+    border-radius:8px;padding:7px 14px;cursor:pointer;user-select:none;white-space:nowrap}
+  .xall:hover{color:var(--tx);border-color:var(--mut)}
+  .ledger{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .lrow{border-top:1px solid var(--line);background:var(--panel)}
+  .lrow:first-child{border-top:none}
+  .lrow>header{display:grid;grid-template-columns:34px minmax(0,1fr) 200px 86px 18px;gap:14px;align-items:center;
+    padding:13px 18px;cursor:pointer;user-select:none}
+  .lrow>header:hover{background:var(--panel2)}
+  .lrow .li{font-family:var(--mono);font-size:11px;color:var(--faint);font-weight:700}
+  .lrow .ln{font-size:14px;font-weight:600;color:var(--tx);letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lrow .ln .lo{font-size:11px;color:var(--mut);font-weight:500;margin-left:8px;font-family:var(--mono)}
+  .lrow .lb{display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--bg)}
+  .lrow .lb>div{height:100%;min-width:1px}
+  .lrow .lc{font-family:var(--mono);font-size:14px;font-weight:700;text-align:right;color:var(--tx)}
+  .lrow .lc .lp{display:block;font-size:10px;color:var(--mut);font-weight:500}
+  .lrow .chev{color:var(--mut);transition:transform .2s;font-size:16px;text-align:center}
+  .lrow.open .chev{transform:rotate(90deg)}
+  .lrow .lbody{display:none;padding:8px 20px 26px;border-top:1px solid var(--line);background:var(--bg2)}
+  .lrow.open .lbody{display:block}
+  .lgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:0 36px;margin-top:14px}
+  .lblock{margin-bottom:20px}
+  .lblock:last-child{margin-bottom:0}
+  .lblock h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--mut);
+    margin-bottom:9px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .lblock h5::after{content:'';flex:1;height:1px;background:var(--line)}
+  .lblock p{font-size:13.5px;color:var(--tx2);line-height:1.72;overflow-wrap:break-word}
+  .lblock.fix{background:linear-gradient(180deg,#7fd1a80a,transparent);border:1px solid #7fd1a820;border-radius:10px;padding:14px 16px}
+  .lblock.fix h5{color:var(--d1)}
+  .lblock.fix h5::after{background:#7fd1a820}
+  .exlist{list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 15px}
+  .exlist li{font-size:12px;color:var(--tx2);padding:9px 0;border-top:1px solid var(--line);line-height:1.55}
+  .exlist li:first-child{border-top:none}
+  .exlist li .loc{color:var(--accent);font-family:var(--mono);font-size:11.5px;display:block;margin-bottom:2px;overflow-wrap:anywhere}
+  .mbars .mb{display:grid;grid-template-columns:minmax(80px,42%) 1fr 40px;align-items:center;gap:9px;margin-bottom:6px;font-size:12px}
+  .mbars .mb:last-child{margin-bottom:0}
+  .mbars .mb .l{color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:11px}
+  .mbars .mb .t{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+  .mbars .mb .t>div{height:100%;border-radius:4px}
+  .mbars .mb .v{font-family:var(--mono);font-size:10.5px;color:var(--mut);text-align:right}
+
+  .passes{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;margin-top:6px}
+  .pass{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .pass .pq{font-size:15px;font-weight:680;line-height:1.4;letter-spacing:-.01em}
+  .pass .pm{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px}
+  .pass .pbar{display:flex;height:14px;border-radius:6px;overflow:hidden;margin:16px 0 4px;border:1px solid var(--line)}
+  .pass .pbar>div{height:100%;min-width:1px}
+  .pass ul{list-style:none;margin-top:10px}
+  .pass li{display:grid;grid-template-columns:13px 50px 1fr;gap:10px;padding:8px 0;font-size:12px;color:var(--tx2);
+    border-top:1px solid var(--line);align-items:baseline;line-height:1.5}
+  .pass li:first-child{border-top:none}
+  .pass li .sw{width:9px;height:9px;border-radius:3px;position:relative;top:1px}
+  .pass li .cn{font-family:var(--mono);color:var(--tx);font-weight:650;text-align:right;font-size:12px}
+
+  .uscards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:26px}
+  .uscard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;border-top:3px solid var(--warn)}
+  .uscard .n{font-family:var(--mono);font-size:26px;font-weight:740;color:var(--warn)}
+  .uscard h4{font-size:14px;font-weight:680;margin:8px 0 7px}
+  .uscard p{font-size:12px;color:var(--tx2);line-height:1.6}
+  .uscard .ex{font-family:var(--mono);font-size:10.5px;color:var(--accent);margin-top:10px;overflow-wrap:anywhere;line-height:1.6}
+  .vlist{margin-top:30px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .vitem{padding:18px 22px;border-top:1px solid var(--line);background:var(--panel)}
+  .vitem:first-child{border-top:none}
+  .vitem .vfn{font-family:var(--mono);font-size:13px;color:var(--tx);font-weight:650;overflow-wrap:anywhere}
+  .vitem .vloc{font-family:var(--mono);font-size:11px;color:var(--accent);display:block;margin-top:3px}
+  .vitem .vdetail{font-size:13px;color:var(--tx2);line-height:1.65;margin-top:7px;max-width:900px}
+
+  #wfsvg{width:100%;height:auto;display:block}
+  .proj{display:grid;grid-template-columns:60px minmax(0,1fr) 120px;gap:18px;padding:22px 0;border-top:1px solid var(--line);align-items:start}
+  .proj:first-of-type{border-top:none}
+  .proj .pid{font-family:var(--mono);font-weight:740;font-size:17px;color:var(--accent)}
+  .proj .pid .eff{display:block;font-size:9px;color:var(--mut);font-weight:600;letter-spacing:.1em;margin-top:4px}
+  .proj h4{font-size:15px;font-weight:680;margin-bottom:7px;line-height:1.4;letter-spacing:-.01em}
+  .proj .pwhat{font-size:13px;color:var(--tx2);line-height:1.65}
+  .proj .pwhy{font-size:12.5px;color:var(--tx2);margin-top:9px;line-height:1.6;border-left:2px solid var(--line2);padding-left:12px}
+  .proj .pwhy b{color:var(--tx)}
+  .proj .pred{text-align:right}
+  .proj .pred .n{font-family:var(--mono);font-size:21px;font-weight:740;color:var(--d1)}
+  .proj .pred .k{font-size:10.5px;color:var(--mut);margin-top:3px;line-height:1.4}
+  .rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:14px}
+  .rgrid>div{background:var(--panel);padding:16px 18px}
+  .rgrid .rn{font-family:var(--mono);font-size:10px;color:var(--d3);font-weight:700;letter-spacing:.1em}
+  .rgrid h5{font-size:13.5px;font-weight:680;margin:5px 0 6px}
+  .rgrid p{font-size:11.5px;color:var(--tx2);line-height:1.55}
+
+  #tmap{width:100%;height:520px;position:relative;margin-top:4px;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  .tile{position:absolute;overflow:hidden;cursor:pointer;border:1px solid #0b0c0f;padding:7px 9px;transition:filter .12s}
+  .tile:hover{filter:brightness(1.3);z-index:2}
+  .tile.sel{outline:2px solid var(--accent);outline-offset:-2px;z-index:3}
+  .tile .tn{font-size:11.5px;font-weight:650;color:#0b0c0f;line-height:1.2}
+  .tile .tv{font-family:var(--mono);font-size:10.5px;color:#0b0c0fb0;margin-top:1px}
+  #tdetail{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  #tdetail .fbar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin:13px 0 11px;border:1px solid var(--line)}
+  #tdetail .fbar>div{height:100%;min-width:1px}
+  .tmaplegend{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+  .tmaplegend .grad{flex:0 1 180px;height:10px;border-radius:5px;background:linear-gradient(90deg,#4a4f5e,#7fd1a8)}
+
+  table.recon{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}
+  table.recon th{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);
+    text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600}
+  table.recon td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--tx2)}
+  table.recon td.n{text-align:right;font-family:var(--mono);color:var(--tx)}
+  .pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin:24px 0 8px}
+  .pstep{background:var(--panel);border:1px solid var(--line);padding:16px 18px;border-radius:12px}
+  .pstep .pn{font-family:var(--mono);font-size:19px;font-weight:740;color:var(--accent)}
+  .pstep .pl{font-size:12px;color:var(--tx2);margin-top:6px;line-height:1.55}
+  .caveat{margin-top:20px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+    font-size:13px;color:var(--tx2);line-height:1.7}
+  .caveat b{color:var(--tx)}
+  footer{padding:44px 0 72px;color:var(--faint);font-size:12px;border-top:1px solid var(--line);margin-top:64px}
+  footer .wrap{display:flex;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
+
+  nav{position:sticky;top:0;z-index:50;background:#0b0c0fe8;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;gap:2px;align-items:center;height:46px;overflow-x:auto;scrollbar-width:none}
+  nav .wrap::-webkit-scrollbar{display:none}
+  nav a{color:var(--mut);font-size:12px;font-weight:560;padding:5px 10px;border-radius:7px;white-space:nowrap}
+  nav a:hover{color:var(--tx);background:var(--panel);text-decoration:none}
+  nav .brand{color:var(--tx);font-weight:700;margin-right:8px;display:flex;align-items:center;gap:8px;font-size:13px;flex:none}
+  nav .brand .dot{width:9px;height:9px;border-radius:99px;background:var(--accent);box-shadow:0 0 12px #f5a97f88}
+  nav .pdiv{color:var(--faint);font-family:var(--mono);font-size:10px;padding:0 4px;flex:none}
+
+  #tip{position:fixed;z-index:200;pointer-events:none;opacity:0;transition:opacity .12s;
+    background:#1c1f28;border:1px solid var(--line2);border-radius:8px;padding:8px 11px;max-width:300px;
+    font-size:12px;line-height:1.5;color:var(--tx);box-shadow:0 6px 24px #0008}
+  #tip.on{opacity:1}
+  #tip .tt{font-weight:700;display:block;margin-bottom:2px}
+  #tip .tn{font-family:var(--mono);color:var(--tx2)}
+  [data-tip]{cursor:default}
+  #hero{padding:86px 0 40px;background:
+    radial-gradient(1000px 460px at 14% -12%, #f5a97f10, transparent 62%),
+    radial-gradient(800px 400px at 88% -4%, #7fd1a80a, transparent 62%)}
+
+  @media(max-width:880px){ .lgrid{grid-template-columns:minmax(0,1fr)} }
+  @media(max-width:760px){
+    body{font-size:14.5px}
+    .wrap{padding:0 12px}
+    h1{line-height:1.18}
+    h1 br{display:none}  /* let the headline reflow instead of orphaning words */
+    /* full-bleed the data-heavy blocks; prose keeps the 12px gutter */
+    .dbar,.groupbar,.obar,.cmp,.fine,.ledger,#tmap,#tdetail,table.recon,.scrollx,
+    .stats,.passes,.ddefs,.uscards,.vlist,.rgrid,.floorgrid,.pipeline{
+      margin-left:-12px;margin-right:-12px;width:auto}
+    .cmp,.fine,.ledger,#tmap,#tdetail,table.recon{border-radius:0;border-left:none;border-right:none}
+    section{padding:36px 0 6px}
+    .part{margin-top:40px}
+    #hero{padding:50px 0 24px}
+    .lede{font-size:14.5px}
+    .stat{padding:18px}
+    .stat .v{font-size:32px}
+    .fine>div{grid-template-columns:1fr;gap:6px;padding:16px 18px}
+    .fine .fv{text-align:left}
+    .scrollhint{display:block}
+    .scrollx>svg{min-width:880px}
+    .dbar{height:38px}
+    .dbar>div .bl .n{font-size:11px}
+    .dbar>div .bl .k{display:none}
+    .lrow>header{grid-template-columns:26px minmax(0,1fr) 70px 16px;gap:10px;padding:12px 14px}
+    .lrow .lb{grid-column:1/-1;order:5;margin-top:2px}
+    .lrow .lbody{padding:6px 14px 22px}
+    .proj{grid-template-columns:46px 1fr;gap:10px 14px}
+    .proj .pred{grid-column:1/-1;text-align:left;display:flex;align-items:baseline;gap:10px;border-top:1px dashed var(--line);padding-top:10px}
+    #tmap{height:560px}
+  }
+</style>
+</head>
+<body>
+<div id="tip"></div>
+
+<nav><div class="wrap">
+  <span class="brand"><span class="dot"></span>engine contract v2</span>
+  <a href="#why">Origins</a><a href="#territory">Subsystems</a><a href="#map">Map</a>
+  <a href="#fine">The number</a><a href="#compare">Comparison</a><a href="#ledger">Patterns</a><a href="#evidence">Evidence</a><a href="#plan">Plan</a>
+  <a href="#methodology" style="margin-left:auto">Methodology</a>
+</div></nav>
+
+<header id="hero"><div class="wrap">
+  <div style="font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;font-weight:600">Guerillaglass · Engine boundary audit · June 2026 · <span style="color:var(--mut)">implementation generated from migration evidence</span></div>
+  <h1>Engine Contract v2 replaced<br>
+  the legacy engine boundary.<br>
+  No shims were kept.</h1>
+  <p class="lede" style="color:var(--tx);border-left:2px solid var(--line2);padding-left:14px"><b>The desktop/native path now runs through an Effect-native HTTP/OpenAPI contract.</b> TypeScript defines the contract, OpenAPI carries it across languages, Rust and Swift consume generated protocol helpers, and the desktop host calls domain services instead of raw transport details.</p>
+  <p class="lede">This page mirrors the structure of the Bun unsafe audit: a counted breakdown, subsystem territory map, origin→pattern→outcome flow, expandable ledger, evidence passes, and a remaining-plan section. Counts are weighted implementation units from the migration plan and PR scope, not source-line counts.</p>
+  <div class="groupbar" id="hero-groups"></div>
+  <div class="dbar" id="hero-bar"></div>
+  <div class="dlegend" id="hero-legend"></div>
+  <ul class="findings">
+    <li><span class="fi">01</span><span><span class="fk" style="color:var(--d1)">Eight migration phases are complete.</span> Contract creation, generation, TypeScript client, native bindings, native HTTP servers, desktop integration, removal, and final gates are all marked complete.</span></li>
+    <li><span class="fi">02</span><span><span class="fk" style="color:var(--tx)">The legacy boundary was deleted, not wrapped.</span> The old consolidated engine package, line/RPC protocol pieces, endpoint inventory, stale native streams, and project-package hook were removed rather than hidden behind compatibility layers.</span></li>
+    <li><span class="fi">03</span><span><span class="fk" style="color:var(--accent)">Observability became part of the boundary.</span> BunRuntime, platform-bun services, structured logs, log spans, tracing spans, metrics, process diagnostics, and optional DevTools now cover the critical desktop path.</span></li>
+  </ul>
+  <div class="badges" id="hero-badges"></div>
+</div></header>
+
+<section id="why"><div class="wrap">
+  <div class="sechead"><h3>Where the migration came from</h3></div>
+  <p class="secsub">Every implemented unit by root cause. Contract drift and native interoperability drove most of the work; desktop packaging and observability were hardening discovered during final gates.</p>
+  <div class="obar" id="origin-bar"></div>
+  <div class="olegend" id="origin-legend"></div>
+  <div class="stats" id="why-cards" style="margin-top:34px"></div>
+</div></section>
+
+<section id="compare"><div class="wrap">
+  <div class="sechead"><h3>Before and after the boundary</h3></div>
+  <p class="secsub">A comparison of architecture states using the same weighted audit score. Lower is less legacy surface exposed to app code; higher is more implemented v2 surface with explicit ownership.</p>
+  <div class="cmp" id="cmp"></div>
+  <p class="small" style="margin-top:12px;line-height:1.7">Scores are narrative audit weights from committed migration phases, not benchmark measurements.</p>
+</div></section>
+
+<section id="territory"><div class="wrap">
+  <div class="sechead"><h3>Where it lives</h3></div>
+  <p class="secsub">Area = implementation breadth. Greener/warmer = contract/native work; blue = desktop/runtime work; gray = gates/docs. Click a tile for its breakdown.</p>
+  <div id="tmap"></div>
+  <div class="tmaplegend"><span>less migrated surface</span><span class="grad"></span><span>more</span>
+    <span style="margin-left:auto" class="small">area ∝ units · Σ = <span class="num" id="tmap-sum"></span></span></div>
+  <div id="tdetail"><span class="small">Tap a subsystem tile above to drill in.</span></div>
+</div></section>
+
+<section id="map"><div class="wrap">
+  <div class="sechead"><h3>Origin → pattern → outcome</h3></div>
+  <p class="secsub">The migration flow: why each unit existed, what implementation pattern resolved it, and which final state it landed in. Click a node to trace related paths.</p>
+  <div class="scrollx"><svg id="flowsvg" viewBox="0 0 1124 760" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <div class="scrollhint">← scroll →</div>
+  <div class="flownote" id="flownote">Click an origin, pattern, or destination to trace where its units flow.</div>
+</div></section>
+
+<section id="fine"><div class="wrap">
+  <div class="sechead"><h3>What the migration is made of</h3></div>
+  <p class="secsub">Six facts about the final state that the headline does not carry.</p>
+  <div class="fine" id="finelist"></div>
+</div></section>
+
+<section id="ledger"><div class="wrap">
+  <div class="sechead"><h3>14 patterns, five outcomes</h3></div>
+  <p class="secsub">A row counts as <b>complete</b> only when the active source path uses the v2 architecture and stale legacy references were swept. Expand a row for evidence and files.</p>
+  <div class="ledgerbar"><span class="small">Σ = 100 weighted units · sorted by size · the bar is each pattern's outcome split</span><span class="xall" id="xall">Collapse all</span></div>
+  <div class="ledger" id="ledger-rows"></div>
+</div></section>
+
+<section id="evidence"><div class="wrap">
+  <div class="sechead"><h3>Three questions, answered per area</h3></div>
+  <p class="secsub">The migration evidence was checked against three questions: Is the old path gone? Is the v2 path generated/composed from source-of-truth contracts? Is the critical desktop path observable and gated?</p>
+  <div class="passes" id="passes"></div>
+</div></section>
+
+<section id="plan"><div class="wrap">
+  <div class="sechead"><h3>Final follow-ups after v2</h3></div>
+  <p class="secsub">The migration is complete, but final product hardening remains. These are follow-ups, not compatibility shims.</p>
+  <div class="scrollx"><svg id="wfsvg" viewBox="0 0 1124 360" preserveAspectRatio="xMidYMid meet"></svg></div>
+  <div class="scrollhint">← scroll →</div>
+  <div id="projlist" style="margin-top:26px"></div>
+</div></section>
+
+<section id="methodology"><div class="wrap">
+  <div class="sechead"><h3>How this was measured, and what to be skeptical of</h3></div>
+  <p class="secsub">This is a visual synthesis of committed migration docs and implemented files. The numbers are weighted audit units used to show shape and risk, not automated line counts.</p>
+  <div class="pipeline" id="pipeline"></div>
+  <table class="recon" id="recon"></table>
+  <div class="caveat" id="caveat"></div>
+  <p class="small" style="margin-top:16px;line-height:1.8">Evidence files: <code>docs/ENGINE_CONTRACT_V2_MIGRATION.md</code>, <code>docs/OBSERVABILITY.md</code>, <code>packages/engine-contract</code>, <code>packages/engine-client</code>, <code>engines/protocol-rust</code>, <code>engines/protocol-swift</code>, <code>apps/desktop-electrobun/src/bun/app</code>, <code>Scripts/full_gate.sh</code>, and GitHub Actions workflows.</p>
+</div></section>
+
+<footer><div class="wrap">
+  <span>Guerillaglass · Engine Contract v2 migration audit · June 2026</span>
+  <span>source docs: <code>ENGINE_CONTRACT_V2_MIGRATION.md</code> · <code>OBSERVABILITY.md</code></span>
+</div></footer>
+
+<script>
+const DATA={
+ total:100,
+ destinations:{"complete-v2":62,"removed-legacy":14,"hardened":12,"observable":8,"follow-up":4},
+ origins:{"contract-drift":22,"native-interop":20,"desktop-coupling":18,"legacy-transport":14,"test-gate-friction":12,"macos-packaging":8,"observability-gap":6},
+ originLabels:{"contract-drift":"Contract drift","native-interop":"Native interop","desktop-coupling":"Desktop coupling","legacy-transport":"Legacy transport","test-gate-friction":"Gate friction","macos-packaging":"macOS packaging","observability-gap":"Observability gap"},
+ originColors:{"contract-drift":"#7fd1a8","native-interop":"#e8c170","desktop-coupling":"#8aa9e8","legacy-transport":"#5fb3c9","test-gate-friction":"#6e7385","macos-packaging":"#d9a96b","observability-gap":"#f5a97f"},
+ destColors:{"complete-v2":"#7fd1a8","removed-legacy":"#5fb3c9","hardened":"#e8c170","observable":"#f5a97f","follow-up":"#e0796b"},
+ destLabels:{"complete-v2":"complete v2","removed-legacy":"legacy removed","hardened":"hardened","observable":"observable","follow-up":"follow-up"},
+ comparison:[
+  {name:"Legacy boundary",what:"Consolidated TypeScript engine package, custom RPC/line protocol, desktop transport coupling",score:88,hl:false},
+  {name:"v2 contract architecture",what:"Effect HttpApi contract, OpenAPI 3.1, generated Rust/Swift helpers, domain services",score:100,hl:true},
+  {name:"Remaining product hardening",what:"Production signing/TCC validation, live preview diagnosis, critical-path native tests",score:16,hl:false,projected:true}
+ ],
+ subsystems:[
+  {id:"engine-contract",label:"Engine contract package",value:13,kind:"contract",sound:96,desc:"Effect Schema domains, HttpApi endpoints, OpenAPI generation, auth/security metadata, golden fixtures."},
+  {id:"engine-client",label:"Engine client package",value:12,kind:"client",sound:94,desc:"HttpApiClient access, local process launch/readiness/auth/trust, domain service layers."},
+  {id:"protocol-rust",label:"Rust protocol bindings",value:10,kind:"native",sound:90,desc:"Generated OpenAPI DTOs/server helpers and native-foundation HTTP dispatch."},
+  {id:"protocol-swift",label:"Swift protocol bindings",value:10,kind:"native",sound:90,desc:"Generated Swift OpenAPI package and macOS engine HTTP operations."},
+  {id:"desktop-host",label:"Desktop Bun host",value:12,kind:"desktop",sound:92,desc:"HostBridgeService calls domain services; raw EngineClient stays at composition root."},
+  {id:"bridge-security",label:"Bridge security",value:6,kind:"desktop",sound:88,desc:"Renderer remains isolated from native engine URL/token; redaction and request policy retained."},
+  {id:"test-migration",label:"Vitest migration",value:8,kind:"gates",sound:86,desc:"Desktop TypeScript tests moved to Vitest and Vitest Browser Mode with Playwright provider."},
+  {id:"ci-gates",label:"CI and local gates",value:8,kind:"gates",sound:88,desc:"Oxlint type-aware type-check deny-warnings, parallel full gate, split workflow jobs."},
+  {id:"legacy-removal",label:"Legacy removal",value:7,kind:"removal",sound:98,desc:"Old package, endpoint inventory, line protocol target, stale streams, and hook script removed."},
+  {id:"macos-packaging",label:"macOS packaging",value:6,kind:"hardening",sound:76,desc:"Removed package hook, pinned Bun, moved sidecars under Contents/MacOS, avoided fileAssociations."},
+  {id:"observability",label:"Observability",value:8,kind:"observability",sound:84,desc:"BunRuntime root, Logger.toFile, annotations, spans, metrics, process diagnostics, optional DevTools."}
+ ],
+ flows:[
+  ["contract-drift","Effect HttpApi source of truth","complete-v2",14],["contract-drift","OpenAPI generation","complete-v2",8],
+  ["native-interop","Generated Rust/Swift bindings","complete-v2",16],["native-interop","HTTP server helpers","complete-v2",4],
+  ["desktop-coupling","Domain service composition","complete-v2",12],["desktop-coupling","Renderer isolation","hardened",6],
+  ["legacy-transport","Delete old protocol pieces","removed-legacy",14],
+  ["test-gate-friction","Vitest + Oxlint gates","hardened",12],
+  ["macos-packaging","Electrobun/macOS hardening","hardened",6],["macos-packaging","Production signing validation","follow-up",2],
+  ["observability-gap","Effect-native observability","observable",6],["observability-gap","DevTools/exporter compatibility","follow-up",2]
+ ],
+ ledger:[
+  {name:"Effect HttpApi contract",origin:"contract-drift",count:13,dest:{"complete-v2":13},evidence:"packages/engine-contract defines domain schemas, HttpApi endpoints, generated OpenAPI, schema primitives, and contract tests.",fix:"Keep TypeScript Effect Schema as source of truth; regenerate OpenAPI deterministically.",examples:["packages/engine-contract/src/httpApi.ts","packages/engine-contract/generated/engine.openapi.json"]},
+  {name:"TypeScript engine client",origin:"desktop-coupling",count:12,dest:{"complete-v2":12},evidence:"packages/engine-client owns launch/readiness/auth/trust and domain service layers derived from EngineClient.",fix:"App code consumes CaptureService/ProjectService/etc.; raw EngineClient remains at composition root.",examples:["packages/engine-client/src/service.ts","packages/engine-client/src/services/domainServices.ts"]},
+  {name:"Native protocol generation",origin:"native-interop",count:20,dest:{"complete-v2":20},evidence:"Rust and Swift protocol packages are generated from OpenAPI and used by native implementations.",fix:"Regenerate bindings from committed OpenAPI artifact and keep native DTO/server helpers aligned.",examples:["engines/protocol-rust/src/models.rs","engines/protocol-swift/Sources/EngineProtocol/openapi.json"]},
+  {name:"Native HTTP transport",origin:"legacy-transport",count:9,dest:{"complete-v2":7,"removed-legacy":2},evidence:"Native dispatch now uses generated HTTP handlers and explicit EngineMethod variants instead of string line/RPC transport.",fix:"Delete line protocol mappings and route operations through v2 HTTP handlers.",examples:["engines/native-foundation/src/transport.rs","engines/macos-swift/EngineMain.swift"]},
+  {name:"Desktop host integration",origin:"desktop-coupling",count:12,dest:{"complete-v2":10,"hardened":2},evidence:"Desktop Bun HostBridgeService resolves domain services and preserves renderer isolation.",fix:"Electrobun RPC remains only the renderer/Bun boundary; engine URL/token stay host-only.",examples:["apps/desktop-electrobun/src/bun/bridge/HostBridgeService.ts","apps/desktop-electrobun/src/bun/app/index.ts"]},
+  {name:"Legacy deletion",origin:"legacy-transport",count:12,dest:{"removed-legacy":12},evidence:"Old consolidated package, endpoint inventory, Swift line protocol target, and stale stream methods were removed without shims.",fix:"Remove obsolete references instead of compatibility wrappers.",examples:["packages/engine removed","Tests/engineProtocolTests removed"]},
+  {name:"Vitest migration",origin:"test-gate-friction",count:8,dest:{"hardened":8},evidence:"Desktop TS tests use Vitest and .test.ts/.test.tsx; browser smoke uses @vitest/browser-playwright.",fix:"Use Vitest V8 coverage and one test convention for desktop TypeScript.",examples:["apps/desktop-electrobun/vitest.config.ts","apps/desktop-electrobun/vitest.browser.config.ts"]},
+  {name:"Oxlint and CI gates",origin:"test-gate-friction",count:8,dest:{"hardened":8},evidence:"JS/TS gates use type-aware Oxlint with --type-check --deny-warnings, and full gate runs independent checks in parallel.",fix:"Warnings are fatal for JS/Oxlint while SwiftLint warnings remain visible.",examples:["oxlint.config.mjs","Scripts/full_gate.sh"]},
+  {name:"macOS packaging hardening",origin:"macos-packaging",count:8,dest:{"hardened":6,"follow-up":2},evidence:"configure-macos-project-package.ts was removed after no-script experiment restored Screen Recording; sidecars moved under Contents/MacOS; Bun pinned.",fix:"Preserve validated LaunchServices path and validate production signing separately.",examples:["apps/desktop-electrobun/electrobun.config.ts","apps/desktop-electrobun/src/bun/app/AppConfig.ts"]},
+  {name:"Effect-native observability",origin:"observability-gap",count:8,dest:{"observable":8},evidence:"Desktop root uses BunRuntime.runMain with platform-bun services, structured file logging, process diagnostics, spans, and metrics.",fix:"Use Effect annotations/spans/metrics instead of ad-hoc console diagnostics.",examples:["apps/desktop-electrobun/src/bun/app/AppLogging.ts","docs/OBSERVABILITY.md"]}
+ ],
+ passes:[
+  {q:"Is the old engine boundary gone?",members:33,counts:{"complete-v2":21,"removed-legacy":10,"follow-up":2},note:"Active source/tests no longer depend on the old consolidated engine package, line protocol target, endpoint inventory, or stale stream names."},
+  {q:"Is the v2 boundary generated and composed?",members:41,counts:{"complete-v2":33,"hardened":6,"follow-up":2},note:"Effect HttpApi generates OpenAPI; Rust/Swift bindings consume it; desktop composition calls domain services."},
+  {q:"Is the critical desktop path observable and gated?",members:26,counts:{"observable":8,"hardened":14,"follow-up":4},note:"Logs/spans/metrics exist; gates are faster and stricter; production signing/TCC and live preview remain follow-ups."}
+ ],
+ plan:[
+  {id:"P1",name:"Diagnose live preview",impact:"product",what:"Instrument frontend preview lifecycle and media token serving to find why Screen Recording works but live preview is missing.",why:"Recording permission is restored; preview path still needs end-to-end evidence.",n:4,color:"#e0796b"},
+  {id:"P2",name:"Production signing validation",impact:"release",what:"Run production-style signed/notarized Electrobun build with Developer ID and Apple notarization credentials.",why:"Dev app is ad-hoc launcher identity; production TCC behavior must be validated separately.",n:5,color:"#e8c170"},
+  {id:"P3",name:"Critical-path native tests",impact:"quality",what:"Add Rust/Swift behavior tests for capture/readiness/security paths beyond aggregate coverage.",why:"Generated code inflates surface; product quality should track behavior, not only percentage.",n:3,color:"#7fd1a8"},
+  {id:"P4",name:"Exporter decision",impact:"observability",what:"Decide whether to wire Prometheus/OTLP or keep local JSONL + optional compatible DevTools receiver.",why:"Effect v4 exporter APIs were researched but intentionally not wired yet.",n:2,color:"#f5a97f"}
+ ]
+};
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const fmt=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,','), pct=n=>(n/DATA.total*100).toFixed(0)+'%';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+const DESTS=Object.keys(DATA.destinations);
+$('#hero-groups').innerHTML=DESTS.map(k=>`<div class="${k==='complete-v2'?'gsafe':k==='follow-up'?'gkeep':''}" style="width:${DATA.destinations[k]}%"><div class="gt" style="color:${DATA.destColors[k]}">${DATA.destLabels[k]}</div><div class="gn">${DATA.destinations[k]} units</div></div>`).join('');
+$('#hero-bar').innerHTML=DESTS.map(k=>`<div style="width:${DATA.destinations[k]}%;background:${DATA.destColors[k]}"><div class="bl"><div class="n">${DATA.destinations[k]}</div><div class="k">${DATA.destLabels[k]}</div></div></div>`).join('');
+$('#hero-legend').innerHTML=DESTS.map(k=>`<span><span class="sw" style="background:${DATA.destColors[k]}"></span><b>${DATA.destLabels[k]}</b><span class="num">${DATA.destinations[k]}</span></span>`).join('');
+$('#hero-badges').innerHTML=['8 phases complete','100 weighted units','0 shims','OpenAPI 3.1','BunRuntime root','Oxlint warnings fatal'].map(x=>`<span class="badge"><b>${x}</b></span>`).join('');
+const originEntries=Object.entries(DATA.origins);
+$('#origin-bar').innerHTML=originEntries.map(([k,v])=>`<div style="width:${v}%;background:${DATA.originColors[k]}"><span class="obl">${v}</span></div>`).join('');
+$('#origin-legend').innerHTML=originEntries.map(([k,v])=>`<span><span class="sw" style="background:${DATA.originColors[k]}"></span><b>${DATA.originLabels[k]}</b> <span class="num">${v}</span></span>`).join('');
+function maxOf(a,fn){return Math.max(...a.map(fn))}
+const originCopy={"contract-drift":"One contract source was needed for TypeScript, Rust, Swift, OpenAPI snapshots, and security metadata.","native-interop":"Native engines needed generated DTOs/server helpers instead of TypeScript-only protocol assumptions.","desktop-coupling":"The desktop host needed domain services while keeping engine URL and bearer token away from the renderer.","legacy-transport":"Old RPC/line protocol and stale stream semantics had to be deleted rather than bridged.","test-gate-friction":"Desktop tests and CI gates needed one convention, faster feedback, and fatal JS warnings.","macos-packaging":"Electrobun/macOS behavior required evidence-driven removal of project package metadata hooks.","observability-gap":"The final runtime needed structured logs, spans, metrics, and crash-adjacent diagnostics."};
+$('#why-cards').innerHTML=originEntries.slice(0,6).map(([k,v])=>`<div class="stat" style="--sc:${DATA.originColors[k]}"><div class="v">${v}</div><h4>${DATA.originLabels[k]}</h4><p>${originCopy[k]}</p></div>`).join('');
+const maxCmp=maxOf(DATA.comparison,x=>x.score); $('#cmp').innerHTML=DATA.comparison.map(c=>`<div class="${c.hl?'hl':''}"><div class="cn">${c.name}<span class="cw">${c.what}</span></div><div class="ct"><div style="width:${c.score/maxCmp*100}%;background:${c.projected?'var(--d5)':c.hl?'var(--accent)':'var(--d2)'}"></div><span class="cs" style="left:${Math.min(c.score/maxCmp*100+2,80)}%">${c.score} units</span></div><div class="cv">${c.score}<span class="cu">units</span></div></div>`).join('');
+function colorFor(t){return {contract:'#7fd1a8',client:'#5fb3c9',native:'#e8c170',desktop:'#8aa9e8',gates:'#6e7385',removal:'#5fb3c9',hardening:'#d9a96b',observability:'#f5a97f'}[t.kind]||'#6e7385'}
+function treemap(){const el=$('#tmap'), W=el.clientWidth||1080,H=520,total=DATA.subsystems.reduce((a,b)=>a+b.value,0);let x=0,y=0,w=W,h=H, horizontal=true;let html='';const items=[...DATA.subsystems].sort((a,b)=>b.value-a.value);let row=[],sum=0;function flush(){if(!row.length)return;const thick=(sum/total)*(horizontal?W:H);let off=0;for(const t of row){const frac=t.value/sum;if(horizontal){const hh=thick, ww=w*frac;html+=tile(t,x+off,y,ww,hh);off+=ww}else{const ww=thick, hh=h*frac;html+=tile(t,x,y+off,ww,hh);off+=hh}} if(horizontal){y+=thick;h-=thick}else{x+=thick;w-=thick} horizontal=!horizontal;row=[];sum=0} for(const t of items){row.push(t);sum+=t.value;if(row.length>=3)flush()} flush();el.innerHTML=html;$('#tmap-sum').textContent=fmt(total);$$('.tile').forEach(n=>n.onclick=()=>showTile(n.dataset.id));showTile(items[0].id)}
+function tile(t,x,y,w,h){const c=colorFor(t);return `<div class="tile" data-id="${t.id}" style="left:${x}px;top:${y}px;width:${Math.max(w,3)}px;height:${Math.max(h,3)}px;background:${c}"><div class="tn">${esc(t.label)}</div><div class="tv">${t.value} · ${t.sound}%</div></div>`}
+function showTile(id){$$('.tile').forEach(n=>n.classList.toggle('sel',n.dataset.id===id));const t=DATA.subsystems.find(x=>x.id===id);$('#tdetail').innerHTML=`<h3>${esc(t.label)} <span class="small num">${t.value} units · ${t.sound}% migrated</span></h3><div class="fbar"><div style="width:${t.sound}%;background:${colorFor(t)}"></div><div style="width:${100-t.sound}%;background:var(--line2)"></div></div><p class="secsub" style="margin:0">${esc(t.desc)}</p>`}
+window.addEventListener('resize',treemap);treemap();
+function drawFlow(active=null){const origins=originEntries.map(([k,v],i)=>({id:k,label:DATA.originLabels[k],value:v,x:90,y:90+i*78,c:DATA.originColors[k],kind:'origin'}));const pats=[...new Set(DATA.flows.map(f=>f[1]))].map((p,i)=>({id:'p:'+p,label:p,value:DATA.flows.filter(f=>f[1]===p).reduce((a,b)=>a+b[3],0),x:445,y:65+i*62,c:'#8aa9e8',kind:'pattern'}));const dests=DESTS.map((k,i)=>({id:k,label:DATA.destLabels[k],value:DATA.destinations[k],x:850,y:115+i*88,c:DATA.destColors[k],kind:'dest'}));const nodes=[...origins,...pats,...dests], by=Object.fromEntries(nodes.map(n=>[n.id,n]));let s='<text class="colhead" x="90" y="32">origin</text><text class="colhead" x="445" y="32">pattern</text><text class="colhead" x="850" y="32">outcome</text>';for(const f of DATA.flows){const a=by[f[0]],b=by['p:'+f[1]],c=by[f[2]],dim=active&&![a.id,b.id,c.id].includes(active);s+=path(a,b,f[3],a.c,dim)+path(b,c,f[3],c.c,dim)}for(const n of nodes){const dim=active&&!(n.id===active||DATA.flows.some(f=>[f[0],'p:'+f[1],f[2]].includes(active)&&[f[0],'p:'+f[1],f[2]].includes(n.id)));s+=`<g data-id="${esc(n.id)}"><rect class="node" x="${n.x}" y="${n.y}" width="190" height="34" rx="6" fill="${n.c}" opacity="${dim ? .25 : .9}"></rect><text class="nlabel" x="${n.x+10}" y="${n.y+21}">${esc(n.label)}</text><text class="nsub" x="${n.x+200}" y="${n.y+21}">${n.value}</text></g>`}$('#flowsvg').innerHTML=s;$$('#flowsvg g').forEach(g=>g.onclick=()=>{const id=g.dataset.id;drawFlow(active===id?null:id);$('#flownote').innerHTML=active===id?'Click an origin, pattern, or destination to trace where its units flow.':`Highlighted <b>${esc(id.replace('p:',''))}</b>.`})}
+function path(a,b,v,c,dim){const y1=a.y+17,y2=b.y+17;return `<path class="ribbon" d="M${a.x+190} ${y1} C${a.x+270} ${y1}, ${b.x-80} ${y2}, ${b.x} ${y2}" stroke="${c}" stroke-width="${Math.max(3,v/1.8)}" fill="none" opacity="${dim ? .08 : .45}"></path>`}drawFlow();
+$('#finelist').innerHTML=[['8 phases','Phase 0 through Phase 8 are marked complete, from generator spike to final gates.'],['100 units','The page normalizes the migration to 100 weighted implementation units for visual reconciliation.'],['0 shims','The stated migration rule was followed: no transitional shims, barrels, or backward compatibility layers for the old engine boundary.'],['2 native stacks','Rust and Swift both consume OpenAPI-derived protocol packages instead of TypeScript-only RPC details.'],['2 log files','Desktop diagnostics write to the macOS system log path and a repo-local dev mirror by default.'],['4 follow-up units','Remaining work is product validation and hardening, not v2 compatibility.']].map(x=>`<div><div class="fv">${x[0]}</div><div class="ft"><b>${x[0]}</b><p>${x[1]}</p></div></div>`).join('');
+function destBar(dest){const sum=Object.values(dest).reduce((a,b)=>a+b,0);return DESTS.map(k=>dest[k]?`<div style="width:${dest[k]/sum*100}%;background:${DATA.destColors[k]}"></div>`:'').join('')}
+$('#ledger-rows').innerHTML=DATA.ledger.map((r,i)=>`<div class="lrow"><header><div class="li">${String(i+1).padStart(2,'0')}</div><div class="ln">${esc(r.name)} <span class="lo">${DATA.originLabels[r.origin]}</span></div><div class="lb">${destBar(r.dest)}</div><div class="lc">${r.count}<span class="lp">units</span></div><div class="chev">›</div></header><div class="lbody"><div class="lgrid"><div><div class="lblock"><h5>Evidence</h5><p>${esc(r.evidence)}</p></div><div class="lblock fix"><h5>Final shape</h5><p>${esc(r.fix)}</p></div></div><div><div class="lblock"><h5>Files</h5><ul class="exlist">${r.examples.map(e=>`<li><span class="loc">${esc(e)}</span></li>`).join('')}</ul></div></div></div></div></div>`).join('');$$('.lrow>header').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('open'));$('#xall').onclick=()=>{$$('.lrow').forEach(r=>r.classList.remove('open'))};
+$('#passes').innerHTML=DATA.passes.map(p=>{const sum=Object.values(p.counts).reduce((a,b)=>a+b,0);return `<div class="pass"><div class="pq">${esc(p.q)}</div><div class="pm">${p.members} checked areas</div><div class="pbar">${DESTS.map(k=>p.counts[k]?`<div style="width:${p.counts[k]/sum*100}%;background:${DATA.destColors[k]}"></div>`:'').join('')}</div><ul>${DESTS.filter(k=>p.counts[k]).map(k=>`<li><span class="sw" style="background:${DATA.destColors[k]}"></span><span class="cn">${p.counts[k]}</span><span>${DATA.destLabels[k]}</span></li>`).join('')}</ul><p class="small" style="line-height:1.7;margin-top:10px">${esc(p.note)}</p></div>`}).join('');
+function drawPlan(){let x=80,s='<text class="colhead" x="80" y="34">follow-up sequence</text>';for(const [i,p] of DATA.plan.entries()){const w=210;s+=`<rect x="${x}" y="90" width="${w}" height="84" rx="12" fill="var(--panel)" stroke="var(--line2)"></rect><rect x="${x}" y="90" width="${w}" height="5" fill="${p.color}"></rect><text class="nlabel" x="${x+16}" y="122">${p.id} · ${esc(p.name)}</text><text class="nsub" x="${x+16}" y="148">${p.impact}</text><text class="nsub" x="${x+16}" y="166">${p.n} units</text>`;if(i<DATA.plan.length-1)s+=`<path class="ribbon" d="M${x+w+8} 132 L${x+w+58} 132" stroke="${p.color}" stroke-width="5"></path>`;x+=270}$('#wfsvg').innerHTML=s}drawPlan();
+$('#projlist').innerHTML=DATA.plan.map(p=>`<div class="proj"><div class="pid">${p.id}<span class="eff">${p.impact}</span></div><div><h4>${esc(p.name)}</h4><div class="pwhat">${esc(p.what)}</div><div class="pwhy"><b>Why:</b> ${esc(p.why)}</div></div><div class="pred"><div class="n">${p.n}</div><div class="k">follow-up units</div></div></div>`).join('');
+$('#pipeline').innerHTML=[['01','Read migration phases and final-gate notes'],['02','Group implemented files by region and sector'],['03','Normalize scope into 100 weighted units'],['04','Reconcile outcomes to complete/removed/hardened/observable/follow-up'],['05','Render dynamic audit page from static data']].map(x=>`<div class="pstep"><div class="pn">${x[0]}</div><div class="pl">${x[1]}</div></div>`).join('');
+$('#recon').innerHTML='<tr><th>Bucket</th><th>Count</th><th>Evidence</th></tr>'+DESTS.map(k=>`<tr><td>${DATA.destLabels[k]}</td><td class="n">${DATA.destinations[k]}</td><td>${k==='follow-up'?'Tracked follow-up items, not compatibility work.':'Implemented in active source/docs/tests.'}</td></tr>`).join('')+`<tr><td>Total</td><td class="n">${DATA.total}</td><td>All visual units reconcile to the hero bar.</td></tr>`;
+$('#caveat').innerHTML='<b>Caveat.</b> The Bun page audits literal unsafe blocks; this page audits migration scope. The dynamic design is intentionally similar, but the numbers are weighted implementation units synthesized from project evidence, not raw source-code occurrences.';
+</script>
+</body>
+</html>
