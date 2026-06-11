@@ -34,6 +34,7 @@
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",
     "@types/bun": "latest",
+    "@types/node": "^25.9.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }
