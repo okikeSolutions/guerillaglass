@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { desktopApi } from "@lib/engine";
 import { toMediaSourceURL } from "../domain/mediaSourceUrl";
 
@@ -69,4 +69,18 @@ export function useRecordingMediaSourceLease(
 
 export function useRecordingMediaSource(recordingURL: string | null): string | null {
   return useRecordingMediaSourceLease(recordingURL).source;
+}
+
+export function useRecordingMediaSourceErrorRecovery(
+  recordingMediaSource: string | null,
+  refreshRecordingMediaSource: () => Promise<void>,
+): () => void {
+  const lastRetriedMediaSourceRef = useRef<string | null>(null);
+  return useCallback(() => {
+    if (!recordingMediaSource || lastRetriedMediaSourceRef.current === recordingMediaSource) {
+      return;
+    }
+    lastRetriedMediaSourceRef.current = recordingMediaSource;
+    void refreshRecordingMediaSource();
+  }, [recordingMediaSource, refreshRecordingMediaSource]);
 }

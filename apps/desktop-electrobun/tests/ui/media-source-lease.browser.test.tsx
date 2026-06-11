@@ -2,7 +2,10 @@ import React, { useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { useRecordingMediaSourceLease } from "../../src/mainview/app/studio/hooks/useRecordingMediaSource";
+import {
+  useRecordingMediaSourceErrorRecovery,
+  useRecordingMediaSourceLease,
+} from "../../src/mainview/app/studio/hooks/useRecordingMediaSource";
 
 type BridgeWindow = Window & {
   ggGrantMediaSourceCapability?: (filePath: string) => Promise<string>;
@@ -50,6 +53,7 @@ function installMediaBridge() {
 function renderProbe(recordingURL = "/tmp/guerillaglass-recording.mov") {
   function Probe() {
     const lease = useRecordingMediaSourceLease(recordingURL);
+    const handleMediaError = useRecordingMediaSourceErrorRecovery(lease.source, lease.refresh);
     useEffect(() => {
       const sourceNode = document.querySelector("[data-media-source]");
       sourceNode?.setAttribute("data-media-source", lease.source ?? "");
@@ -58,13 +62,7 @@ function renderProbe(recordingURL = "/tmp/guerillaglass-recording.mov") {
     return (
       <div>
         <span data-media-source={lease.source ?? ""} />
-        <video
-          data-testid="recording-video"
-          data-src={lease.source ?? ""}
-          onError={() => {
-            void lease.refresh();
-          }}
-        />
+        <video data-testid="recording-video" data-src={lease.source ?? ""} onError={handleMediaError} />
       </div>
     );
   }
@@ -111,6 +109,22 @@ describe("recording media source leases", () => {
     expect(bridge.resolveCount).toBe(1);
 
     const video = container.querySelector("[data-testid='recording-video']");
+    video?.dispatchEvent(new Event("error", { bubbles: true }));
+
+    await waitFor(() => expect(mediaSource()).toContain("token-2"));
+    expect(bridge.resolveCount).toBe(2);
+  });
+
+  test("does not refetch repeatedly for duplicate errors on the same media source", async () => {
+    const bridge = installMediaBridge();
+
+    renderProbe();
+
+    await waitFor(() => expect(mediaSource()).toContain("token-1"));
+    expect(bridge.resolveCount).toBe(1);
+
+    const video = container.querySelector("[data-testid='recording-video']");
+    video?.dispatchEvent(new Event("error", { bubbles: true }));
     video?.dispatchEvent(new Event("error", { bubbles: true }));
 
     await waitFor(() => expect(mediaSource()).toContain("token-2"));
