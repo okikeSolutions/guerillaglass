@@ -1,3 +1,5 @@
+import Darwin
+import Dispatch
 import EngineProtocol
 import Foundation
 import HTTPTypes
@@ -6,6 +8,45 @@ import OpenAPIHummingbird
 import OpenAPIRuntime
 
 private let maxHTTPBodyBytes: Int64 = 2 * 1024 * 1024
+
+private final class ParentProcessExitMonitor: @unchecked Sendable {
+    private let source: DispatchSourceProcess?
+
+    init() {
+        let parentProcessID = getppid()
+
+        guard parentProcessID > 1 else {
+            FileHandle.standardError.write(
+                Data("engine started without a live parent process; shutting down\n".utf8)
+            )
+            DispatchQueue.global().async {
+                kill(getpid(), SIGTERM)
+            }
+            self.source = nil
+            return
+        }
+
+        let source = DispatchSource.makeProcessSource(
+            identifier: parentProcessID,
+            eventMask: .exit,
+            queue: .global()
+        )
+        source.setEventHandler { [parentProcessID] in
+            FileHandle.standardError.write(
+                Data("engine parent process exited: parent=\(parentProcessID); shutting down\n".utf8)
+            )
+            kill(getpid(), SIGTERM)
+        }
+        source.resume()
+        self.source = source
+    }
+
+    deinit {
+        source?.cancel()
+    }
+}
+
+private let parentProcessExitMonitor = ParentProcessExitMonitor()
 
 extension HTTPField.Name {
     static let secFetchSite = Self("Sec-Fetch-Site")!
@@ -98,7 +139,8 @@ struct GuerillaglassEngineMain {
                     fflush(stdout)
                 }
             )
-            try await app.runService(gracefulShutdownSignals: [])
+            _ = parentProcessExitMonitor
+            try await app.runService()
         } catch {
             FileHandle.standardError.write(Data("engine HTTP startup failed: \(error)\n".utf8))
             Foundation.exit(1)

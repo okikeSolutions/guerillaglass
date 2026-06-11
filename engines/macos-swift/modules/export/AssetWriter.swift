@@ -84,6 +84,7 @@ public final class AssetWriter {
 
         do {
             writer = try AVAssetWriter(outputURL: outputURL, fileType: configuration.fileType)
+            writer.shouldOptimizeForNetworkUse = true
         } catch {
             throw AssetWriterError.cannotCreateWriter
         }

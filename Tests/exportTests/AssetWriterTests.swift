@@ -4,6 +4,15 @@ import Darwin
 import XCTest
 
 final class AssetWriterTests: XCTestCase {
+    func testWriterOptimizesMoviesForNetworkUse() throws {
+        let outputURL = makeOutputURL(fileName: "network-optimized.mov")
+        defer { try? FileManager.default.removeItem(at: outputURL.deletingLastPathComponent()) }
+
+        let writer = try AssetWriter(outputURL: outputURL)
+
+        XCTAssertTrue(writer.writer.shouldOptimizeForNetworkUse)
+    }
+
     func testVideoCompressionProfileAllocatesSeparateTierFor120Fps() {
         let sixtyFpsProfile = AssetWriter.VideoCompressionProfile.resolve(
             width: 1920,
