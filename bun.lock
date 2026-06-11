@@ -8,7 +8,6 @@
         "@effect/language-service": "^0.86.2",
         "@inlang/paraglide-js": "^2.18.2",
         "@nkzw/eslint-plugin": "^2.0.0",
-        "@nkzw/oxlint-config": "^1.2.1",
         "eslint-plugin-no-only-tests": "^3.4.0",
         "eslint-plugin-perfectionist": "^5.9.0",
         "eslint-plugin-react-hooks": "^7.1.1",
@@ -491,8 +490,6 @@
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow=="],
 
     "@nkzw/eslint-plugin": ["@nkzw/eslint-plugin@2.0.0", "", { "peerDependencies": { "eslint": ">= 9" } }, "sha512-IoU8kOqHfnf7se2dGxMD/7RPm6WVjzjOjWSo7FulRx3lJzuZvXioSkT5Nd82l66DH3Pl2whw74lPT1di3KMwFA=="],
-
-    "@nkzw/oxlint-config": ["@nkzw/oxlint-config@1.2.1", "", { "dependencies": { "@nkzw/eslint-plugin": "^2.0.0", "eslint-plugin-no-only-tests": "^3.4.0", "eslint-plugin-perfectionist": "^5.9.0", "eslint-plugin-react-hooks": "^7.1.1" }, "peerDependencies": { "oxlint": ">=1.46.0" } }, "sha512-7yCgIu7QYGKudAv06Q2QFUEQ8Psihoemx8/SWhD+Puk4xQf3ogRo93PJe4wxV2+Yzi9cn2FCmVRtVOx2cSN+xw=="],
 
     "@noble/ciphers": ["@noble/ciphers@2.1.1", "", {}, "sha512-bysYuiVfhxNJuldNXlFEitTVdNnYUc+XNJZd7Qm2a5j1vZHgY+fazadNFWFaMK/2vye0JVlxV3gHmC0WDfAOQw=="],
 
