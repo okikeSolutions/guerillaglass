@@ -112,7 +112,9 @@ jobs:
 
   coverage:
     name: Coverage thresholds
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # Run threshold checks on PRs too so coverage regressions block before merge.
+    # `Scripts/coverage_check.sh` excludes desktop parity/native launch e2e tests that
+    # are already covered by the TypeScript and desktop-parity-matrix jobs.
     runs-on: macos-latest
     steps:
       - name: Checkout
