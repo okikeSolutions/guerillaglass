@@ -1,11 +1,14 @@
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import * as BunServices from "@effect/platform-bun/BunServices";
+import { Effect, Exit, Redacted, Scope, Stream } from "effect";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import type { ChildProcessHandle } from "effect/unstable/process/ChildProcessSpawner";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
+import { makeEngineHttpProcess } from "@guerillaglass/engine-client/process/launchBun";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
-const authToken = "native-http-launch-security-token";
 
 const fixtures = [
   {
@@ -24,114 +27,113 @@ const fixtures = [
 
 type EngineFixture = (typeof fixtures)[number];
 
-type ReadyEnvelope = {
-  readonly type: "guerillaglass.engine.http.ready";
-  readonly host: string;
-  readonly port: number;
+type LaunchedEngine = {
+  readonly baseUrl: string;
+  readonly handle: ChildProcessHandle;
+  readonly scope: Scope.Scope;
+  readonly token: string;
 };
 
-const launchedProcesses = new Set<ChildProcessWithoutNullStreams>();
+const launchedProcesses = new Set<LaunchedEngine>();
 
-function buildNativeEngines(): void {
+async function runCommand(command: string, args: readonly string[], cwd = repoRoot) {
+  return await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const handle = yield* ChildProcess.make(command, args, {
+          cwd,
+          stdin: "ignore",
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const [stdout, stderr, exitCode] = yield* Effect.all([
+          handle.stdout.pipe(
+            Stream.decodeText(),
+            Stream.runFold(
+              () => "",
+              (accumulator, chunk) => accumulator + chunk,
+            ),
+          ),
+          handle.stderr.pipe(
+            Stream.decodeText(),
+            Stream.runFold(
+              () => "",
+              (accumulator, chunk) => accumulator + chunk,
+            ),
+          ),
+          handle.exitCode,
+        ]);
+        return { exitCode, stderr, stdout };
+      }),
+    ).pipe(Effect.provide(BunServices.layer)),
+  );
+}
+
+async function buildNativeEngines(): Promise<void> {
   for (const fixture of fixtures) {
-    const result = spawnSync("cargo", ["build", "--manifest-path", fixture.manifestPath], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
-    if (result.status !== 0) {
+    const result = await runCommand("cargo", ["build", "--manifest-path", fixture.manifestPath]);
+    if (result.exitCode !== 0) {
       throw new Error(`Failed to build ${fixture.name}\n${result.stderr}`);
     }
   }
 }
 
-function readReadyEnvelope(child: ChildProcessWithoutNullStreams): Promise<ReadyEnvelope> {
-  return new Promise((resolve, reject) => {
-    let stdout = "";
-    let stderr = "";
-    const timeout = setTimeout(() => {
-      reject(
-        new Error(`Timed out waiting for engine readiness. stdout=${stdout} stderr=${stderr}`),
-      );
-    }, 10_000);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk: string) => {
-      stderr += chunk;
-    });
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-      for (const line of stdout.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("{")) {
-          continue;
-        }
-        const envelope = JSON.parse(trimmed) as ReadyEnvelope;
-        if (envelope.type === "guerillaglass.engine.http.ready") {
-          clearTimeout(timeout);
-          resolve(envelope);
-        }
-      }
-    });
-    child.once("exit", (code, signal) => {
-      clearTimeout(timeout);
-      reject(
-        new Error(
-          `Engine exited before readiness code=${code} signal=${signal} stdout=${stdout} stderr=${stderr}`,
-        ),
-      );
-    });
-  });
-}
-
-async function launchEngine(
-  fixture: EngineFixture,
-): Promise<{ readonly child: ChildProcessWithoutNullStreams; readonly baseUrl: string }> {
+async function launchEngine(fixture: EngineFixture): Promise<LaunchedEngine> {
   const tempRoot = fs.mkdtempSync(
     path.join(fs.realpathSync(os.tmpdir()), `gg-${fixture.name}-http-security-`),
   );
-  const child = spawn(fixture.enginePath, [], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      GG_ENGINE_TRANSPORT: "http",
-      GG_ENGINE_HTTP_AUTH_TOKEN: authToken,
-      HOME: tempRoot,
-      USERPROFILE: tempRoot,
-    },
-  });
-  launchedProcesses.add(child);
-  const ready = await readReadyEnvelope(child);
-  expect(ready.host).toBe("127.0.0.1");
-  expect(ready.port).toBeGreaterThan(0);
-  return { child, baseUrl: `http://${ready.host}:${ready.port}` };
+  const scope = await Effect.runPromise(Scope.make());
+  try {
+    const launched = await Effect.runPromise(
+      makeEngineHttpProcess({
+        enginePath: fixture.enginePath,
+        env: {
+          HOME: tempRoot,
+          USERPROFILE: tempRoot,
+        },
+      }).pipe(Scope.provide(scope), Effect.provide(BunServices.layer)),
+    );
+    expect(launched.address.host).toBe("127.0.0.1");
+    expect(launched.address.port).toBeGreaterThan(0);
+    const engine = {
+      baseUrl: launched.baseUrl.toString().replace(/\/$/, ""),
+      handle: launched.process,
+      scope,
+      token: Redacted.value(launched.bearerToken),
+    };
+    launchedProcesses.add(engine);
+    return engine;
+  } catch (error) {
+    await Effect.runPromise(Scope.close(scope, Exit.fail(error)).pipe(Effect.ignore));
+    throw error;
+  }
 }
 
-async function stopEngine(child: ChildProcessWithoutNullStreams): Promise<void> {
-  if (!launchedProcesses.delete(child)) {
+async function stopEngine(engine: LaunchedEngine): Promise<void> {
+  if (!launchedProcesses.delete(engine)) {
     return;
   }
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return;
-  }
-  child.kill();
-  await new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, 1000);
-    child.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
+  await Effect.runPromise(
+    Effect.all(
+      [
+        engine.handle.kill({ forceKillAfter: "1 second" }).pipe(Effect.ignore),
+        Scope.close(engine.scope, Exit.void),
+      ],
+      {
+        discard: true,
+      },
+    ).pipe(Effect.ignore),
+  );
 }
 
-function authorizedHeaders(extra?: HeadersInit): HeadersInit {
+function authorizedHeaders(token: string, extra?: HeadersInit): HeadersInit {
   return {
-    authorization: `Bearer ${authToken}`,
+    authorization: `Bearer ${token}`,
     ...extra,
   };
 }
 
-function postOversizedBodyWithCurl(baseUrl: string): number {
+async function postOversizedBodyWithCurl(baseUrl: string, token: string): Promise<number> {
   const tempFile = path.join(
     fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gg-body-limit-")),
     "oversized.json",
@@ -146,25 +148,21 @@ function postOversizedBodyWithCurl(baseUrl: string): number {
       padding: "x".repeat(2 * 1024 * 1024),
     }),
   );
-  const result = spawnSync(
-    "curl",
-    [
-      "--silent",
-      "--output",
-      "/dev/null",
-      "--write-out",
-      "%{http_code}",
-      "--header",
-      `authorization: Bearer ${authToken}`,
-      "--header",
-      "content-type: application/json",
-      "--data-binary",
-      `@${tempFile}`,
-      `${baseUrl}/v1/capture/start-display`,
-    ],
-    { encoding: "utf8" },
-  );
-  if (result.status !== 0) {
+  const result = await runCommand("curl", [
+    "--silent",
+    "--output",
+    "/dev/null",
+    "--write-out",
+    "%{http_code}",
+    "--header",
+    `authorization: Bearer ${token}`,
+    "--header",
+    "content-type: application/json",
+    "--data-binary",
+    `@${tempFile}`,
+    `${baseUrl}/v1/capture/start-display`,
+  ]);
+  if (result.exitCode !== 0) {
     throw new Error(`curl body-limit request failed: ${result.stderr}`);
   }
   return Number(result.stdout);
@@ -179,12 +177,14 @@ afterEach(async () => {
 describe("native engine HTTP launch/security e2e", () => {
   for (const fixture of fixtures) {
     test(`covers readiness, bearer auth, success, body limit, origin guard, unsupported route, and unsupported method (${fixture.name})`, async () => {
-      const { child, baseUrl } = await launchEngine(fixture);
+      const engine = await launchEngine(fixture);
       try {
-        const missingAuth = await fetch(`${baseUrl}/v1/system/ping`);
+        const missingAuth = await fetch(`${engine.baseUrl}/v1/system/ping`);
         expect(missingAuth.status).toBe(401);
 
-        const ping = await fetch(`${baseUrl}/v1/system/ping`, { headers: authorizedHeaders() });
+        const ping = await fetch(`${engine.baseUrl}/v1/system/ping`, {
+          headers: authorizedHeaders(engine.token),
+        });
         expect(ping.status).toBe(200);
         await expect(ping.json()).resolves.toMatchObject({
           app: "guerillaglass",
@@ -192,25 +192,25 @@ describe("native engine HTTP launch/security e2e", () => {
           protocolVersion: "2",
         });
 
-        const hostileOrigin = await fetch(`${baseUrl}/v1/system/ping`, {
-          headers: authorizedHeaders({ origin: "https://evil.example" }),
+        const hostileOrigin = await fetch(`${engine.baseUrl}/v1/system/ping`, {
+          headers: authorizedHeaders(engine.token, { origin: "https://evil.example" }),
         });
         expect(hostileOrigin.status).toBe(403);
 
-        const unsupportedRoute = await fetch(`${baseUrl}/v1/does-not-exist`, {
-          headers: authorizedHeaders(),
+        const unsupportedRoute = await fetch(`${engine.baseUrl}/v1/does-not-exist`, {
+          headers: authorizedHeaders(engine.token),
         });
         expect(unsupportedRoute.status).toBe(404);
 
-        const unsupportedMethod = await fetch(`${baseUrl}/v1/system/ping`, {
-          headers: authorizedHeaders(),
+        const unsupportedMethod = await fetch(`${engine.baseUrl}/v1/system/ping`, {
+          headers: authorizedHeaders(engine.token),
           method: "POST",
         });
         expect(unsupportedMethod.status).toBe(405);
 
-        expect(postOversizedBodyWithCurl(baseUrl)).toBe(413);
+        expect(await postOversizedBodyWithCurl(engine.baseUrl, engine.token)).toBe(413);
       } finally {
-        await stopEngine(child);
+        await stopEngine(engine);
       }
     }, 30_000);
   }

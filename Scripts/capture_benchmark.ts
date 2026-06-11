@@ -1,12 +1,16 @@
-import type { Subprocess } from "bun";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import * as BunServices from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunServices.js";
 import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
+import * as Exit from "../apps/desktop-electrobun/node_modules/effect/dist/Exit.js";
 import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
+import * as Scope from "../apps/desktop-electrobun/node_modules/effect/dist/Scope.js";
 import * as Schema from "../apps/desktop-electrobun/node_modules/effect/dist/Schema.js";
+import * as Stream from "../apps/desktop-electrobun/node_modules/effect/dist/Stream.js";
+import * as ChildProcess from "../apps/desktop-electrobun/node_modules/effect/dist/unstable/process/ChildProcess.js";
 import { EngineClient, layerEngineClientBun } from "../packages/engine-client/src/service";
 import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
 import {
@@ -75,13 +79,15 @@ function createBenchmarkEngineClient(enginePath: string) {
   const runtime = ManagedRuntime.make(layerEngineClientBun({ enginePath }));
   const run = <A>(effect: Effect.Effect<A, unknown, unknown>) =>
     runtime.runPromise(effect as Effect.Effect<A, unknown, EngineClient>);
-  const runJson = <S extends Schema.Top>(schema: S, effect: Effect.Effect<unknown, unknown, unknown>) =>
+  const runJson = <S extends Schema.Top>(
+    schema: S,
+    effect: Effect.Effect<unknown, unknown, unknown>,
+  ) =>
     run(
-      Effect.flatMap(effect, Schema.encodeUnknownEffect(Schema.toCodecJson(schema))) as Effect.Effect<
-        Schema.Codec.Encoded<S>,
-        unknown,
-        unknown
-      >,
+      Effect.flatMap(
+        effect,
+        Schema.encodeUnknownEffect(Schema.toCodecJson(schema)),
+      ) as Effect.Effect<Schema.Codec.Encoded<S>, unknown, unknown>,
     );
   const runCaptureStatus = (effect: Effect.Effect<unknown, unknown, unknown>) =>
     runJson(captureStatusResultSchema, effect) as Promise<CaptureStatusResult>;
@@ -95,9 +101,10 @@ function createBenchmarkEngineClient(enginePath: string) {
     requestInputMonitoringPermission: () =>
       run(Effect.flatMap(EngineClient, (engine) => engine.permissionsRequestInputMonitoring)),
     listSources: () =>
-      runJson(sourcesResultSchema, Effect.flatMap(EngineClient, (engine) => engine.sourcesList)).then(
-        (sources) => sources as SourceListing,
-      ),
+      runJson(
+        sourcesResultSchema,
+        Effect.flatMap(EngineClient, (engine) => engine.sourcesList),
+      ).then((sources) => sources as SourceListing),
     startDisplayCapture: (
       enableMic: boolean,
       captureFps: CaptureFrameRate,
@@ -120,7 +127,8 @@ function createBenchmarkEngineClient(enginePath: string) {
           engine.captureStartWindow({ windowId, enableMic, captureFps, enablePreview }),
         ),
       ),
-    stopCapture: () => runCaptureStatus(Effect.flatMap(EngineClient, (engine) => engine.captureStop)),
+    stopCapture: () =>
+      runCaptureStatus(Effect.flatMap(EngineClient, (engine) => engine.captureStop)),
     startRecording: (trackInputEvents: boolean) =>
       runCaptureStatus(
         Effect.flatMap(EngineClient, (engine) => engine.recordingStart({ trackInputEvents })),
@@ -134,7 +142,9 @@ function createBenchmarkEngineClient(enginePath: string) {
 
 function resolveBenchmarkEnginePath(): string {
   const explicit = process.env.GG_ENGINE_PATH;
-  if (explicit && explicit.trim().length > 0) {return path.resolve(explicit);}
+  if (explicit && explicit.trim().length > 0) {
+    return path.resolve(explicit);
+  }
   return path.resolve(process.cwd(), "engines/macos-swift/.build/debug/guerillaglass-engine");
 }
 
@@ -714,8 +724,67 @@ async function waitForBenchmarkWindow(
   );
 }
 
+type BenchmarkProcess = {
+  handle: {
+    exitCode: Effect.Effect<number, unknown, unknown>;
+    kill: (options?: { forceKillAfter?: string }) => Effect.Effect<void, unknown, unknown>;
+    stderr: Stream.Stream<Uint8Array, unknown>;
+    stdout: Stream.Stream<Uint8Array, unknown>;
+  };
+  scope: Scope.Scope;
+};
+
+async function runProcessEffect<A, E, R>(effect: Effect.Effect<A, E, R>) {
+  return await Effect.runPromise(effect.pipe(Effect.provide(BunServices.layer)) as never);
+}
+
+async function spawnBenchmarkProcess(
+  command: readonly string[],
+  options: {
+    cwd?: string;
+    env?: Record<string, string | undefined>;
+  } = {},
+): Promise<BenchmarkProcess> {
+  const [executable, ...args] = command;
+  if (!executable) {
+    throw new Error("Cannot spawn an empty command.");
+  }
+  const scope = await Effect.runPromise(Scope.make());
+  try {
+    const handle = await runProcessEffect(
+      ChildProcess.make(executable, args, {
+        cwd: options.cwd,
+        env: options.env,
+        extendEnv: options.env ? false : true,
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+        forceKillAfter: "2 seconds",
+      }).pipe(Scope.provide(scope)),
+    );
+    return { handle: handle as BenchmarkProcess["handle"], scope };
+  } catch (error) {
+    await Effect.runPromise(Scope.close(scope, Exit.fail(error)).pipe(Effect.ignore));
+    throw error;
+  }
+}
+
+async function closeBenchmarkProcess(child: BenchmarkProcess) {
+  await runProcessEffect(
+    Effect.all(
+      [
+        child.handle.kill({ forceKillAfter: "2 seconds" }).pipe(Effect.ignore),
+        Scope.close(child.scope, Exit.void),
+      ],
+      {
+        discard: true,
+      },
+    ).pipe(Effect.ignore),
+  );
+}
+
 async function consumeSubprocessStream(
-  stream: ReadableStream<Uint8Array> | null | undefined,
+  stream: Stream.Stream<Uint8Array, unknown>,
   {
     onLine,
     sink,
@@ -724,43 +793,22 @@ async function consumeSubprocessStream(
     sink: (line: string) => void;
   },
 ) {
-  if (!stream) {
-    return;
-  }
-
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffered = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      buffered += decoder.decode(value, { stream: true });
-      const lines = buffered.split(/\r?\n/u);
-      buffered = lines.pop() ?? "";
-      for (const line of lines) {
-        onLine?.(line);
-        sink(line);
-      }
-    }
-
-    buffered += decoder.decode();
-    if (buffered.length > 0) {
-      onLine?.(buffered);
-      sink(buffered);
-    }
-  } finally {
-    reader.releaseLock();
-  }
+  await runProcessEffect(
+    stream.pipe(
+      Stream.decodeText(),
+      Stream.splitLines,
+      Stream.runForEach((line) =>
+        Effect.sync(() => {
+          onLine?.(line);
+          sink(line);
+        }),
+      ),
+      Effect.catch(() => Effect.void),
+    ),
+  );
 }
 
-async function waitForBenchmarkReadySignal(
-  child: Subprocess<"ignore", "pipe", "pipe">,
-  timeoutMs: number,
-) {
+async function waitForBenchmarkReadySignal(child: BenchmarkProcess, timeoutMs: number) {
   let resolved = false;
 
   const readyPromise = new Promise<void>((resolve, reject) => {
@@ -771,7 +819,7 @@ async function waitForBenchmarkReadySignal(
       }
     };
 
-    void consumeSubprocessStream(child.stdout, {
+    void consumeSubprocessStream(child.handle.stdout, {
       onLine: handleLine,
       sink: (line) => console.log(line),
     }).catch((error) => {
@@ -779,7 +827,7 @@ async function waitForBenchmarkReadySignal(
         reject(error);
       }
     });
-    void consumeSubprocessStream(child.stderr, {
+    void consumeSubprocessStream(child.handle.stderr, {
       onLine: handleLine,
       sink: (line) => console.error(line),
     }).catch((error) => {
@@ -788,7 +836,7 @@ async function waitForBenchmarkReadySignal(
       }
     });
 
-    void child.exited.then((exitCode: number) => {
+    void runProcessEffect(child.handle.exitCode).then((exitCode) => {
       if (!resolved) {
         reject(new Error(`Benchmark app exited before readiness signal (exit code ${exitCode}).`));
       }
@@ -807,37 +855,33 @@ async function waitForBenchmarkReadySignal(
   await Promise.race([readyPromise, timeoutPromise]);
 }
 
-function runCommandForBenchmark(command: string[]) {
-  const result = Bun.spawnSync(command, {
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (result.exitCode === 0) {
-    return true;
+async function runCommandForBenchmark(command: string[]) {
+  const child = await spawnBenchmarkProcess(command);
+  try {
+    const exitCode = await runProcessEffect(child.handle.exitCode);
+    return exitCode === 0;
+  } finally {
+    await closeBenchmarkProcess(child);
   }
-  return false;
 }
 
 async function ensureBenchmarkAppExecutable() {
-  const build = Bun.spawn(["bun", "run", "desktop:build"], {
+  const build = await spawnBenchmarkProcess(["bun", "run", "desktop:build"], {
     cwd: process.cwd(),
     env: process.env,
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
   });
 
   await Promise.all([
-    consumeSubprocessStream(build.stdout, {
+    consumeSubprocessStream(build.handle.stdout, {
       sink: (line) => console.log(line),
     }),
-    consumeSubprocessStream(build.stderr, {
+    consumeSubprocessStream(build.handle.stderr, {
       sink: (line) => console.error(line),
     }),
   ]);
 
-  const exitCode = await build.exited;
+  const exitCode = await runProcessEffect(build.handle.exitCode);
+  await closeBenchmarkProcess(build);
   if (exitCode !== 0) {
     throw new Error(`desktop:build failed with exit code ${exitCode}.`);
   }
@@ -857,7 +901,7 @@ async function activateBenchmarkApp(sceneWindow: BenchmarkSceneWindow) {
   }
 
   for (const appName of sceneWindow.appNames) {
-    const activated = runCommandForBenchmark([
+    const activated = await runCommandForBenchmark([
       "osascript",
       "-e",
       `tell application "${appName}" to activate`,
@@ -877,16 +921,13 @@ async function openBenchmarkScene(
   }
 
   const benchmarkExecutablePath = await ensureBenchmarkAppExecutable();
-  const child = Bun.spawn([benchmarkExecutablePath], {
+  const child = await spawnBenchmarkProcess([benchmarkExecutablePath], {
     cwd: process.cwd(),
     env: {
       ...process.env,
       GG_CAPTURE_BENCHMARK: "1",
-      GG_STUDIO_DIAGNOSTICS: "1",
+      GG_DEBUG: "1",
     },
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
   });
 
   try {
@@ -895,16 +936,14 @@ async function openBenchmarkScene(
     await activateBenchmarkApp(benchmarkSceneWindow);
     await sleep(750);
   } catch (error) {
-    child.kill();
-    await child.exited.catch(() => {});
+    await closeBenchmarkProcess(child);
     throw error;
   }
 
   return {
     window: benchmarkSceneWindow,
     close: async () => {
-      child.kill();
-      await child.exited.catch(() => {});
+      await closeBenchmarkProcess(child);
     },
   };
 }
@@ -1437,8 +1476,16 @@ async function runScenarioRun(
           : null;
     const steadySamples = toSteadyStateSamples(samples);
     const averageAchievedFps =
-      mean(steadySamples.map((sample) => sample.telemetry.achievedFps).filter((value): value is number => value != null)) ?? 0;
-    const minimumAchievedFps = minimum(steadySamples.map((sample) => sample.telemetry.achievedFps).filter((value): value is number => value != null));
+      mean(
+        steadySamples
+          .map((sample) => sample.telemetry.achievedFps)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
+    const minimumAchievedFps = minimum(
+      steadySamples
+        .map((sample) => sample.telemetry.achievedFps)
+        .filter((value): value is number => value != null),
+    );
     const averageCpuPercent = mean(
       steadySamples
         .map((sample) => sample.telemetry.cpuPercent)
@@ -1460,17 +1507,41 @@ async function runScenarioRun(
         .filter((value): value is number => value !== null),
     );
     const averageCaptureCallbackMs =
-      mean(steadySamples.map((sample) => sample.telemetry.captureCallbackMs).filter((value): value is number => value != null)) ?? 0;
+      mean(
+        steadySamples
+          .map((sample) => sample.telemetry.captureCallbackMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const peakCaptureCallbackMs =
-      maximum(steadySamples.map((sample) => sample.telemetry.captureCallbackMs).filter((value): value is number => value != null)) ?? 0;
+      maximum(
+        steadySamples
+          .map((sample) => sample.telemetry.captureCallbackMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const averageRecordQueueLagMs =
-      mean(steadySamples.map((sample) => sample.telemetry.recordQueueLagMs).filter((value): value is number => value != null)) ?? 0;
+      mean(
+        steadySamples
+          .map((sample) => sample.telemetry.recordQueueLagMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const peakRecordQueueLagMs =
-      maximum(steadySamples.map((sample) => sample.telemetry.recordQueueLagMs).filter((value): value is number => value != null)) ?? 0;
+      maximum(
+        steadySamples
+          .map((sample) => sample.telemetry.recordQueueLagMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const averageWriterAppendMs =
-      mean(steadySamples.map((sample) => sample.telemetry.writerAppendMs).filter((value): value is number => value != null)) ?? 0;
+      mean(
+        steadySamples
+          .map((sample) => sample.telemetry.writerAppendMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const peakWriterAppendMs =
-      maximum(steadySamples.map((sample) => sample.telemetry.writerAppendMs).filter((value): value is number => value != null)) ?? 0;
+      maximum(
+        steadySamples
+          .map((sample) => sample.telemetry.writerAppendMs)
+          .filter((value): value is number => value != null),
+      ) ?? 0;
     const averagePreviewEncodeMs =
       mean(
         steadySamples
@@ -1484,7 +1555,8 @@ async function runScenarioRun(
           .filter((value): value is number => value != null),
       ) ?? 0;
     const overallDroppedFrames =
-      (recordingStatus.telemetry.sourceDroppedFrames ?? 0) + (recordingStatus.telemetry.writerDroppedFrames ?? 0);
+      (recordingStatus.telemetry.sourceDroppedFrames ?? 0) +
+      (recordingStatus.telemetry.writerDroppedFrames ?? 0);
     const expectedFrames = Math.max(
       1,
       recordingStatus.recordingDurationSeconds * Number(scenario.captureFps),

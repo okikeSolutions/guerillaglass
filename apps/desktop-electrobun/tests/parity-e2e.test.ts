@@ -1,16 +1,11 @@
-import { spawn, spawnSync, type ChildProcessByStdio } from "node:child_process";
-import type { Readable } from "node:stream";
+import * as BunServices from "@effect/platform-bun/BunServices";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
-import { Effect, Layer, Redacted } from "effect";
-import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
-import { EngineClient, layerEngineClient } from "@guerillaglass/engine-client/service";
-import {
-  engineHttpBaseUrl,
-  parseEngineHttpReadyLine,
-} from "@guerillaglass/engine-client/process/readiness";
+import { Effect, Stream } from "effect";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import { EngineClient, layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import {
   outputUrlSchema,
   projectPathSchema,
@@ -22,111 +17,67 @@ type EngineFixture = {
   expectedPlatform: "windows" | "linux";
 };
 
-const nativeEngineBuildTimeoutMs = 120_000;
+const nativeEngineBuildTimeoutMs = 300_000;
+const executableExtension = process.platform === "win32" ? ".exe" : "";
 
 const fixtures: EngineFixture[] = [
   {
     name: "windows-native",
-    path: path.resolve(import.meta.dirname, "../../../target/debug/guerillaglass-engine-windows"),
+    path: path.resolve(
+      import.meta.dirname,
+      `../../../target/debug/guerillaglass-engine-windows${executableExtension}`,
+    ),
     expectedPlatform: "windows",
   },
   {
     name: "linux-native",
-    path: path.resolve(import.meta.dirname, "../../../target/debug/guerillaglass-engine-linux"),
+    path: path.resolve(
+      import.meta.dirname,
+      `../../../target/debug/guerillaglass-engine-linux${executableExtension}`,
+    ),
     expectedPlatform: "linux",
   },
 ];
 
-function buildNativeEngine(manifestPath: string): void {
-  const result = spawnSync("cargo", ["build", "--manifest-path", manifestPath], {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  if (result.status !== 0) {
+async function buildNativeEngine(manifestPath: string): Promise<void> {
+  const result = await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const handle = yield* ChildProcess.make(
+          "cargo",
+          ["build", "--manifest-path", manifestPath],
+          {
+            stdin: "ignore",
+            stdout: "pipe",
+            stderr: "pipe",
+          },
+        );
+        const stderr = yield* handle.stderr.pipe(
+          Stream.decodeText(),
+          Stream.runFold(
+            () => "",
+            (accumulator, chunk) => accumulator + chunk,
+          ),
+        );
+        return yield* handle.exitCode.pipe(Effect.map((exitCode) => ({ exitCode, stderr })));
+      }),
+    ).pipe(Effect.provide(BunServices.layer)),
+  );
+  if (result.exitCode !== 0) {
     throw new Error(`Failed to build ${manifestPath}\n${result.stderr}`);
   }
 }
 
-type LaunchedEngine = {
-  readonly process: ChildProcessByStdio<null, Readable, Readable>;
-  readonly baseUrl: URL;
-  readonly bearerToken: Redacted.Redacted<string>;
-};
-
-function makeBearerToken(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function launchNativeEngine(fixture: EngineFixture, home: string): Promise<LaunchedEngine> {
-  const token = makeBearerToken();
-  const subprocess = spawn(fixture.path, [], {
-    env: {
-      ...process.env,
-      HOME: home,
-      USERPROFILE: home,
-      GG_ENGINE_TRANSPORT: "http",
-      GG_ENGINE_HTTP_AUTH_TOKEN: token,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  let stderr = "";
-  subprocess.stderr.setEncoding("utf8");
-  subprocess.stderr.on("data", (chunk) => {
-    stderr += chunk;
-  });
-
-  const address = await new Promise<ReturnType<typeof parseEngineHttpReadyLine>>(
-    (resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error(`Timed out waiting for ${fixture.name} readiness\n${stderr}`)),
-        10_000,
-      );
-      let buffer = "";
-      subprocess.stdout.setEncoding("utf8");
-      subprocess.stdout.on("data", (chunk) => {
-        buffer += chunk;
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          const parsed = parseEngineHttpReadyLine(line.trim());
-          if (parsed) {
-            clearTimeout(timeout);
-            resolve(parsed);
-          }
-        }
-      });
-      subprocess.once("error", (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-      subprocess.once("exit", (code) => {
-        clearTimeout(timeout);
-        reject(new Error(`${fixture.name} exited before readiness with code ${code}\n${stderr}`));
-      });
-    },
-  );
-
-  if (!address) {
-    throw new Error(`${fixture.name} emitted invalid readiness`);
-  }
-  return {
-    process: subprocess,
-    baseUrl: engineHttpBaseUrl(address),
-    bearerToken: Redacted.make(token, { label: "engine-http-bearer-token" }),
-  };
-}
-
 describe("engine HTTP parity e2e", () => {
-  beforeAll(() => {
-    buildNativeEngine(
-      path.resolve(import.meta.dirname, "../../../engines/windows-native/Cargo.toml"),
-    );
-    buildNativeEngine(
-      path.resolve(import.meta.dirname, "../../../engines/linux-native/Cargo.toml"),
-    );
+  beforeAll(async () => {
+    await Promise.all([
+      buildNativeEngine(
+        path.resolve(import.meta.dirname, "../../../engines/windows-native/Cargo.toml"),
+      ),
+      buildNativeEngine(
+        path.resolve(import.meta.dirname, "../../../engines/linux-native/Cargo.toml"),
+      ),
+    ]);
   }, nativeEngineBuildTimeoutMs);
   for (const fixture of fixtures) {
     test(
@@ -136,9 +87,7 @@ describe("engine HTTP parity e2e", () => {
         const tempRoot = fs.mkdtempSync(
           path.join(fs.realpathSync(os.tmpdir()), `${fixture.name}-e2e-`),
         );
-        let launched: LaunchedEngine | undefined;
         try {
-          launched = await launchNativeEngine(fixture, tempRoot);
           await Effect.gen(function* () {
             const engine = yield* EngineClient;
             const ping = yield* engine.systemPing;
@@ -193,15 +142,18 @@ describe("engine HTTP parity e2e", () => {
             expect(stopped.isRunning).toBe(false);
           }).pipe(
             Effect.provide(
-              layerEngineClient({
-                baseUrl: launched.baseUrl,
-                bearerToken: launched.bearerToken,
-              }).pipe(Layer.provide(FetchHttpClient.layer)),
+              layerEngineClientBun({
+                enginePath: fixture.path,
+                env: {
+                  HOME: tempRoot,
+                  USERPROFILE: tempRoot,
+                },
+              }),
             ),
+            Effect.scoped,
             (effect) => Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
           );
         } finally {
-          launched?.process.kill();
           fs.rmSync(tempRoot, { force: true, recursive: true });
         }
       },

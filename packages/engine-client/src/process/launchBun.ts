@@ -1,5 +1,10 @@
 import { stat } from "node:fs/promises";
-import { Effect, Metric, Option, Redacted, Scope } from "effect";
+import { Deferred, Duration, Effect, Metric, Option, Redacted, Scope, Stream } from "effect";
+import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import type {
+  ChildProcessHandle,
+  ChildProcessSpawner,
+} from "effect/unstable/process/ChildProcessSpawner";
 import { EngineProcessError } from "../errors";
 import { engineLaunchDuration, engineLaunchFailuresTotal } from "../metrics";
 import { EnginePathConfig, EngineProcessConfig } from "./config";
@@ -30,6 +35,13 @@ export type EngineHttpProcessOptions = {
    * @remarks Values override inherited `process.env` entries.
    */
   readonly env?: NodeJS.ProcessEnv;
+  /**
+   * Terminates stale engine processes launched from the same executable path before spawning.
+   *
+   * @remarks Useful for desktop app relaunches after an ungraceful shutdown left an orphaned
+   * ScreenCaptureKit process active.
+   */
+  readonly cleanupStaleProcesses?: boolean;
 };
 
 /**
@@ -37,9 +49,9 @@ export type EngineHttpProcessOptions = {
  */
 export type EngineHttpProcess = {
   /**
-   * Bun subprocess handle for the native engine.
+   * Scoped child process handle for the native engine.
    */
-  readonly process: Bun.Subprocess;
+  readonly process: ChildProcessHandle;
   /**
    * Validated loopback address emitted by readiness.
    */
@@ -121,102 +133,174 @@ export function resolveEnginePath(enginePath?: string): Effect.Effect<string, En
  * Resolves the command and arguments needed to launch an engine path.
  *
  * @param enginePath - Resolved engine path.
- * @returns Command tuple for `Bun.spawn`.
+ * @returns Command tuple for process spawning.
  */
 function resolveEngineCommand(enginePath: string): readonly [string, readonly string[]] {
   return [enginePath, []] as const;
 }
 
-/**
- * Reads stdout until a valid HTTP readiness envelope is found.
- *
- * @param subprocess - Bun subprocess whose stdout emits readiness.
- * @param timeoutMs - Maximum readiness wait duration in milliseconds.
- * @returns A promise for the validated engine HTTP address.
- */
-async function waitForReady(
-  subprocess: Bun.Subprocess,
+function commandText(command: string, args: readonly string[]): string {
+  return [command, ...args].join(" ");
+}
+
+function writeEngineStderrLine(line: string): void {
+  const trimmed = line.trimEnd();
+  if (trimmed.length > 0) {
+    process.stderr.write(`engine stderr ${trimmed}\n`);
+  }
+}
+
+function drainStderr(handle: ChildProcessHandle): Effect.Effect<void, never, Scope.Scope> {
+  return handle.stderr.pipe(
+    Stream.decodeText(),
+    Stream.splitLines,
+    Stream.runForEach((line) => Effect.sync(() => writeEngineStderrLine(line))),
+    Effect.catch(() => Effect.void),
+    Effect.forkScoped,
+    Effect.asVoid,
+  );
+}
+
+function waitForReady(
+  handle: ChildProcessHandle,
   timeoutMs: number,
-): Promise<EngineHttpAddress> {
-  const stdout = subprocess.stdout;
-  if (!stdout || typeof stdout === "number") {
-    throw new EngineProcessError({
-      code: "ENGINE_READINESS_INVALID",
-      message: "Engine process stdout is unavailable for readiness.",
-    });
-  }
+): Effect.Effect<EngineHttpAddress, EngineProcessError, Scope.Scope> {
+  return Effect.gen(function* () {
+    const ready = yield* Deferred.make<EngineHttpAddress, EngineProcessError>();
 
-  const decoder = new TextDecoder();
-  const reader = stdout.getReader();
-  let buffer = "";
-  const timeout = AbortSignal.timeout(timeoutMs);
+    const failReady = (error: EngineProcessError) =>
+      Deferred.fail(ready, error).pipe(Effect.ignore);
 
-  while (!timeout.aborted) {
-    const exited = subprocess.exited.then((exitCode) => ({ type: "exit" as const, exitCode }));
-    const read = reader.read().then((result) => ({ type: "read" as const, result }));
-    const abort = new Promise<{ readonly type: "timeout" }>((resolve) =>
-      timeout.addEventListener("abort", () => resolve({ type: "timeout" }), { once: true }),
+    yield* handle.stdout.pipe(
+      Stream.decodeText(),
+      Stream.splitLines,
+      Stream.runForEach((line) => {
+        const parsed = parseEngineHttpReadyLine(line.trim());
+        return parsed ? Deferred.succeed(ready, parsed).pipe(Effect.ignore) : Effect.void;
+      }),
+      Effect.andThen(
+        failReady(
+          new EngineProcessError({
+            code: "ENGINE_READINESS_INVALID",
+            message: "Engine process closed stdout before HTTP readiness.",
+          }),
+        ),
+      ),
+      Effect.catch((error) =>
+        failReady(
+          new EngineProcessError({
+            code: "ENGINE_READINESS_INVALID",
+            message: "Unable to read engine stdout for readiness.",
+            cause: error,
+          }),
+        ),
+      ),
+      Effect.forkScoped,
     );
-    const outcome = await Promise.race([exited, read, abort]);
 
-    if (outcome.type === "timeout") {
-      throw new EngineProcessError({
-        code: "ENGINE_READINESS_TIMEOUT",
-        message: "Timed out waiting for engine HTTP readiness.",
-      });
-    }
-    if (outcome.type === "exit") {
-      throw new EngineProcessError({
-        code: "ENGINE_EXITED_BEFORE_READINESS",
-        message: `Engine process exited before HTTP readiness with code ${outcome.exitCode}`,
-      });
-    }
-    if (outcome.result.done) {
-      throw new EngineProcessError({
-        code: "ENGINE_READINESS_INVALID",
-        message: "Engine process closed stdout before HTTP readiness.",
-      });
-    }
+    yield* handle.exitCode.pipe(
+      Effect.flatMap((exitCode) =>
+        failReady(
+          new EngineProcessError({
+            code: "ENGINE_EXITED_BEFORE_READINESS",
+            message: `Engine process exited before HTTP readiness with code ${exitCode}`,
+          }),
+        ),
+      ),
+      Effect.catch((error) =>
+        failReady(
+          new EngineProcessError({
+            code: "ENGINE_EXITED_BEFORE_READINESS",
+            message: "Engine process exited before HTTP readiness.",
+            cause: error,
+          }),
+        ),
+      ),
+      Effect.forkScoped,
+    );
 
-    buffer += decoder.decode(outcome.result.value, { stream: true });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      const ready = parseEngineHttpReadyLine(trimmed);
-      if (ready) {
-        return ready;
-      }
-    }
-  }
-
-  throw new EngineProcessError({
-    code: "ENGINE_READINESS_TIMEOUT",
-    message: "Timed out waiting for engine HTTP readiness.",
+    return yield* Deferred.await(ready).pipe(
+      Effect.timeoutOrElse({
+        duration: Duration.millis(timeoutMs),
+        orElse: () =>
+          Effect.fail(
+            new EngineProcessError({
+              code: "ENGINE_READINESS_TIMEOUT",
+              message: "Timed out waiting for engine HTTP readiness.",
+            }),
+          ),
+      }),
+    );
   });
 }
 
-/**
- * Starts logging native engine stderr without treating it as readiness.
- *
- * @param subprocess - Engine subprocess.
- */
-function drainStderr(subprocess: Bun.Subprocess): void {
-  const stderr = subprocess.stderr;
-  if (!stderr || typeof stderr === "number") {
-    return;
+function parsePsPids(output: string, enginePath: string): number[] {
+  const pids: number[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/^\s*(\d+)\s+(.+)$/);
+    if (!match) {
+      continue;
+    }
+    const pid = Number(match[1]);
+    const command = match[2] ?? "";
+    if (!Number.isSafeInteger(pid) || pid === process.pid || !command.includes(enginePath)) {
+      continue;
+    }
+    pids.push(pid);
   }
-  void new Response(stderr)
-    .text()
-    .then((text) => {
-      for (const line of text.split(/\r?\n/)) {
-        const trimmed = line.trimEnd();
-        if (trimmed.length > 0) {
-          process.stderr.write(`engine stderr ${trimmed}\n`);
+  return pids;
+}
+
+function cleanupStaleEngineProcesses(
+  enginePath: string,
+): Effect.Effect<number[], EngineProcessError, ChildProcessSpawner | Scope.Scope> {
+  if (process.platform === "win32") {
+    return Effect.succeed([]);
+  }
+
+  return Effect.gen(function* () {
+    const handle = yield* ChildProcess.make("ps", ["-axo", "pid=,command="], {
+      stdin: "ignore",
+      stderr: "pipe",
+    });
+    const output = yield* handle.stdout.pipe(
+      Stream.decodeText(),
+      Stream.runFold(
+        () => "",
+        (accumulator, chunk) => accumulator + chunk,
+      ),
+    );
+    const exitCode = yield* handle.exitCode;
+    if (exitCode !== 0) {
+      return [];
+    }
+
+    const killed: number[] = [];
+    for (const pid of parsePsPids(output, enginePath)) {
+      const killedPid = yield* Effect.sync(() => {
+        try {
+          process.kill(pid, "SIGTERM");
+          return pid;
+        } catch {
+          // Best-effort cleanup only. If a stale process exits concurrently, launch can continue.
+          return null;
         }
+      });
+      if (killedPid !== null) {
+        killed.push(killedPid);
       }
-    })
-    .catch(() => undefined);
+    }
+    return killed;
+  }).pipe(
+    Effect.mapError(
+      (cause) =>
+        new EngineProcessError({
+          code: "ENGINE_SPAWN_FAILED",
+          message: "Unable to enumerate stale engine processes.",
+          cause,
+        }),
+    ),
+  );
 }
 
 /**
@@ -227,73 +311,81 @@ function drainStderr(subprocess: Bun.Subprocess): void {
  */
 export function makeEngineHttpProcess(
   options: EngineHttpProcessOptions = {},
-): Effect.Effect<EngineHttpProcess, EngineProcessError, Scope.Scope> {
-  return Effect.acquireRelease(
-    Effect.gen(function* () {
-      const processConfig = yield* EngineProcessConfig.pipe(
-        Effect.mapError(
-          (cause) =>
-            new EngineProcessError({
-              code: "ENGINE_READINESS_INVALID",
-              message: "Unable to load engine process configuration.",
-              cause,
-            }),
-        ),
-      );
-      const enginePath = yield* resolveEnginePath(
-        options.enginePath ?? Option.getOrUndefined(processConfig.enginePath),
-      );
-      yield* validateEngineExecutableTrust(enginePath, options.trustPolicy);
-      const [command, args] = resolveEngineCommand(enginePath);
-      const bearerToken = makeEngineBearerToken();
-      yield* Effect.logInfo("spawning engine process").pipe(
-        Effect.annotateLogs({
-          enginePath,
-          transport: "http",
-        }),
-      );
-      const subprocess = Bun.spawn([command, ...args], {
-        stdin: "ignore",
-        stdout: "pipe",
-        stderr: "pipe",
-        env: {
-          ...process.env,
-          ...options.env,
-          GG_ENGINE_TRANSPORT: "http",
-          GG_ENGINE_HTTP_AUTH_TOKEN: Redacted.value(bearerToken),
-        },
-      });
-      drainStderr(subprocess);
-      const address = yield* Effect.tryPromise({
-        try: () =>
-          waitForReady(subprocess, options.readinessTimeoutMs ?? processConfig.readinessTimeoutMs),
-        catch: (cause) =>
-          cause instanceof EngineProcessError
-            ? cause
-            : new EngineProcessError({
-                code: "ENGINE_READINESS_INVALID",
-                message: "Unable to read engine HTTP readiness.",
-                cause,
-              }),
-      });
-      yield* Effect.logInfo("engine process ready").pipe(
-        Effect.annotateLogs({
-          enginePath,
-          host: address.host,
-          port: address.port,
-        }),
-      );
-      return { process: subprocess, address, baseUrl: engineHttpBaseUrl(address), bearerToken };
-    }).pipe(
-      Effect.tapError(() => Metric.update(engineLaunchFailuresTotal, 1)),
-      Effect.trackDuration(engineLaunchDuration),
-      Effect.annotateLogs({ component: "engine-process", transport: "http" }),
-      Effect.withLogSpan("engine-launch"),
-      Effect.withSpan("engine-launch", { attributes: { "engine.transport": "http" } }),
-    ),
-    (engineProcess) =>
-      Effect.sync(() => {
-        engineProcess.process.kill();
+): Effect.Effect<EngineHttpProcess, EngineProcessError, ChildProcessSpawner | Scope.Scope> {
+  return Effect.gen(function* () {
+    const processConfig = yield* EngineProcessConfig.pipe(
+      Effect.mapError(
+        (cause) =>
+          new EngineProcessError({
+            code: "ENGINE_READINESS_INVALID",
+            message: "Unable to load engine process configuration.",
+            cause,
+          }),
+      ),
+    );
+    const enginePath = yield* resolveEnginePath(
+      options.enginePath ?? Option.getOrUndefined(processConfig.enginePath),
+    );
+    yield* validateEngineExecutableTrust(enginePath, options.trustPolicy);
+    if (options.cleanupStaleProcesses) {
+      const killedPids = yield* cleanupStaleEngineProcesses(enginePath);
+      if (killedPids.length > 0) {
+        yield* Effect.logWarning("terminated stale engine processes").pipe(
+          Effect.annotateLogs({ enginePath, killedPids }),
+        );
+      }
+    }
+    const [command, args] = resolveEngineCommand(enginePath);
+    const bearerToken = makeEngineBearerToken();
+    yield* Effect.logInfo("spawning engine process").pipe(
+      Effect.annotateLogs({
+        command: commandText(command, args),
+        enginePath,
+        transport: "http",
       }),
+    );
+
+    const handle = yield* ChildProcess.make(command, args, {
+      env: {
+        ...process.env,
+        ...options.env,
+        GG_ENGINE_TRANSPORT: "http",
+        GG_ENGINE_HTTP_AUTH_TOKEN: Redacted.value(bearerToken),
+      },
+      extendEnv: false,
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+      forceKillAfter: "2 seconds",
+    }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new EngineProcessError({
+            code: "ENGINE_SPAWN_FAILED",
+            message: "Unable to spawn engine process.",
+            cause,
+          }),
+      ),
+    );
+    yield* drainStderr(handle);
+
+    const address = yield* waitForReady(
+      handle,
+      options.readinessTimeoutMs ?? processConfig.readinessTimeoutMs,
+    );
+    yield* Effect.logInfo("engine process ready").pipe(
+      Effect.annotateLogs({
+        enginePath,
+        host: address.host,
+        port: address.port,
+      }),
+    );
+    return { process: handle, address, baseUrl: engineHttpBaseUrl(address), bearerToken };
+  }).pipe(
+    Effect.tapError(() => Metric.update(engineLaunchFailuresTotal, 1)),
+    Effect.trackDuration(engineLaunchDuration),
+    Effect.annotateLogs({ component: "engine-process", transport: "http" }),
+    Effect.withLogSpan("engine-launch"),
+    Effect.withSpan("engine-launch", { attributes: { "engine.transport": "http" } }),
   );
 }

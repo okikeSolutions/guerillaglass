@@ -24,6 +24,7 @@ import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sourc
 import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
 import { EngineHttpApi } from "@guerillaglass/engine-contract/httpApi";
 import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
+import * as BunServices from "@effect/platform-bun/BunServices";
 import { Context, Effect, Layer } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
@@ -353,7 +354,9 @@ export function layerEngineClientBun(
   return Layer.effect(
     EngineClient,
     Effect.gen(function* () {
-      const engineProcess = yield* makeEngineHttpProcess(options);
+      const engineProcess = yield* makeEngineHttpProcess(options).pipe(
+        Effect.provide(BunServices.layer),
+      );
       const rawClient = yield* makeRawEngineHttpApiClient({
         baseUrl: engineProcess.baseUrl,
         bearerToken: engineProcess.bearerToken,
