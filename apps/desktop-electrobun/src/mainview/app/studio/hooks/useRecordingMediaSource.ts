@@ -1,10 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { desktopApi } from "@lib/engine";
 import { toMediaSourceURL } from "../domain/mediaSourceUrl";
 
 const recordingMediaSourceQueryKey = (recordingURL: string | null) =>
   ["studio", "recordingMediaSource", recordingURL] as const;
+
+const mediaSourceLeaseStaleMs = 45_000;
+
+type RecordingMediaSourceLease = {
+  readonly source: string | null;
+  readonly refresh: () => Promise<void>;
+};
 
 function hasDesktopMediaResolver(): boolean {
   if (typeof window === "undefined") {
@@ -16,7 +23,9 @@ function hasDesktopMediaResolver(): boolean {
   return typeof bridgeWindow.ggResolveMediaSourceURL === "function";
 }
 
-export function useRecordingMediaSource(recordingURL: string | null): string | null {
+export function useRecordingMediaSourceLease(
+  recordingURL: string | null,
+): RecordingMediaSourceLease {
   const hasDesktopResolver = useMemo(() => hasDesktopMediaResolver(), []);
   const fallbackSource = useMemo(() => {
     if (hasDesktopResolver) {
@@ -37,9 +46,27 @@ export function useRecordingMediaSource(recordingURL: string | null): string | n
         return null;
       }
     },
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: mediaSourceLeaseStaleMs,
+    gcTime: mediaSourceLeaseStaleMs,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     retry: false,
   });
 
-  return bridgeResolvedSourceQuery.data ?? fallbackSource;
+  const { data: bridgeResolvedSource, refetch } = bridgeResolvedSourceQuery;
+  const refresh = useCallback(async () => {
+    if (!recordingURL || !hasDesktopResolver) {
+      return;
+    }
+    await refetch();
+  }, [hasDesktopResolver, recordingURL, refetch]);
+
+  return {
+    source: bridgeResolvedSource ?? fallbackSource,
+    refresh,
+  };
+}
+
+export function useRecordingMediaSource(recordingURL: string | null): string | null {
+  return useRecordingMediaSourceLease(recordingURL).source;
 }
