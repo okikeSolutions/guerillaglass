@@ -207,9 +207,11 @@ describe("media HTTP routes", () => {
           return calls === 1 ? { frame: { frameId: 1, bytesBase64: livePreviewBase64 } } : {};
         }),
       );
-      const resolved = mediaURL(token);
+      const resolved = `${mediaURL(token)}?v=1`;
 
-      const firstResponse = yield* Effect.promise(() => dispatch(handler, resolved));
+      const firstResponse = yield* Effect.promise(() =>
+        dispatch(handler, resolved, { headers: { "sec-fetch-site": "cross-site" } }),
+      );
       expect(firstResponse.status).toBe(200);
       expect(firstResponse.headers.get("content-type")).toBe("image/jpeg");
       expect(Buffer.from(yield* Effect.promise(() => firstResponse.arrayBuffer()))).toEqual(

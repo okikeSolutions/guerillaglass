@@ -206,14 +206,21 @@ public extension CaptureEngine {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         let timestamp = formatter.string(from: Date())
-        let temporaryDirectory: URL
-        if let resolved = realpath(FileManager.default.temporaryDirectory.path, nil) {
-            temporaryDirectory = URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
+        let recordingDirectory: URL = if let configuredDirectory = ProcessInfo.processInfo.environment["GG_RECORDING_DIR"],
+                                         !configuredDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            URL(fileURLWithPath: configuredDirectory, isDirectory: true)
+        } else {
+            FileManager.default.temporaryDirectory
+        }
+        let canonicalRecordingDirectory: URL
+        if let resolved = realpath(recordingDirectory.path, nil) {
+            canonicalRecordingDirectory = URL(fileURLWithPath: String(cString: resolved), isDirectory: true)
             free(resolved)
         } else {
-            temporaryDirectory = FileManager.default.temporaryDirectory
+            canonicalRecordingDirectory = recordingDirectory
         }
-        return temporaryDirectory.appendingPathComponent("guerillaglass-recording-\(timestamp).mov")
+        return canonicalRecordingDirectory.appendingPathComponent("guerillaglass-recording-\(timestamp).mov")
     }
 
     private static func recordingDuration(for url: URL) async -> TimeInterval {

@@ -1,6 +1,11 @@
 import { Buffer } from "node:buffer";
 import { Effect, FileSystem, Layer, Option } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import {
+  HttpPlatform,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -179,7 +184,11 @@ function handleFileRequest(
   request: HttpServerRequest.HttpServerRequest,
   token: string,
   entry: MediaTokenEntry,
-): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, FileSystem.FileSystem> {
+): Effect.Effect<
+  HttpServerResponse.HttpServerResponse,
+  MediaServerError,
+  FileSystem.FileSystem | HttpPlatform.HttpPlatform
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const info = yield* fs.stat(entry.filePath).pipe(
@@ -203,7 +212,10 @@ function handleFileRequest(
 
     if (!rangeHeader) {
       yield* logDebugEffect(`Media served 200 (${token.slice(0, 8)}...) full file`);
-      const fileBytes = yield* fs.readFile(entry.filePath).pipe(
+      return yield* HttpServerResponse.file(entry.filePath, {
+        status: 200,
+        headers: commonHeaders,
+      }).pipe(
         Effect.mapError(
           (cause) =>
             new MediaServerError({
@@ -213,13 +225,6 @@ function handleFileRequest(
             }),
         ),
       );
-      return HttpServerResponse.uint8Array(fileBytes, {
-        status: 200,
-        headers: {
-          ...commonHeaders,
-          "content-length": String(size),
-        },
-      });
     }
 
     const isMultiRangeRequest = rangeHeader.includes(",");
@@ -242,7 +247,15 @@ function handleFileRequest(
       );
     }
 
-    const fileBytes = yield* fs.readFile(entry.filePath).pipe(
+    return yield* HttpServerResponse.file(entry.filePath, {
+      status: 206,
+      offset: start,
+      bytesToRead: chunkSize,
+      headers: {
+        ...commonHeaders,
+        "content-range": `bytes ${start}-${end}/${size}`,
+      },
+    }).pipe(
       Effect.mapError(
         (cause) =>
           new MediaServerError({
@@ -252,14 +265,6 @@ function handleFileRequest(
           }),
       ),
     );
-    return HttpServerResponse.uint8Array(fileBytes.subarray(start, end + 1), {
-      status: 206,
-      headers: {
-        ...commonHeaders,
-        "content-length": String(chunkSize),
-        "content-range": `bytes ${start}-${end}/${size}`,
-      },
-    });
   });
 }
 
@@ -288,11 +293,12 @@ const mediaRouteHandler = Effect.gen(function* () {
     return textResponse(guardResult.status, guardResult.body);
   }
 
-  if (!request.url.startsWith(mediaRoutePrefix)) {
+  const requestPath = request.url.split(/[?#]/u, 1)[0] ?? "";
+  if (!requestPath.startsWith(mediaRoutePrefix)) {
     return textResponse(404, "Not found");
   }
 
-  const rawToken = request.url.slice(mediaRoutePrefix.length);
+  const rawToken = requestPath.slice(mediaRoutePrefix.length);
   const token = validateToken(rawToken);
   if (!token) {
     yield* logDebugEffect(`Media server rejected path: ${request.method} ${request.url}`);

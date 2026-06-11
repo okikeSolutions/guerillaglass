@@ -36,7 +36,11 @@ function messageFromUnknownError(error: unknown, fallback: string): string {
 }
 
 export type DesktopAppLayerOptions = {
-  engineDomainServicesLayer: Layer.Layer<EngineDomainServices, unknown, AppConfig>;
+  engineDomainServicesLayer: Layer.Layer<
+    EngineDomainServices,
+    unknown,
+    AppConfig | DesktopTempDirectory
+  >;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, AppConfig>;
   mediaSourceServiceLayer?: Layer.Layer<
     MediaSourceService,
@@ -158,7 +162,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   );
 
   const appServicesLayer = Layer.mergeAll(
-    options.engineDomainServicesLayer,
+    options.engineDomainServicesLayer.pipe(Layer.provideMerge(tempDirectoryLayer)),
     options.reviewGatewayLayer ?? layerReviewGateway,
     mediaSourceServiceLayer,
     options.desktopShellLayer,

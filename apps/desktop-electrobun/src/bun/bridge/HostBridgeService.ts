@@ -1,7 +1,11 @@
 import { Context, Effect, Layer, Option, Schema } from "effect";
 import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
-import { capturePreviewFrameResultSchema } from "@guerillaglass/engine-contract/domains/capture";
+import {
+  capturePreviewFrameResultSchema,
+  type CapturePreviewFrameResult,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine-contract/domains/capture";
 import { AgentService } from "@guerillaglass/engine-client/services/AgentService";
 import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
 import { ExportService } from "@guerillaglass/engine-client/services/ExportService";
@@ -52,6 +56,35 @@ function mediaSourceSubject(filePath: string): string {
 
 function capturePreviewSubject(captureSessionId: string): string {
   return `capture:${captureSessionId}`;
+}
+
+function logCaptureStatus(label: string, status: CaptureStatusResult) {
+  return Effect.logInfo(label).pipe(
+    Effect.annotateLogs({
+      captureMetadataSource: status.captureMetadata?.source ?? null,
+      captureSessionId: status.captureSessionId ?? null,
+      component: "host-bridge-capture",
+      eventsURL: status.eventsURL ?? null,
+      isRecording: status.isRecording,
+      isRunning: status.isRunning,
+      lastErrorCode: status.lastError?.code ?? null,
+      lastErrorMessage: status.lastError?.message ?? null,
+      previewEncodeMs: status.telemetry.previewEncodeMs ?? null,
+      recordingDurationSeconds: status.recordingDurationSeconds,
+      recordingURL: status.recordingURL ?? null,
+    }),
+  );
+}
+
+function logPreviewFrame(label: string, frame: CapturePreviewFrameResult) {
+  return Effect.logDebug(label).pipe(
+    Effect.annotateLogs({
+      component: "host-bridge-capture",
+      frameBytesBase64Length: frame.frame?.bytesBase64.length ?? 0,
+      frameId: frame.frame?.frameId ?? null,
+      hasFrame: Boolean(frame.frame),
+    }),
+  );
 }
 
 function captureSessionIdFromStatus(
@@ -130,35 +163,65 @@ export const layerHostBridgeService = Layer.succeed(
           }
           case "ggEngineStartDisplayCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.startDisplay(params as never);
+            yield* Effect.logInfo("starting display capture").pipe(
+              Effect.annotateLogs({ component: "host-bridge-capture", params }),
+            );
+            return yield* capture
+              .startDisplay(params as never)
+              .pipe(Effect.tap((status) => logCaptureStatus("display capture started", status)));
           }
           case "ggEngineStartCurrentWindowCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.startCurrentWindow(params as never);
+            yield* Effect.logInfo("starting current-window capture").pipe(
+              Effect.annotateLogs({ component: "host-bridge-capture", params }),
+            );
+            return yield* capture
+              .startCurrentWindow(params as never)
+              .pipe(
+                Effect.tap((status) => logCaptureStatus("current-window capture started", status)),
+              );
           }
           case "ggEngineStartWindowCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.startWindow(params as never);
+            yield* Effect.logInfo("starting window capture").pipe(
+              Effect.annotateLogs({ component: "host-bridge-capture", params }),
+            );
+            return yield* capture
+              .startWindow(params as never)
+              .pipe(Effect.tap((status) => logCaptureStatus("window capture started", status)));
           }
           case "ggEngineStopCapture": {
             const capture = yield* CaptureService;
-            return yield* capture.stop;
+            return yield* capture.stop.pipe(
+              Effect.tap((status) => logCaptureStatus("capture stopped", status)),
+            );
           }
           case "ggEngineStartRecording": {
             const recording = yield* RecordingService;
-            return yield* recording.start(params as never);
+            yield* Effect.logInfo("starting recording").pipe(
+              Effect.annotateLogs({ component: "host-bridge-capture", trackInputEvents: params }),
+            );
+            return yield* recording
+              .start(params as never)
+              .pipe(Effect.tap((status) => logCaptureStatus("recording started", status)));
           }
           case "ggEngineStopRecording": {
             const recording = yield* RecordingService;
-            return yield* recording.stop;
+            return yield* recording.stop.pipe(
+              Effect.tap((status) => logCaptureStatus("recording stopped", status)),
+            );
           }
           case "ggEngineCaptureStatus": {
             const capture = yield* CaptureService;
-            return yield* capture.status;
+            return yield* capture.status.pipe(
+              Effect.tap((status) => logCaptureStatus("capture status polled", status)),
+            );
           }
           case "ggEngineCapturePreviewFrame": {
             const capture = yield* CaptureService;
-            return yield* capture.previewFrame;
+            return yield* capture.previewFrame.pipe(
+              Effect.tap((frame) => logPreviewFrame("capture preview frame polled", frame)),
+            );
           }
           case "ggEngineExportInfo": {
             const exportService = yield* ExportService;
@@ -320,23 +383,48 @@ export const layerHostBridgeService = Layer.succeed(
             const capabilities = yield* CapabilityGrantService;
             const captureSessionId = (params as { captureSessionId: string }).captureSessionId;
             const status = yield* capture.status;
+            yield* logCaptureStatus("capture preview capability requested", status).pipe(
+              Effect.annotateLogs({ requestedCaptureSessionId: captureSessionId }),
+            );
             if (!status.isRunning || captureSessionIdFromStatus(status) !== captureSessionId) {
+              yield* Effect.logWarning("capture preview capability denied").pipe(
+                Effect.annotateLogs({
+                  activeCaptureSessionId: captureSessionIdFromStatus(status),
+                  component: "host-bridge-capture",
+                  isRunning: status.isRunning,
+                  requestedCaptureSessionId: captureSessionId,
+                }),
+              );
               return yield* new CapabilityTokenError({
                 code: "CAPABILITY_TOKEN_INVALID",
                 description: "Capture preview capability requires the active capture session.",
               });
             }
-            return yield* capabilities.mint({
-              scope: "capture:resolve-preview-url",
-              subject: capturePreviewSubject(captureSessionId),
-              singleUse: true,
-            });
+            return yield* capabilities
+              .mint({
+                scope: "capture:resolve-preview-url",
+                subject: capturePreviewSubject(captureSessionId),
+                singleUse: true,
+              })
+              .pipe(
+                Effect.tap(() =>
+                  Effect.logInfo("capture preview capability granted").pipe(
+                    Effect.annotateLogs({
+                      component: "host-bridge-capture",
+                      requestedCaptureSessionId: captureSessionId,
+                    }),
+                  ),
+                ),
+              );
           }
           case "ggResolveCapturePreviewURL": {
             const capture = yield* CaptureService;
             const mediaSourceService = yield* MediaSourceService;
             const capabilities = yield* CapabilityGrantService;
             const captureSessionId = (params as { captureSessionId: string }).captureSessionId;
+            yield* Effect.logInfo("resolving capture preview URL").pipe(
+              Effect.annotateLogs({ component: "host-bridge-capture", captureSessionId }),
+            );
             yield* capabilities.consume({
               token: (params as { capabilityToken: string }).capabilityToken,
               scope: "capture:resolve-preview-url",
@@ -345,14 +433,23 @@ export const layerHostBridgeService = Layer.succeed(
             const encodePreviewFrame = Schema.encodeUnknownEffect(
               Schema.toCodecJson(capturePreviewFrameResultSchema),
             );
-            return yield* mediaSourceService.resolveCapturePreviewURL(
-              capture.previewFrame.pipe(
-                Effect.flatMap(encodePreviewFrame),
-                Effect.map(
-                  (frame) => frame as BridgeRequests["ggEngineCapturePreviewFrame"]["response"],
+            return yield* mediaSourceService
+              .resolveCapturePreviewURL(
+                capture.previewFrame.pipe(
+                  Effect.tap((frame) => logPreviewFrame("initial capture preview frame", frame)),
+                  Effect.flatMap(encodePreviewFrame),
+                  Effect.map(
+                    (frame) => frame as BridgeRequests["ggEngineCapturePreviewFrame"]["response"],
+                  ),
                 ),
-              ),
-            );
+              )
+              .pipe(
+                Effect.tap((previewURL) =>
+                  Effect.logInfo("capture preview URL resolved").pipe(
+                    Effect.annotateLogs({ component: "host-bridge-capture", previewURL }),
+                  ),
+                ),
+              );
           }
         }
       }) as Effect.Effect<BridgeRequests[typeof name]["response"], unknown>;

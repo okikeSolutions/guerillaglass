@@ -67,9 +67,23 @@ export function createEngineBridgeHandlers({
           return response;
         }
         await run(
-          Metric.update(
-            Metric.withAttributes(desktopBridgeRequestFailuresTotal, { request: name }),
-            1,
+          Effect.all(
+            [
+              Metric.update(
+                Metric.withAttributes(desktopBridgeRequestFailuresTotal, { request: name }),
+                1,
+              ),
+              Effect.logError("desktop bridge request failed").pipe(
+                Effect.annotateLogs({
+                  bridgeErrorData: response.error.data ?? null,
+                  bridgeErrorMessage: response.error.message ?? null,
+                  bridgeErrorTag: response.error.tag,
+                  bridgeRequest: name,
+                  component: "desktop-bridge",
+                }),
+              ),
+            ],
+            { discard: true },
           ),
         );
         const error = await run(redactBridgeErrorForRendererEffect(response.error));

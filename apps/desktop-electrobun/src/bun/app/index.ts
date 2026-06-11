@@ -12,7 +12,7 @@ import { DesktopShell } from "../shell/DesktopShell";
 import { ProjectSession } from "../session/ProjectSession";
 import { layerProjectSession } from "../session/ProjectSessionElectrobun";
 import { layerDesktopShellFromConfig } from "../shell/DesktopShellElectrobun";
-import { layerDesktopTempDirectory } from "../security/DesktopTempDirectory";
+import { DesktopTempDirectory, layerDesktopTempDirectory } from "../security/DesktopTempDirectory";
 import {
   productionLikeEnvironment,
   validateEngineExecutablePolicy,
@@ -30,9 +30,17 @@ const guardedEngineClientLayer = Layer.unwrap(
   Effect.gen(function* () {
     yield* validateEngineExecutablePolicy;
     const config = yield* AppConfig;
+    const desktopTempDirectory = yield* DesktopTempDirectory;
     const productionLike = productionLikeEnvironment(config);
     return layerEngineClientBun({
+      cleanupStaleProcesses: true,
       enginePath: config.enginePath ?? undefined,
+      env: {
+        GG_RECORDING_DIR: desktopTempDirectory.path,
+        TMPDIR: desktopTempDirectory.path,
+        TEMP: desktopTempDirectory.path,
+        TMP: desktopTempDirectory.path,
+      },
       trustPolicy: {
         enabled: productionLike,
         expectedSha256: config.engineExpectedSha256,
@@ -71,6 +79,7 @@ async function bootstrapApp() {
             captureBenchmarkEnabled: config.captureBenchmarkEnabled,
             electrobunBuild: config.electrobunBuild,
             enginePath: config.enginePath,
+            mediaServerDebugLoggingEnabled: config.mediaServerDebugLoggingEnabled,
             nodeEnv: config.nodeEnv,
             studioDiagnosticsEnabled: config.studioDiagnosticsEnabled,
           }),
