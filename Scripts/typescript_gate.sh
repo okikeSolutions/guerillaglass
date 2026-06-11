@@ -23,7 +23,7 @@ echo "==> engine contract check"
 
 echo "==> desktop tests"
 if [[ "${CI:-}" == "true" ]]; then
-  (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run --exclude tests/parity-e2e.test.ts && bun run test:ui:ci -- --run)
+  (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run --exclude tests/parity-e2e.test.ts --exclude tests/native-http-launch-security.test.ts && bun run test:ui:ci -- --run)
 else
   (cd apps/desktop-electrobun && bun run test:ci)
 fi

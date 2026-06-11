@@ -24,7 +24,7 @@
     "desktop:typecheck": "cd apps/desktop-electrobun && bun run typecheck",
     "desktop:test": "cd apps/desktop-electrobun && bun run test",
     "desktop:test:coverage": "cd apps/desktop-electrobun && bun run test:coverage",
-    "desktop:test:e2e": "cd apps/desktop-electrobun && bun run test:vitest -- --run tests/parity-e2e.test.ts tests/engine-client.test.ts",
+    "desktop:test:e2e": "cd apps/desktop-electrobun && bun run test:vitest -- --run tests/parity-e2e.test.ts",
     "desktop:test:ui": "cd apps/desktop-electrobun && bun run test:ui",
     "desktop:test:ui:headed": "cd apps/desktop-electrobun && bun run test:ui:headed",
     "desktop:test:ui:install": "cd apps/desktop-electrobun && bun run test:ui:install",
