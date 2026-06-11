@@ -11,6 +11,7 @@ import { useThrottler } from "@tanstack/react-pacer";
 import { AudioLines, Headphones, Lock, Video, VolumeX } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@guerillaglass/ui/components/tooltip";
+import { useStudioPlaybackValue } from "../state/StudioProvider";
 import type { TimelineClip, TimelineLane, TimelineWaveform } from "../domain/timelineDomainModel";
 import { clampSeconds, pixelsToSeconds } from "../domain/timelineDomainModel";
 import { studioToggleToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
@@ -46,7 +47,6 @@ type TimelineSelectedClip = { laneId: "video" | "audio"; clipId: string } | null
 
 type TimelineSurfaceProps = {
   durationSeconds: number;
-  playheadSeconds: number;
   trimEnabled?: boolean;
   trimStartSeconds?: number;
   trimEndSeconds?: number;
@@ -114,7 +114,7 @@ type TimelineOverlayProps = {
   trackOverlayRef: RefObject<HTMLDivElement | null>;
   labels: TimelineSurfaceLabels;
   timelineSnapEnabled: boolean;
-  playheadPercent: number;
+  durationSeconds: number;
   trimEnabled: boolean;
   trimStartPercent?: number;
   trimEndPercent?: number;
@@ -431,11 +431,21 @@ function TrimHandle({
   );
 }
 
+const TimelinePlayhead = memo(function TimelinePlayhead({
+  durationSeconds,
+}: {
+  durationSeconds: number;
+}) {
+  const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
+  const playheadPercent = toPercent(playheadSeconds, durationSeconds);
+  return <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />;
+});
+
 function TimelineOverlay({
   trackOverlayRef,
   labels,
   timelineSnapEnabled,
-  playheadPercent,
+  durationSeconds,
   trimEnabled,
   trimStartPercent,
   trimEndPercent,
@@ -448,7 +458,7 @@ function TimelineOverlay({
 }: TimelineOverlayProps) {
   return (
     <div ref={trackOverlayRef} className="gg-timeline-track-overlay">
-      <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />
+      <TimelinePlayhead durationSeconds={durationSeconds} />
       {trimEnabled &&
       trimStartPercent != null &&
       trimEndPercent != null &&
@@ -679,7 +689,6 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
 
 export function TimelineSurface({
   durationSeconds,
-  playheadSeconds,
   trimEnabled = false,
   trimStartSeconds,
   trimEndSeconds,
@@ -725,7 +734,6 @@ export function TimelineSurface({
   const clampedTrimStart = clampSeconds(effectiveTrimStart, 0, durationSeconds);
   const clampedTrimEnd = clampSeconds(effectiveTrimEnd, clampedTrimStart, durationSeconds);
 
-  const playheadPercent = toPercent(playheadSeconds, durationSeconds);
   const trimStartPercent = toPercent(clampedTrimStart, durationSeconds);
   const trimEndPercent = toPercent(clampedTrimEnd, durationSeconds);
   const trimWidthPercent = Math.max(0, trimEndPercent - trimStartPercent);
@@ -791,7 +799,7 @@ export function TimelineSurface({
             trackOverlayRef={trackOverlayRef}
             labels={labels}
             timelineSnapEnabled={timelineSnapEnabled}
-            playheadPercent={playheadPercent}
+            durationSeconds={durationSeconds}
             trimEnabled={trimEnabled}
             trimStartPercent={trimEnabled ? trimStartPercent : undefined}
             trimEndPercent={trimEnabled ? trimEndPercent : undefined}

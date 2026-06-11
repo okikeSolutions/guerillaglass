@@ -18,12 +18,6 @@ type UseVideoPlaybackSyncOptions = {
   setPlayheadSecondsFromMedia: (seconds: number) => void;
 };
 
-type FrameCallback = (now: number, metadata: { mediaTime: number }) => void;
-type VideoWithFrameCallback = HTMLVideoElement & {
-  cancelVideoFrameCallback?: (handle: number) => void;
-  requestVideoFrameCallback?: (callback: FrameCallback) => number;
-};
-
 export function useVideoPlaybackSync({
   mediaRef,
   playbackStore,
@@ -143,10 +137,8 @@ export function useVideoPlaybackSync({
     }
 
     let animationFrameHandle: number | null = null;
-    let videoFrameHandle: number | null = null;
     let isCancelled = false;
     let loopActive = false;
-    const mediaWithFrameCallback = media as VideoWithFrameCallback;
     const segmentBoundaryThresholdSeconds = 0.02;
 
     const syncProgramClockFromMedia = () => {
@@ -193,17 +185,6 @@ export function useVideoPlaybackSync({
       if (isCancelled) {
         return;
       }
-      if (typeof mediaWithFrameCallback.requestVideoFrameCallback === "function") {
-        videoFrameHandle = mediaWithFrameCallback.requestVideoFrameCallback(() => {
-          if (isCancelled) {
-            return;
-          }
-          if (syncProgramClockFromMedia()) {
-            scheduleTick();
-          }
-        });
-        return;
-      }
       animationFrameHandle = requestAnimationFrame(() => {
         if (isCancelled) {
           return;
@@ -219,10 +200,6 @@ export function useVideoPlaybackSync({
       if (animationFrameHandle != null) {
         cancelAnimationFrame(animationFrameHandle);
         animationFrameHandle = null;
-      }
-      if (videoFrameHandle != null) {
-        mediaWithFrameCallback.cancelVideoFrameCallback?.(videoFrameHandle);
-        videoFrameHandle = null;
       }
     };
 
