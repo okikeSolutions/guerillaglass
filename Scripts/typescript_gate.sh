@@ -22,6 +22,10 @@ echo "==> engine contract check"
 (cd packages/engine-contract && bun run check:contract && bun run test)
 
 echo "==> desktop tests"
-(cd apps/desktop-electrobun && bun run test:ci)
+if [[ "${CI:-}" == "true" ]]; then
+  (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run --exclude tests/parity-e2e.test.ts && bun run test:ui:ci -- --run)
+else
+  (cd apps/desktop-electrobun && bun run test:ci)
+fi
 
 echo "==> typescript gate passed"
