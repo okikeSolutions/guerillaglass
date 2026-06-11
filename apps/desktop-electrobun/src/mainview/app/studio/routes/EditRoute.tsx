@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useRef } from "react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
 import {
   Empty,
@@ -12,7 +12,10 @@ import { InspectorPanel } from "../panels/InspectorPanel";
 import { TimelineDock } from "../panels/TimelineDock";
 import { ProjectUtilityPanel } from "../panels/ProjectUtilityPanel";
 import { formatCaptureTargetLabelFromMetadata } from "../view-model/captureTargetLabelFormatter";
-import { useRecordingMediaSourceLease } from "../hooks/useRecordingMediaSource";
+import {
+  useRecordingMediaSourceErrorRecovery,
+  useRecordingMediaSourceLease,
+} from "../hooks/useRecordingMediaSource";
 import { useVideoPlaybackSync } from "../hooks/useVideoPlaybackSync";
 import {
   StudioPane,
@@ -39,16 +42,12 @@ export function EditRoute() {
     ui,
   } = studio;
   const mediaRef = useRef<HTMLVideoElement | null>(null);
-  const lastRetriedMediaSourceRef = useRef<string | null>(null);
   const { source: recordingMediaSource, refresh: refreshRecordingMediaSource } =
     useRecordingMediaSourceLease(recordingURL);
-  const handleMediaError = useCallback(() => {
-    if (!recordingMediaSource || lastRetriedMediaSourceRef.current === recordingMediaSource) {
-      return;
-    }
-    lastRetriedMediaSourceRef.current = recordingMediaSource;
-    void refreshRecordingMediaSource();
-  }, [recordingMediaSource, refreshRecordingMediaSource]);
+  const handleMediaError = useRecordingMediaSourceErrorRecovery(
+    recordingMediaSource,
+    refreshRecordingMediaSource,
+  );
   const activeCaptureMetadata =
     captureStatusQuery.data?.captureMetadata ?? projectQuery.data?.captureMetadata;
   const activeCaptureTarget = formatCaptureTargetLabelFromMetadata({

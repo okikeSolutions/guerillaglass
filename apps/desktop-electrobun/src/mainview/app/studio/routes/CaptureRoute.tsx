@@ -1,5 +1,5 @@
 import { ChevronRight, ScreenShare, ShieldCheck } from "lucide-react";
-import { type ReactNode, useCallback, useRef } from "react";
+import { type ReactNode } from "react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
 import { Button } from "@guerillaglass/ui/components/button";
 import {
@@ -23,7 +23,10 @@ import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
 import { useLiveCapturePreview } from "../hooks/useLiveCapturePreview";
-import { useRecordingMediaSourceLease } from "../hooks/useRecordingMediaSource";
+import {
+  useRecordingMediaSourceErrorRecovery,
+  useRecordingMediaSourceLease,
+} from "../hooks/useRecordingMediaSource";
 import {
   StudioPane,
   StudioPaneBody,
@@ -43,16 +46,12 @@ function displayOptionLabel(
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
-  const lastRetriedMediaSourceRef = useRef<string | null>(null);
   const { source: recordingMediaSource, refresh: refreshRecordingMediaSource } =
     useRecordingMediaSourceLease(studio.recordingURL);
-  const handleMediaError = useCallback(() => {
-    if (!recordingMediaSource || lastRetriedMediaSourceRef.current === recordingMediaSource) {
-      return;
-    }
-    lastRetriedMediaSourceRef.current = recordingMediaSource;
-    void refreshRecordingMediaSource();
-  }, [recordingMediaSource, refreshRecordingMediaSource]);
+  const handleMediaError = useRecordingMediaSourceErrorRecovery(
+    recordingMediaSource,
+    refreshRecordingMediaSource,
+  );
   const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
   const captureSessionId = isCaptureRunning
     ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
