@@ -23,7 +23,10 @@ import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
 import { useLiveCapturePreview } from "../hooks/useLiveCapturePreview";
-import { useRecordingMediaSource } from "../hooks/useRecordingMediaSource";
+import {
+  useRecordingMediaSourceErrorRecovery,
+  useRecordingMediaSourceLease,
+} from "../hooks/useRecordingMediaSource";
 import {
   StudioPane,
   StudioPaneBody,
@@ -43,7 +46,12 @@ function displayOptionLabel(
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
-  const recordingMediaSource = useRecordingMediaSource(studio.recordingURL);
+  const { source: recordingMediaSource, refresh: refreshRecordingMediaSource } =
+    useRecordingMediaSourceLease(studio.recordingURL);
+  const handleMediaError = useRecordingMediaSourceErrorRecovery(
+    recordingMediaSource,
+    refreshRecordingMediaSource,
+  );
   const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
   const captureSessionId = isCaptureRunning
     ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
@@ -273,6 +281,7 @@ export function CaptureRoute() {
                         preload="metadata"
                         controls
                         playsInline
+                        onError={handleMediaError}
                       />
                     ) : (
                       <Empty className="max-w-lg border-0 bg-transparent p-6">

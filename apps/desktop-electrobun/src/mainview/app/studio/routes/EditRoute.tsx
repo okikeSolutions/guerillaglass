@@ -12,7 +12,10 @@ import { InspectorPanel } from "../panels/InspectorPanel";
 import { TimelineDock } from "../panels/TimelineDock";
 import { ProjectUtilityPanel } from "../panels/ProjectUtilityPanel";
 import { formatCaptureTargetLabelFromMetadata } from "../view-model/captureTargetLabelFormatter";
-import { useRecordingMediaSource } from "../hooks/useRecordingMediaSource";
+import {
+  useRecordingMediaSourceErrorRecovery,
+  useRecordingMediaSourceLease,
+} from "../hooks/useRecordingMediaSource";
 import { useVideoPlaybackSync } from "../hooks/useVideoPlaybackSync";
 import {
   StudioPane,
@@ -39,7 +42,12 @@ export function EditRoute() {
     ui,
   } = studio;
   const mediaRef = useRef<HTMLVideoElement | null>(null);
-  const recordingMediaSource = useRecordingMediaSource(recordingURL);
+  const { source: recordingMediaSource, refresh: refreshRecordingMediaSource } =
+    useRecordingMediaSourceLease(recordingURL);
+  const handleMediaError = useRecordingMediaSourceErrorRecovery(
+    recordingMediaSource,
+    refreshRecordingMediaSource,
+  );
   const activeCaptureMetadata =
     captureStatusQuery.data?.captureMetadata ?? projectQuery.data?.captureMetadata;
   const activeCaptureTarget = formatCaptureTargetLabelFromMetadata({
@@ -93,6 +101,7 @@ export function EditRoute() {
                       onPause={() => {
                         setTimelinePlaybackActive(false);
                       }}
+                      onError={handleMediaError}
                     />
                   ) : captureStatusQuery.data?.isRunning ? (
                     <div className="space-y-2">
