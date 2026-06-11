@@ -22,6 +22,8 @@ type EngineFixture = {
   expectedPlatform: "windows" | "linux";
 };
 
+const nativeEngineBuildTimeoutMs = 120_000;
+
 const fixtures: EngineFixture[] = [
   {
     name: "windows-native",
@@ -125,7 +127,7 @@ describe("engine HTTP parity e2e", () => {
     buildNativeEngine(
       path.resolve(import.meta.dirname, "../../../engines/linux-native/Cargo.toml"),
     );
-  }, 30_000);
+  }, nativeEngineBuildTimeoutMs);
   for (const fixture of fixtures) {
     test(
       `runs capture->record->export->project flow (${fixture.name})`,
