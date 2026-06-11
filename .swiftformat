@@ -1,3 +1,4 @@
 --swiftversion 5.10
 --indent 4
 --disable trailingCommas
+--exclude .build,.tmp,target,node_modules,engines/protocol-swift/.build

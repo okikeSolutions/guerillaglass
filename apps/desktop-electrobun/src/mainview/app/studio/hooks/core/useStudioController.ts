@@ -1,15 +1,15 @@
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
+import { type ExportPreset } from "@guerillaglass/engine-contract/domains/export";
 import {
   defaultCaptureFrameRate,
   type CaptureFrameRate,
-} from "@guerillaglass/engine/protocol/domains/sources";
+} from "@guerillaglass/engine-contract/domains/sources";
 import {
   type AutoZoomSettings,
   type TimelineDocument,
-} from "@guerillaglass/engine/protocol/shared/valueObjects";
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import { getStudioMessages, type StudioMessages } from "@shared/localization";
 import { desktopApi, sendHostMenuState } from "@lib/engine";
 import { recordStudioDiagnosticsEvent } from "@lib/studioDiagnostics";
@@ -27,7 +27,7 @@ import {
   EngineResponseError,
   JsonParseError,
   messageFromUnknownError,
-} from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@guerillaglass/engine-client/errors";
 import { createHostCommandRunnerFromHandlers } from "@shared/hostCommandRegistry";
 import {
   detectStudioShortcutPlatform,
@@ -217,15 +217,7 @@ export function useStudioController() {
   );
   const mapActionErrorMessage = useCallback(
     (error: unknown): string => mapStudioActionErrorMessage(ui, error),
-    [
-      ui.notices.actionFailed,
-      ui.notices.exportMissingPreset,
-      ui.notices.exportMissingRecording,
-      ui.notices.recordingStartNotReady,
-      ui.notices.rpcTimedOut,
-      ui.notices.screenPermissionRequired,
-      ui.notices.selectWindowFirst,
-    ],
+    [ui],
   );
 
   const settingsForm = useForm({
@@ -489,7 +481,7 @@ export function useStudioController() {
       activeMode,
       changedKeys: changedKeys.join(","),
     });
-  });
+  }, undefined);
 
   const setTrimStartSeconds = useCallback(
     (seconds: number) => {
@@ -581,7 +573,13 @@ export function useStudioController() {
       clearInspectorSelection();
       setTimelineTool("select");
     }
-  }, [clearInspectorSelection, playbackStore, selectedTimelineClip, setTimelineTool]);
+  }, [
+    clearInspectorSelection,
+    playbackStore,
+    selectedTimelineClip,
+    setTimelineTool,
+    updateTimelineDocument,
+  ]);
 
   const splitTimelineClipAtSeconds = useCallback(
     (seconds: number) => {
@@ -597,7 +595,7 @@ export function useStudioController() {
         setTimelineTool("select");
       }
     },
-    [clearInspectorSelection, setPlayheadSecondsClamped, setTimelineTool],
+    [clearInspectorSelection, setPlayheadSecondsClamped, setTimelineTool, updateTimelineDocument],
   );
 
   const deleteSelectedTimelineClip = useCallback(() => {
@@ -616,7 +614,12 @@ export function useStudioController() {
     if (didChange) {
       clearInspectorSelection();
     }
-  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+  }, [
+    clearInspectorSelection,
+    selectedTimelineClip,
+    timelineRippleEnabled,
+    updateTimelineDocument,
+  ]);
 
   const liftSelectedTimelineClip = useCallback(() => {
     if (!selectedTimelineClip) {
@@ -632,7 +635,7 @@ export function useStudioController() {
     if (didChange) {
       clearInspectorSelection();
     }
-  }, [clearInspectorSelection, selectedTimelineClip]);
+  }, [clearInspectorSelection, selectedTimelineClip, updateTimelineDocument]);
 
   const moveSelectedTimelineClipEarlier = useCallback(() => {
     if (!selectedTimelineClip) {
@@ -665,7 +668,12 @@ export function useStudioController() {
     if (didChange) {
       clearInspectorSelection();
     }
-  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+  }, [
+    clearInspectorSelection,
+    selectedTimelineClip,
+    timelineRippleEnabled,
+    updateTimelineDocument,
+  ]);
 
   const moveSelectedTimelineClipLater = useCallback(() => {
     if (!selectedTimelineClip) {
@@ -698,7 +706,12 @@ export function useStudioController() {
     if (didChange) {
       clearInspectorSelection();
     }
-  }, [clearInspectorSelection, selectedTimelineClip, timelineRippleEnabled]);
+  }, [
+    clearInspectorSelection,
+    selectedTimelineClip,
+    timelineRippleEnabled,
+    updateTimelineDocument,
+  ]);
 
   const pickPathSafely = useCallback(
     async (params: { mode: HostPathPickerMode; startingFolder?: string }): Promise<string | null> =>

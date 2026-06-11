@@ -3,12 +3,12 @@ use crate::path_security::{
     create_directory_all_no_symlink, reject_final_symlink, write_file_no_symlink,
 };
 use crate::state::{record_recent_project, State};
+use crate::wire::{failure, success, EngineCallId, EngineResponse, ProtocolErrorCode};
 use crate::DEFAULT_RECENTS_LIMIT;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
-fn validate_project_path(id: &JsonRpcId, project_path: &str) -> Result<(), EngineResponse> {
+fn validate_project_path(id: &EngineCallId, project_path: &str) -> Result<(), EngineResponse> {
     let path = Path::new(project_path);
     if !path.is_absolute() {
         return Err(failure(
@@ -41,11 +41,11 @@ where
     serde_json::from_value(params.clone()).unwrap_or_default()
 }
 
-pub(crate) fn current(id: &JsonRpcId, state: &State) -> EngineResponse {
+pub(crate) fn current(id: &EngineCallId, state: &State) -> EngineResponse {
     success(id, state.project_state())
 }
 
-pub(crate) fn open(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn open(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
     let project_params: ProjectOpenParams = decode_params(params);
     let project_path = match project_params.project_path {
         Some(value) => value,
@@ -66,7 +66,7 @@ pub(crate) fn open(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineR
     success(id, state.project_state())
 }
 
-pub(crate) fn save(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn save(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
     let project_params: ProjectSaveParams = decode_params(params);
     if let Some(project_path) = project_params.project_path {
         if let Err(response) = validate_project_path(id, &project_path) {
@@ -113,7 +113,7 @@ pub(crate) fn save(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineR
     success(id, state.project_state())
 }
 
-pub(crate) fn recents(id: &JsonRpcId, state: &State, params: &Value) -> EngineResponse {
+pub(crate) fn recents(id: &EngineCallId, state: &State, params: &Value) -> EngineResponse {
     let project_params: ProjectRecentsParams = decode_params(params);
     let limit = project_params
         .limit

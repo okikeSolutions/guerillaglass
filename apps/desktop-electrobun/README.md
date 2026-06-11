@@ -2,7 +2,7 @@
 
 Desktop creator studio shell built with Electrobun, React, Tailwind, shadcn/base-ui components, and an Effect-native Bun backend.
 
-The desktop host talks to native sidecars through `@guerillaglass/engine` using a stable loopback socket wire protocol. Stdio/native JSON-RPC paths were removed.
+The desktop host talks to native sidecars through `@guerillaglass/engine-client` using the v2 loopback HTTP/OpenAPI engine contract from `@guerillaglass/engine-contract`.
 
 ## Runtime Architecture
 
@@ -13,7 +13,7 @@ React renderer
       -> AppRuntime / AppLayer
         -> DesktopShell service
         -> ProjectSession service
-        -> EngineTransport service
+        -> EngineClient + domain engine services
         -> MediaSourceService + Effect HTTP media routes
 ```
 
@@ -22,7 +22,7 @@ Key points:
 - One Bun process owns one Effect app runtime.
 - Electrobun shell resources are scoped behind `DesktopShell`.
 - Bridge handlers delegate to `HostBridgeService` / `ProjectSession`; they do not own business logic.
-- Engine sidecars are spawned with Effect process primitives and connected over Bun socket services.
+- Engine sidecars are spawned with Effect process primitives and connected through authenticated loopback HTTP.
 - Media playback uses tokenized loopback URLs served by Effect HTTP routes and `BunHttpServer.layer`.
 - Localization is generated from root Paraglide/Inlang messages into ignored `src/paraglide` output.
 
@@ -37,19 +37,44 @@ Key points:
 ```bash
 bun install
 bun run i18n:compile
+
+# Builds the macOS native engine used by desktop dev scripts.
 bun run swift:build
 ```
 
 ## Development
 
-```bash
-bun run desktop:dev
-bun run desktop:dev:hmr
+From the repository root:
 
-GG_ENGINE_TARGET=windows-stub bun run desktop:dev
-GG_ENGINE_TARGET=linux-stub bun run desktop:dev
-GG_ENGINE_TARGET=windows-native bun run desktop:dev
-GG_ENGINE_TARGET=linux-native bun run desktop:dev
+```bash
+# Builds the native macOS engine, packages the desktop bundle, launches Electrobun,
+# and enables Electrobun's app-bundle watch mode.
+bun run desktop:dev
+
+# Runs Vite for renderer HMR and launches the Electrobun dev shell without
+# the duplicate Electrobun build pass.
+bun run desktop:dev:hmr
+```
+
+From this package directory:
+
+```bash
+bun run dev
+bun run dev:hmr
+```
+
+By default the desktop dev scripts launch the SwiftPM-built macOS engine at `.build/debug/guerillaglass-engine`. To use a custom sidecar executable, pass an absolute `GG_ENGINE_PATH`:
+
+```bash
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev:hmr
+```
+
+Focused Rust native parity builds can be launched the same way:
+
+```bash
+cargo build --workspace
+GG_ENGINE_PATH="$PWD/target/debug/guerillaglass-engine-linux" bun run desktop:dev
 ```
 
 ## Test & Coverage
@@ -62,7 +87,9 @@ bun run desktop:test:e2e
 bun run desktop:test:ui
 ```
 
-The app-level `typecheck`, `build`, and test scripts generate Paraglide output first, so fresh clones and CI do not need generated files committed.
+The app-level `typecheck`, `build`, lint, and test scripts generate Paraglide output first, so fresh clones and CI do not need generated files committed.
+
+`bun run js:lint` at the repo root runs Oxlint with `--type-aware --type-check --deny-warnings`, so JavaScript/TypeScript lint warnings are treated as gate failures.
 
 ## Build
 
@@ -70,14 +97,11 @@ The app-level `typecheck`, `build`, and test scripts generate Paraglide output f
 bun run desktop:build
 ```
 
-## Project Package Registration (macOS)
+## Project File Registration (macOS)
 
-- Guerilla Glass projects use the `.gglassproj` package format.
-- During desktop build packaging, Electrobun hooks run `scripts/configure-macos-project-package.ts`.
-- The hook updates and validates generated `Info.plist` entries:
-  - `UTExportedTypeDeclarations` for `com.okikeSolutions.guerillaglass.project`
-  - `CFBundleDocumentTypes` with `LSItemContentTypes` and `LSTypeIsPackage=true`
-- Finder treats `.gglassproj` as a single package item by default.
+- Guerilla Glass projects use the `.gglassproj` project directory format.
+- Electrobun registers `.gglassproj` through `app.fileAssociations` in `electrobun.config.ts`.
+- Finder package-directory behavior is left to the standard Electrobun file association behavior.
 
 ## Key Paths
 
@@ -90,5 +114,6 @@ bun run desktop:build
 - Media registry/routes/source service: `src/bun/media`
 - App-local localization adapter: `src/shared/localization.ts`
 - Generated Paraglide output: `src/paraglide` (ignored)
-- Engine protocol/client: `../../packages/engine`
+- Engine contract: `../../packages/engine-contract`
+- Engine client: `../../packages/engine-client`
 - Native sidecars/foundations: `../../engines`

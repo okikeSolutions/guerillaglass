@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
+import { describe, expect, test } from "vitest";
+import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
 import {
   pickPreferredDisplayId,
   resolveSelectedDisplayId,

@@ -1,7 +1,7 @@
 use crate::params::{CaptureStartParams, RecordingStartParams};
 use crate::state::State;
+use crate::wire::{failure, success, EngineCallId, EngineResponse, ProtocolErrorCode};
 use crate::DEFAULT_CAPTURE_FRAME_RATES;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
 use serde_json::{json, Value};
 
 fn decode_params<T>(params: &Value) -> T
@@ -11,7 +11,7 @@ where
     serde_json::from_value(params.clone()).unwrap_or_default()
 }
 
-fn validate_capture_fps(id: &JsonRpcId, capture_fps: u64) -> Result<(), EngineResponse> {
+fn validate_capture_fps(id: &EngineCallId, capture_fps: u64) -> Result<(), EngineResponse> {
     if DEFAULT_CAPTURE_FRAME_RATES.contains(&capture_fps) {
         return Ok(());
     }
@@ -24,7 +24,11 @@ fn validate_capture_fps(id: &JsonRpcId, capture_fps: u64) -> Result<(), EngineRe
     ))
 }
 
-pub(crate) fn start_display(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn start_display(
+    id: &EngineCallId,
+    state: &mut State,
+    params: &Value,
+) -> EngineResponse {
     let capture_params: CaptureStartParams = decode_params(params);
     let capture_fps = capture_params.capture_fps.unwrap_or(30);
     if let Err(response) = validate_capture_fps(id, capture_fps) {
@@ -42,7 +46,7 @@ pub(crate) fn start_display(id: &JsonRpcId, state: &mut State, params: &Value) -
 }
 
 pub(crate) fn start_current_window(
-    id: &JsonRpcId,
+    id: &EngineCallId,
     state: &mut State,
     params: &Value,
 ) -> EngineResponse {
@@ -66,7 +70,7 @@ pub(crate) fn start_current_window(
     success(id, state.capture_status())
 }
 
-pub(crate) fn start_window(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn start_window(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
     let capture_params: CaptureStartParams = decode_params(params);
     let capture_fps = capture_params.capture_fps.unwrap_or(30);
     if let Err(response) = validate_capture_fps(id, capture_fps) {
@@ -88,7 +92,7 @@ pub(crate) fn start_window(id: &JsonRpcId, state: &mut State, params: &Value) ->
     success(id, state.capture_status())
 }
 
-pub(crate) fn stop_capture(id: &JsonRpcId, state: &mut State) -> EngineResponse {
+pub(crate) fn stop_capture(id: &EngineCallId, state: &mut State) -> EngineResponse {
     state.recording_duration.stop(&state.clock);
     state.is_recording = false;
     state.is_running = false;
@@ -96,7 +100,11 @@ pub(crate) fn stop_capture(id: &JsonRpcId, state: &mut State) -> EngineResponse 
     success(id, state.capture_status())
 }
 
-pub(crate) fn start_recording(id: &JsonRpcId, state: &mut State, params: &Value) -> EngineResponse {
+pub(crate) fn start_recording(
+    id: &EngineCallId,
+    state: &mut State,
+    params: &Value,
+) -> EngineResponse {
     let recording_params: RecordingStartParams = decode_params(params);
     if !state.is_running {
         return failure(
@@ -114,17 +122,17 @@ pub(crate) fn start_recording(id: &JsonRpcId, state: &mut State, params: &Value)
     success(id, state.capture_status())
 }
 
-pub(crate) fn stop_recording(id: &JsonRpcId, state: &mut State) -> EngineResponse {
+pub(crate) fn stop_recording(id: &EngineCallId, state: &mut State) -> EngineResponse {
     state.recording_duration.stop(&state.clock);
     state.is_recording = false;
     state.unsaved_changes = true;
     success(id, state.capture_status())
 }
 
-pub(crate) fn status(id: &JsonRpcId, state: &State) -> EngineResponse {
+pub(crate) fn status(id: &EngineCallId, state: &State) -> EngineResponse {
     success(id, state.capture_status())
 }
 
-pub(crate) fn preview_frame(id: &JsonRpcId) -> EngineResponse {
+pub(crate) fn preview_frame(id: &EngineCallId) -> EngineResponse {
     success(id, json!(null))
 }

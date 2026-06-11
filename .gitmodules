@@ -1,3 +1,6 @@
 [submodule "vendor/effect"]
 	path = vendor/effect
 	url = https://github.com/Effect-TS/effect-smol.git
+[submodule "vendor/electrobun"]
+	path = vendor/electrobun
+	url = https://github.com/blackboardsh/electrobun.git

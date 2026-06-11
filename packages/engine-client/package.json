@@ -1,0 +1,42 @@
+{
+  "name": "@guerillaglass/engine-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTTP/OpenAPI v2 client service shell for Guerillaglass native engines",
+  "type": "module",
+  "exports": {
+    "./config": "./src/config.ts",
+    "./errors": "./src/errors.ts",
+    "./process/config": "./src/process/config.ts",
+    "./process/launchBun": "./src/process/launchBun.ts",
+    "./process/readiness": "./src/process/readiness.ts",
+    "./process/trust": "./src/process/trust.ts",
+    "./schemaContracts": "./src/schemaContracts.ts",
+    "./service": "./src/service.ts",
+    "./services/AgentService": "./src/services/AgentService.ts",
+    "./services/CaptureService": "./src/services/CaptureService.ts",
+    "./services/domainServices": "./src/services/domainServices.ts",
+    "./services/ExportService": "./src/services/ExportService.ts",
+    "./services/PermissionsService": "./src/services/PermissionsService.ts",
+    "./services/ProjectService": "./src/services/ProjectService.ts",
+    "./services/RecordingService": "./src/services/RecordingService.ts",
+    "./services/SourcesService": "./src/services/SourcesService.ts",
+    "./services/SystemService": "./src/services/SystemService.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@effect/platform-bun": "4.0.0-beta.78",
+    "@guerillaglass/engine-contract": "workspace:*",
+    "effect": "4.0.0-beta.78"
+  },
+  "devDependencies": {
+    "@guerillaglass/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

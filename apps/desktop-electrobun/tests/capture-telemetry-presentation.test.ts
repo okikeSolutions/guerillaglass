@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import type { CaptureTelemetry } from "@guerillaglass/engine/protocol/domains/capture";
+import { describe, expect, test } from "vitest";
+import type { CaptureTelemetry } from "@guerillaglass/engine-contract/domains/capture";
 import {
   buildCaptureTelemetryPresentation,
   buildDroppedFramesTooltip,
@@ -31,9 +31,6 @@ describe("capture telemetry presentation", () => {
       writerDroppedFrames: 5,
       writerBackpressureDrops: 2,
       achievedFps: 59.8,
-      cpuPercent: null,
-      memoryBytes: null,
-      recordingBitrateMbps: null,
       captureCallbackMs: 0.44,
       recordQueueLagMs: 0.21,
       writerAppendMs: 1.37,

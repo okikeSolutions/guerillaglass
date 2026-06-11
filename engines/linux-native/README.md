@@ -15,6 +15,7 @@ Expected binary path:
 
 ## Notes
 
-- Protocol handlers are implemented for parity (`engine.capabilities`, `permissions`, `sources`, `capture`, `recording`, `export`, `project`).
-- Stable socket wire request/response/error/chunk types come from `engines/protocol-rust`.
+- Protocol handlers are exposed through the Engine Contract v2 local HTTP/OpenAPI server.
+- The process binds to `127.0.0.1:0`, requires `GG_ENGINE_TRANSPORT=http`, and enforces `Authorization: Bearer <GG_ENGINE_HTTP_AUTH_TOKEN>`.
+- Generated DTOs, route dispatch, and response encoding come from `engines/protocol-rust`.
 - Capture/audio/input internals are currently foundation-level and need Linux compositor/audio integration for production capture quality.

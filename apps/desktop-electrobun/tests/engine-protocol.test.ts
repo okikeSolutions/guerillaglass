@@ -1,47 +1,34 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Schema } from "effect";
 
-import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
-import { engineRpcErrorSchema } from "@guerillaglass/engine/protocol/rpc/errors";
-import { projectRecentsResultSchema } from "@guerillaglass/engine/protocol/domains/project";
-
-const fixtureDir = new URL("../../../packages/engine/fixtures/", import.meta.url);
+import { EngineOpenApi } from "@guerillaglass/engine-contract/openApi";
+import { projectRecentsResultSchema } from "@guerillaglass/engine-contract/domains/project";
 
 function decodeSchemaSync<S extends Schema.Top>(schema: S, raw: unknown): Schema.Schema.Type<S> {
   return Schema.decodeUnknownSync(schema as never, { errors: "all" })(raw) as Schema.Schema.Type<S>;
 }
 
-describe("engine Effect RPC protocol", () => {
-  test("declares Effect RPC group as protocol source of truth", () => {
-    expect(EngineRpcs.requests.has("engine.capabilities")).toBe(true);
-    expect(EngineRpcs.requests.has("capture.status")).toBe(true);
-    expect(EngineRpcs.requests.has("project.save")).toBe(true);
+describe("engine HTTP contract", () => {
+  test("declares v2 HTTP endpoints as protocol source of truth", () => {
+    expect(EngineOpenApi.paths["/v1/engine/capabilities"]?.get?.operationId).toBe(
+      "system.engineCapabilities",
+    );
+    expect(EngineOpenApi.paths["/v1/capture/status"]?.get?.operationId).toBe(
+      "capture.captureStatus",
+    );
+    expect(EngineOpenApi.paths["/v1/project/save"]?.post?.operationId).toBe("project.projectSave");
   });
 
-  test("uses stable Guerillaglass wire envelopes for native fixtures", async () => {
-    const request = await Bun.file(new URL("engine-capabilities.request.json", fixtureDir)).json();
-    expect(request).toMatchObject({
-      type: "request",
-      id: "1",
-      method: "engine.capabilities",
-      params: {},
+  test("validates contract response payloads", () => {
+    const recents = decodeSchemaSync(projectRecentsResultSchema, {
+      items: [
+        {
+          projectPath: "/tmp/fixture.gglassproj",
+          displayName: "fixture",
+          lastOpenedAt: "2026-02-19T10:00:00.000Z",
+        },
+      ],
     });
-  });
-
-  test("validates Effect RPC typed errors", () => {
-    const error = decodeSchemaSync(engineRpcErrorSchema, {
-      _tag: "EngineRpcError",
-      code: "unsupported_method",
-      message: "Unsupported method",
-    });
-    expect(error.code).toBe("unsupported_method");
-  });
-
-  test("fixtures validate stable wire response payloads", async () => {
-    const response = await Bun.file(new URL("project-recents.response.json", fixtureDir)).json();
-    expect(response).toHaveProperty("type", "response");
-    expect(response).toHaveProperty("result");
-    const recents = decodeSchemaSync(projectRecentsResultSchema, response.result);
     expect(recents.items[0]?.displayName).toBe("fixture");
   });
 });

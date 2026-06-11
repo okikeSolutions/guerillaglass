@@ -11,7 +11,9 @@ const sensitiveDataKeys = new Set(["stack", "authToken", "token", "password", "s
 function redactData(
   data: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
-  if (!data) return undefined;
+  if (!data) {
+    return undefined;
+  }
   const next: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     next[key] = sensitiveDataKeys.has(key) ? "<redacted>" : value;

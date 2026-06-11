@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { desktopApi } from "@lib/engine";
+import { desktopApi, sendHostStudioDiagnostics } from "@lib/engine";
+import type { StudioDiagnosticsEntry } from "@shared/bridge/desktopBridgeContract";
+import type { StudioDiagnosticsValue } from "@shared/studioDiagnostics";
 
 const liveCapturePreviewPollMs = 125;
 
@@ -8,6 +10,33 @@ type LiveCapturePreviewState = {
   hasFrame: boolean;
   imageRef: MutableRefObject<HTMLImageElement | null>;
 };
+
+type LivePreviewDiagnosticsAnnotations = Record<string, StudioDiagnosticsValue>;
+
+function emitLivePreviewDiagnostic(
+  level: StudioDiagnosticsEntry["level"],
+  message: string,
+  annotations?: LivePreviewDiagnosticsAnnotations,
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const entry: StudioDiagnosticsEntry = {
+    source: "renderer",
+    level,
+    message,
+    timestamp: new Date().toISOString(),
+    annotations: {
+      component: "live-capture-preview",
+      ...(annotations ?? {}),
+    },
+  };
+  if ((window as Window & { ggHostSendStudioDiagnostics?: unknown }).ggHostSendStudioDiagnostics) {
+    sendHostStudioDiagnostics(entry);
+    return;
+  }
+  globalThis.console.info("[live-capture-preview]", entry);
+}
 
 function hasDesktopPreviewResolver(): boolean {
   if (typeof window === "undefined") {
@@ -25,12 +54,36 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
   const imageRef = useRef<HTMLImageElement | null>(null);
   const hasPreviewResolver = hasDesktopPreviewResolver();
   const isCaptureRunning = captureSessionId !== null;
+
+  useEffect(() => {
+    emitLivePreviewDiagnostic("INFO", "live preview hook state changed", {
+      captureSessionId,
+      hasPreviewResolver,
+      isCaptureRunning,
+    });
+  }, [captureSessionId, hasPreviewResolver, isCaptureRunning]);
   const previewURLQuery = useQuery<string | null>({
     queryKey: ["studio", "capturePreviewURL", captureSessionId],
     enabled: Boolean(captureSessionId) && hasPreviewResolver,
     queryFn: async () => {
-      if (!captureSessionId) return null;
-      return await desktopApi.resolveCapturePreviewURL(captureSessionId);
+      if (!captureSessionId) {
+        return null;
+      }
+      emitLivePreviewDiagnostic("INFO", "resolving live preview URL", { captureSessionId });
+      try {
+        const previewURL = await desktopApi.resolveCapturePreviewURL(captureSessionId);
+        emitLivePreviewDiagnostic("INFO", "resolved live preview URL", {
+          captureSessionId,
+          previewURL,
+        });
+        return previewURL;
+      } catch (error) {
+        emitLivePreviewDiagnostic("ERROR", "failed to resolve live preview URL", {
+          captureSessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
     },
     gcTime: 0,
     retry: false,
@@ -74,6 +127,11 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
     }
 
     if (!isCaptureRunning || !previewURL) {
+      emitLivePreviewDiagnostic("INFO", "live preview polling inactive", {
+        captureSessionId,
+        hasPreviewURL: Boolean(previewURL),
+        isCaptureRunning,
+      });
       clearPreviewImage();
       return;
     }
@@ -82,6 +140,10 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
       if (cancelled) {
         return;
       }
+      emitLivePreviewDiagnostic("DEBUG", "live preview image loaded", {
+        captureSessionId,
+        refreshVersion,
+      });
       commitHasFrame(true);
       scheduleNextRefresh();
     }
@@ -90,6 +152,11 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
       if (cancelled) {
         return;
       }
+      emitLivePreviewDiagnostic("WARN", "live preview image failed to load", {
+        captureSessionId,
+        refreshVersion,
+        src: imageElement?.getAttribute("src") ?? null,
+      });
       if (!imageElement?.getAttribute("src")) {
         commitHasFrame(false);
       }
@@ -98,6 +165,10 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
 
     imageElement?.addEventListener("load", handleLoad);
     imageElement?.addEventListener("error", handleError);
+    emitLivePreviewDiagnostic("INFO", "live preview polling started", {
+      captureSessionId,
+      previewURL,
+    });
     clearPreviewImage();
     refreshPreviewImage();
 
@@ -110,7 +181,7 @@ export function useLiveCapturePreview(captureSessionId: string | null): LiveCapt
       imageElement?.removeEventListener("error", handleError);
       clearPreviewImage();
     };
-  }, [isCaptureRunning, previewURL]);
+  }, [captureSessionId, isCaptureRunning, previewURL]);
 
   return {
     hasFrame,

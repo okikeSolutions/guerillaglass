@@ -12,7 +12,7 @@ Scope:
 Boundary rule:
 
 - Convex-hosted features must not gate local desktop capture, edit, project IO, or deterministic export.
-- Local media protocol remains in `packages/engine` and native sidecars.
+- Local media protocol remains in `packages/engine-contract`, `packages/engine-client`, and native sidecars.
 - Review payload contracts live in `packages/review-protocol`.
 
 Useful commands:

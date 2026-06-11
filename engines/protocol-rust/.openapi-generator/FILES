@@ -1,0 +1,17 @@
+.gitignore
+Cargo.toml
+README.md
+src/apis/agent.rs
+src/apis/capture.rs
+src/apis/export.rs
+src/apis/mod.rs
+src/apis/permissions.rs
+src/apis/project.rs
+src/apis/recording.rs
+src/apis/sources.rs
+src/apis/system.rs
+src/header.rs
+src/lib.rs
+src/models.rs
+src/server/mod.rs
+src/types.rs

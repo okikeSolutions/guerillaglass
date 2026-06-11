@@ -12,9 +12,9 @@ When macOS engine executable trust is enabled, configure:
 
 - `GG_ENGINE_EXPECTED_TEAM_ID` — Apple Developer Team ID expected on the trusted native engine.
 - `GG_ENGINE_SIGNING_REQUIREMENT` — optional stricter SecRequirement string for the native engine.
-- `GG_MACOS_CODE_SIGNATURE_HELPER_PATH` — absolute path to the verifier helper when not using the bundled helper.
+- `GG_MACOS_CODE_SIGNATURE_HELPER_PATH` — absolute path to the verifier helper.
 
-The macOS verifier helper is currently bundled under `Contents/Resources/native/macos/guerillaglass-code-signature-checker` by the Electrobun package hook.
+Current desktop packaging does not bundle the macOS verifier helper. Configure an explicit helper path when enabling macOS engine executable trust.
 
 ### Windows engine trust
 
@@ -26,12 +26,6 @@ When Windows Authenticode trust is enabled, configure:
 - `GG_WINDOWS_ALLOW_OFFLINE_REVOCATION` — optional escape hatch for offline revocation behavior.
 
 Current status: Windows Authenticode verification code exists, but native Windows validation and final helper packaging are not complete. Do not treat Windows executable trust as production-validated until the checklist below is complete.
-
-## Electrobun packaging order assumption
-
-`apps/desktop-electrobun/scripts/configure-macos-project-package.ts` is registered for `postWrap` because Electrobun 1.18.1 runs `postWrap` after creating the wrapper bundle and before wrapper code-signing/notarization. This lets the hook copy the macOS verifier helper before the bundle signature is sealed.
-
-If Electrobun is upgraded, re-check the lifecycle order before relying on this hook for signed release artifacts.
 
 ## Windows validation checklist
 

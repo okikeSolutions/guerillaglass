@@ -1,5 +1,5 @@
 import type { ApplicationMenuItemConfig, MenuItemConfig } from "electrobun/bun";
-import { getDesktopMenuMessages } from "@shared/localization";
+import { getDesktopMenuMessages } from "../../shared/localization";
 import type { HostMenuState } from "../../shared/bridge/desktopBridgeContract";
 import {
   isHostCommandChecked,

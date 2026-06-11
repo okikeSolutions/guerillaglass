@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import {
   captureFrameRates,
   type CaptureFrameRate,
-} from "@guerillaglass/engine/protocol/domains/sources";
+} from "@guerillaglass/engine-contract/domains/sources";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Checkbox } from "@guerillaglass/ui/components/checkbox";
 import {

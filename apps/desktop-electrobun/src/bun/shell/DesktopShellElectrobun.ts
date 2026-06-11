@@ -7,7 +7,7 @@ import Electrobun, {
   Utils,
 } from "electrobun/bun";
 import { Effect, Layer, Option, Ref } from "effect";
-import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { AppConfig } from "../app/AppConfig";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
@@ -25,7 +25,7 @@ import {
 } from "../../shared/captureBenchmark";
 import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
 import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
-import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import {
   hostMenuStateSchema,
   hostReviewEventMessageSchema,
@@ -60,10 +60,14 @@ const initialHostMenuState: HostMenuState = {
 };
 
 function logStudioDiagnostics(entry: StudioDiagnosticsEntry) {
-  const annotations = entry.annotations ? ` annotations=${JSON.stringify(entry.annotations)}` : "";
-  const spans = entry.spans ? ` spans=${JSON.stringify(entry.spans)}` : "";
-  console.info(
-    `[studio-diagnostics] ${entry.level} ${entry.message} timestamp=${entry.timestamp}${annotations}${spans}`,
+  return Effect.logInfo(entry.message).pipe(
+    Effect.annotateLogs({
+      ...(entry.annotations ?? {}),
+      component: "studio-diagnostics",
+      rendererLevel: entry.level,
+      rendererSpans: entry.spans ? JSON.stringify(entry.spans) : null,
+      rendererTimestamp: entry.timestamp,
+    }),
   );
 }
 
@@ -79,6 +83,12 @@ function menuStateChanged(previous: HostMenuState, next: HostMenuState): boolean
     previous.densityMode !== next.densityMode ||
     !studioShortcutOverridesEqual(previous.shortcutOverrides, next.shortcutOverrides)
   );
+}
+
+function ignoreDesktopShellEffectBeforeRuntimeStart<A, E>(
+  _effect: Effect.Effect<A, E, never>,
+): void {
+  console.warn("Desktop shell effect ignored before managed runtime start");
 }
 
 function makeDesktopRuntimeFlags(options: DesktopShellLayerOptions): DesktopRuntimeFlags {
@@ -103,9 +113,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const studioDiagnosticsEnabled = runtimeFlags.studioDiagnosticsEnabled;
         const devServerPort = options.devServerPort ?? DEFAULT_DEV_SERVER_PORT;
         const devURL = devServerURL(devServerPort);
-        let runShellEffect = <A, E>(_effect: Effect.Effect<A, E, never>) => {
-          console.warn("Desktop shell effect ignored before managed runtime start");
-        };
+        let runShellEffect = ignoreDesktopShellEffectBeforeRuntimeStart;
 
         const getElectrobunChannel = Effect.promise(() => Updater.localInfo.channel());
 
@@ -295,15 +303,24 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
                   },
                   studioDiagnostics: (entry: StudioDiagnosticsEntry) => {
                     try {
-                      logStudioDiagnostics(
-                        decodeUnknownWithSchemaSync(
-                          studioDiagnosticsEntrySchema,
-                          entry,
-                          "studio diagnostics message",
+                      runShellEffect(
+                        logStudioDiagnostics(
+                          decodeUnknownWithSchemaSync(
+                            studioDiagnosticsEntrySchema,
+                            entry,
+                            "studio diagnostics message",
+                          ),
                         ),
                       );
                     } catch (error) {
-                      console.warn("Rejected invalid studio diagnostics message", error);
+                      runShellEffect(
+                        Effect.logWarning("rejected invalid studio diagnostics message").pipe(
+                          Effect.annotateLogs({
+                            component: "studio-diagnostics",
+                            error: String(error),
+                          }),
+                        ),
+                      );
                     }
                   },
                 },

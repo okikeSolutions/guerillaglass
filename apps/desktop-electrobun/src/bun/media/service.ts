@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import { Context, Effect, FileSystem, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { AppConfig } from "../app/AppConfig";
 import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { copySafeFileSnapshot } from "../security/fileAccess";
@@ -74,9 +74,14 @@ export const layerMediaSourceServiceCore = Layer.effect(
           Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
         ),
       resolveCapturePreviewURL: (loadPreviewFrame) =>
-        registry
-          .registerCapturePreview(loadPreviewFrame)
-          .pipe(Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`)),
+        registry.registerCapturePreview(loadPreviewFrame).pipe(
+          Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
+          Effect.tap((previewURL) =>
+            Effect.logInfo("capture preview media URL registered").pipe(
+              Effect.annotateLogs({ component: "media-source", previewURL }),
+            ),
+          ),
+        ),
     });
   }),
 );

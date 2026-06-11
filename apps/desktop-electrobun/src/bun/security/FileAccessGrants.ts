@@ -53,7 +53,9 @@ function grantMatchesPath(
   kind: FileAccessGrantKind,
   filePath: string,
 ): boolean {
-  if (grant.kind !== kind || grant.expiresAt <= Date.now()) return false;
+  if (grant.kind !== kind || grant.expiresAt <= Date.now()) {
+    return false;
+  }
   if (kind === "export-directory") {
     return isPathWithinRoot(filePath, grant.path);
   }

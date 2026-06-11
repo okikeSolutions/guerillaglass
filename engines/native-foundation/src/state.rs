@@ -1,5 +1,5 @@
 use crate::path_security::{create_directory_all_no_symlink, write_file_no_symlink};
-use protocol_rust::{CaptureClock, RunningDuration};
+use crate::wire::{CaptureClock, RunningDuration};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
@@ -130,6 +130,11 @@ impl State {
                 "minimumKeyframeInterval": self.auto_zoom_min_keyframe_interval,
             },
             "captureMetadata": self.capture_metadata,
+            "timeline": {
+                "version": 2,
+                "items": [],
+                "updatedAt": now_iso8601(),
+            },
             "agentAnalysis": {
                 "latestJobId": latest_run.map(|run| run.job_id.clone()),
                 "latestStatus": latest_run.map(|run| run.status),

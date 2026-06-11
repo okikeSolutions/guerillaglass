@@ -1,8 +1,8 @@
 import { Electroview } from "electrobun/view";
-import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import { createWindowBridgeBindings } from "@shared/bridge/desktopBridgeBindings";
-import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import type {
   BridgeRequestName,
   BridgeRequestInvoker,
@@ -68,7 +68,7 @@ export function initializeElectrobunRpcBridge(): void {
               }),
             );
           } catch (error) {
-            console.warn("Rejected invalid host review event payload", error);
+            globalThis.reportError?.(error);
           }
         },
         desktopRuntimeFlags: (flags: DesktopRuntimeFlags) => {

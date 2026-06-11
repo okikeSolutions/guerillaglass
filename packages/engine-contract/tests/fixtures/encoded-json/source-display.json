@@ -1,0 +1,8 @@
+{
+  "id": 1,
+  "displayName": "Built-in Display",
+  "isPrimary": true,
+  "width": 3024,
+  "height": 1964,
+  "supportedCaptureFrameRates": [24, 30, 60, 120]
+}

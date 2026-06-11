@@ -1,8 +1,13 @@
 import { Buffer } from "node:buffer";
 import { Effect, FileSystem, Layer, Option } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
-import type { CapturePreviewFrameResult } from "@guerillaglass/engine/protocol/domains/capture";
-import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import {
+  HttpPlatform,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http";
+import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
+import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
 import { AppConfig } from "../app/AppConfig";
 import { guardMediaServerRequest } from "../security/MediaServerRequestGuard";
@@ -25,15 +30,21 @@ function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
     ? `${trimmedRangeHeader.split(",")[0]?.trim() ?? ""}`
     : trimmedRangeHeader;
   const match = /^bytes=(\d*)-(\d*)$/.exec(firstRangeHeader);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   const rawStart = match[1] ?? "";
   const rawEnd = match[2] ?? "";
-  if (rawStart.length === 0 && rawEnd.length === 0) return null;
+  if (rawStart.length === 0 && rawEnd.length === 0) {
+    return null;
+  }
 
   if (rawStart.length === 0) {
     const suffixLength = Number.parseInt(rawEnd, 10);
-    if (!Number.isFinite(suffixLength) || suffixLength <= 0) return null;
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      return null;
+    }
     const start = Math.max(size - suffixLength, 0);
     const end = size - 1;
     return start <= end ? { start, end } : null;
@@ -44,7 +55,9 @@ function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
     return null;
   }
-  if (start >= size) return null;
+  if (start >= size) {
+    return null;
+  }
   return { start, end: Math.min(end, size - 1) };
 }
 
@@ -86,7 +99,7 @@ function previewHeaders(contentLength: number): Record<string, string> {
   };
 }
 
-function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult>): Uint8Array {
+function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult["frame"]>): Uint8Array {
   return Uint8Array.from(Buffer.from(frame.bytesBase64, "base64"));
 }
 
@@ -109,7 +122,9 @@ function logDebugWarningEffect(message: string): Effect.Effect<void> {
 }
 
 function validateToken(rawToken: string): string | null {
-  if (rawToken.length === 0 || rawToken.length > maxTokenPathSegmentLength) return null;
+  if (rawToken.length === 0 || rawToken.length > maxTokenPathSegmentLength) {
+    return null;
+  }
   let token: string;
   try {
     token = decodeURIComponent(rawToken);
@@ -136,7 +151,8 @@ function handlePreviewRequest(
       ),
     );
 
-    if (!frame) {
+    const previewFrame = frame.frame;
+    if (!previewFrame) {
       if (entry.cachedJPEGBytes) {
         yield* logDebugEffect(
           `Live preview served cached frame (${token.slice(0, 8)}...) frame=${entry.cachedFrameId ?? 0}`,
@@ -151,10 +167,10 @@ function handlePreviewRequest(
       return textResponse(404, "Not found");
     }
 
-    const jpegBytes = decodePreviewFrame(frame);
-    yield* registry.updatePreviewCache(token, frame.frameId, jpegBytes);
+    const jpegBytes = decodePreviewFrame(previewFrame);
+    yield* registry.updatePreviewCache(token, previewFrame.frameId, jpegBytes);
     yield* logDebugEffect(
-      `Live preview served 200 (${token.slice(0, 8)}...) frame=${frame.frameId}`,
+      `Live preview served 200 (${token.slice(0, 8)}...) frame=${previewFrame.frameId}`,
     );
 
     return HttpServerResponse.uint8Array(jpegBytes, {
@@ -168,7 +184,11 @@ function handleFileRequest(
   request: HttpServerRequest.HttpServerRequest,
   token: string,
   entry: MediaTokenEntry,
-): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, FileSystem.FileSystem> {
+): Effect.Effect<
+  HttpServerResponse.HttpServerResponse,
+  MediaServerError,
+  FileSystem.FileSystem | HttpPlatform.HttpPlatform
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const info = yield* fs.stat(entry.filePath).pipe(
@@ -192,7 +212,10 @@ function handleFileRequest(
 
     if (!rangeHeader) {
       yield* logDebugEffect(`Media served 200 (${token.slice(0, 8)}...) full file`);
-      const fileBytes = yield* fs.readFile(entry.filePath).pipe(
+      return yield* HttpServerResponse.file(entry.filePath, {
+        status: 200,
+        headers: commonHeaders,
+      }).pipe(
         Effect.mapError(
           (cause) =>
             new MediaServerError({
@@ -202,13 +225,6 @@ function handleFileRequest(
             }),
         ),
       );
-      return HttpServerResponse.uint8Array(fileBytes, {
-        status: 200,
-        headers: {
-          ...commonHeaders,
-          "content-length": String(size),
-        },
-      });
     }
 
     const isMultiRangeRequest = rangeHeader.includes(",");
@@ -231,7 +247,15 @@ function handleFileRequest(
       );
     }
 
-    const fileBytes = yield* fs.readFile(entry.filePath).pipe(
+    return yield* HttpServerResponse.file(entry.filePath, {
+      status: 206,
+      offset: start,
+      bytesToRead: chunkSize,
+      headers: {
+        ...commonHeaders,
+        "content-range": `bytes ${start}-${end}/${size}`,
+      },
+    }).pipe(
       Effect.mapError(
         (cause) =>
           new MediaServerError({
@@ -241,14 +265,6 @@ function handleFileRequest(
           }),
       ),
     );
-    return HttpServerResponse.uint8Array(fileBytes.subarray(start, end + 1), {
-      status: 206,
-      headers: {
-        ...commonHeaders,
-        "content-length": String(chunkSize),
-        "content-range": `bytes ${start}-${end}/${size}`,
-      },
-    });
   });
 }
 
@@ -277,11 +293,12 @@ const mediaRouteHandler = Effect.gen(function* () {
     return textResponse(guardResult.status, guardResult.body);
   }
 
-  if (!request.url.startsWith(mediaRoutePrefix)) {
+  const requestPath = request.url.split(/[?#]/u, 1)[0] ?? "";
+  if (!requestPath.startsWith(mediaRoutePrefix)) {
     return textResponse(404, "Not found");
   }
 
-  const rawToken = request.url.slice(mediaRoutePrefix.length);
+  const rawToken = requestPath.slice(mediaRoutePrefix.length);
   const token = validateToken(rawToken);
   if (!token) {
     yield* logDebugEffect(`Media server rejected path: ${request.method} ${request.url}`);

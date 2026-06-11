@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
   captureStatusResultsEqual,
   parseCaptureStatusEvent,
@@ -14,10 +14,6 @@ describe("studio capture status stream events", () => {
           captureSessionId: "capture-session-1",
           recordingDurationSeconds: 12.5,
           recordingURL: "/tmp/recording.mov",
-          captureMetadata: null,
-          lastError: null,
-          eventsURL: null,
-          lastRecordingTelemetry: null,
           telemetry: {
             sourceDroppedFrames: 1,
             writerDroppedFrames: 1,
@@ -58,9 +54,6 @@ describe("studio capture status stream events", () => {
       captureSessionId: "capture-session-1",
       recordingDurationSeconds: 12.5,
       recordingURL: "/tmp/recording.mov",
-      captureMetadata: null,
-      lastError: null,
-      eventsURL: null,
       lastRecordingTelemetry: {
         sourceDroppedFrames: 2,
         writerDroppedFrames: 0,

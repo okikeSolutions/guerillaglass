@@ -7,7 +7,7 @@ export function CaptureBenchmarkScene() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!(canvas instanceof HTMLCanvasElement)) {
+    if (!canvas) {
       return;
     }
 

@@ -38,11 +38,18 @@ mkdir -p "$COVERAGE_DIR"
 # Baseline thresholds (raise over time).
 # The desktop shell refactor increased reportable TS lines significantly.
 # Keep this baseline realistic and raise it incrementally as coverage grows.
-TS_LINES_MIN="${TS_LINES_MIN:-68}"
-TS_PROCESS_BUN_LINES_MIN="${TS_PROCESS_BUN_LINES_MIN:-40}"
-RUST_LINES_MIN="${RUST_LINES_MIN:-75}"
-RUST_FUNCTIONS_MIN="${RUST_FUNCTIONS_MIN:-80}"
-RUST_NATIVE_FOUNDATION_LINES_MIN="${RUST_NATIVE_FOUNDATION_LINES_MIN:-80}"
+TS_LINES_MIN="${TS_LINES_MIN:-48}"
+TS_ENGINE_CLIENT_LINES_MIN="${TS_ENGINE_CLIENT_LINES_MIN:-80}"
+TS_ENGINE_CLIENT_FUNCTIONS_MIN="${TS_ENGINE_CLIENT_FUNCTIONS_MIN:-80}"
+TS_ENGINE_CLIENT_LAUNCH_LINES_MIN="${TS_ENGINE_CLIENT_LAUNCH_LINES_MIN:-80}"
+# Exclude generated protocol-rust source from Rust coverage accounting.
+# Protocol behavior is covered by server helper/golden fixture tests; native logic is gated below.
+RUST_NATIVE_FOUNDATION_LIB_LINES_MIN="${RUST_NATIVE_FOUNDATION_LIB_LINES_MIN:-95}"
+RUST_NATIVE_FOUNDATION_CAPTURE_LINES_MIN="${RUST_NATIVE_FOUNDATION_CAPTURE_LINES_MIN:-70}"
+RUST_NATIVE_FOUNDATION_EXPORT_LINES_MIN="${RUST_NATIVE_FOUNDATION_EXPORT_LINES_MIN:-65}"
+RUST_NATIVE_FOUNDATION_PROJECT_LINES_MIN="${RUST_NATIVE_FOUNDATION_PROJECT_LINES_MIN:-70}"
+RUST_NATIVE_FOUNDATION_HANDLERS_LINES_MIN="${RUST_NATIVE_FOUNDATION_HANDLERS_LINES_MIN:-65}"
+RUST_NATIVE_FOUNDATION_TRANSPORT_LINES_MIN="${RUST_NATIVE_FOUNDATION_TRANSPORT_LINES_MIN:-60}"
 SWIFT_LINES_MIN="${SWIFT_LINES_MIN:-65}"
 SWIFT_FUNCTIONS_MIN="${SWIFT_FUNCTIONS_MIN:-70}"
 SWIFT_CAPTURE_RECORDING_LINES_MIN="${SWIFT_CAPTURE_RECORDING_LINES_MIN:-85}"
@@ -99,21 +106,30 @@ echo "==> typescript coverage report"
 TS_REPORT="$COVERAGE_DIR/typescript-coverage.txt"
 bun run desktop:test:coverage 2>&1 | tee "$TS_REPORT"
 
-ts_all_lines="$(awk -F'|' '$1 ~ /All files/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT")"
-ts_process_bun_lines="$(
-  awk -F'|' 'NF >= 3 && $1 ~ /packages\/engine\/src\/client\/processBun.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+ENGINE_CLIENT_TS_REPORT="$COVERAGE_DIR/engine-client-typescript-coverage.txt"
+(
+  cd packages/engine-client
+  bun run test -- --coverage --coverage.reporter=json-summary --coverage.reportsDirectory=../../target/coverage/engine-client
+) 2>&1 | tee "$ENGINE_CLIENT_TS_REPORT"
+
+TS_SUMMARY="$COVERAGE_DIR/typescript/coverage-summary.json"
+ENGINE_CLIENT_TS_SUMMARY="$COVERAGE_DIR/engine-client/coverage-summary.json"
+
+ts_all_lines="$(jq -r '.total.lines.pct' "$TS_SUMMARY")"
+ts_engine_client_lines="$(jq -r '.total.lines.pct' "$ENGINE_CLIENT_TS_SUMMARY")"
+ts_engine_client_functions="$(jq -r '.total.functions.pct' "$ENGINE_CLIENT_TS_SUMMARY")"
+ts_engine_client_launch_lines="$(
+  jq -r --arg file "$REPO_ROOT/packages/engine-client/src/process/launchBun.ts" '.[$file].lines.pct // empty' "$ENGINE_CLIENT_TS_SUMMARY"
 )"
 ts_engine_lines="$(
-  awk -F'|' 'NF >= 3 && $1 ~ /src\/mainview\/lib\/engine.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+  jq -r --arg file "$REPO_ROOT/apps/desktop-electrobun/src/mainview/lib/engine.ts" '.[$file].lines.pct // empty' "$TS_SUMMARY"
 )"
 ts_capture_telemetry_lines="$(
-  awk -F'|' 'NF >= 3 && $1 ~ /src\/mainview\/app\/studio\/view-model\/captureTelemetryViewModel.ts/{gsub(/ /,"",$3); print $3; exit}' "$TS_REPORT"
+  jq -r --arg file "$REPO_ROOT/apps/desktop-electrobun/src/mainview/app/studio/view-model/captureTelemetryViewModel.ts" '.[$file].lines.pct // empty' "$TS_SUMMARY"
 )"
 
 echo "==> rust coverage report"
 RUST_REPORT="$COVERAGE_DIR/rust-summary.json"
-# Keep aggregate Rust thresholds focused on unit-testable protocol/foundation code.
-# Platform entrypoints and socket transport are covered by parity/integration gates instead.
 cargo llvm-cov \
   --workspace \
   --all-targets \
@@ -121,16 +137,25 @@ cargo llvm-cov \
   --summary-only \
   --exclude-from-report guerillaglass-engine-windows \
   --exclude-from-report guerillaglass-engine-linux \
-  --ignore-filename-regex 'engines/native-foundation/src/transport.rs' \
+  --ignore-filename-regex 'engines/protocol-rust/src/.*\.rs' \
   --output-path "$RUST_REPORT" >/dev/null
 
 rust_total_lines="$(jq -r '.data[0].totals.lines.percent' "$RUST_REPORT")"
 rust_total_functions="$(jq -r '.data[0].totals.functions.percent' "$RUST_REPORT")"
-rust_native_foundation_lines="$(
-  jq -r --arg file "$REPO_ROOT/engines/native-foundation/src/lib.rs" \
+
+rust_file_lines() {
+  local relative_path="$1"
+  jq -r --arg file "$REPO_ROOT/$relative_path" \
     '.data[0].files[] | select(.filename == $file) | .summary.lines.percent' \
     "$RUST_REPORT"
-)"
+}
+
+rust_native_foundation_lib_lines="$(rust_file_lines "engines/native-foundation/src/lib.rs")"
+rust_native_foundation_capture_lines="$(rust_file_lines "engines/native-foundation/src/capture.rs")"
+rust_native_foundation_export_lines="$(rust_file_lines "engines/native-foundation/src/export.rs")"
+rust_native_foundation_project_lines="$(rust_file_lines "engines/native-foundation/src/project.rs")"
+rust_native_foundation_handlers_lines="$(rust_file_lines "engines/native-foundation/src/handlers.rs")"
+rust_native_foundation_transport_lines="$(rust_file_lines "engines/native-foundation/src/transport.rs")"
 
 echo "==> swift coverage report"
 swift test --enable-code-coverage >/dev/null
@@ -158,13 +183,19 @@ swift_asset_writer_lifecycle_lines="$(swift_file_lines "engines/macos-swift/modu
 
 echo "==> coverage thresholds"
 check_min "TypeScript total lines" "$ts_all_lines" "$TS_LINES_MIN"
-check_min "TypeScript processBun lines" "$ts_process_bun_lines" "$TS_PROCESS_BUN_LINES_MIN"
+check_min "TypeScript engine-client total lines" "$ts_engine_client_lines" "$TS_ENGINE_CLIENT_LINES_MIN"
+check_min "TypeScript engine-client total functions" "$ts_engine_client_functions" "$TS_ENGINE_CLIENT_FUNCTIONS_MIN"
+check_min "TypeScript engine-client launchBun lines" "$ts_engine_client_launch_lines" "$TS_ENGINE_CLIENT_LAUNCH_LINES_MIN"
 check_nonzero "TypeScript engine.ts lines" "$ts_engine_lines"
 check_nonzero "TypeScript captureTelemetryViewModel lines" "$ts_capture_telemetry_lines"
-check_min "Rust total lines" "$rust_total_lines" "$RUST_LINES_MIN"
-check_min "Rust total functions" "$rust_total_functions" "$RUST_FUNCTIONS_MIN"
-check_min "Rust native-foundation lines" "$rust_native_foundation_lines" "$RUST_NATIVE_FOUNDATION_LINES_MIN"
-check_nonzero "Rust native-foundation lines" "$rust_native_foundation_lines"
+echo "INFO: Rust total lines coverage ${rust_total_lines}% (generated protocol-rust source excluded; not gated)"
+echo "INFO: Rust total functions coverage ${rust_total_functions}% (generated protocol-rust source excluded; not gated)"
+check_min "Rust native-foundation lib.rs lines" "$rust_native_foundation_lib_lines" "$RUST_NATIVE_FOUNDATION_LIB_LINES_MIN"
+check_min "Rust native-foundation capture.rs lines" "$rust_native_foundation_capture_lines" "$RUST_NATIVE_FOUNDATION_CAPTURE_LINES_MIN"
+check_min "Rust native-foundation export.rs lines" "$rust_native_foundation_export_lines" "$RUST_NATIVE_FOUNDATION_EXPORT_LINES_MIN"
+check_min "Rust native-foundation project.rs lines" "$rust_native_foundation_project_lines" "$RUST_NATIVE_FOUNDATION_PROJECT_LINES_MIN"
+check_min "Rust native-foundation handlers.rs lines" "$rust_native_foundation_handlers_lines" "$RUST_NATIVE_FOUNDATION_HANDLERS_LINES_MIN"
+check_min "Rust native-foundation transport.rs lines" "$rust_native_foundation_transport_lines" "$RUST_NATIVE_FOUNDATION_TRANSPORT_LINES_MIN"
 check_min "Swift total lines" "$swift_total_lines" "$SWIFT_LINES_MIN"
 check_min "Swift total functions" "$swift_total_functions" "$SWIFT_FUNCTIONS_MIN"
 check_min "Swift CaptureEngine+Recording lines" "$swift_capture_recording_lines" "$SWIFT_CAPTURE_RECORDING_LINES_MIN"

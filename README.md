@@ -11,20 +11,20 @@ North star:
 
 ## Current Architecture
 
-The repository now uses the completed Phase 1–7 architecture:
+The repository now uses the completed Engine Contract v2 architecture:
 
 - Desktop shell: Electrobun + React + Tailwind (`apps/desktop-electrobun`)
 - Desktop backend: one Effect app runtime composed from scoped services (`src/bun/app`)
-- Engine protocol/client package: Effect Schema + Effect RPC group + Bun socket transport (`packages/engine`)
-- Native engines: Swift and Rust sidecars under `engines/`, speaking the stable Guerillaglass socket wire protocol
+- Engine contract/client packages: Effect `HttpApi` + generated OpenAPI (`packages/engine-contract`) and Effect-native HTTP client/process launcher (`packages/engine-client`)
+- Native engines: Swift and Rust sidecars under `engines/`, serving the v2 loopback HTTP/OpenAPI API
 - Media serving: Effect HTTP routes + scoped Bun HTTP server with tokenized loopback URLs
 - Web app/auth shell: TanStack Start + Convex (`apps/web`)
 - Localization: shared Paraglide/Inlang source messages at `project.inlang` + `messages/*.json`; each app generates ignored `src/paraglide` output in CI/build scripts
 
 Important boundaries:
 
-- Native sidecars do **not** depend on Effect RPC wire internals.
-- TypeScript owns the Effect RPC bridge and stable socket wire conversion.
+- Native sidecars depend on generated OpenAPI bindings/helpers, not Effect RPC internals.
+- TypeScript owns the Effect `HttpApi` contract and generated OpenAPI artifact.
 - Desktop bridge handlers are thin adapters into the Effect runtime.
 - Generated Paraglide output is not committed.
 
@@ -43,29 +43,36 @@ bun install
 # Generate app-local Paraglide output used by typecheck/build/test
 bun run i18n:compile
 
-# Build native macOS engine
+# Build native macOS engine. Desktop dev scripts launch this engine via GG_ENGINE_PATH.
 bun run swift:build
 
-# Run desktop shell
+# Run desktop shell. The desktop scripts build the native macOS engine first
+# and pass GG_ENGINE_PATH to Electrobun.
 bun run desktop:dev
+
+# Run desktop shell with Vite HMR for the renderer
+bun run desktop:dev:hmr
 
 # Run web app
 bun run web:dev
 ```
 
-Engine targets:
+Native engine path overrides:
 
 ```bash
-GG_ENGINE_TARGET=windows-stub bun run desktop:dev
-GG_ENGINE_TARGET=linux-stub bun run desktop:dev
-GG_ENGINE_TARGET=windows-native bun run desktop:dev
-GG_ENGINE_TARGET=linux-native bun run desktop:dev
+# Use a custom native engine executable. The path must be absolute.
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev
+GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev:hmr
+
+# Rust sidecars can be built/launched explicitly for focused native parity work.
+cargo build --workspace
+GG_ENGINE_PATH="$PWD/target/debug/guerillaglass-engine-linux" bun run desktop:dev
 ```
 
 ## Verification
 
 ```bash
-bun run i18n:compile
+bun run js:lint
 bun run gate:typescript
 bun run gate:rust
 bun run desktop:test:e2e
@@ -79,7 +86,8 @@ Useful focused checks:
 cd apps/desktop-electrobun && bun run typecheck
 cd apps/desktop-electrobun && bun run test
 cd apps/web && bun run typecheck
-cd packages/engine && bun run typecheck
+cd packages/engine-contract && bun run check:contract:full
+cd packages/engine-client && bun run typecheck
 cargo check
 ```
 

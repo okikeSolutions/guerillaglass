@@ -1,11 +1,11 @@
 use crate::params::{ExportRunCutPlanParams, ExportRunParams};
 use crate::path_security::{reject_final_symlink, write_file_no_symlink};
 use crate::state::State;
-use protocol_rust::{failure, success, EngineResponse, JsonRpcId, ProtocolErrorCode};
+use crate::wire::{failure, success, EngineCallId, EngineResponse, ProtocolErrorCode};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
-fn validate_export_path(id: &JsonRpcId, output_url: &str) -> Result<(), EngineResponse> {
+fn validate_export_path(id: &EngineCallId, output_url: &str) -> Result<(), EngineResponse> {
     let path = Path::new(output_url);
     if !path.is_absolute() {
         return Err(failure(
@@ -41,7 +41,7 @@ where
     serde_json::from_value(params.clone()).unwrap_or_default()
 }
 
-pub(crate) fn info(id: &JsonRpcId) -> EngineResponse {
+pub(crate) fn info(id: &EngineCallId) -> EngineResponse {
     success(
         id,
         json!({
@@ -59,7 +59,7 @@ pub(crate) fn info(id: &JsonRpcId) -> EngineResponse {
     )
 }
 
-pub(crate) fn run(id: &JsonRpcId, params: &Value) -> EngineResponse {
+pub(crate) fn run(id: &EngineCallId, params: &Value) -> EngineResponse {
     let export_params: ExportRunParams = decode_params(params);
     let output_url = match export_params.output_url {
         Some(value) => value,
@@ -85,10 +85,17 @@ pub(crate) fn run(id: &JsonRpcId, params: &Value) -> EngineResponse {
         );
     }
 
-    success(id, json!({ "outputURL": output_url }))
+    success(
+        id,
+        json!({
+            "jobId": format!("export-{}", id),
+            "status": "succeeded",
+            "outputURL": output_url,
+        }),
+    )
 }
 
-pub(crate) fn run_cut_plan(id: &JsonRpcId, state: &State, params: &Value) -> EngineResponse {
+pub(crate) fn run_cut_plan(id: &EngineCallId, state: &State, params: &Value) -> EngineResponse {
     let export_params: ExportRunCutPlanParams = decode_params(params);
     let output_url = match export_params.output_url {
         Some(value) => value,
@@ -166,6 +173,8 @@ pub(crate) fn run_cut_plan(id: &JsonRpcId, state: &State, params: &Value) -> Eng
     success(
         id,
         json!({
+            "jobId": format!("export-cut-plan-{}", id),
+            "status": "succeeded",
             "outputURL": output_url,
             "appliedSegments": applied_segments,
         }),

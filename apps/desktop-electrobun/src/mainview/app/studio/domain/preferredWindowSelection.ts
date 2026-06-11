@@ -1,4 +1,4 @@
-import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
+import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
 
 type SourceWindow = SourcesResult["windows"][number];
 

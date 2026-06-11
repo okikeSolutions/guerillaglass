@@ -85,14 +85,7 @@ bun run desktop:test:coverage
 bun run desktop:test:ui
 ```
 
-Playwright smoke coverage in `apps/desktop-electrobun/tests/ui/studio-shell.smoke.ts` includes:
-
-- Keyboard tab order checks for mode links.
-- Keyboard resizing checks for pane and timeline separators.
-- Pointer drag checks for pane and timeline separators.
-- Timeline pointer-cancel stability checks (no cancel-coordinate jump).
-- Single-key hotkey toggle and interactive-focus scoping checks.
-- Reduced-motion and increased-contrast media emulation assertions.
+Vitest Browser coverage in `apps/desktop-electrobun/tests/ui/studio-shell.browser.test.tsx` includes shell rendering and keyboard-accessible route navigation through the studio workspace. Related Vitest model/unit coverage exercises pane layout, timeline pointer-cancel stability, shortcut scoping, semantic tone, and technical feedback behavior.
 
 ## Change Review Checklist
 

@@ -12,7 +12,9 @@ mod sources;
 mod state;
 mod system;
 mod transport;
+mod wire;
 
+#[cfg(test)]
 pub(crate) use handlers::handle_request;
 #[cfg(test)]
 pub(crate) use state::record_recent_project;
@@ -25,7 +27,6 @@ pub const ENGINE_PHASE: &str = "foundation";
 pub(crate) const DEFAULT_RECENTS_LIMIT: usize = 10;
 pub(crate) const PREFLIGHT_TOKEN_TTL_SECONDS: i64 = 60;
 pub(crate) const DEFAULT_CAPTURE_FRAME_RATES: [u64; 3] = [24, 30, 60];
-pub(crate) const MAX_SOCKET_FRAME_BYTES: usize = 1024 * 1024;
 
 /// Runtime configuration for the native foundation engine loop.
 pub struct EngineRuntimeConfig {
@@ -46,8 +47,7 @@ mod tests {
         is_valid_recent_project_item, load_recent_projects, save_recent_projects,
         MAX_RECENT_PROJECTS,
     };
-    use crate::transport::read_bounded_line;
-    use protocol_rust::{EngineRequest, EngineResponse, ProtocolErrorCode};
+    use crate::wire::{EngineMethod, EngineRequest, EngineResponse, ProtocolErrorCode};
     use serde_json::{json, Value};
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -77,13 +77,11 @@ mod tests {
         result
     }
 
-    fn request(id: &str, method: &str, params: Value) -> EngineRequest {
+    fn request(id: &str, method: EngineMethod, params: Value) -> EngineRequest {
         EngineRequest {
-            message_type: "request".to_string(),
-            id: id.to_string().into(),
-            method: method.to_string(),
+            id: id.to_string(),
+            method,
             params,
-            auth_token: None,
         }
     }
 
@@ -168,9 +166,6 @@ mod tests {
                 "expected success response, got error: {:?}: {}",
                 error.code, error.message
             ),
-            EngineResponse::Chunk { values, .. } => {
-                panic!("expected success response, got chunk: {values:?}")
-            }
         }
     }
 
@@ -183,28 +178,15 @@ mod tests {
                 assert_eq!(error.code, code);
                 error.message
             }
-            EngineResponse::Chunk { values, .. } => {
-                panic!("expected error response, got chunk: {values:?}")
-            }
         }
     }
 
-    #[test]
-    fn bounded_line_rejects_oversized_frame() {
-        let mut input = std::io::Cursor::new(vec![b'a'; 8]);
-        let error = read_bounded_line(&mut input, 4).expect_err("oversized frame should fail");
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
-    }
-
-    #[test]
-    fn bounded_line_rejects_malformed_utf8() {
-        let mut input = std::io::Cursor::new(vec![0xff, b'\n']);
-        let error = read_bounded_line(&mut input, 16).expect_err("invalid utf8 should fail");
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
-    }
-
     fn ready_preflight_token(state: &mut State, params: Value) -> String {
-        let response = handle_request("linux", state, &request("pf", "agent.preflight", params));
+        let response = handle_request(
+            "linux",
+            state,
+            &request("pf", EngineMethod::AgentPreflight, params),
+        );
         let result = expect_success(response);
         result
             .get("preflightToken")
@@ -214,20 +196,13 @@ mod tests {
     }
 
     #[test]
-    fn returns_unsupported_method_for_unknown_method() {
-        with_state("unsupported-method", |state, _| {
-            let response =
-                handle_request("linux", state, &request("r1", "nope.unknown", json!({})));
-            let message = expect_error(response, ProtocolErrorCode::UnsupportedMethod);
-            assert!(message.contains("Unsupported method"));
-        });
-    }
-
-    #[test]
     fn recording_start_requires_capture_to_be_running() {
         with_state("recording-requires-capture", |state, _| {
-            let response =
-                handle_request("linux", state, &request("r2", "recording.start", json!({})));
+            let response = handle_request(
+                "linux",
+                state,
+                &request("r2", EngineMethod::RecordingStart, json!({})),
+            );
             let message = expect_error(response, ProtocolErrorCode::InvalidParams);
             assert_eq!(message, "Start capture before recording");
         });
@@ -239,7 +214,7 @@ mod tests {
             let capture = handle_request(
                 "linux",
                 state,
-                &request("r3", "capture.startDisplay", json!({})),
+                &request("r3", EngineMethod::CaptureStartDisplay, json!({})),
             );
             let capture_result = expect_success(capture);
             assert_eq!(capture_result["isRunning"], json!(true));
@@ -255,7 +230,11 @@ mod tests {
             let recording = handle_request(
                 "linux",
                 state,
-                &request("r4", "recording.start", json!({ "trackInputEvents": true })),
+                &request(
+                    "r4",
+                    EngineMethod::RecordingStart,
+                    json!({ "trackInputEvents": true }),
+                ),
             );
             let recording_result = expect_success(recording);
             assert_eq!(recording_result["isRecording"], json!(true));
@@ -268,13 +247,19 @@ mod tests {
                 json!("native://events/session-events.json")
             );
 
-            let stopped_recording =
-                handle_request("linux", state, &request("r5", "recording.stop", json!({})));
+            let stopped_recording = handle_request(
+                "linux",
+                state,
+                &request("r5", EngineMethod::RecordingStop, json!({})),
+            );
             let stopped_recording_result = expect_success(stopped_recording);
             assert_eq!(stopped_recording_result["isRecording"], json!(false));
 
-            let stopped_capture =
-                handle_request("linux", state, &request("r6", "capture.stop", json!({})));
+            let stopped_capture = handle_request(
+                "linux",
+                state,
+                &request("r6", EngineMethod::CaptureStop, json!({})),
+            );
             let stopped_capture_result = expect_success(stopped_capture);
             assert_eq!(stopped_capture_result["isRunning"], json!(false));
             assert_eq!(stopped_capture_result["captureSessionId"], Value::Null);
@@ -287,7 +272,7 @@ mod tests {
             let first_capture = handle_request(
                 "linux",
                 state,
-                &request("r3", "capture.startDisplay", json!({})),
+                &request("r3", EngineMethod::CaptureStartDisplay, json!({})),
             );
             let first_capture_result = expect_success(first_capture);
             assert_eq!(
@@ -295,12 +280,16 @@ mod tests {
                 json!("capture-session-1")
             );
 
-            let _ = handle_request("linux", state, &request("r4", "capture.stop", json!({})));
+            let _ = handle_request(
+                "linux",
+                state,
+                &request("r4", EngineMethod::CaptureStop, json!({})),
+            );
 
             let second_capture = handle_request(
                 "linux",
                 state,
-                &request("r5", "capture.startDisplay", json!({})),
+                &request("r5", EngineMethod::CaptureStartDisplay, json!({})),
             );
             let second_capture_result = expect_success(second_capture);
             assert_eq!(
@@ -313,8 +302,11 @@ mod tests {
     #[test]
     fn sources_list_includes_pixel_scale_for_displays_and_windows() {
         with_state("sources-list-pixel-scale", |state, _| {
-            let response =
-                handle_request("linux", state, &request("r3a", "sources.list", json!({})));
+            let response = handle_request(
+                "linux",
+                state,
+                &request("r3a", EngineMethod::SourcesList, json!({})),
+            );
             let result = expect_success(response);
             let displays = result["displays"].as_array().expect("displays");
             let windows = result["windows"].as_array().expect("windows");
@@ -330,7 +322,7 @@ mod tests {
             let response = handle_request(
                 "linux",
                 state,
-                &request("r7", "capture.startWindow", json!({})),
+                &request("r7", EngineMethod::CaptureStartWindow, json!({})),
             );
             let result = expect_success(response);
             assert_eq!(result["captureMetadata"]["window"]["id"], json!(101));
@@ -344,7 +336,11 @@ mod tests {
             let response = handle_request(
                 "linux",
                 state,
-                &request("r8", "capture.startDisplay", json!({ "captureFps": 120 })),
+                &request(
+                    "r8",
+                    EngineMethod::CaptureStartDisplay,
+                    json!({ "captureFps": 120 }),
+                ),
             );
             let message = expect_error(response, ProtocolErrorCode::InvalidParams);
             assert!(message.contains("Supported values: 24, 30, 60"));
@@ -354,7 +350,11 @@ mod tests {
     #[test]
     fn export_run_requires_output_url() {
         with_state("export-run-missing-output", |state, _| {
-            let response = handle_request("linux", state, &request("r9", "export.run", json!({})));
+            let response = handle_request(
+                "linux",
+                state,
+                &request("r9", EngineMethod::ExportRun, json!({})),
+            );
             let message = expect_error(response, ProtocolErrorCode::InvalidParams);
             assert_eq!(message, "outputURL is required");
         });
@@ -369,7 +369,7 @@ mod tests {
                 state,
                 &request(
                     "r10",
-                    "export.run",
+                    EngineMethod::ExportRun,
                     json!({ "outputURL": output_url.to_string_lossy() }),
                 ),
             );
@@ -399,7 +399,7 @@ mod tests {
                 state,
                 &request(
                     "r10-symlink",
-                    "export.run",
+                    EngineMethod::ExportRun,
                     json!({ "outputURL": output_url.to_string_lossy() }),
                 ),
             );
@@ -412,7 +412,11 @@ mod tests {
     #[test]
     fn agent_run_requires_project_and_recording() {
         with_state("agent-run-requires-project-recording", |state, _| {
-            let response = handle_request("linux", state, &request("r13", "agent.run", json!({})));
+            let response = handle_request(
+                "linux",
+                state,
+                &request("r13", EngineMethod::AgentRun, json!({})),
+            );
             let message = expect_error(response, ProtocolErrorCode::InvalidParams);
             assert!(message.contains("preflightToken is required"));
         });
@@ -439,7 +443,7 @@ mod tests {
                     state,
                     &request(
                         "r14",
-                        "agent.run",
+                        EngineMethod::AgentRun,
                         json!({
                             "preflightToken": successful_preflight_token,
                             "transcriptionProvider": "imported_transcript",
@@ -455,7 +459,11 @@ mod tests {
                 let confirmation_required = handle_request(
                     "linux",
                     state,
-                    &request("r15", "agent.apply", json!({ "jobId": successful_job_id })),
+                    &request(
+                        "r15",
+                        EngineMethod::AgentApply,
+                        json!({ "jobId": successful_job_id }),
+                    ),
                 );
                 let confirmation_message =
                     expect_error(confirmation_required, ProtocolErrorCode::NeedsConfirmation);
@@ -466,7 +474,7 @@ mod tests {
                     state,
                     &request(
                         "r16",
-                        "agent.apply",
+                        EngineMethod::AgentApply,
                         json!({ "jobId": successful_job_id, "destructiveIntent": true }),
                     ),
                 );
@@ -485,7 +493,7 @@ mod tests {
                     state,
                     &request(
                         "r17",
-                        "agent.run",
+                        EngineMethod::AgentRun,
                         json!({
                             "preflightToken": blocked_preflight_token,
                             "transcriptionProvider": "imported_transcript",
@@ -500,7 +508,7 @@ mod tests {
                     state,
                     &request(
                         "r17_status",
-                        "agent.status",
+                        EngineMethod::AgentStatus,
                         json!({ "jobId": blocked_job_id }),
                     ),
                 );
@@ -514,7 +522,7 @@ mod tests {
                     state,
                     &request(
                         "r18",
-                        "agent.apply",
+                        EngineMethod::AgentApply,
                         json!({ "jobId": blocked_job_id, "destructiveIntent": true }),
                     ),
                 );
@@ -545,7 +553,7 @@ mod tests {
                     state,
                     &request(
                         "r19",
-                        "agent.run",
+                        EngineMethod::AgentRun,
                         json!({
                             "preflightToken": successful_preflight_token,
                             "transcriptionProvider": "imported_transcript",
@@ -564,7 +572,7 @@ mod tests {
                     state,
                     &request(
                         "r20",
-                        "export.runCutPlan",
+                        EngineMethod::ExportRunCutPlan,
                         json!({
                             "jobId": successful_job_id,
                             "presetId": "h264-1080p-30",
@@ -591,7 +599,7 @@ mod tests {
                     state,
                     &request(
                         "r21",
-                        "agent.run",
+                        EngineMethod::AgentRun,
                         json!({
                             "preflightToken": blocked_preflight_token,
                             "transcriptionProvider": "imported_transcript",
@@ -606,7 +614,7 @@ mod tests {
                     state,
                     &request(
                         "r22",
-                        "export.runCutPlan",
+                        EngineMethod::ExportRunCutPlan,
                         json!({
                             "jobId": blocked_job_id,
                             "presetId": "h264-1080p-30",
@@ -629,7 +637,7 @@ mod tests {
                 state,
                 &request(
                     "r10",
-                    "project.open",
+                    EngineMethod::ProjectOpen,
                     json!({ "projectPath": project_path.to_string_lossy() }),
                 ),
             );
@@ -642,7 +650,7 @@ mod tests {
             let recents = handle_request(
                 "linux",
                 state,
-                &request("r11", "project.recents", json!({})),
+                &request("r11", EngineMethod::ProjectRecents, json!({})),
             );
             let recents_result = expect_success(recents);
             let items = recents_result["items"].as_array().expect("recents items");
@@ -672,7 +680,7 @@ mod tests {
                 state,
                 &request(
                     "r12",
-                    "project.save",
+                    EngineMethod::ProjectSave,
                     json!({
                         "projectPath": project_path.to_string_lossy(),
                         "autoZoom": {
@@ -717,7 +725,7 @@ mod tests {
                 state,
                 &request(
                     "r12-symlink",
-                    "project.save",
+                    EngineMethod::ProjectSave,
                     json!({ "projectPath": project_path.to_string_lossy() }),
                 ),
             );
@@ -742,7 +750,11 @@ mod tests {
                 let response = handle_request(
                     "linux",
                     state,
-                    &request("r13", "project.open", json!({ "projectPath": path_string })),
+                    &request(
+                        "r13",
+                        EngineMethod::ProjectOpen,
+                        json!({ "projectPath": path_string }),
+                    ),
                 );
                 let _ = expect_success(response);
             }
@@ -752,7 +764,7 @@ mod tests {
                 state,
                 &request(
                     "r14",
-                    "project.open",
+                    EngineMethod::ProjectOpen,
                     json!({ "projectPath": selected_path.clone() }),
                 ),
             );
@@ -767,7 +779,7 @@ mod tests {
             let recents = handle_request(
                 "linux",
                 state,
-                &request("r15", "project.recents", json!({ "limit": 200 })),
+                &request("r15", EngineMethod::ProjectRecents, json!({ "limit": 200 })),
             );
             let recents_result = expect_success(recents);
             let items = recents_result["items"].as_array().expect("recents items");

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { formatCaptureTargetLabelFromMetadata } from "@studio/view-model/captureTargetLabelFormatter";
 
 const formatInteger = (value: number): string => String(Math.trunc(value));
@@ -7,7 +7,7 @@ describe("capture target label", () => {
   test("returns null when metadata is unavailable", () => {
     expect(
       formatCaptureTargetLabelFromMetadata({
-        metadata: null,
+        metadata: undefined,
         displayLabel: "Display",
         windowLabel: "Window",
         untitledLabel: "Untitled",
@@ -21,7 +21,6 @@ describe("capture target label", () => {
       formatCaptureTargetLabelFromMetadata({
         metadata: {
           source: "display",
-          window: null,
           contentRect: { x: 0, y: 0, width: 3024, height: 1964 },
           pixelScale: 2,
         },
@@ -55,7 +54,6 @@ describe("capture target label", () => {
       formatCaptureTargetLabelFromMetadata({
         metadata: {
           source: "window",
-          window: null,
           contentRect: { x: 0, y: 0, width: 800, height: 600 },
           pixelScale: 1,
         },

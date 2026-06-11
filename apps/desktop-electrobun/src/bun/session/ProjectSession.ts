@@ -1,25 +1,25 @@
 import { Context, Effect } from "effect";
-import type { EngineTransport } from "@guerillaglass/engine/client/service";
+import type { ProjectService } from "@guerillaglass/engine-client/services/ProjectService";
 import type {
   ProjectRecentsResult,
   ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
+} from "@guerillaglass/engine-contract/domains/project";
 import type { BridgeRequests, HostPathPickerMode } from "../../shared/bridge/desktopBridgeContract";
 
 type ProjectSessionService = {
   currentProjectPath: Effect.Effect<string | null>;
   setCurrentProjectPath: (projectPath: string | null) => Effect.Effect<void>;
-  loadInitialProject: Effect.Effect<void, never, EngineTransport>;
-  projectCurrent: Effect.Effect<ProjectState, unknown, EngineTransport>;
+  loadInitialProject: Effect.Effect<void, never, ProjectService>;
+  projectCurrent: Effect.Effect<ProjectState, unknown, ProjectService>;
   projectOpen: (
     params: BridgeRequests["ggEngineProjectOpen"]["params"],
-  ) => Effect.Effect<ProjectState, unknown, EngineTransport>;
+  ) => Effect.Effect<ProjectState, unknown, ProjectService>;
   projectSave: (
     params: BridgeRequests["ggEngineProjectSave"]["params"],
-  ) => Effect.Effect<ProjectState, unknown, EngineTransport>;
+  ) => Effect.Effect<ProjectState, unknown, ProjectService>;
   projectRecents: (
     params: BridgeRequests["ggEngineProjectRecents"]["params"],
-  ) => Effect.Effect<ProjectRecentsResult, unknown, EngineTransport>;
+  ) => Effect.Effect<ProjectRecentsResult, unknown, ProjectService>;
   pickPath: (params: {
     mode: HostPathPickerMode;
     startingFolder?: string;

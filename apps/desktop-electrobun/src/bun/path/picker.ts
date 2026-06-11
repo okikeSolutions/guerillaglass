@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { HostPathPickerMode } from "../../shared/bridge/desktopBridgeContract";
-import { messageFromUnknownError } from "@guerillaglass/engine/client/errors/clientErrors";
+import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { PathPickerError } from "../../shared/errors/desktopErrors";
 
 const projectPackageExtension = ".gglassproj";

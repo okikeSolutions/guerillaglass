@@ -1,7 +1,7 @@
-use protocol_rust::{success, EngineResponse, JsonRpcId};
+use crate::wire::{success, EngineCallId, EngineResponse};
 use serde_json::json;
 
-pub(crate) fn get(id: &JsonRpcId) -> EngineResponse {
+pub(crate) fn get(id: &EngineCallId) -> EngineResponse {
     success(
         id,
         json!({
@@ -12,7 +12,7 @@ pub(crate) fn get(id: &JsonRpcId) -> EngineResponse {
     )
 }
 
-pub(crate) fn request_or_open_settings(id: &JsonRpcId) -> EngineResponse {
+pub(crate) fn request_or_open_settings(id: &EngineCallId) -> EngineResponse {
     success(
         id,
         json!({

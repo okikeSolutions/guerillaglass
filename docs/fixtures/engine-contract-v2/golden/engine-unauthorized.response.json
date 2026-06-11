@@ -1,0 +1,4 @@
+{
+  "code": "permission_denied",
+  "message": "Missing or invalid engine bearer token."
+}

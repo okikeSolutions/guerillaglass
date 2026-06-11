@@ -66,10 +66,6 @@ export default function App() {
   const captureBenchmarkEnabled =
     captureBenchmarkEnabledFromUrl || desktopRuntimeFlags?.captureBenchmarkEnabled === true;
 
-  if (captureBenchmarkEnabled) {
-    return <CaptureBenchmarkScene />;
-  }
-
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -81,6 +77,10 @@ export default function App() {
         },
       }),
   );
+
+  if (captureBenchmarkEnabled) {
+    return <CaptureBenchmarkScene />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { quantizeSecondsToFrame } from "../../domain/timelineFrameTimebase";
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -187,18 +187,17 @@ export function usePlaybackTransport({
   frameRate,
   initialPlaybackRate = 1,
 }: UsePlaybackTransportOptions): PlaybackTransportStore {
-  const storeRef = useRef<PlaybackTransportStore | null>(null);
-  if (storeRef.current == null) {
-    storeRef.current = createPlaybackTransportStore({
+  const [store] = useState(() =>
+    createPlaybackTransportStore({
       durationSeconds,
       frameRate,
       initialPlaybackRate,
-    });
-  }
+    }),
+  );
 
   useEffect(() => {
-    storeRef.current?.updateConfig({ durationSeconds, frameRate });
-  }, [durationSeconds, frameRate]);
+    store.updateConfig({ durationSeconds, frameRate });
+  }, [durationSeconds, frameRate, store]);
 
-  return storeRef.current;
+  return store;
 }

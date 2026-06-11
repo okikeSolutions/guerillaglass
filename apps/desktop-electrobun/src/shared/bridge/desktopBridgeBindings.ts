@@ -12,7 +12,7 @@ import {
   decodeUnknownWithSchemaSync,
   encodeUnknownWithSchemaSync,
   validateEncodedUnknownWithSchemaSync,
-} from "@guerillaglass/engine/client/errors/schemaContracts";
+} from "@guerillaglass/engine-client/schemaContracts";
 import { deserializeBridgeError, serializeBridgeError } from "../errors/desktopErrorSerialization";
 import { bridgeRequestDefinitions, bridgeRequestNameList } from "./desktopBridgeContract";
 

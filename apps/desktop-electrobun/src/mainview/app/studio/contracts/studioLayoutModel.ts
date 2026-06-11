@@ -4,11 +4,8 @@ import {
   normalizeStudioLocale,
   type StudioLocale,
 } from "@shared/localization";
-import {
-  ContractDecodeError,
-  JsonParseError,
-} from "@guerillaglass/engine/client/errors/clientErrors";
-import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
+import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine-client/errors";
+import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import type { StudioMode } from "../domain/inspectorSelectionModel";
 import {
   createDesktopPreferenceStorageKey,

@@ -77,9 +77,13 @@ function TimelineToolbarDivider() {
   return <span aria-hidden className="gg-timeline-toolbar-divider" />;
 }
 
+function TimelinePlayheadReadout({ label, className }: { label: string; className?: string }) {
+  const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
+  return <span className={className}>{`${label}: ${playheadSeconds.toFixed(2)}`}</span>;
+}
+
 export function TimelineDock() {
   const studio = useStudio();
-  const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
   const playbackRate = useStudioPlaybackValue((snapshot) => snapshot.playbackRate);
   useStudioRenderDiagnostics("TimelineDock");
   const trimEnabled = studio.activeMode === "deliver";
@@ -241,7 +245,6 @@ export function TimelineDock() {
           <div className="min-h-0 flex-1 overflow-hidden">
             <TimelineSurface
               durationSeconds={studio.timelineDuration}
-              playheadSeconds={playheadSeconds}
               trimEnabled={trimEnabled}
               trimStartSeconds={
                 trimEnabled ? studio.exportForm.state.values.trimStartSeconds : undefined
@@ -279,12 +282,12 @@ export function TimelineDock() {
           {trimEnabled ? (
             <div className="gg-copy-meta gg-numeric mt-2 grid shrink-0 grid-cols-3">
               <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
-              <span className="text-center">{`${studio.ui.labels.playhead}: ${playheadSeconds.toFixed(2)}`}</span>
+              <TimelinePlayheadReadout label={studio.ui.labels.playhead} className="text-center" />
               <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
             </div>
           ) : (
             <div className="gg-copy-meta gg-numeric mt-2 shrink-0 text-center">
-              {`${studio.ui.labels.playhead}: ${playheadSeconds.toFixed(2)}`}
+              <TimelinePlayheadReadout label={studio.ui.labels.playhead} />
             </div>
           )}
         </div>

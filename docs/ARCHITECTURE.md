@@ -11,15 +11,13 @@ Guerilla Glass uses a local-first hybrid architecture with strict local/cloud bo
 2. Web app (`apps/web`)
    - TanStack Start frontend routes
    - Convex root for hosted review/auth/billing surfaces
-3. TypeScript engine package (`packages/engine`)
-   - Effect Schema protocol domains
-   - Effect RPC group as TypeScript source of truth
-   - Bun native engine transport layer
-   - Stable wire bridge between Effect RPC messages and native sidecar messages
+3. TypeScript engine contract/client packages
+   - `packages/engine-contract`: Effect Schema domains, Effect `HttpApi`, generated OpenAPI
+   - `packages/engine-client`: Effect-native HTTP client and Bun native engine process launcher
 4. Native engines (`engines/`)
    - macOS Swift sidecar
    - Rust native foundation plus Windows/Linux sidecar shells
-   - protocol-compatible stubs for parallel development
+   - Generated Swift/Rust OpenAPI protocol bindings/helpers
 5. Hosted review/control plane (`packages/review-protocol`, `apps/web/convex`)
    - Review/comment/presence/workflow contracts and Convex functions
    - Must not gate local capture/edit/export
@@ -38,7 +36,7 @@ React renderer
           -> DesktopShell
           -> HostBridgeService
           -> ProjectSession
-          -> EngineTransport
+          -> EngineClient + domain engine services
           -> MediaSourceService
 ```
 
@@ -53,38 +51,26 @@ Rules:
 
 ## Engine Transport
 
-Native sidecars speak the stable Guerillaglass socket wire protocol:
-
-```ts
-{ type: "request", id, method, params, authToken }
-{ type: "response", id, result }
-{ type: "error", id, error: { code, message } }
-{ type: "chunk", id, values }
-{ type: "ping" }
-{ type: "pong" }
-{ type: "interrupt", id }
-```
-
-TypeScript owns Effect RPC serialization details in `packages/engine/src/client/wireProtocol.ts`.
-Native Swift/Rust code must not depend on `effect/unstable/rpc` internals.
+Native sidecars serve the v2 loopback HTTP/OpenAPI API. The TypeScript source of truth is the Effect `HttpApi` contract in `packages/engine-contract/src/httpApi.ts`; generated OpenAPI lives at `packages/engine-contract/generated/engine.openapi.json`.
 
 Current package boundary:
 
 ```txt
-packages/engine/src/protocol     Effect Schema domains and RPC group
-packages/engine/src/client       EngineTransport service + Bun live layer
-engines/protocol-rust            Rust stable wire message definitions
-engines/protocol-swift           Swift stable wire message definitions
+packages/engine-contract          Effect Schema domains, HttpApi, OpenAPI generation
+packages/engine-client            EngineClient service, domain services, Bun process launcher
+engines/protocol-rust             Generated Rust Axum bindings/server helpers
+engines/protocol-swift            Generated Swift OpenAPI types/client/server helpers
 ```
 
 Production Bun transport:
 
-- Spawns sidecars with Effect process primitives from `effect/unstable/process`.
-- Connects through `@effect/platform-bun/BunSocket`.
-- Uses bounded socket connect retry after sidecar readiness only.
+- Spawns sidecars with Effect process primitives.
+- Requires `GG_ENGINE_TRANSPORT=http` and per-process bearer auth.
+- Reads the `guerillaglass.engine.http.ready` readiness envelope from stdout.
+- Connects over authenticated loopback HTTP through `@effect/platform-bun/BunHttpClient`.
 - Does not perform generic RPC retries.
 - Does not automatically restart native engines.
-- Logs/spans process spawn, readiness, socket connection, RPC send/receive, protocol errors, stderr, and shutdown.
+- Logs/spans process spawn, readiness, HTTP requests, protocol errors, stderr, and shutdown.
 
 ## Media Server
 
@@ -172,7 +158,8 @@ bun run i18n:compile
 cd apps/desktop-electrobun && bun run typecheck
 cd apps/desktop-electrobun && bun run test
 cd apps/web && bun run typecheck
-cd packages/engine && bun run typecheck
+cd packages/engine-contract && bun run check:contract:full
+cd packages/engine-client && bun run typecheck
 cd packages/review-protocol && bun run typecheck
 cargo check
 ```

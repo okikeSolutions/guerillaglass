@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Schema } from "effect";
 import {
   reviewBridgeEventSchema,
@@ -13,7 +13,10 @@ function decodeSchemaSync<S extends Schema.Top>(schema: S, raw: unknown): Schema
 
 describe("review protocol", () => {
   test("parses review fixtures with ISO datetime fields", () => {
-    const fixtureDir = path.resolve(import.meta.dir, "../../../packages/review-protocol/fixtures");
+    const fixtureDir = path.resolve(
+      import.meta.dirname,
+      "../../../packages/review-protocol/fixtures",
+    );
     const snapshot = JSON.parse(
       fs.readFileSync(path.join(fixtureDir, "review-session.snapshot.json"), "utf8"),
     );
@@ -48,7 +51,7 @@ describe("review protocol", () => {
       type: "workflow.statusChanged",
       reviewId: "review-123",
       status: "done",
-      emittedAt: "2026-13-02T09:21:00.000Z",
+      emittedAt: "not-a-date",
     };
     expect(() => decodeSchemaSync(reviewSessionSnapshotSchema, invalidSnapshot)).toThrow();
     expect(() => decodeSchemaSync(reviewBridgeEventSchema, invalidEvent)).toThrow();

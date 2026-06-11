@@ -9,12 +9,10 @@ import { Schema } from "effect";
 function greaterThanOrEqualTo(minimum: number) {
   return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
 }
-import {
-  isoDateTimeSchema,
-  reviewCommentIdSchema,
-  reviewIdSchema,
-  reviewUserIdSchema,
-} from "@guerillaglass/engine/protocol/schema-primitives";
+const isoDateTimeSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/));
+const reviewCommentIdSchema = Schema.NonEmptyString;
+const reviewIdSchema = Schema.NonEmptyString;
+const reviewUserIdSchema = Schema.NonEmptyString;
 
 /** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */

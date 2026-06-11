@@ -1,5 +1,5 @@
 import { Context, Effect } from "effect";
-import type { CaptureStatusResult } from "@guerillaglass/engine/protocol/domains/capture";
+import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import type { DesktopAppRuntime } from "../app/AppRuntime";
 

@@ -1,0 +1,14 @@
+{
+  "extends": "@guerillaglass/typescript-config/react-library.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["bun", "node"],
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
+  },
+  "include": ["src", "scripts", "tests"]
+}

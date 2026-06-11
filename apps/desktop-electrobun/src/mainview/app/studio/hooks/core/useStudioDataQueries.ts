@@ -3,18 +3,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
-import type { ExportPreset } from "@guerillaglass/engine/protocol/domains/export";
-import type { PermissionsResult } from "@guerillaglass/engine/protocol/domains/permissions";
+} from "@guerillaglass/engine-contract/domains/capture";
+import type { ExportPreset } from "@guerillaglass/engine-contract/domains/export";
+import type { PermissionsResult } from "@guerillaglass/engine-contract/domains/permissions";
 import type {
   ProjectRecentsResult,
   ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
-import type { SourcesResult } from "@guerillaglass/engine/protocol/domains/sources";
-import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
-import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
+} from "@guerillaglass/engine-contract/domains/project";
+import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
+import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
+import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
-import { validateEncodedUnknownWithSchemaSync } from "@guerillaglass/engine/client/errors/schemaContracts";
+import { validateEncodedUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };

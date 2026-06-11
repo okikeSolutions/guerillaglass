@@ -28,13 +28,17 @@ function requestUsesLoopbackHost(request: HttpServerRequest): boolean {
     return isLoopbackHost(url.hostname);
   } catch {
     const hostHeader = request.headers.host;
-    if (!hostHeader) return true;
+    if (!hostHeader) {
+      return true;
+    }
     return isLoopbackHost(hostHeaderHostname(hostHeader));
   }
 }
 
 function originIsAllowed(origin: string | undefined): boolean {
-  if (!origin || origin === "null") return true;
+  if (!origin || origin === "null") {
+    return true;
+  }
   try {
     const url = new URL(origin);
     return url.protocol === "http:" && isLoopbackHost(url.hostname);
@@ -44,7 +48,16 @@ function originIsAllowed(origin: string | undefined): boolean {
 }
 
 function secFetchSiteIsAllowed(value: string | undefined): boolean {
-  return !value || value === "same-origin" || value === "same-site" || value === "none";
+  // The packaged desktop renderer is loaded from the custom `views://` scheme while
+  // live preview frames are served from a loopback HTTP server. Chromium/WebKit can
+  // classify that image request as `cross-site` even though it is app-internal.
+  return (
+    !value ||
+    value === "same-origin" ||
+    value === "same-site" ||
+    value === "none" ||
+    value === "cross-site"
+  );
 }
 
 /** Validates loopback media-server request metadata before token lookup or file serving. */

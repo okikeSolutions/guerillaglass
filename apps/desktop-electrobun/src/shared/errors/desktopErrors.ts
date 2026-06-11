@@ -6,7 +6,7 @@ import {
   EngineRequestValidationError,
   EngineResponseError,
   JsonParseError,
-} from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@guerillaglass/engine-client/errors";
 
 export type FileAccessPolicyErrorCode =
   | "FILE_PATH_REQUIRED"

@@ -10,10 +10,16 @@ export default defineConfig({
       "@lib": resolvePath("./src/mainview/lib"),
       "@shared": resolvePath("./src/shared"),
       "@studio": resolvePath("./src/mainview/app/studio"),
-      "@guerillaglass/engine": resolvePath("../../packages/engine/src"),
     },
   },
   test: {
-    include: ["tests/**/*.vitest.ts"],
+    include: ["tests/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["tests/ui/**/*.smoke.ts", "tests/ui/**/*.browser.test.{ts,tsx}"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary", "lcov"],
+      reportsDirectory: "../../target/coverage/typescript",
+      exclude: ["src/paraglide/**", "tests/**", "build/**", "dist/**"],
+    },
   },
 });

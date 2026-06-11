@@ -16,6 +16,12 @@ EOF
   exit 1
 fi
 
-echo "==> rust coverage (workspace summary)"
-cargo llvm-cov --workspace --all-targets --summary-only
+echo "==> rust coverage (workspace summary; generated protocol-rust source excluded)"
+cargo llvm-cov \
+  --workspace \
+  --all-targets \
+  --summary-only \
+  --exclude-from-report guerillaglass-engine-windows \
+  --exclude-from-report guerillaglass-engine-linux \
+  --ignore-filename-regex 'engines/protocol-rust/src/.*\.rs'
 

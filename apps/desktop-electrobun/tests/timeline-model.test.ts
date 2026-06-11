@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import type { InputEvent } from "@guerillaglass/engine/protocol/shared/valueObjects";
+import { describe, expect, test } from "vitest";
+import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   buildEventWaveform,
   buildEventMarkers,

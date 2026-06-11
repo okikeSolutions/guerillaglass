@@ -9,7 +9,7 @@ process.on("SIGTERM", () => {
   setTimeout(() => {
     fs.appendFileSync(statePath, "\nexit");
     process.exit(0);
-  }, 1_500);
+  }, 1500);
 });
 
 let buffer = "";

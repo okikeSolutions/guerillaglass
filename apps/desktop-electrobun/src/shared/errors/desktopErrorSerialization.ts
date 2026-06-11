@@ -30,11 +30,11 @@ import {
   JsonParseError,
   messageFromUnknownError,
   type EngineClientErrorCode,
-} from "@guerillaglass/engine/client/errors/clientErrors";
+} from "@guerillaglass/engine-client/errors";
 import {
   isValidationIssue,
   type ValidationIssue,
-} from "@guerillaglass/engine/client/errors/schemaContracts";
+} from "@guerillaglass/engine-client/schemaContracts";
 
 function serializeBridgeErrorInternal(error: unknown, depth: number): SerializedBridgeError {
   if (depth >= 3) {

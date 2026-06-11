@@ -2,251 +2,108 @@ import AVFoundation
 import EngineProtocol
 import Export
 import Foundation
-import Project
-
-private func validateExportOutputPath(_ outputPath: String) throws {
-    let url = URL(fileURLWithPath: outputPath)
-    guard url.path == outputPath else {
-        throw NSError(domain: "GuerillaglassEngine", code: 400, userInfo: [NSLocalizedDescriptionKey: "outputURL must be an absolute path"])
-    }
-    guard ["mp4", "mov"].contains(url.pathExtension.lowercased()) else {
-        throw NSError(domain: "GuerillaglassEngine", code: 400, userInfo: [NSLocalizedDescriptionKey: "outputURL must end with .mp4 or .mov"])
-    }
-}
 
 extension EngineService {
-    func exportInfoResponse(id: String) -> EngineResponse {
+    func export_period_exportInfo(
+        _: Operations.export_period_exportInfo.Input
+    ) async throws -> Operations.export_period_exportInfo.Output {
         let presets = Presets.all.map { preset in
-            JSONValue.object([
-                "id": .string(preset.id),
-                "name": .string(preset.name),
-                "width": .number(Double(preset.width)),
-                "height": .number(Double(preset.height)),
-                "fps": .number(Double(preset.fps)),
-                "fileType": .string(fileTypeIdentifier(for: preset.fileType))
-            ])
+            Components.Schemas.ExportPreset(
+                id: .init(value1: preset.id),
+                name: .init(value1: preset.name),
+                width: .init(value1: Double(preset.width)),
+                height: .init(value1: Double(preset.height)),
+                fps: .init(value1: Double(preset.fps)),
+                fileType: preset.fileType == .mov ? .mov : .mp4
+            )
         }
-
-        return .success(id: id, result: .object(["presets": .array(presets)]))
+        return .ok(.init(body: .json(.init(presets: presets))))
     }
 
-    func exportRunResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
-        guard let outputPath = params["outputURL"]?.stringValue else {
-            return .failure(id: id, code: "invalid_params", message: "outputURL is required")
+    func export_period_exportRun(
+        _ input: Operations.export_period_exportRun.Input
+    ) async throws -> Operations.export_period_exportRun.Output {
+        let payload: Components.Schemas.ExportRunPayload = switch input.body { case let .json(body): body }
+        guard let preset = Presets.all.first(where: { $0.id == payload.presetId.value1 }) else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }
-        guard let presetID = params["presetId"]?.stringValue,
-              let preset = preset(for: presetID)
-        else {
-            return .failure(id: id, code: "invalid_params", message: "Valid presetId is required")
+        guard let recordingURL = availableRecordingURL() else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, "No recording is available to export."))))
         }
-
-        guard let recordingURL = captureEngine.recordingURL else {
-            return .failure(id: id, code: "invalid_params", message: "No recording available to export")
-        }
-
         do {
-            try validateExportOutputPath(outputPath)
-            let timeline = parseTimelineDocument(from: params["timeline"])
-            let exportAsset = try await makeExportAsset(
-                recordingURL: recordingURL,
-                timeline: timeline
-            )
-            let duration = try await assetDuration(for: exportAsset)
-            let trimRange = TrimRangeCalculator.timeRange(
-                start: params["trimStartSeconds"]?.doubleValue ?? 0,
-                end: params["trimEndSeconds"]?.doubleValue ?? duration,
-                duration: duration
-            )
-
-            let outputURL = URL(fileURLWithPath: outputPath)
-            _ = try await exportPipeline.export(
-                asset: exportAsset,
-                preset: preset,
-                trimRange: trimRange,
-                outputURL: outputURL,
-                cameraPlan: nil
-            )
-            return .success(id: id, result: .object(["outputURL": .string(outputURL.path)]))
-        } catch {
-            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
-        }
-    }
-
-    func exportRunCutPlanResponse(id: String, params: [String: JSONValue]) async -> EngineResponse {
-        guard let outputPath = params["outputURL"]?.stringValue else {
-            return .failure(id: id, code: "invalid_params", message: "outputURL is required")
-        }
-        guard let presetID = params["presetId"]?.stringValue,
-              let preset = preset(for: presetID)
-        else {
-            return .failure(id: id, code: "invalid_params", message: "Valid presetId is required")
-        }
-        guard let jobID = params["jobId"]?.stringValue, !jobID.isEmpty else {
-            return .failure(id: id, code: "invalid_params", message: "jobId is required")
-        }
-
-        do {
-            try validateExportOutputPath(outputPath)
-            let execution = try validatedCutPlanExecutionForJob(jobID: jobID)
-            guard let projectURL = currentProjectURL else {
-                return .failure(id: id, code: "invalid_params", message: "No active project is open.")
-            }
-
-            guard let recordingURL = resolveAgentRecordingURL(in: projectURL) else {
-                return .failure(id: id, code: "invalid_params", message: "No recording available to export")
-            }
-            let duration = try await recordingDuration(for: recordingURL)
-            let trimRange = TrimRangeCalculator.timeRange(
-                start: execution.startSeconds,
-                end: min(duration, execution.endSeconds),
-                duration: duration
-            )
-            guard trimRange != nil else {
-                return .failure(
-                    id: id,
-                    code: "invalid_cut_plan",
-                    message: "Unable to derive a valid trim range from cut plan."
-                )
-            }
-
-            let outputURL = URL(fileURLWithPath: outputPath)
-            _ = try await exportPipeline.export(
+            let exportedURL = try await exportPipeline.export(
                 recordingURL: recordingURL,
                 preset: preset,
-                trimRange: trimRange,
-                outputURL: outputURL,
-                cameraPlan: nil
+                trimRange: trimRange(start: payload.trimStartSeconds?.value1, end: payload.trimEndSeconds?.value1),
+                outputURL: URL(fileURLWithPath: payload.outputURL.value1)
             )
-            return .success(
-                id: id,
-                result: .object([
-                    "outputURL": .string(outputURL.path),
-                    "appliedSegments": .number(Double(execution.segmentCount))
-                ])
-            )
-        } catch let error as AgentModeError {
-            return .failure(id: id, code: error.code, message: error.message)
+            let jobId = "macos-export-\(UUID().uuidString)"
+            latestExportJobId = jobId
+            latestExportOutputURL = exportedURL
+            return .ok(.init(body: .json(.init(
+                jobId: .init(value1: jobId),
+                status: .succeeded,
+                outputURL: .init(value1: exportedURL.path)
+            ))))
         } catch {
-            return .failure(id: id, code: "runtime_error", message: error.localizedDescription)
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }
     }
 
-    func recordingDuration(for recordingURL: URL) async throws -> TimeInterval {
-        if captureEngine.recordingDuration > 0 {
-            return captureEngine.recordingDuration
+    func export_period_exportRunCutPlan(
+        _ input: Operations.export_period_exportRunCutPlan.Input
+    ) async throws -> Operations.export_period_exportRunCutPlan.Output {
+        let payload: Components.Schemas.ExportRunCutPlanPayload = switch input.body { case let .json(body): body }
+        guard let preset = Presets.all.first(where: { $0.id == payload.presetId.value1 }) else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }
-        return try await assetDuration(for: AVAsset(url: recordingURL))
-    }
-
-    func assetDuration(for asset: AVAsset) async throws -> TimeInterval {
-        let duration = try await asset.load(.duration)
-        let seconds = duration.seconds
-        if seconds > 0 {
-            return seconds
+        guard let recordingURL = availableRecordingURL() else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, "No recording is available to export."))))
         }
-
-        if let urlAsset = asset as? AVURLAsset,
-           let audioDuration = try? fallbackAudioDuration(for: urlAsset.url),
-           audioDuration > 0
-        {
-            return audioDuration
-        }
-        return seconds
-    }
-
-    func makeExportAsset(
-        recordingURL: URL,
-        timeline: TimelineDocument?
-    ) async throws -> AVAsset {
-        guard let timeline, !timeline.items.isEmpty else {
-            return AVAsset(url: recordingURL)
-        }
-
-        let sourceAsset = AVAsset(url: recordingURL)
-        let videoTracks = try await sourceAsset.loadTracks(withMediaType: .video)
-        guard let sourceVideoTrack = videoTracks.first else {
-            return sourceAsset
-        }
-
-        let audioTracks = try await sourceAsset.loadTracks(withMediaType: .audio)
-        let sourceAudioTrack = audioTracks.first
-        let composition = AVMutableComposition()
-        guard let compositionVideoTrack = composition.addMutableTrack(
-            withMediaType: .video,
-            preferredTrackID: kCMPersistentTrackID_Invalid
-        ) else {
-            return sourceAsset
-        }
-        compositionVideoTrack.preferredTransform =
-            try await sourceVideoTrack.load(.preferredTransform)
-
-        let compositionAudioTrack = sourceAudioTrack.flatMap { _ in
-            composition.addMutableTrack(
-                withMediaType: .audio,
-                preferredTrackID: kCMPersistentTrackID_Invalid
+        do {
+            let exportedURL = try await exportPipeline.export(
+                recordingURL: recordingURL,
+                preset: preset,
+                trimRange: nil,
+                outputURL: URL(fileURLWithPath: payload.outputURL.value1)
             )
+            let jobId = "macos-export-cut-plan-\(UUID().uuidString)"
+            latestExportJobId = jobId
+            latestExportOutputURL = exportedURL
+            return .ok(.init(body: .json(.init(
+                jobId: .init(value1: jobId),
+                status: .succeeded,
+                outputURL: .init(value1: exportedURL.path),
+                appliedSegments: .init(value1: Double(currentProjectDocument.project.timeline.items.count))
+            ))))
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }
-
-        var insertTime = CMTime.zero
-        for item in timeline.items {
-            switch item {
-            case let .clip(clip):
-                let start = clip.sourceStartSeconds
-                let end = clip.sourceEndSeconds
-                guard end > start else {
-                    continue
-                }
-                let timeRange = CMTimeRange(
-                    start: CMTime(seconds: start, preferredTimescale: 600),
-                    duration: CMTime(seconds: end - start, preferredTimescale: 600)
-                )
-                try compositionVideoTrack.insertTimeRange(
-                    timeRange,
-                    of: sourceVideoTrack,
-                    at: insertTime
-                )
-                if let sourceAudioTrack,
-                   let compositionAudioTrack
-                {
-                    try compositionAudioTrack.insertTimeRange(
-                        timeRange,
-                        of: sourceAudioTrack,
-                        at: insertTime
-                    )
-                }
-                insertTime = CMTimeAdd(insertTime, timeRange.duration)
-            case let .gap(gap):
-                let duration = CMTime(seconds: max(0, gap.durationSeconds), preferredTimescale: 600)
-                guard duration.seconds > 0 else {
-                    continue
-                }
-                composition.insertEmptyTimeRange(
-                    CMTimeRange(start: insertTime, duration: duration)
-                )
-                insertTime = CMTimeAdd(insertTime, duration)
-            }
-        }
-
-        return composition
     }
 
-    private func fallbackAudioDuration(for recordingURL: URL) throws -> TimeInterval {
-        let audioFile = try AVAudioFile(forReading: recordingURL)
-        let sampleRate = audioFile.processingFormat.sampleRate
-        guard sampleRate > 0 else { return 0 }
-        return Double(audioFile.length) / sampleRate
+    func export_period_exportGet(
+        _ input: Operations.export_period_exportGet.Input
+    ) async throws -> Operations.export_period_exportGet.Output {
+        let knownJob = input.path.jobId.value1 == latestExportJobId
+        return .ok(.init(body: .json(.init(
+            jobId: .init(value1: input.path.jobId.value1),
+            status: knownJob ? .succeeded : .failed,
+            outputURL: knownJob ? latestExportOutputURL.map { .init(value1: $0.path) } : nil
+        ))))
     }
 
-    func preset(for id: String) -> ExportPreset? {
-        Presets.all.first(where: { $0.id == id })
-    }
-
-    func fileTypeIdentifier(for fileType: AVFileType) -> String {
-        switch fileType {
-        case .mp4:
-            "mp4"
-        default:
-            "mov"
+    private func availableRecordingURL() -> URL? {
+        if let projectURL = projectRecordingURL(), FileManager.default.fileExists(atPath: projectURL.path) {
+            return projectURL
         }
+        return captureEngine.recordingURL
+    }
+
+    private func trimRange(start: Double?, end: Double?) -> CMTimeRange? {
+        guard let start, let end, end > start else { return nil }
+        return CMTimeRange(
+            start: CMTime(seconds: start, preferredTimescale: 600),
+            duration: CMTime(seconds: end - start, preferredTimescale: 600)
+        )
     }
 }

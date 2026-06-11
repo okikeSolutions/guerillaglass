@@ -1,31 +1,44 @@
-import type {
-  AgentPreflightResult,
-  AgentRunResult,
-  AgentStatusResult,
-} from "@guerillaglass/engine/protocol/domains/agent";
-import type {
-  CapturePreviewFrameResult,
-  CaptureStatusResult,
-} from "@guerillaglass/engine/protocol/domains/capture";
-import type {
-  ExportInfoResult,
-  ExportRunCutPlanResult,
-  ExportRunResult,
-} from "@guerillaglass/engine/protocol/domains/export";
-import type {
-  ActionResult,
-  PermissionsResult,
-} from "@guerillaglass/engine/protocol/domains/permissions";
-import type {
-  ProjectRecentsResult,
-  ProjectState,
-} from "@guerillaglass/engine/protocol/domains/project";
-import type {
-  CaptureFrameRate,
-  SourcesResult,
-} from "@guerillaglass/engine/protocol/domains/sources";
-import type { PingResult } from "@guerillaglass/engine/protocol/domains/system";
-import type { AutoZoomSettings } from "@guerillaglass/engine/protocol/shared/valueObjects";
+import {
+  agentPreflightResultSchema,
+  agentRunResultSchema,
+  agentStatusResultSchema,
+  type AgentPreflightResult,
+  type AgentRunResult,
+  type AgentStatusResult,
+} from "@guerillaglass/engine-contract/domains/agent";
+import {
+  capturePreviewFrameResultSchema,
+  captureStatusResultSchema,
+  type CapturePreviewFrameResult,
+  type CaptureStatusResult,
+} from "@guerillaglass/engine-contract/domains/capture";
+import {
+  exportInfoResultSchema,
+  exportRunCutPlanResultSchema,
+  exportRunResultSchema,
+  type ExportInfoResult,
+  type ExportRunCutPlanResult,
+  type ExportRunResult,
+} from "@guerillaglass/engine-contract/domains/export";
+import {
+  actionResultSchema,
+  permissionsResultSchema,
+  type ActionResult,
+  type PermissionsResult,
+} from "@guerillaglass/engine-contract/domains/permissions";
+import {
+  projectRecentsResultSchema,
+  projectStateSchema,
+  type ProjectRecentsResult,
+  type ProjectState,
+} from "@guerillaglass/engine-contract/domains/project";
+import {
+  sourcesResultSchema,
+  type CaptureFrameRate,
+  type SourcesResult,
+} from "@guerillaglass/engine-contract/domains/sources";
+import { pingResultSchema, type PingResult } from "@guerillaglass/engine-contract/domains/system";
+import type { AutoZoomSettings } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   reviewBridgeEventSchema,
   reviewCommentSchema,
@@ -50,9 +63,20 @@ import {
   reviewCommentIdSchema,
   captureSessionIdSchema,
   reviewIdSchema,
-} from "@guerillaglass/engine/protocol/schema-primitives";
+} from "@guerillaglass/engine-contract/schema-primitives";
 import { Schema } from "effect";
-import { EngineRpcs } from "@guerillaglass/engine/protocol/rpc/group";
+import {
+  agentPreflightPayloadSchema,
+  agentRunPayloadSchema,
+  captureStartCurrentWindowPayloadSchema,
+  captureStartDisplayPayloadSchema,
+  captureStartWindowPayloadSchema,
+  exportRunCutPlanPayloadSchema,
+  exportRunPayloadSchema,
+  projectOpenPayloadSchema,
+  projectSavePayloadSchema,
+  recordingStartPayloadSchema,
+} from "@guerillaglass/engine-contract/httpApi";
 import type { RPCSchema } from "electrobun/bun";
 import type { SerializedBridgeError } from "../errors/desktopErrors";
 import { studioShortcutOverridesSchema, type StudioShortcutOverrides } from "../shortcuts";
@@ -184,39 +208,57 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
     ),
   ),
 });
-function engineRpc(method: string): {
-  readonly payloadSchema: Schema.Top;
-  readonly successSchema: Schema.Top;
-} {
-  const rpc = EngineRpcs.requests.get(method);
-  if (!rpc) {
-    throw new Error(`Unknown engine RPC method: ${method}`);
-  }
-  return rpc as { readonly payloadSchema: Schema.Top; readonly successSchema: Schema.Top };
-}
+const undefinedBridgeParamsSchema = Schema.Void;
+const engineAgentPreflightBridgeParamsSchema = agentPreflightPayloadSchema;
+const engineAgentRunBridgeParamsSchema = agentRunPayloadSchema;
+const engineAgentStatusBridgeParamsSchema = Schema.Struct({ jobId: Schema.NonEmptyString });
+const engineAgentApplyBridgeParamsSchema = Schema.Struct({
+  jobId: Schema.NonEmptyString,
+  destructiveIntent: Schema.optionalKey(Schema.Boolean),
+});
+const engineCaptureStartBridgeParamsSchema = captureStartCurrentWindowPayloadSchema;
+const engineCaptureStartDisplayBridgeParamsSchema = captureStartDisplayPayloadSchema;
+const engineCaptureStartWindowBridgeParamsSchema = captureStartWindowPayloadSchema;
+const engineStartRecordingBridgeParamsSchema = recordingStartPayloadSchema;
+const engineRunExportBridgeParamsSchema = exportRunPayloadSchema;
+const engineRunCutPlanExportBridgeParamsSchema = exportRunCutPlanPayloadSchema;
+const engineProjectOpenBridgeParamsSchema = projectOpenPayloadSchema;
+const engineProjectSaveBridgeParamsSchema = projectSavePayloadSchema;
+const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
+  limit: Schema.optionalKey(nonNegativeIntSchema),
+});
+const engineSuccessSchemas = {
+  "system.ping": pingResultSchema,
+  "permissions.get": permissionsResultSchema,
+  "agent.preflight": agentPreflightResultSchema,
+  "agent.run": agentRunResultSchema,
+  "agent.status": agentStatusResultSchema,
+  "agent.apply": actionResultSchema,
+  "permissions.requestScreenRecording": actionResultSchema,
+  "permissions.requestMicrophone": actionResultSchema,
+  "permissions.requestInputMonitoring": actionResultSchema,
+  "permissions.openInputMonitoringSettings": actionResultSchema,
+  "sources.list": sourcesResultSchema,
+  "capture.startDisplay": captureStatusResultSchema,
+  "capture.startCurrentWindow": captureStatusResultSchema,
+  "capture.startWindow": captureStatusResultSchema,
+  "capture.stop": captureStatusResultSchema,
+  "recording.start": captureStatusResultSchema,
+  "recording.stop": captureStatusResultSchema,
+  "capture.status": captureStatusResultSchema,
+  "capture.previewFrame": capturePreviewFrameResultSchema,
+  "export.info": exportInfoResultSchema,
+  "export.run": exportRunResultSchema,
+  "export.runCutPlan": exportRunCutPlanResultSchema,
+  "project.current": projectStateSchema,
+  "project.open": projectStateSchema,
+  "project.save": projectStateSchema,
+  "project.recents": projectRecentsResultSchema,
+} as const satisfies Record<string, Schema.Top>;
 
-function enginePayloadSchema(method: string): Schema.Top {
-  return engineRpc(method).payloadSchema;
+function engineSuccessSchema(method: keyof typeof engineSuccessSchemas): Schema.Top {
+  return engineSuccessSchemas[method];
 }
-
-function engineSuccessSchema(method: string): Schema.Top {
-  return engineRpc(method).successSchema;
-}
-
-const undefinedBridgeParamsSchema = enginePayloadSchema("system.ping");
-const engineAgentPreflightBridgeParamsSchema = enginePayloadSchema("agent.preflight");
-const engineAgentRunBridgeParamsSchema = enginePayloadSchema("agent.run");
-const engineAgentStatusBridgeParamsSchema = enginePayloadSchema("agent.status");
-const engineAgentApplyBridgeParamsSchema = enginePayloadSchema("agent.apply");
-const engineCaptureStartBridgeParamsSchema = enginePayloadSchema("capture.startCurrentWindow");
-const engineCaptureStartDisplayBridgeParamsSchema = enginePayloadSchema("capture.startDisplay");
-const engineCaptureStartWindowBridgeParamsSchema = enginePayloadSchema("capture.startWindow");
-const engineStartRecordingBridgeParamsSchema = enginePayloadSchema("recording.start");
-const engineRunExportBridgeParamsSchema = enginePayloadSchema("export.run");
-const engineRunCutPlanExportBridgeParamsSchema = enginePayloadSchema("export.runCutPlan");
-const engineProjectOpenBridgeParamsSchema = enginePayloadSchema("project.open");
-const engineProjectSaveBridgeParamsSchema = enginePayloadSchema("project.save");
-const engineProjectRecentsBridgeParamsSchema = enginePayloadSchema("project.recents");
 const reviewSessionSnapshotBridgeParamsSchema = Schema.Struct({
   authToken: reviewAuthTokenSchema,
   reviewId: reviewIdSchema,
