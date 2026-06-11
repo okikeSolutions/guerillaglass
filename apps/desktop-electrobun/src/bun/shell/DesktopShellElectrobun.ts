@@ -60,10 +60,14 @@ const initialHostMenuState: HostMenuState = {
 };
 
 function logStudioDiagnostics(entry: StudioDiagnosticsEntry) {
-  const annotations = entry.annotations ? ` annotations=${JSON.stringify(entry.annotations)}` : "";
-  const spans = entry.spans ? ` spans=${JSON.stringify(entry.spans)}` : "";
-  console.info(
-    `[studio-diagnostics] ${entry.level} ${entry.message} timestamp=${entry.timestamp}${annotations}${spans}`,
+  return Effect.logInfo(entry.message).pipe(
+    Effect.annotateLogs({
+      ...(entry.annotations ?? {}),
+      component: "studio-diagnostics",
+      rendererLevel: entry.level,
+      rendererSpans: entry.spans ? JSON.stringify(entry.spans) : null,
+      rendererTimestamp: entry.timestamp,
+    }),
   );
 }
 
@@ -299,15 +303,24 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
                   },
                   studioDiagnostics: (entry: StudioDiagnosticsEntry) => {
                     try {
-                      logStudioDiagnostics(
-                        decodeUnknownWithSchemaSync(
-                          studioDiagnosticsEntrySchema,
-                          entry,
-                          "studio diagnostics message",
+                      runShellEffect(
+                        logStudioDiagnostics(
+                          decodeUnknownWithSchemaSync(
+                            studioDiagnosticsEntrySchema,
+                            entry,
+                            "studio diagnostics message",
+                          ),
                         ),
                       );
                     } catch (error) {
-                      console.warn("Rejected invalid studio diagnostics message", error);
+                      runShellEffect(
+                        Effect.logWarning("rejected invalid studio diagnostics message").pipe(
+                          Effect.annotateLogs({
+                            component: "studio-diagnostics",
+                            error: String(error),
+                          }),
+                        ),
+                      );
                     }
                   },
                 },

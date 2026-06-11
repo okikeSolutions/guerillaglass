@@ -33,6 +33,7 @@ const optionalUrlString = (name: string) =>
   Config.option(Config.url(name)).pipe(Config.map((value) => Option.map(value, String)));
 
 const appConfigEffect = Effect.gen(function* () {
+  const ggDebugEnabled = yield* Config.boolean("GG_DEBUG").pipe(Config.withDefault(false));
   const ggReviewConvexUrl = yield* optionalUrlString("GG_REVIEW_CONVEX_URL");
   const viteConvexUrl = yield* optionalUrlString("VITE_CONVEX_URL");
 
@@ -40,12 +41,12 @@ const appConfigEffect = Effect.gen(function* () {
     captureBenchmarkEnabled: yield* Config.boolean("GG_CAPTURE_BENCHMARK").pipe(
       Config.withDefault(false),
     ),
-    studioDiagnosticsEnabled: yield* Config.boolean("GG_STUDIO_DIAGNOSTICS").pipe(
-      Config.withDefault(false),
-    ),
-    mediaServerDebugLoggingEnabled: yield* Config.boolean("GG_MEDIA_SERVER_DEBUG").pipe(
-      Config.withDefault(false),
-    ),
+    studioDiagnosticsEnabled:
+      ggDebugEnabled ||
+      (yield* Config.boolean("GG_STUDIO_DIAGNOSTICS").pipe(Config.withDefault(false))),
+    mediaServerDebugLoggingEnabled:
+      ggDebugEnabled ||
+      (yield* Config.boolean("GG_MEDIA_SERVER_DEBUG").pipe(Config.withDefault(false))),
     devServerPort: yield* Config.port("PORT").pipe(Config.withDefault(5173)),
     nodeEnv: yield* Config.string("NODE_ENV").pipe(Config.withDefault("development")),
     electrobunBuild: Option.getOrNull(yield* optionalString("ELECTROBUN_BUILD")),

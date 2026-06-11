@@ -32,10 +32,11 @@ function safeSerialize(value: unknown): string {
 const minimumLogLevelLayer = Layer.unwrap(
   Effect.gen(function* () {
     const nodeEnv = yield* Config.string("NODE_ENV").pipe(Config.withDefault("development"));
+    const ggDebugEnabled = yield* Config.boolean("GG_DEBUG").pipe(Config.withDefault(false));
     const diagnosticsEnabled = yield* Config.boolean("GG_STUDIO_DIAGNOSTICS").pipe(
       Config.withDefault(false),
     );
-    if (diagnosticsEnabled || nodeEnv !== "production") {
+    if (ggDebugEnabled || diagnosticsEnabled || nodeEnv !== "production") {
       return Layer.succeed(References.MinimumLogLevel, "Debug" as const);
     }
     return Layer.succeed(References.MinimumLogLevel, "Warn" as const);
@@ -174,7 +175,9 @@ export const layerDesktopProcessDiagnostics = Layer.effectDiscard(
         cwd: process.cwd(),
         electrobunBuild: process.env.ELECTROBUN_BUILD ?? null,
         execPath: process.execPath,
+        ggDebug: process.env.GG_DEBUG ?? null,
         ggEnginePath: process.env.GG_ENGINE_PATH ?? null,
+        ggMediaServerDebug: process.env.GG_MEDIA_SERVER_DEBUG ?? null,
         ggStudioDiagnostics: process.env.GG_STUDIO_DIAGNOSTICS ?? null,
         logPath: logPaths[0] ?? null,
         logPaths,

@@ -35,6 +35,21 @@ describe("desktop app config", () => {
 
     expect(config.devServerPort).toBe(7777);
   });
+
+  test("GG_DEBUG enables studio and media diagnostics", async () => {
+    const config = await Effect.runPromise(
+      AppConfig.pipe(
+        Effect.provide(layerAppConfig),
+        Effect.provideService(
+          ConfigProvider.ConfigProvider,
+          ConfigProvider.fromUnknown({ GG_DEBUG: "1", PORT: "7777" }),
+        ),
+      ),
+    );
+
+    expect(config.studioDiagnosticsEnabled).toBe(true);
+    expect(config.mediaServerDebugLoggingEnabled).toBe(true);
+  });
 });
 
 describe("desktop navigation rules", () => {
