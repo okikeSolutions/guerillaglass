@@ -47,7 +47,7 @@ const appConfigEffect = Effect.gen(function* () {
     mediaServerDebugLoggingEnabled:
       ggDebugEnabled ||
       (yield* Config.boolean("GG_MEDIA_SERVER_DEBUG").pipe(Config.withDefault(false))),
-    devServerPort: yield* Config.port("PORT").pipe(Config.withDefault(5173)),
+    devServerPort: 5173,
     nodeEnv: yield* Config.string("NODE_ENV").pipe(Config.withDefault("development")),
     electrobunBuild: Option.getOrNull(yield* optionalString("ELECTROBUN_BUILD")),
     allowCustomEnginePath: yield* Config.boolean("GG_ALLOW_CUSTOM_ENGINE_PATH").pipe(

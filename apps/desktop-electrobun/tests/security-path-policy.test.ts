@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe("desktop app config", () => {
-  test("reads PORT as the desktop dev server port", async () => {
+  test("uses the fixed Vite desktop dev server port", async () => {
     const config = await Effect.runPromise(
       AppConfig.pipe(
         Effect.provide(layerAppConfig),
@@ -33,7 +33,7 @@ describe("desktop app config", () => {
       ),
     );
 
-    expect(config.devServerPort).toBe(7777);
+    expect(config.devServerPort).toBe(5173);
   });
 
   test("GG_DEBUG enables studio and media diagnostics", async () => {
