@@ -19,10 +19,7 @@ import {
 import { extractMenuAction } from "../menu/actions";
 import { buildApplicationMenu, buildLinuxTrayMenu } from "../menu/builders";
 import { routeMenuAction } from "../menu/router";
-import {
-  appendCaptureBenchmarkQuery,
-  captureBenchmarkWindowTitle,
-} from "../../shared/captureBenchmark";
+import { captureBenchmarkWindowTitle } from "../../shared/captureBenchmark";
 import { appendStudioDiagnosticsQuery } from "../../shared/studioDiagnostics";
 import { studioShortcutOverridesEqual } from "../../shared/shortcuts";
 import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
@@ -119,27 +116,25 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
 
         const getMainViewURL = (channel: string) =>
           Effect.promise(async () => {
+            const bundledMainViewURL = "views://mainview/index.html";
+
             if (captureBenchmarkEnabled) {
-              return "views://mainview/index.html";
+              return bundledMainViewURL;
             }
 
             if (channel === "dev") {
               try {
                 await fetch(devURL, { method: "HEAD" });
                 console.log(`HMR enabled: Using Vite dev server at ${devURL}`);
-                return appendCaptureBenchmarkQuery(
-                  appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled),
-                  captureBenchmarkEnabled,
-                );
+                return appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled);
               } catch {
-                console.log("Vite dev server not running. Run 'bun run dev:hmr' for HMR support.");
+                console.log(
+                  `Vite dev server not running at ${devURL}. Falling back to bundled mainview.`,
+                );
               }
             }
 
-            return appendCaptureBenchmarkQuery(
-              appendStudioDiagnosticsQuery("views://mainview/index.html", studioDiagnosticsEnabled),
-              captureBenchmarkEnabled,
-            );
+            return appendStudioDiagnosticsQuery(bundledMainViewURL, studioDiagnosticsEnabled);
           });
 
         const dispatchHostCommand = (command: HostMenuCommand) =>
