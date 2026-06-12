@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OPENAPI_FILE="$ROOT_DIR/packages/engine-contract/generated/engine.openapi.json"
 RUST_CONFIG_FILE="$ROOT_DIR/engines/protocol-rust/openapi-generator-config.json"
+RUST_TEMPLATE_DIR="$ROOT_DIR/engines/protocol-rust/openapi-generator-templates"
 SWIFT_OPENAPI_FILE="$ROOT_DIR/engines/protocol-swift/Sources/EngineProtocol/openapi.json"
 
 (
@@ -19,7 +20,8 @@ npx --yes @openapitools/openapi-generator-cli generate \
   -g rust-axum \
   -i "$OPENAPI_FILE" \
   -o "$ROOT_DIR/engines/protocol-rust" \
-  -c "$RUST_CONFIG_FILE"
+  -c "$RUST_CONFIG_FILE" \
+  -t "$RUST_TEMPLATE_DIR"
 
 # OpenAPI Generator rewrites package metadata. Keep project-owned metadata stable.
 python3 - <<'PY'
