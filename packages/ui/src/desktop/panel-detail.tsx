@@ -70,13 +70,19 @@ function DesktopPanelDetailRow({
 function DesktopPanelDetailRows({
   rows,
 }: {
-  rows: Array<{ label?: string; value: string; className?: string; valueClassName?: string }>;
+  rows: Array<{
+    id?: string;
+    label?: string;
+    value: string;
+    className?: string;
+    valueClassName?: string;
+  }>;
 }) {
   return (
     <DesktopPanelDetailList>
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <DesktopPanelDetailRow
-          key={`${row.className ?? ""}:${row.label ?? ""}:${row.value}`}
+          key={row.id ?? index}
           label={row.label}
           value={row.value}
           className={row.className}
