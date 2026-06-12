@@ -165,7 +165,7 @@ export const layerDesktopProcessDiagnostics = Layer.effectDiscard(
           { discard: true },
         ),
       );
-    }, 2000);
+    }, 60_000);
     heartbeat.unref?.();
 
     yield* Effect.logInfo("desktop process diagnostics installed").pipe(

@@ -124,16 +124,11 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
             }
 
             if (channel === "dev") {
-              try {
-                await fetch(devURL, { method: "HEAD" });
-                console.log(`HMR enabled: Using Vite dev server at ${devURL}`);
-                return appendCaptureBenchmarkQuery(
-                  appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled),
-                  captureBenchmarkEnabled,
-                );
-              } catch {
-                console.log("Vite dev server not running. Run 'bun run dev:hmr' for HMR support.");
-              }
+              console.log(`HMR enabled: Using Vite dev server at ${devURL}`);
+              return appendCaptureBenchmarkQuery(
+                appendStudioDiagnosticsQuery(devURL, studioDiagnosticsEnabled),
+                captureBenchmarkEnabled,
+              );
             }
 
             return appendCaptureBenchmarkQuery(
