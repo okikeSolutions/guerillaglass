@@ -30,7 +30,7 @@
   "dependencies": {
     "@effect/platform-bun": "4.0.0-beta.78",
     "@guerillaglass/engine-contract": "workspace:*",
-    "effect": "4.0.0-beta.78"
+    "effect": "4.0.0-beta.83"
   },
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",
