@@ -1,5 +1,6 @@
 import type { ComponentProps, ElementType, ReactNode } from "react";
-import { cn } from "@lib/utils";
+
+import { cn } from "../lib/utils";
 
 type StudioPaneProps<T extends ElementType> = {
   as?: T;
@@ -8,7 +9,7 @@ type StudioPaneProps<T extends ElementType> = {
   className?: string;
 } & Omit<ComponentProps<T>, "as" | "children" | "className">;
 
-export function StudioPane<T extends ElementType = "aside">({
+function StudioPane<T extends ElementType = "aside">({
   as,
   side,
   children,
@@ -32,18 +33,20 @@ export function StudioPane<T extends ElementType = "aside">({
   );
 }
 
-export function StudioPaneHeader({ className, ...props }: ComponentProps<"div">) {
+function StudioPaneHeader({ className, ...props }: ComponentProps<"div">) {
   return <div className={cn("gg-pane-header", className)} {...props} />;
 }
 
-export function StudioPaneTitle({ className, ...props }: ComponentProps<"h2">) {
+function StudioPaneTitle({ className, ...props }: ComponentProps<"h2">) {
   return <h2 className={cn("gg-pane-title", className)} {...props} />;
 }
 
-export function StudioPaneSubtitle({ className, ...props }: ComponentProps<"p">) {
+function StudioPaneSubtitle({ className, ...props }: ComponentProps<"p">) {
   return <p className={cn("gg-pane-subtitle", className)} {...props} />;
 }
 
-export function StudioPaneBody({ className, ...props }: ComponentProps<"div">) {
+function StudioPaneBody({ className, ...props }: ComponentProps<"div">) {
   return <div className={cn("gg-pane-body", className)} {...props} />;
 }
+
+export { StudioPane, StudioPaneBody, StudioPaneHeader, StudioPaneSubtitle, StudioPaneTitle };

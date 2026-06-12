@@ -1,12 +1,8 @@
-import { ChevronRight, ScreenShare, ShieldCheck } from "lucide-react";
-import { type ReactNode } from "react";
+import { ScreenShare, ShieldCheck } from "lucide-react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
 import { Button } from "@guerillaglass/ui/components/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@guerillaglass/ui/components/collapsible";
+import { DesktopPanelDetailRows } from "@guerillaglass/ui/desktop/panel-detail";
+import { DesktopPanelSection } from "@guerillaglass/ui/desktop/panel-section";
 import {
   Empty,
   EmptyDescription,
@@ -18,7 +14,7 @@ import { Label } from "@guerillaglass/ui/components/label";
 import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
 import { RadioGroup, RadioGroupItem } from "@guerillaglass/ui/components/radio-group";
 import { engineApi } from "@lib/engine";
-import { cn } from "@lib/utils";
+import { cn } from "@guerillaglass/ui";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
@@ -33,7 +29,7 @@ import {
   StudioPaneHeader,
   StudioPaneSubtitle,
   StudioPaneTitle,
-} from "../layout/StudioPanePrimitives";
+} from "@guerillaglass/ui/desktop/studio-pane";
 
 function displayOptionLabel(
   displayItem: ReturnType<typeof useStudio>["displayChoices"][number],
@@ -70,12 +66,28 @@ export function CaptureRoute() {
             <StudioPaneSubtitle>{studio.ui.labels.inputMonitoring}</StudioPaneSubtitle>
           </StudioPaneHeader>
           <StudioPaneBody className="gg-copy-compact gg-inspector-pane-body">
-            <CaptureLeftSection title={studio.ui.labels.inputMonitoring}>
-              <div className="gg-inspector-detail-list">
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.screen}: ${studio.permissionsQuery.data?.screenRecordingGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.microphone}: ${studio.permissionsQuery.data?.microphoneGranted ? studio.ui.values.granted : studio.ui.values.notGranted}`}</div>
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.inputMonitoring}: ${studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown}`}</div>
-              </div>
+            <DesktopPanelSection title={studio.ui.labels.inputMonitoring}>
+              <DesktopPanelDetailRows
+                rows={[
+                  {
+                    label: studio.ui.labels.screen,
+                    value: studio.permissionsQuery.data?.screenRecordingGranted
+                      ? studio.ui.values.granted
+                      : studio.ui.values.notGranted,
+                  },
+                  {
+                    label: studio.ui.labels.microphone,
+                    value: studio.permissionsQuery.data?.microphoneGranted
+                      ? studio.ui.values.granted
+                      : studio.ui.values.notGranted,
+                  },
+                  {
+                    label: studio.ui.labels.inputMonitoring,
+                    value:
+                      studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown,
+                  },
+                ]}
+              />
 
               <div className="gg-left-rail-actions pt-1">
                 <Button
@@ -111,9 +123,9 @@ export function CaptureRoute() {
                   {studio.ui.actions.openSettings}
                 </Button>
               </div>
-            </CaptureLeftSection>
+            </DesktopPanelSection>
 
-            <CaptureLeftSection title={studio.ui.labels.captureSource}>
+            <DesktopPanelSection title={studio.ui.labels.captureSource}>
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
                   <Field>
@@ -232,7 +244,7 @@ export function CaptureRoute() {
                   )}
                 </studio.settingsForm.Field>
               ) : null}
-            </CaptureLeftSection>
+            </DesktopPanelSection>
           </StudioPaneBody>
         </StudioPane>
       }
@@ -309,27 +321,5 @@ export function CaptureRoute() {
       rightPane={<InspectorPanel mode="capture" />}
       bottomPane={null}
     />
-  );
-}
-
-function CaptureLeftSection({
-  title,
-  children,
-  className,
-}: {
-  title: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <Collapsible defaultOpen={false} className={cn("gg-inspector-section", className)}>
-      <CollapsibleTrigger className="gg-inspector-section-trigger">
-        <ChevronRight className="gg-inspector-section-chevron" />
-        <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="gg-inspector-section-content">
-        <div className="gg-inspector-section-body">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
   );
 }

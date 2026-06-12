@@ -251,6 +251,40 @@
 
   .gg-pane-body {
     @apply flex-1 min-h-0 min-w-0 overflow-y-auto p-3;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 48%, transparent) transparent;
+  }
+
+  .gg-pane-body::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    -webkit-appearance: none;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  .gg-pane-body::-webkit-scrollbar-track,
+  .gg-pane-body::-webkit-scrollbar-track-piece {
+    background: transparent !important;
+  }
+
+  .gg-pane-body::-webkit-scrollbar-thumb {
+    min-height: 32px;
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+    background-color: color-mix(in oklab, var(--muted-foreground) 36%, transparent);
+  }
+
+  .gg-pane-body::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--muted-foreground) 56%, transparent);
+  }
+
+  .gg-pane-body::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .gg-left-rail-actions {

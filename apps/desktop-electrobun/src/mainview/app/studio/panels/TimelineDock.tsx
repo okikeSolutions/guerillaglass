@@ -24,7 +24,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@guerillaglass/ui/components/tooltip";
-import { cn } from "@lib/utils";
+import { cn } from "@guerillaglass/ui";
 import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
 import { normalizeShortcutDisplayPlatform, studioShortcutDisplayTokens } from "@shared/shortcuts";
 import { useStudio, useStudioPlaybackValue } from "../state/StudioProvider";
