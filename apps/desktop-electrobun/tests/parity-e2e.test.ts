@@ -17,7 +17,7 @@ type EngineFixture = {
   expectedPlatform: "windows" | "linux";
 };
 
-const nativeEngineBuildTimeoutMs = 300_000;
+const nativeEngineBuildTimeoutMs = 600_000;
 const executableExtension = process.platform === "win32" ? ".exe" : "";
 
 const fixtures: EngineFixture[] = [
@@ -70,14 +70,12 @@ async function buildNativeEngine(manifestPath: string): Promise<void> {
 
 describe("engine HTTP parity e2e", () => {
   beforeAll(async () => {
-    await Promise.all([
-      buildNativeEngine(
-        path.resolve(import.meta.dirname, "../../../engines/windows-native/Cargo.toml"),
-      ),
-      buildNativeEngine(
-        path.resolve(import.meta.dirname, "../../../engines/linux-native/Cargo.toml"),
-      ),
-    ]);
+    await buildNativeEngine(
+      path.resolve(import.meta.dirname, "../../../engines/windows-native/Cargo.toml"),
+    );
+    await buildNativeEngine(
+      path.resolve(import.meta.dirname, "../../../engines/linux-native/Cargo.toml"),
+    );
   }, nativeEngineBuildTimeoutMs);
   for (const fixture of fixtures) {
     test(

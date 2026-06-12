@@ -1,19 +1,14 @@
-import { ChevronRight, FolderClock, FolderOpen, Save } from "lucide-react";
-import { type ReactNode } from "react";
+import { FolderClock, FolderOpen, Save } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
 import { ButtonGroup } from "@guerillaglass/ui/components/button-group";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@guerillaglass/ui/components/collapsible";
+import { DesktopPanelCard, DesktopPanelDetailRows } from "@guerillaglass/ui/desktop/panel-detail";
+import { DesktopPanelSection } from "@guerillaglass/ui/desktop/panel-section";
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from "@guerillaglass/ui/components/empty";
-import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 
 function projectNameFromPath(projectPath: string | null): string {
@@ -55,27 +50,50 @@ export function ProjectUtilityPanel() {
       </div>
 
       <div className="gg-pane-body gg-copy-compact gg-inspector-pane-body">
-        <ProjectPanelSection title={studio.ui.labels.activeProject}>
-          <div className="gg-inspector-detail-list gg-numeric">
-            <div className="gg-inspector-detail-row">{`${studio.ui.labels.projectName}: ${projectNameFromPath(project?.projectPath ?? null)}`}</div>
-            <div className="gg-inspector-detail-row truncate">{`${studio.ui.labels.projectPath}: ${project?.projectPath ?? studio.ui.labels.notSaved}`}</div>
-            <div className="gg-inspector-detail-row truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
-            <div className="gg-inspector-detail-row truncate">{`${studio.ui.labels.eventsURL}: ${project?.eventsURL ?? studio.captureStatusQuery.data?.eventsURL ?? "-"}`}</div>
-            <div className="gg-inspector-detail-row">{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
-            <div className="gg-inspector-detail-row">{`${studio.ui.labels.captureSourceMetadata}: ${captureMetadata?.source ?? "-"}`}</div>
-            <div className="gg-inspector-detail-row">
-              {`${studio.ui.labels.captureResolution}: ${
-                captureMetadata
+        <DesktopPanelSection title={studio.ui.labels.activeProject}>
+          <DesktopPanelDetailRows
+            rows={[
+              {
+                label: studio.ui.labels.projectName,
+                value: projectNameFromPath(project?.projectPath ?? null),
+              },
+              {
+                label: studio.ui.labels.projectPath,
+                value: project?.projectPath ?? studio.ui.labels.notSaved,
+                valueClassName: "truncate",
+              },
+              {
+                label: studio.ui.labels.recordingURL,
+                value: studio.recordingURL ?? "-",
+                valueClassName: "truncate",
+              },
+              {
+                label: studio.ui.labels.eventsURL,
+                value: project?.eventsURL ?? studio.captureStatusQuery.data?.eventsURL ?? "-",
+                valueClassName: "truncate",
+              },
+              {
+                label: studio.ui.labels.duration,
+                value: studio.formatDuration(
+                  studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+                ),
+              },
+              {
+                label: studio.ui.labels.captureSourceMetadata,
+                value: captureMetadata?.source ?? "-",
+              },
+              {
+                label: studio.ui.labels.captureResolution,
+                value: captureMetadata
                   ? `${studio.formatInteger(captureMetadata.contentRect.width)}x${studio.formatInteger(captureMetadata.contentRect.height)}`
-                  : "-"
-              }`}
-            </div>
-            <div className="gg-inspector-detail-row">
-              {`${studio.ui.labels.captureScale}: ${
-                captureMetadata ? studio.formatDecimal(captureMetadata.pixelScale) : "-"
-              }`}
-            </div>
-          </div>
+                  : "-",
+              },
+              {
+                label: studio.ui.labels.captureScale,
+                value: captureMetadata ? studio.formatDecimal(captureMetadata.pixelScale) : "-",
+              },
+            ]}
+          />
 
           <ButtonGroup className="flex-wrap gap-1.5 pt-1">
             <Button
@@ -103,26 +121,23 @@ export function ProjectUtilityPanel() {
               <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProjectAs}
             </Button>
           </ButtonGroup>
-        </ProjectPanelSection>
+        </DesktopPanelSection>
 
-        <ProjectPanelSection title={studio.ui.labels.mediaBin}>
+        <DesktopPanelSection title={studio.ui.labels.mediaBin}>
           <div className="space-y-1.5">
             {mediaBinItems.map((item) => (
-              <div
-                key={item.id}
-                className="space-y-0.5 rounded-sm border border-border/65 bg-background/25 px-2 py-1.5"
-              >
+              <DesktopPanelCard key={item.id} className="space-y-0.5 px-2 py-1.5">
                 <div className="gg-copy-strong">{item.label}</div>
                 <div className="gg-copy-meta truncate">{item.value}</div>
                 <div className="gg-copy-meta">
                   {item.available ? studio.ui.labels.mediaReady : studio.ui.labels.mediaMissing}
                 </div>
-              </div>
+              </DesktopPanelCard>
             ))}
           </div>
-        </ProjectPanelSection>
+        </DesktopPanelSection>
 
-        <ProjectPanelSection
+        <DesktopPanelSection
           title={
             <span className="inline-flex items-center gap-1">
               <FolderClock className="h-3.5 w-3.5" /> {studio.ui.labels.recentProjects}
@@ -149,10 +164,7 @@ export function ProjectUtilityPanel() {
 
           <div className="space-y-1.5">
             {recentProjects.map((item) => (
-              <div
-                key={item.projectPath}
-                className="space-y-0.5 rounded-sm border border-border/65 bg-background/25 px-2 py-1.5"
-              >
+              <DesktopPanelCard key={item.projectPath} className="space-y-0.5 px-2 py-1.5">
                 <div className="gg-copy-strong truncate">{item.displayName}</div>
                 <div className="gg-copy-meta truncate">{item.projectPath}</div>
                 <div className="gg-copy-meta">{`${studio.ui.labels.lastOpened}: ${studio.formatDateTime(item.lastOpenedAt)}`}</div>
@@ -167,33 +179,11 @@ export function ProjectUtilityPanel() {
                 >
                   <FolderOpen className="mr-2 h-4 w-4" /> {studio.ui.actions.openRecent}
                 </Button>
-              </div>
+              </DesktopPanelCard>
             ))}
           </div>
-        </ProjectPanelSection>
+        </DesktopPanelSection>
       </div>
     </>
-  );
-}
-
-function ProjectPanelSection({
-  title,
-  children,
-  className,
-}: {
-  title: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <Collapsible defaultOpen={false} className={cn("gg-inspector-section", className)}>
-      <CollapsibleTrigger className="gg-inspector-section-trigger">
-        <ChevronRight className="gg-inspector-section-chevron" />
-        <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="gg-inspector-section-content">
-        <div className="gg-inspector-section-body">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
   );
 }

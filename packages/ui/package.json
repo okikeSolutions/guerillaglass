@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    ".": "./src/index.ts",
     "./styles.css": {
       "style": "./src/styles/globals.css",
       "default": "./src/styles/globals.css"

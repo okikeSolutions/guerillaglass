@@ -23,7 +23,7 @@ import {
   StudioPaneHeader,
   StudioPaneSubtitle,
   StudioPaneTitle,
-} from "../layout/StudioPanePrimitives";
+} from "@guerillaglass/ui/desktop/studio-pane";
 
 export function EditRoute() {
   const studio = useStudio();

@@ -1,4 +1,4 @@
-import { ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   captureFrameRates,
@@ -6,11 +6,14 @@ import {
 } from "@guerillaglass/engine-contract/domains/sources";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Checkbox } from "@guerillaglass/ui/components/checkbox";
+import { DesktopPanelSection } from "@guerillaglass/ui/desktop/panel-section";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@guerillaglass/ui/components/collapsible";
+  DesktopPanelCard,
+  DesktopPanelCardHeader,
+  DesktopPanelDetailList,
+  DesktopPanelDetailRow,
+  DesktopPanelDetailRows,
+} from "@guerillaglass/ui/desktop/panel-detail";
 import {
   Field,
   FieldContent,
@@ -27,117 +30,13 @@ import {
   SelectValue,
 } from "@guerillaglass/ui/components/select";
 import { Slider } from "@guerillaglass/ui/components/slider";
-import { cn } from "@lib/utils";
 
-export function InspectorSection({
-  title,
-  children,
-  className,
-  defaultOpen = false,
-}: {
-  title: string;
-  children: ReactNode;
-  className?: string;
-  defaultOpen?: boolean;
-}) {
-  return (
-    <Collapsible defaultOpen={defaultOpen} className={cn("gg-inspector-section", className)}>
-      <CollapsibleTrigger className="gg-inspector-section-trigger">
-        <ChevronRight className="gg-inspector-section-chevron" />
-        <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="gg-inspector-section-content">
-        <div className="gg-inspector-section-body">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-export function InspectorOptionCard({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return <div className={cn("gg-inspector-option-card", className)}>{children}</div>;
-}
-
-export function InspectorOptionHeader({
-  icon,
-  title,
-  description,
-  trailing,
-}: {
-  icon?: ReactNode;
-  title: string;
-  description?: string;
-  trailing?: ReactNode;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 space-y-1">
-        <div className="flex items-center gap-2">
-          {icon ? <span className="text-muted-foreground">{icon}</span> : null}
-          <span className="gg-copy-strong">{title}</span>
-        </div>
-        {description ? <p className="gg-copy-meta">{description}</p> : null}
-      </div>
-      {trailing ? <div className="shrink-0">{trailing}</div> : null}
-    </div>
-  );
-}
-
-export function InspectorDetailList({ children }: { children: ReactNode }) {
-  return (
-    <InspectorOptionCard>
-      <div className="gg-inspector-detail-list gg-numeric">{children}</div>
-    </InspectorOptionCard>
-  );
-}
-
-export function InspectorDetailRow({
-  label,
-  value,
-  className,
-  valueClassName,
-}: {
-  label?: string;
-  value: string;
-  className?: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className={cn("gg-inspector-detail-row", className)}>
-      {label ? <span className="gg-copy-meta">{label}</span> : null}
-      <span
-        className={cn(label ? "gg-copy-strong text-right" : "text-foreground/90", valueClassName)}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-export function InspectorDetailRows({
-  rows,
-}: {
-  rows: Array<{ label?: string; value: string; className?: string; valueClassName?: string }>;
-}) {
-  return (
-    <InspectorDetailList>
-      {rows.map((row) => (
-        <InspectorDetailRow
-          key={`${row.className ?? ""}:${row.label ?? ""}:${row.value}`}
-          label={row.label}
-          value={row.value}
-          className={row.className}
-          valueClassName={row.valueClassName}
-        />
-      ))}
-    </InspectorDetailList>
-  );
-}
+export const InspectorSection = DesktopPanelSection;
+export const InspectorOptionCard = DesktopPanelCard;
+export const InspectorOptionHeader = DesktopPanelCardHeader;
+export const InspectorDetailList = DesktopPanelDetailList;
+export const InspectorDetailRow = DesktopPanelDetailRow;
+export const InspectorDetailRows = DesktopPanelDetailRows;
 
 export function InspectorToggleField({
   icon,

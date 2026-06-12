@@ -1,15 +1,10 @@
-import { ChevronRight, HardDriveDownload } from "lucide-react";
-import { type ReactNode } from "react";
+import { HardDriveDownload } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@guerillaglass/ui/components/collapsible";
+import { DesktopPanelDetailRows } from "@guerillaglass/ui/desktop/panel-detail";
+import { DesktopPanelSection } from "@guerillaglass/ui/desktop/panel-section";
 import { Field, FieldContent, FieldLabel } from "@guerillaglass/ui/components/field";
 import { Input } from "@guerillaglass/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
-import { cn } from "@lib/utils";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
@@ -20,7 +15,7 @@ import {
   StudioPaneHeader,
   StudioPaneSubtitle,
   StudioPaneTitle,
-} from "../layout/StudioPanePrimitives";
+} from "@guerillaglass/ui/desktop/studio-pane";
 
 export function DeliverRoute() {
   const studio = useStudio();
@@ -35,21 +30,40 @@ export function DeliverRoute() {
             <StudioPaneSubtitle>{studio.ui.workspace.deliverSummarySubtitle}</StudioPaneSubtitle>
           </StudioPaneHeader>
           <StudioPaneBody className="gg-copy-compact gg-inspector-pane-body">
-            <DeliverLeftSection title={studio.ui.inspectorTabs.project}>
-              <div className="gg-inspector-detail-list gg-numeric">
-                <div className="gg-inspector-detail-row truncate">{`${studio.ui.labels.projectPath}: ${studio.projectQuery.data?.projectPath ?? studio.ui.labels.notSaved}`}</div>
-                <div className="gg-inspector-detail-row truncate">{`${studio.ui.labels.recordingURL}: ${studio.recordingURL ?? "-"}`}</div>
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.duration}: ${studio.formatDuration(studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0)}`}</div>
-              </div>
-            </DeliverLeftSection>
+            <DesktopPanelSection title={studio.ui.inspectorTabs.project}>
+              <DesktopPanelDetailRows
+                rows={[
+                  {
+                    label: studio.ui.labels.projectPath,
+                    value: studio.projectQuery.data?.projectPath ?? studio.ui.labels.notSaved,
+                    valueClassName: "truncate",
+                  },
+                  { label: studio.ui.labels.recordingURL, value: studio.recordingURL ?? "-" },
+                  {
+                    label: studio.ui.labels.duration,
+                    value: studio.formatDuration(
+                      studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+                    ),
+                  },
+                ]}
+              />
+            </DesktopPanelSection>
 
-            <DeliverLeftSection title={studio.ui.inspectorTabs.export}>
-              <div className="gg-inspector-detail-list gg-numeric">
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.trimInSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds)}`}</div>
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.trimOutSeconds}: ${studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds)}`}</div>
-                <div className="gg-inspector-detail-row">{`${studio.ui.labels.preset}: ${studio.selectedPreset?.name ?? "-"}`}</div>
-              </div>
-            </DeliverLeftSection>
+            <DesktopPanelSection title={studio.ui.inspectorTabs.export}>
+              <DesktopPanelDetailRows
+                rows={[
+                  {
+                    label: studio.ui.labels.trimInSeconds,
+                    value: studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds),
+                  },
+                  {
+                    label: studio.ui.labels.trimOutSeconds,
+                    value: studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds),
+                  },
+                  { label: studio.ui.labels.preset, value: studio.selectedPreset?.name ?? "-" },
+                ]}
+              />
+            </DesktopPanelSection>
           </StudioPaneBody>
         </StudioPane>
       }
@@ -163,27 +177,5 @@ export function DeliverRoute() {
       rightPane={<InspectorPanel mode="deliver" />}
       bottomPane={<TimelineDock />}
     />
-  );
-}
-
-function DeliverLeftSection({
-  title,
-  children,
-  className,
-}: {
-  title: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <Collapsible defaultOpen={false} className={cn("gg-inspector-section", className)}>
-      <CollapsibleTrigger className="gg-inspector-section-trigger">
-        <ChevronRight className="gg-inspector-section-chevron" />
-        <h3 className="gg-inspector-section-header border-0 pb-0">{title}</h3>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="gg-inspector-section-content">
-        <div className="gg-inspector-section-body">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
   );
 }
