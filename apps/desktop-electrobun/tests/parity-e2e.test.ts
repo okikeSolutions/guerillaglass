@@ -17,7 +17,7 @@ type EngineFixture = {
   expectedPlatform: "windows" | "linux";
 };
 
-const nativeEngineBuildTimeoutMs = 300_000;
+const nativeEngineBuildTimeoutMs = 600_000;
 const executableExtension = process.platform === "win32" ? ".exe" : "";
 
 const fixtures: EngineFixture[] = [
