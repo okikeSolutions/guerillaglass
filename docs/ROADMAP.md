@@ -151,8 +151,18 @@ Editing depth checklist:
 
 - [x] Add true live preview during active recording instead of placeholder-only recording state.
 - [x] Elevate display capture to a first-class primary record affordance alongside current-window capture.
-- [x] Replace the synthetic single-clip timeline model with a real clip/segment data model.
-- [ ] Implement clip split/delete/lift/move operations and make the ripple toggle behavior real.
+- [x] Replace the synthetic single-clip timeline model with a real clip/gap item model.
+- [x] Implement pure clip split/delete/lift/move commands and make the ripple toggle behavior real in renderer state.
+- [x] Wire split/lift/delete/move inspector actions and Blade click-to-split to the timeline command layer.
+- [ ] Add drag-to-move timeline interactions with ripple-aware insert and conservative non-ripple gap/boundary moves.
+- [x] Make macOS export consume timeline v2 items so exported media matches editor split/delete/lift/move state.
+  - Implementation notes:
+    - macOS `export.run` parses `payload.timeline` v2 clip/gap items and builds an edited `AVMutableComposition` before export.
+    - Clip items insert source recording ranges in timeline order; gap items reserve silent program space.
+    - Timeline exports use per-item video composition instructions so gaps render as black program space instead of holding the previous frame.
+    - Timeline exports remap camera-plan transforms from source ranges into edited program ranges so auto-zoom/camera planning is preserved across timeline edits.
+    - Deliver trim fields are applied as `AVAssetExportSession.timeRange` on the edited program timeline, not the original recording timeline.
+    - Export tests cover clip/gap composition duration, program-time trim behavior, camera-plan transforms, strict invalid timeline handling, and black gap rendering.
 - Implementation design reference: `docs/TIMELINE_EDITING_DESIGN.md`
 - [ ] Add per-segment camera/zoom editing with manual keyframe override.
 - [ ] Add crop/reframe/redaction/highlight tools for demo-focused editing.
@@ -270,13 +280,34 @@ Progress (current repo)
 - [ ] Background framing
 - [ ] Vertical export with re-planned camera
 - [x] Live preview remains useful during recording
-- [ ] True clip-based editing model implemented
+- [x] Timeline v2 clip/gap data model implemented in contract, renderer, and Swift project state
+- [x] Pure split/delete/lift/move command layer implemented with unit coverage
+- [x] Inspector actions and Blade click-to-split wired to timeline commands
+- [x] macOS export applies timeline v2 edits, gaps, program-time trims, and camera-plan transforms
+- [ ] Drag-to-move timeline interaction implemented
 - [ ] Crop/reframe/redaction/highlight tools implemented
 - [ ] Transcript/caption editing baseline implemented
 - [ ] Windows native capture/audio/export parity milestones
 - [ ] Linux native capture/audio/export parity milestones
 - [ ] Localization updated for Phase 2 UI
 - [ ] Post‑localization polish audit (UI/UX, performance, accessibility)
+
+Suggested Phase 2 PR slices:
+
+1. `phase2/timeline-v2-export-macos` — make macOS export honor timeline v2 edits, gaps, and program-time Deliver trims.
+2. `phase2/timeline-drag-move-gaps` — add drag-to-move, finish gap interaction/readability, and verify preview behavior across gaps.
+3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract.
+4. `phase2/background-framing-renderer` — implement native export rendering for background stage, padding, rounded screen card, and shadow.
+5. `phase2/vertical-camera-replan` — make camera planning/export aspect-ratio-aware for 9:16 vertical output.
+6. `phase2/segment-camera-overrides` — add clip-level camera/keyframe override model and inspector controls.
+7. `phase2/crop-reframe-tool` — add deterministic crop/reframe controls with preview/export wiring.
+8. `phase2/redaction-highlight-tools` — add redaction/highlight overlay models and render hooks.
+9. `phase2/transcript-import` — add transcript import UI and persist transcript artifacts in the project package.
+10. `phase2/caption-edit-export` — add caption editing surface plus caption render/export hooks.
+11. `phase2/localization-refresh` — refresh `en-US`/`de-DE` strings for Phase 2 UI and errors.
+12. `phase2/polish-audit` — run UI/UX, performance, and accessibility verification after Phase 2 features land.
+13. `phase2/windows-media-parity` — replace Windows foundation media stubs with production capture/audio/export milestones.
+14. `phase2/linux-media-parity` — replace Linux foundation media stubs with production capture/audio/export milestones.
 
 **Phase 3 — Packaging, hosted delivery, polish, and parity**
 

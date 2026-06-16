@@ -19,6 +19,7 @@ public final class ExportPipeline {
     public enum ExportError: LocalizedError {
         case missingVideoTrack
         case cannotCreateSession
+        case invalidTimeline(String)
         case failed(Error?)
 
         public var errorDescription: String? {
@@ -27,6 +28,8 @@ public final class ExportPipeline {
                 String(localized: "No video track available for export.")
             case .cannotCreateSession:
                 String(localized: "Unable to start export.")
+            case let .invalidTimeline(message):
+                message
             case let .failed(error):
                 error?.localizedDescription ?? String(localized: "Export failed.")
             }
@@ -40,7 +43,8 @@ public final class ExportPipeline {
         preset: ExportPreset,
         trimRange: CMTimeRange?,
         outputURL: URL,
-        cameraPlan: CameraPlan? = nil
+        cameraPlan: CameraPlan? = nil,
+        timeline: ExportTimelineDocument? = nil
     ) async throws -> URL {
         let asset = AVAsset(url: recordingURL)
         return try await export(
@@ -48,7 +52,8 @@ public final class ExportPipeline {
             preset: preset,
             trimRange: trimRange,
             outputURL: outputURL,
-            cameraPlan: cameraPlan
+            cameraPlan: cameraPlan,
+            timeline: timeline
         )
     }
 
@@ -57,15 +62,28 @@ public final class ExportPipeline {
         preset: ExportPreset,
         trimRange: CMTimeRange?,
         outputURL: URL,
-        cameraPlan: CameraPlan? = nil
+        cameraPlan: CameraPlan? = nil,
+        timeline: ExportTimelineDocument? = nil
     ) async throws -> URL {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         guard videoTracks.first != nil else {
             throw ExportError.missingVideoTrack
         }
 
+        let timelineComposition: ExportTimelineComposition?
+        if let timeline, !timeline.isEmpty {
+            let result = try await TimelineCompositionBuilder.makeComposition(asset: asset, timeline: timeline)
+            guard !result.items.isEmpty else {
+                throw ExportError.invalidTimeline("Timeline does not contain any exportable clips or gaps.")
+            }
+            timelineComposition = result
+        } else {
+            timelineComposition = nil
+        }
+        let exportAsset: AVAsset = timelineComposition?.composition ?? asset
+
         guard let session = AVAssetExportSession(
-            asset: asset,
+            asset: exportAsset,
             presetName: preset.exportPresetName
         ) else {
             throw ExportError.cannotCreateSession
@@ -87,7 +105,14 @@ public final class ExportPipeline {
         }
 
         let renderSize = CGSize(width: preset.width, height: preset.height)
-        if let composition = try await renderer.makeVideoComposition(
+        if let timelineComposition {
+            session.videoComposition = TimelineVideoCompositionBuilder.makeComposition(
+                timelineComposition: timelineComposition,
+                renderSize: renderSize,
+                frameRate: Double(preset.fps),
+                plan: cameraPlan
+            )
+        } else if let composition = try await renderer.makeVideoComposition(
             asset: asset,
             renderSize: renderSize,
             frameRate: Double(preset.fps),

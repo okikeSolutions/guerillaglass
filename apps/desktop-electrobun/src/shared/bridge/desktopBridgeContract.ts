@@ -38,7 +38,10 @@ import {
   type SourcesResult,
 } from "@guerillaglass/engine-contract/domains/sources";
 import { pingResultSchema, type PingResult } from "@guerillaglass/engine-contract/domains/system";
-import type { AutoZoomSettings } from "@guerillaglass/engine-contract/shared/valueObjects";
+import type {
+  AutoZoomSettings,
+  TimelineDocument,
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   reviewBridgeEventSchema,
   reviewCommentSchema,
@@ -540,6 +543,7 @@ export const bridgeRequestDefinitions = {
       presetId: ExportPresetId;
       trimStartSeconds?: number;
       trimEndSeconds?: number;
+      timeline?: TimelineDocument;
     },
     ExportRunResult,
     [
@@ -548,6 +552,7 @@ export const bridgeRequestDefinitions = {
         presetId: string;
         trimStartSeconds?: number;
         trimEndSeconds?: number;
+        timeline?: TimelineDocument;
       },
     ]
   >(
@@ -591,9 +596,9 @@ export const bridgeRequestDefinitions = {
     engineSuccessSchema("project.open"),
   ),
   ggEngineProjectSave: defineValidatedBridgeRequest<
-    { projectPath?: ProjectPath; autoZoom?: AutoZoomSettings },
+    { projectPath?: ProjectPath; autoZoom?: AutoZoomSettings; timeline?: TimelineDocument },
     ProjectState,
-    [params: { projectPath?: string; autoZoom?: AutoZoomSettings }]
+    [params: { projectPath?: string; autoZoom?: AutoZoomSettings; timeline?: TimelineDocument }]
   >(
     (params) => ({
       ...params,

@@ -461,6 +461,63 @@ describe("renderer engine bridge", () => {
     );
   });
 
+  test("preserves export timeline through renderer and Bun bridge validation", async () => {
+    let capturedParams: unknown;
+    installWindowBridge({
+      ggEngineRunExport: async (params) => {
+        capturedParams = params;
+        return {
+          jobId: "export-job-1",
+          status: "succeeded",
+          outputURL: "/tmp/out.mp4",
+        };
+      },
+    });
+
+    const timeline = {
+      version: 2 as const,
+      items: [
+        {
+          kind: "clip" as const,
+          id: "clip-a",
+          sourceAssetId: "recording" as const,
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 1,
+        },
+        { kind: "gap" as const, id: "gap-a", durationSeconds: 0.5 },
+      ],
+    };
+
+    await engineApi.runExport({
+      outputURL: "/tmp/out.mp4",
+      presetId: "h264-1080p-30",
+      timeline,
+    });
+
+    expect(capturedParams).toMatchObject({ timeline });
+  });
+
+  test("rejects invalid export timeline payloads at the bridge boundary", async () => {
+    installWindowBridge({
+      ggEngineRunExport: async () => ({
+        jobId: "export-job-1",
+        status: "succeeded",
+        outputURL: "/tmp/out.mp4",
+      }),
+    });
+
+    await expect(
+      engineApi.runExport({
+        outputURL: "/tmp/out.mp4",
+        presetId: "h264-1080p-30",
+        timeline: {
+          version: 2,
+          items: [{ kind: "gap", id: "bad-gap", durationSeconds: Number.NaN }],
+        } as never,
+      }),
+    ).rejects.toBeInstanceOf(ContractDecodeError);
+  });
+
   test("rejects invalid engine ping payloads at the generic bridge boundary", async () => {
     const bindings = installWindowBridge({
       ggEnginePing: async () => ({
