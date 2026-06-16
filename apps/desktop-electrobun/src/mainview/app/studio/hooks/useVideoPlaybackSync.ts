@@ -207,7 +207,7 @@ export function useVideoPlaybackSync({
         );
         if (boundaryResolution.kind === "gap") {
           media.pause();
-          setDisplayPlayheadSecondsFromMedia(boundarySeconds);
+          setPlayheadSecondsFromMedia(boundarySeconds);
           return true;
         }
 
@@ -291,6 +291,7 @@ export function useVideoPlaybackSync({
     playbackStore,
     recordingMediaSource,
     setDisplayPlayheadSecondsFromMedia,
+    setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
     timelineItems,
   ]);
