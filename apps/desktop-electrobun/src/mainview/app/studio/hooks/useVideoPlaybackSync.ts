@@ -273,6 +273,7 @@ export function useVideoPlaybackSync({
         return;
       }
 
+      lastFrameTimeMs = performance.now();
       loopActive = true;
       scheduleTick();
     };
