@@ -76,7 +76,7 @@ private func applyTimelineClipTransforms(
         sourceSize: sourceSize
     )
     layerInstruction.setTransform(
-        baseTransform.concatenating(cameraTransform(for: initialKeyframe, sourceSize: sourceSize)),
+        timelineClipTransform(baseTransform: baseTransform, keyframe: initialKeyframe, sourceSize: sourceSize),
         at: programRange.start
     )
 
@@ -95,9 +95,19 @@ private func applyTimelineClipTransforms(
             programRange: programRange
         )
         if endTime > startTime {
+            let startTransform = timelineClipTransform(
+                baseTransform: baseTransform,
+                keyframe: previous,
+                sourceSize: sourceSize
+            )
+            let endTransform = timelineClipTransform(
+                baseTransform: baseTransform,
+                keyframe: keyframe,
+                sourceSize: sourceSize
+            )
             layerInstruction.setTransformRamp(
-                fromStart: baseTransform.concatenating(cameraTransform(for: previous, sourceSize: sourceSize)),
-                toEnd: baseTransform.concatenating(cameraTransform(for: keyframe, sourceSize: sourceSize)),
+                fromStart: startTransform,
+                toEnd: endTransform,
                 timeRange: CMTimeRange(start: startTime, end: endTime)
             )
         }
@@ -115,9 +125,19 @@ private func applyTimelineClipTransforms(
         programRange: programRange
     )
     if programRange.end > finalStartTime {
+        let startTransform = timelineClipTransform(
+            baseTransform: baseTransform,
+            keyframe: previous,
+            sourceSize: sourceSize
+        )
+        let endTransform = timelineClipTransform(
+            baseTransform: baseTransform,
+            keyframe: finalKeyframe,
+            sourceSize: sourceSize
+        )
         layerInstruction.setTransformRamp(
-            fromStart: baseTransform.concatenating(cameraTransform(for: previous, sourceSize: sourceSize)),
-            toEnd: baseTransform.concatenating(cameraTransform(for: finalKeyframe, sourceSize: sourceSize)),
+            fromStart: startTransform,
+            toEnd: endTransform,
             timeRange: CMTimeRange(start: finalStartTime, end: programRange.end)
         )
     }
@@ -168,6 +188,14 @@ private func interpolatedKeyframe(
     return CameraKeyframe(time: seconds, center: previous.center, zoom: previous.zoom)
 }
 
+private func timelineClipTransform(
+    baseTransform: CGAffineTransform,
+    keyframe: CameraKeyframe,
+    sourceSize: CGSize
+) -> CGAffineTransform {
+    cameraTransform(for: keyframe, sourceSize: sourceSize).concatenating(baseTransform)
+}
+
 private func cameraTransform(for keyframe: CameraKeyframe, sourceSize: CGSize) -> CGAffineTransform {
     let zoom = max(1, keyframe.zoom)
     let sourceCenter = CGPoint(x: sourceSize.width / 2, y: sourceSize.height / 2)
@@ -182,13 +210,31 @@ private func makeBaseTransform(
     naturalSize: CGSize,
     renderSize: CGSize
 ) -> CGAffineTransform {
-    let scale = min(renderSize.width / naturalSize.width, renderSize.height / naturalSize.height)
-    let scaledSize = CGSize(width: naturalSize.width * scale, height: naturalSize.height * scale)
+    let orientedBounds = transformedBounds(size: naturalSize, transform: preferredTransform)
+    guard orientedBounds.width > 0, orientedBounds.height > 0 else { return preferredTransform }
+
+    let scale = min(renderSize.width / orientedBounds.width, renderSize.height / orientedBounds.height)
+    let scaledSize = CGSize(width: orientedBounds.width * scale, height: orientedBounds.height * scale)
     let translateX = (renderSize.width - scaledSize.width) / 2
     let translateY = (renderSize.height - scaledSize.height) / 2
 
     var transform = preferredTransform
+    transform = transform.translatedBy(x: -orientedBounds.minX, y: -orientedBounds.minY)
     transform = transform.scaledBy(x: scale, y: scale)
     transform = transform.translatedBy(x: translateX, y: translateY)
     return transform
+}
+
+private func transformedBounds(size: CGSize, transform: CGAffineTransform) -> CGRect {
+    let points = [
+        CGPoint(x: 0, y: 0),
+        CGPoint(x: size.width, y: 0),
+        CGPoint(x: 0, y: size.height),
+        CGPoint(x: size.width, y: size.height)
+    ].map { $0.applying(transform) }
+    let minX = points.map(\.x).min() ?? 0
+    let maxX = points.map(\.x).max() ?? 0
+    let minY = points.map(\.y).min() ?? 0
+    let maxY = points.map(\.y).max() ?? 0
+    return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
 }

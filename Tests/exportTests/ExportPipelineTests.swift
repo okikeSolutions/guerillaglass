@@ -250,8 +250,12 @@ final class ExportPipelineTests: XCTestCase {
         }
 
         let timelineRed = try sampleColor(in: AVAsset(url: timelineOnlyURL), at: 0.5).redComponent
-        let cameraRed = try sampleColor(in: AVAsset(url: timelineWithCameraURL), at: 0.5).redComponent
+        let cameraColor = try sampleColor(in: AVAsset(url: timelineWithCameraURL), at: 0.5)
+        let cameraRed = cameraColor.redComponent
         XCTAssertGreaterThan(abs(timelineRed - cameraRed), 0.08)
+        XCTAssertEqual(cameraRed, 0.25, accuracy: 0.1)
+        XCTAssertLessThan(cameraColor.greenComponent, 0.08)
+        XCTAssertLessThan(cameraColor.blueComponent, 0.08)
     }
 
     func testTimelineCompositionRejectsInvalidValues() async throws {
