@@ -5,8 +5,10 @@ import {
   buildEventMarkers,
   buildTimelineLanes,
   clampSeconds,
+  compileTimelineItems,
   compileTimelineSegments,
   createSingleSegmentTimelineDocument,
+  findTimelineItemAtProgramTime,
   mapProgramSecondsToSourceTime,
   pixelsToSeconds,
   remapInputEventsToProgramTime,
@@ -83,6 +85,36 @@ describe("timeline model", () => {
     expect(waveform?.peaks.length).toBeGreaterThanOrEqual(40);
     expect(waveform?.peaks.every((peak) => peak >= 0 && peak <= 1)).toBe(true);
     expect(Math.max(...(waveform?.peaks ?? [0]))).toBeCloseTo(1, 4);
+  });
+
+  test("identifies gaps by program time before source remapping", () => {
+    const timeline = {
+      version: 2 as const,
+      items: [
+        {
+          kind: "clip" as const,
+          id: "clip-a",
+          sourceAssetId: "recording" as const,
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 1,
+        },
+        { kind: "gap" as const, id: "gap-a", durationSeconds: 1 },
+        {
+          kind: "clip" as const,
+          id: "clip-b",
+          sourceAssetId: "recording" as const,
+          sourceStartSeconds: 3,
+          sourceEndSeconds: 4,
+        },
+      ],
+    };
+
+    const items = compileTimelineItems(timeline);
+
+    expect(findTimelineItemAtProgramTime(items, 1.25)).toMatchObject({
+      id: "gap-a",
+      kind: "gap",
+    });
   });
 
   test("compiles timeline segments into program ranges and remaps events", () => {

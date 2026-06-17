@@ -38,7 +38,7 @@ export function EditRoute() {
     setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
     timelineDuration,
-    timelineSegments,
+    timelineItems,
     ui,
   } = studio;
   const mediaRef = useRef<HTMLVideoElement | null>(null);
@@ -62,7 +62,7 @@ export function EditRoute() {
     mediaRef,
     playbackStore,
     recordingMediaSource,
-    timelineSegments,
+    timelineItems,
     timelineDuration,
     setTimelinePlaybackActive,
     setDisplayPlayheadSecondsFromMedia,

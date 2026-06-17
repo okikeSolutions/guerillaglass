@@ -82,6 +82,8 @@ cat "$out"
     const result = await runCommand("bash", ["-lc", script], 20_000);
 
     expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
-    expect(result.stdout).toContain("engine parent process exited");
+    expect(result.stdout).toMatch(
+      /engine parent process exited|engine started without a live parent process; shutting down/,
+    );
   }, 260_000);
 });

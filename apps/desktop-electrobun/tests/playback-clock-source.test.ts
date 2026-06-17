@@ -16,4 +16,18 @@ describe("video playback clock source", () => {
     expect(source).not.toContain("requestVideoFrameCallback");
     expect(source).not.toContain("cancelVideoFrameCallback");
   });
+
+  test("resets the gap wall-clock baseline when restarting the animation loop", async () => {
+    const source = await readFile(playbackSyncPath, "utf8");
+
+    expect(source).toContain("lastFrameTimeMs = performance.now();\n      loopActive = true;");
+  });
+
+  test("commits the playhead into the gap when crossing a clip-to-gap boundary", async () => {
+    const source = await readFile(playbackSyncPath, "utf8");
+
+    expect(source).toContain(
+      'if (boundaryResolution.kind === "gap") {\n          media.pause();\n          setPlayheadSecondsFromMedia(boundarySeconds);',
+    );
+  });
 });

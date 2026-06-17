@@ -35,7 +35,8 @@ extension EngineService {
                 recordingURL: recordingURL,
                 preset: preset,
                 trimRange: trimRange(start: payload.trimStartSeconds?.value1, end: payload.trimEndSeconds?.value1),
-                outputURL: URL(fileURLWithPath: payload.outputURL.value1)
+                outputURL: URL(fileURLWithPath: payload.outputURL.value1),
+                timeline: exportTimeline(from: payload.timeline)
             )
             let jobId = "macos-export-\(UUID().uuidString)"
             latestExportJobId = jobId
@@ -45,6 +46,12 @@ extension EngineService {
                 status: .succeeded,
                 outputURL: .init(value1: exportedURL.path)
             ))))
+        } catch let error as ExportPipeline.ExportError {
+            let code: Components.Schemas.EngineBadRequestError.codePayload = switch error {
+            case .invalidTimeline: .invalid_params
+            default: .invalid_request
+            }
+            return .badRequest(.init(body: .json(badRequest(code, error.localizedDescription))))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }
@@ -105,5 +112,35 @@ extension EngineService {
             start: CMTime(seconds: start, preferredTimescale: 600),
             duration: CMTime(seconds: end - start, preferredTimescale: 600)
         )
+    }
+
+    private func exportTimeline(
+        from timeline: Components.Schemas.ExportRunPayload.timelinePayload?
+    ) throws -> ExportTimelineDocument? {
+        guard let timeline else { return nil }
+        guard Int(timeline.version) == 2 else {
+            throw ExportPipeline.ExportError.invalidTimeline("Unsupported timeline version: \(timeline.version)")
+        }
+        guard !timeline.items.isEmpty else { return nil }
+
+        let items = timeline.items.compactMap { item -> ExportTimelineItem? in
+            if let clip = item.value1 {
+                return .clip(ExportTimelineClip(
+                    id: clip.id.value1,
+                    sourceStartSeconds: clip.sourceStartSeconds.value1,
+                    sourceEndSeconds: clip.sourceEndSeconds.value1
+                ))
+            }
+            if let gap = item.value2 {
+                return .gap(ExportTimelineGap(
+                    id: gap.id.value1,
+                    durationSeconds: gap.durationSeconds.value1
+                ))
+            }
+            return nil
+        }
+
+        guard !items.isEmpty else { return nil }
+        return ExportTimelineDocument(version: Int(timeline.version), items: items)
     }
 }

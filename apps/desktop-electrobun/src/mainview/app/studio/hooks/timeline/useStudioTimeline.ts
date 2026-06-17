@@ -343,6 +343,7 @@ export function useStudioTimeline({
     timelineDuration,
     timelineLaneControlState,
     timelineLanes,
+    timelineItems: compiledTimelineItems,
     timelineSegments: compiledTimelineSegments,
     timelineRippleEnabled,
     timelineSnapEnabled,

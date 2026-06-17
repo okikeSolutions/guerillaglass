@@ -1,17 +1,18 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { recordStudioPlaybackActive, recordStudioPlaybackTick } from "@lib/studioDiagnostics";
-import type { CompiledTimelineSegment } from "../domain/timelineDomainModel";
+import type { CompiledTimelineItem } from "../domain/timelineDomainModel";
+import { timelineDurationSeconds } from "../domain/timelineDomainModel";
 import {
-  mapProgramSecondsToSourceTime,
-  timelineDurationSeconds,
-} from "../domain/timelineDomainModel";
+  findNextPlayableClipAfterProgramTime,
+  resolveTimelinePlaybackAtProgramTime,
+} from "../domain/timelinePlaybackModel";
 import type { PlaybackTransportStore } from "./timeline/usePlaybackTransport";
 
 type UseVideoPlaybackSyncOptions = {
   mediaRef: RefObject<HTMLVideoElement | null>;
   playbackStore: PlaybackTransportStore;
   recordingMediaSource: string | null;
-  timelineSegments: CompiledTimelineSegment[];
+  timelineItems: CompiledTimelineItem[];
   timelineDuration: number;
   setTimelinePlaybackActive: (isActive: boolean) => void;
   setDisplayPlayheadSecondsFromMedia: (seconds: number) => void;
@@ -22,7 +23,7 @@ export function useVideoPlaybackSync({
   mediaRef,
   playbackStore,
   recordingMediaSource,
-  timelineSegments,
+  timelineItems,
   timelineDuration,
   setTimelinePlaybackActive,
   setDisplayPlayheadSecondsFromMedia,
@@ -83,23 +84,35 @@ export function useVideoPlaybackSync({
       }
       lastIsPlaying = isTimelinePlayingRef.current;
       if (isTimelinePlayingRef.current) {
-        void media.play().catch(() => {
-          setTimelinePlaybackActive(false);
-        });
+        const resolution = resolveTimelinePlaybackAtProgramTime(
+          timelineItems,
+          playheadSecondsRef.current,
+        );
+        if (resolution.kind === "clip") {
+          void media.play().catch(() => {
+            setTimelinePlaybackActive(false);
+          });
+        }
         return;
       }
       media.pause();
     };
 
     if (lastIsPlaying) {
-      void media.play().catch(() => {
-        setTimelinePlaybackActive(false);
-      });
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      if (resolution.kind === "clip") {
+        void media.play().catch(() => {
+          setTimelinePlaybackActive(false);
+        });
+      }
     } else {
       media.pause();
     }
     return playbackStore.subscribe(syncPlaybackActive);
-  }, [mediaRef, playbackStore, recordingMediaSource, setTimelinePlaybackActive]);
+  }, [mediaRef, playbackStore, recordingMediaSource, setTimelinePlaybackActive, timelineItems]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -113,8 +126,14 @@ export function useVideoPlaybackSync({
       }
 
       const boundedPlayhead = Math.max(0, Math.min(playheadSecondsRef.current, timelineDuration));
-      const mappedSource = mapProgramSecondsToSourceTime(timelineSegments, boundedPlayhead);
-      const targetMediaSeconds = mappedSource?.sourceSeconds ?? boundedPlayhead;
+      const resolution = resolveTimelinePlaybackAtProgramTime(timelineItems, boundedPlayhead);
+      const isGap = resolution.kind === "gap";
+      media.style.visibility = isGap ? "hidden" : "";
+      if (resolution.kind !== "clip") {
+        return;
+      }
+
+      const targetMediaSeconds = resolution.sourceSeconds;
       if (Math.abs(media.currentTime - targetMediaSeconds) <= 0.08) {
         return;
       }
@@ -128,7 +147,7 @@ export function useVideoPlaybackSync({
 
     syncPausedSeek();
     return playbackStore.subscribe(syncPausedSeek);
-  }, [mediaRef, playbackStore, recordingMediaSource, timelineDuration, timelineSegments]);
+  }, [mediaRef, playbackStore, recordingMediaSource, timelineDuration, timelineItems]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -139,42 +158,83 @@ export function useVideoPlaybackSync({
     let animationFrameHandle: number | null = null;
     let isCancelled = false;
     let loopActive = false;
+    let lastFrameTimeMs = performance.now();
     const segmentBoundaryThresholdSeconds = 0.02;
 
     const syncProgramClockFromMedia = () => {
-      const mapped = mapProgramSecondsToSourceTime(timelineSegments, playheadSecondsRef.current);
-      const activeSegment = mapped?.segment ?? null;
-      if (!activeSegment) {
-        recordStudioPlaybackTick(media.currentTime);
-        setDisplayPlayheadSecondsFromMedia(media.currentTime);
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      const isGap = resolution.kind === "gap";
+      media.style.visibility = isGap ? "hidden" : "";
+
+      if (isGap) {
+        media.pause();
+        const now = performance.now();
+        const nextPlayhead = playbackStore.advance(now - lastFrameTimeMs);
+        lastFrameTimeMs = now;
+        const nextResolution = resolveTimelinePlaybackAtProgramTime(timelineItems, nextPlayhead);
+        if (nextResolution.kind === "empty" || nextResolution.kind === "ended") {
+          setTimelinePlaybackActive(false);
+          return false;
+        }
+        if (nextResolution.kind === "clip") {
+          try {
+            media.currentTime = nextResolution.sourceSeconds;
+            void media.play().catch(() => setTimelinePlaybackActive(false));
+          } catch {
+            setTimelinePlaybackActive(false);
+            return false;
+          }
+        }
         return true;
       }
 
-      if (media.currentTime >= activeSegment.sourceEndSeconds - segmentBoundaryThresholdSeconds) {
-        const nextSegment = timelineSegments[activeSegment.index + 1];
-        if (!nextSegment) {
-          setDisplayPlayheadSecondsFromMedia(activeSegment.programEndSeconds);
+      lastFrameTimeMs = performance.now();
+      if (resolution.kind !== "clip") {
+        recordStudioPlaybackTick(media.currentTime);
+        setDisplayPlayheadSecondsFromMedia(playheadSecondsRef.current);
+        return true;
+      }
+
+      const activeClip = resolution.item;
+      if (media.currentTime >= activeClip.sourceEndSeconds - segmentBoundaryThresholdSeconds) {
+        const boundarySeconds = activeClip.programEndSeconds;
+        const boundaryResolution = resolveTimelinePlaybackAtProgramTime(
+          timelineItems,
+          boundarySeconds,
+        );
+        if (boundaryResolution.kind === "gap") {
+          media.pause();
+          setPlayheadSecondsFromMedia(boundarySeconds);
+          return true;
+        }
+
+        const nextClip = findNextPlayableClipAfterProgramTime(timelineItems, boundarySeconds);
+        if (!nextClip) {
+          setDisplayPlayheadSecondsFromMedia(boundarySeconds);
           setTimelinePlaybackActive(false);
           return false;
         }
 
         try {
-          media.currentTime = nextSegment.sourceStartSeconds;
+          media.currentTime = nextClip.sourceStartSeconds;
         } catch {
           setTimelinePlaybackActive(false);
           return false;
         }
-        recordStudioPlaybackTick(nextSegment.sourceStartSeconds);
-        setDisplayPlayheadSecondsFromMedia(nextSegment.programStartSeconds);
+        recordStudioPlaybackTick(nextClip.sourceStartSeconds);
+        setDisplayPlayheadSecondsFromMedia(nextClip.programStartSeconds);
         return true;
       }
 
       const nextProgramSeconds =
-        activeSegment.programStartSeconds + (media.currentTime - activeSegment.sourceStartSeconds);
+        activeClip.programStartSeconds + (media.currentTime - activeClip.sourceStartSeconds);
       setDisplayPlayheadSecondsFromMedia(
         Math.max(
-          activeSegment.programStartSeconds,
-          Math.min(nextProgramSeconds, activeSegment.programEndSeconds),
+          activeClip.programStartSeconds,
+          Math.min(nextProgramSeconds, activeClip.programEndSeconds),
         ),
       );
       recordStudioPlaybackTick(media.currentTime);
@@ -213,6 +273,7 @@ export function useVideoPlaybackSync({
         return;
       }
 
+      lastFrameTimeMs = performance.now();
       loopActive = true;
       scheduleTick();
     };
@@ -230,8 +291,9 @@ export function useVideoPlaybackSync({
     playbackStore,
     recordingMediaSource,
     setDisplayPlayheadSecondsFromMedia,
+    setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
-    timelineSegments,
+    timelineItems,
   ]);
 
   useEffect(() => {
@@ -241,31 +303,35 @@ export function useVideoPlaybackSync({
     }
 
     const handleSeeked = () => {
-      const mapped = mapProgramSecondsToSourceTime(timelineSegments, playheadSecondsRef.current);
-      if (!mapped) {
-        setPlayheadSecondsFromMedia(media.currentTime);
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      const isGap = resolution.kind === "gap";
+      media.style.visibility = isGap ? "hidden" : "";
+      if (resolution.kind !== "clip") {
         return;
       }
 
       const nextProgramSeconds =
-        mapped.segment.programStartSeconds +
-        (media.currentTime - mapped.segment.sourceStartSeconds);
+        resolution.item.programStartSeconds +
+        (media.currentTime - resolution.item.sourceStartSeconds);
       setPlayheadSecondsFromMedia(
         Math.max(
-          mapped.segment.programStartSeconds,
-          Math.min(nextProgramSeconds, mapped.segment.programEndSeconds),
+          resolution.item.programStartSeconds,
+          Math.min(nextProgramSeconds, resolution.item.programEndSeconds),
         ),
       );
     };
     const handleEnded = () => {
       setTimelinePlaybackActive(false);
-      const duration = timelineDurationSeconds(timelineSegments);
+      const duration = timelineDurationSeconds(timelineItems);
       if (duration > 0) {
         setPlayheadSecondsFromMedia(duration);
       }
     };
     const handleLoadedMetadata = () => {
-      const duration = timelineDurationSeconds(timelineSegments);
+      const duration = timelineDurationSeconds(timelineItems);
       if (duration > 0) {
         setPlayheadSecondsFromMedia(Math.min(playheadSecondsRef.current, duration));
       }
@@ -280,5 +346,5 @@ export function useVideoPlaybackSync({
       media.removeEventListener("ended", handleEnded);
       media.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [mediaRef, setPlayheadSecondsFromMedia, setTimelinePlaybackActive, timelineSegments]);
+  }, [mediaRef, setPlayheadSecondsFromMedia, setTimelinePlaybackActive, timelineItems]);
 }
