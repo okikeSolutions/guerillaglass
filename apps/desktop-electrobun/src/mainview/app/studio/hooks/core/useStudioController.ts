@@ -44,6 +44,7 @@ import {
   selectionFromPreset,
 } from "../../domain/inspectorSelectionModel";
 import {
+  compileTimelineItems,
   createEmptyTimelineDocument,
   createSingleSegmentTimelineDocument,
 } from "../../domain/timelineDomainModel";
@@ -714,6 +715,43 @@ export function useStudioController() {
     updateTimelineDocument,
   ]);
 
+  const moveTimelineClipByDrop = useCallback(
+    (
+      params:
+        | { clipId: string; destinationIndex: number }
+        | { clipId: string; destinationGapId: string },
+    ) => {
+      let didChange = false;
+      let destinationSeconds: number | null = null;
+      updateTimelineDocument((currentTimeline) => {
+        const result =
+          "destinationGapId" in params
+            ? moveTimelineItems(currentTimeline, [params.clipId], {
+                ripple: false,
+                destinationGapId: params.destinationGapId,
+              })
+            : moveTimelineItems(currentTimeline, [params.clipId], {
+                ripple: true,
+                destinationIndex: params.destinationIndex,
+              });
+        didChange = result.changed;
+        if (result.changed) {
+          destinationSeconds =
+            compileTimelineItems(result.timeline).find((item) => item.id === params.clipId)
+              ?.programStartSeconds ?? null;
+        }
+        return result.timeline;
+      });
+      if (didChange) {
+        clearInspectorSelection();
+        if (destinationSeconds != null) {
+          setPlayheadSecondsClamped(destinationSeconds);
+        }
+      }
+    },
+    [clearInspectorSelection, setPlayheadSecondsClamped, updateTimelineDocument],
+  );
+
   const pickPathSafely = useCallback(
     async (params: { mode: HostPathPickerMode; startingFolder?: string }): Promise<string | null> =>
       await desktopApi.pickPath(params),
@@ -1109,6 +1147,7 @@ export function useStudioController() {
     liftSelectedTimelineClip,
     moveSelectedTimelineClipEarlier,
     moveSelectedTimelineClipLater,
+    moveTimelineClipByDrop,
     timelineDuration,
     timelineLanes,
     timelineDocument,

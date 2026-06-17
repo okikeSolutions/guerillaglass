@@ -154,7 +154,12 @@ Editing depth checklist:
 - [x] Replace the synthetic single-clip timeline model with a real clip/gap item model.
 - [x] Implement pure clip split/delete/lift/move commands and make the ripple toggle behavior real in renderer state.
 - [x] Wire split/lift/delete/move inspector actions and Blade click-to-split to the timeline command layer.
-- [ ] Add drag-to-move timeline interactions with ripple-aware insert and conservative non-ripple gap/boundary moves.
+- [x] Add drag-to-move timeline interactions with ripple-aware insert and conservative non-ripple gap/boundary moves.
+  - Implementation notes:
+    - Timeline clips can be pointer-dragged in Select mode.
+    - Ripple-enabled drags resolve to insertion indexes and reuse the pure `moveTimelineItems` command path.
+    - Ripple-disabled drags are conservative and only resolve valid explicit gap destinations.
+    - Gap regions use a recessed dashed treatment so lift/non-ripple edit space is visible on the timeline.
 - [x] Make macOS export consume timeline v2 items so exported media matches editor split/delete/lift/move state.
   - Implementation notes:
     - macOS `export.run` parses `payload.timeline` v2 clip/gap items and builds an edited `AVMutableComposition` before export.
@@ -284,7 +289,7 @@ Progress (current repo)
 - [x] Pure split/delete/lift/move command layer implemented with unit coverage
 - [x] Inspector actions and Blade click-to-split wired to timeline commands
 - [x] macOS export applies timeline v2 edits, gaps, program-time trims, and camera-plan transforms
-- [ ] Drag-to-move timeline interaction implemented
+- [x] Drag-to-move timeline interaction implemented
 - [ ] Crop/reframe/redaction/highlight tools implemented
 - [ ] Transcript/caption editing baseline implemented
 - [ ] Windows native capture/audio/export parity milestones
