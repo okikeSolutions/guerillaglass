@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.0-beta.83",
+    "@effect/platform-bun": "4.0.0-beta.84",
     "@guerillaglass/engine-contract": "workspace:*",
     "effect": "4.0.0-beta.83"
   },
