@@ -29,7 +29,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "effect": "4.0.0-beta.83"
+    "effect": "4.0.0-beta.84"
   },
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",
