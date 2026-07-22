@@ -48,17 +48,23 @@
     "prepare": "effect-language-service patch"
   },
   "devDependencies": {
-    "@effect/language-service": "^0.86.2",
-    "@inlang/paraglide-js": "^2.18.2",
+    "@effect/language-service": "^0.87.1",
+    "@inlang/paraglide-js": "^2.22.0",
     "@nkzw/eslint-plugin": "^2.0.0",
     "eslint-plugin-no-only-tests": "^3.4.0",
-    "eslint-plugin-perfectionist": "^5.9.0",
+    "eslint-plugin-perfectionist": "^5.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.68.0",
-    "oxlint-tsgolint": "^0.23.0",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.75.0",
+    "oxlint-tsgolint": "^7.0.2001",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1"
+    "typescript-eslint": "^8.65.0"
+  },
+  "dependencies": {
+    "@better-auth/expo": "~1.6.15",
+    "@convex-dev/better-auth": "^0.12.5",
+    "better-auth": "~1.6.15",
+    "convex": "^1.42.3"
   }
 }
