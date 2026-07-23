@@ -217,6 +217,11 @@ export function getStudioMessages(locale: string | null | undefined) {
           { laneLabel, startSeconds: startSeconds.toFixed(2), endSeconds: endSeconds.toFixed(2) },
           options,
         ),
+      timelineGapAria: (laneLabel: string, startSeconds: number, endSeconds: number) =>
+        m.studio_labels_timelineGapAria(
+          { laneLabel, startSeconds: startSeconds.toFixed(2), endSeconds: endSeconds.toFixed(2) },
+          options,
+        ),
       timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) =>
         m.studio_labels_timelineMarkerAria(
           { markerKindLabel, timestampSeconds: timestampSeconds.toFixed(2) },

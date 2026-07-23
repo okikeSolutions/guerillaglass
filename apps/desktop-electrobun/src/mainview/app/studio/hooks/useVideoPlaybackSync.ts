@@ -207,6 +207,7 @@ export function useVideoPlaybackSync({
         );
         if (boundaryResolution.kind === "gap") {
           media.pause();
+          media.style.visibility = "hidden";
           setPlayheadSecondsFromMedia(boundarySeconds);
           return true;
         }
@@ -324,6 +325,50 @@ export function useVideoPlaybackSync({
       );
     };
     const handleEnded = () => {
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      if (resolution.kind === "gap") {
+        media.pause();
+        media.style.visibility = "hidden";
+        return;
+      }
+      if (resolution.kind === "clip") {
+        const queuedBoundaryClip = timelineItems.find(
+          (item) =>
+            item.kind === "clip" &&
+            Math.abs(item.programEndSeconds - playheadSecondsRef.current) <= 0.02,
+        );
+        const endedClip =
+          queuedBoundaryClip?.kind === "clip" ? queuedBoundaryClip : resolution.item;
+        const boundarySeconds = endedClip.programEndSeconds;
+        const boundaryResolution = resolveTimelinePlaybackAtProgramTime(
+          timelineItems,
+          boundarySeconds,
+        );
+        if (boundaryResolution.kind === "gap") {
+          media.pause();
+          media.style.visibility = "hidden";
+          setPlayheadSecondsFromMedia(boundarySeconds);
+          return;
+        }
+
+        const nextClip = findNextPlayableClipAfterProgramTime(timelineItems, boundarySeconds);
+        if (nextClip) {
+          try {
+            media.currentTime = nextClip.sourceStartSeconds;
+            media.style.visibility = "";
+            setPlayheadSecondsFromMedia(nextClip.programStartSeconds);
+            void media.play().catch(() => setTimelinePlaybackActive(false));
+            return;
+          } catch {
+            setTimelinePlaybackActive(false);
+            return;
+          }
+        }
+      }
+
       setTimelinePlaybackActive(false);
       const duration = timelineDurationSeconds(timelineItems);
       if (duration > 0) {

@@ -3,6 +3,7 @@ import {
   useCallback,
   useMemo,
   useRef,
+  useState,
   type ComponentType,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -12,7 +13,12 @@ import { AudioLines, Headphones, Lock, Video, VolumeX } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@guerillaglass/ui/components/tooltip";
 import { useStudioPlaybackValue } from "../state/StudioProvider";
-import type { TimelineClip, TimelineLane, TimelineWaveform } from "../domain/timelineDomainModel";
+import type {
+  TimelineClip,
+  TimelineClipSemantic,
+  TimelineLane,
+  TimelineWaveform,
+} from "../domain/timelineDomainModel";
 import { clampSeconds, pixelsToSeconds } from "../domain/timelineDomainModel";
 import { studioToggleToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 
@@ -31,6 +37,7 @@ type TimelineSurfaceLabels = {
   timelineMarkerClick: string;
   timelineMarkerMixed: string;
   timelineClipAria: (laneLabel: string, startSeconds: number, endSeconds: number) => string;
+  timelineGapAria: (laneLabel: string, startSeconds: number, endSeconds: number) => string;
   timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) => string;
 };
 
@@ -45,6 +52,10 @@ type TimelineLaneControls = Record<
 
 type TimelineSelectedClip = { laneId: "video" | "audio"; clipId: string } | null;
 
+type MoveTimelineClipDropParams =
+  | { clipId: string; destinationIndex: number }
+  | { clipId: string; destinationGapId: string; destinationOffsetSeconds: number };
+
 type TimelineSurfaceProps = {
   durationSeconds: number;
   trimEnabled?: boolean;
@@ -53,6 +64,7 @@ type TimelineSurfaceProps = {
   zoomPercent: number;
   timelineTool: "select" | "trim" | "blade";
   timelineSnapEnabled: boolean;
+  timelineRippleEnabled: boolean;
   lanes: TimelineLane[];
   laneControls: TimelineLaneControls;
   labels: TimelineSurfaceLabels;
@@ -65,6 +77,7 @@ type TimelineSurfaceProps = {
   onToggleLaneSolo: (laneId: "video" | "audio") => void;
   onClearSelection: () => void;
   onBladeClipAtSeconds?: (seconds: number) => void;
+  onMoveClipDrop?: (params: MoveTimelineClipDropParams) => void;
   selectedClip: TimelineSelectedClip;
   selectedMarkerId: string | null;
   onSelectClip: (params: {
@@ -82,6 +95,23 @@ type TimelineSurfaceProps = {
 };
 
 type DragMode = "playhead" | "trimStart" | "trimEnd";
+type TimelineClipDragState = {
+  clipId: string;
+  laneId: "video" | "audio";
+  originClientX: number;
+  grabOffsetSeconds: number;
+  isDragging: boolean;
+};
+type TimelineClipDropTarget =
+  | { kind: "none" }
+  | { kind: "insert"; destinationIndex: number; boundarySeconds: number }
+  | {
+      kind: "gap";
+      gapId: string;
+      destinationOffsetSeconds: number;
+      placementStartSeconds: number;
+      placementEndSeconds: number;
+    };
 type TrimDragMode = Exclude<DragMode, "playhead">;
 
 type TimelineLanesLayerProps = {
@@ -94,6 +124,7 @@ type TimelineLanesLayerProps = {
   onToggleLaneLocked: (laneId: "video" | "audio") => void;
   onToggleLaneMuted: (laneId: "video" | "audio") => void;
   onToggleLaneSolo: (laneId: "video" | "audio") => void;
+  onClearSelection: () => void;
   onSelectClip: (params: {
     laneId: "video" | "audio";
     clipId: string;
@@ -107,6 +138,18 @@ type TimelineLanesLayerProps = {
     timestampSeconds: number;
   }) => void;
   onBladeClipAtSeconds?: (seconds: number) => void;
+  onClipPointerDown: (
+    params: {
+      clipId: string;
+      laneId: "video" | "audio";
+      laneLocked: boolean;
+      semantic: TimelineClipSemantic;
+      startSeconds: number;
+      endSeconds: number;
+    },
+    event: ReactPointerEvent<HTMLElement>,
+  ) => void;
+  shouldSuppressClipClick: (clipId: string) => boolean;
   timelineTool: "select" | "trim" | "blade";
 };
 
@@ -124,6 +167,9 @@ type TimelineOverlayProps = {
   onSetTrimStartSeconds?: (seconds: number) => void;
   onSetTrimEndSeconds?: (seconds: number) => void;
   onTrimHandlePointerDown?: (mode: TrimDragMode, event: ReactPointerEvent<HTMLElement>) => void;
+  clipDropTarget: TimelineClipDropTarget;
+  isClipDragging: boolean;
+  lanes: TimelineLane[];
 };
 
 type TrimHandleProps = {
@@ -230,6 +276,91 @@ function pickWaveformBars(params: {
   });
 }
 
+function resolveTimelineClipDropTarget(params: {
+  clientX: number;
+  durationSeconds: number;
+  lanes: TimelineLane[];
+  timelineRippleEnabled: boolean;
+  draggedClipId: string;
+  draggedClipGrabOffsetSeconds: number;
+  trackOverlayRef: RefObject<HTMLDivElement | null>;
+}): TimelineClipDropTarget {
+  const rect = params.trackOverlayRef.current?.getBoundingClientRect();
+  if (!rect || rect.width <= 0) {
+    return { kind: "none" };
+  }
+
+  const pointerSeconds = pixelsToSeconds(
+    params.clientX - rect.left,
+    params.durationSeconds,
+    rect.width,
+  );
+  const placementSeconds = pointerSeconds - params.draggedClipGrabOffsetSeconds;
+  const boundarySnapSeconds = pixelsToSeconds(8, params.durationSeconds, rect.width);
+  const videoLane = params.lanes.find((lane) => lane.id === "video");
+  if (!videoLane) {
+    return { kind: "none" };
+  }
+
+  if (!params.timelineRippleEnabled) {
+    const draggedClip = videoLane.clips.find(
+      (clip) => clip.id === params.draggedClipId && clip.semantic !== "gap",
+    );
+    if (!draggedClip) {
+      return { kind: "none" };
+    }
+    const draggedDurationSeconds = draggedClip.endSeconds - draggedClip.startSeconds;
+    const eligibleGaps = videoLane.clips.filter(
+      (clip) =>
+        clip.semantic === "gap" &&
+        clip.endSeconds - clip.startSeconds + Number.EPSILON >= draggedDurationSeconds,
+    );
+    const targetGap = eligibleGaps.find(
+      (clip) => placementSeconds >= clip.startSeconds && placementSeconds < clip.endSeconds,
+    );
+    const boundaryGap =
+      targetGap ??
+      eligibleGaps.find(
+        (clip) =>
+          Math.abs(placementSeconds - clip.startSeconds) <= boundarySnapSeconds ||
+          Math.abs(placementSeconds - clip.endSeconds) <= boundarySnapSeconds,
+      );
+    if (!boundaryGap) {
+      return { kind: "none" };
+    }
+
+    const availableOffsetSeconds =
+      boundaryGap.endSeconds - boundaryGap.startSeconds - draggedDurationSeconds;
+    const destinationOffsetSeconds = Math.min(
+      Math.max(placementSeconds - boundaryGap.startSeconds, 0),
+      Math.max(availableOffsetSeconds, 0),
+    );
+    const placementStartSeconds = boundaryGap.startSeconds + destinationOffsetSeconds;
+    return {
+      kind: "gap",
+      gapId: boundaryGap.id,
+      destinationOffsetSeconds,
+      placementStartSeconds,
+      placementEndSeconds: placementStartSeconds + draggedDurationSeconds,
+    };
+  }
+
+  const destinationIndex = videoLane.clips.findIndex((clip) => {
+    const midpoint = clip.startSeconds + (clip.endSeconds - clip.startSeconds) / 2;
+    return pointerSeconds < midpoint;
+  });
+  const resolvedDestinationIndex =
+    destinationIndex === -1 ? videoLane.clips.length : destinationIndex;
+  const destinationClip = videoLane.clips[resolvedDestinationIndex];
+  const lastClip = videoLane.clips[videoLane.clips.length - 1];
+  return {
+    kind: "insert",
+    destinationIndex: resolvedDestinationIndex,
+    boundarySeconds:
+      destinationClip?.startSeconds ?? lastClip?.endSeconds ?? params.durationSeconds,
+  };
+}
+
 function readRulerTicks(durationSeconds: number): {
   id: string;
   isMajor: boolean;
@@ -253,21 +384,35 @@ function readRulerTicks(durationSeconds: number): {
 
 function useTimelineDragController(params: {
   durationSeconds: number;
+  lanes: TimelineLane[];
+  timelineRippleEnabled: boolean;
+  timelineTool: "select" | "trim" | "blade";
   trackOverlayRef: RefObject<HTMLDivElement | null>;
   onSetPlayheadSeconds: (seconds: number) => void;
   onSetTrimStartSeconds?: (seconds: number) => void;
   onSetTrimEndSeconds?: (seconds: number) => void;
   onClearSelection: () => void;
+  onMoveClipDrop?: (params: MoveTimelineClipDropParams) => void;
 }) {
   const {
     durationSeconds,
+    lanes,
+    timelineRippleEnabled,
+    timelineTool,
     trackOverlayRef,
     onClearSelection,
+    onMoveClipDrop,
     onSetPlayheadSeconds,
     onSetTrimStartSeconds,
     onSetTrimEndSeconds,
   } = params;
   const dragModeRef = useRef<DragMode | null>(null);
+  const clipDragRef = useRef<TimelineClipDragState | null>(null);
+  const clipDropTargetRef = useRef<TimelineClipDropTarget>({ kind: "none" });
+  const clipPointerCaptureTargetRef = useRef<HTMLElement | null>(null);
+  const suppressedClickClipIdRef = useRef<string | null>(null);
+  const [clipDropTarget, setClipDropTarget] = useState<TimelineClipDropTarget>({ kind: "none" });
+  const [isClipDragging, setIsClipDragging] = useState(false);
 
   const timeFromClientX = useCallback(
     (clientX: number): number => {
@@ -312,6 +457,35 @@ function useTimelineDragController(params: {
     () => null,
   );
 
+  const updateClipDropTarget = useCallback(
+    (clientX: number) => {
+      const target = resolveTimelineClipDropTarget({
+        clientX,
+        durationSeconds,
+        lanes,
+        timelineRippleEnabled,
+        draggedClipId: clipDragRef.current?.clipId ?? "",
+        draggedClipGrabOffsetSeconds: clipDragRef.current?.grabOffsetSeconds ?? 0,
+        trackOverlayRef,
+      });
+      clipDropTargetRef.current = target;
+      setClipDropTarget(target);
+    },
+    [durationSeconds, lanes, timelineRippleEnabled, trackOverlayRef],
+  );
+
+  const clipDragThrottler = useThrottler(
+    (clientX: number) => {
+      updateClipDropTarget(clientX);
+    },
+    {
+      leading: true,
+      trailing: true,
+      wait: 16,
+    },
+    () => null,
+  );
+
   const beginDrag = useCallback(
     (event: ReactPointerEvent<HTMLElement>, mode: DragMode) => {
       if (durationSeconds <= 0) {
@@ -343,16 +517,62 @@ function useTimelineDragController(params: {
 
   const onSurfacePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (clipDragRef.current) {
+        const dragState = clipDragRef.current;
+        if (!dragState.isDragging && Math.abs(event.clientX - dragState.originClientX) < 4) {
+          return;
+        }
+        if (!dragState.isDragging) {
+          setIsClipDragging(true);
+        }
+        dragState.isDragging = true;
+        clipDragThrottler.maybeExecute(event.clientX);
+        return;
+      }
+
       if (!dragModeRef.current) {
         return;
       }
       pointerDragThrottler.maybeExecute(event.clientX);
     },
-    [pointerDragThrottler],
+    [clipDragThrottler, pointerDragThrottler],
   );
 
   const onSurfacePointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (clipDragRef.current) {
+        const dragState = clipDragRef.current;
+        clipDragThrottler.maybeExecute(event.clientX);
+        clipDragThrottler.flush();
+        clipDragThrottler.cancel();
+        if (dragState.isDragging) {
+          suppressedClickClipIdRef.current = dragState.clipId;
+          const target = clipDropTargetRef.current;
+          if (target.kind === "insert") {
+            onMoveClipDrop?.({
+              clipId: dragState.clipId,
+              destinationIndex: target.destinationIndex,
+            });
+          } else if (target.kind === "gap") {
+            onMoveClipDrop?.({
+              clipId: dragState.clipId,
+              destinationGapId: target.gapId,
+              destinationOffsetSeconds: target.destinationOffsetSeconds,
+            });
+          }
+        }
+        const captureTarget = clipPointerCaptureTargetRef.current;
+        if (captureTarget?.hasPointerCapture(event.pointerId)) {
+          captureTarget.releasePointerCapture(event.pointerId);
+        }
+        clipDropTargetRef.current = { kind: "none" };
+        clipPointerCaptureTargetRef.current = null;
+        clipDragRef.current = null;
+        setClipDropTarget({ kind: "none" });
+        setIsClipDragging(false);
+        return;
+      }
+
       if (!dragModeRef.current) {
         return;
       }
@@ -366,18 +586,27 @@ function useTimelineDragController(params: {
       }
       dragModeRef.current = null;
     },
-    [pointerDragThrottler],
+    [clipDragThrottler, onMoveClipDrop, pointerDragThrottler],
   );
 
   const onSurfacePointerCancel = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       pointerDragThrottler.cancel();
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      clipDragThrottler.cancel();
+      const captureTarget = clipPointerCaptureTargetRef.current;
+      if (captureTarget?.hasPointerCapture(event.pointerId)) {
+        captureTarget.releasePointerCapture(event.pointerId);
+      } else if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       dragModeRef.current = null;
+      clipDropTargetRef.current = { kind: "none" };
+      clipPointerCaptureTargetRef.current = null;
+      clipDragRef.current = null;
+      setClipDropTarget({ kind: "none" });
+      setIsClipDragging(false);
     },
-    [pointerDragThrottler],
+    [clipDragThrottler, pointerDragThrottler],
   );
 
   const onTrimHandlePointerDown = useCallback(
@@ -387,12 +616,68 @@ function useTimelineDragController(params: {
     [beginDrag],
   );
 
+  const onClipPointerDown = useCallback(
+    (
+      params: {
+        clipId: string;
+        laneId: "video" | "audio";
+        laneLocked: boolean;
+        semantic: TimelineClipSemantic;
+        startSeconds: number;
+        endSeconds: number;
+      },
+      event: ReactPointerEvent<HTMLElement>,
+    ) => {
+      if (
+        params.laneLocked ||
+        params.semantic === "gap" ||
+        timelineTool !== "select" ||
+        durationSeconds <= 0 ||
+        !onMoveClipDrop
+      ) {
+        return;
+      }
+      const clipRect = event.currentTarget.getBoundingClientRect();
+      const clipDurationSeconds = Math.max(0, params.endSeconds - params.startSeconds);
+      const grabRatio =
+        clipRect.width > 0
+          ? clampSeconds((event.clientX - clipRect.left) / clipRect.width, 0, 1)
+          : 0;
+      clipDragRef.current = {
+        clipId: params.clipId,
+        laneId: params.laneId,
+        originClientX: event.clientX,
+        grabOffsetSeconds: grabRatio * clipDurationSeconds,
+        isDragging: false,
+      };
+      clipDropTargetRef.current = { kind: "none" };
+      setClipDropTarget({ kind: "none" });
+      setIsClipDragging(false);
+      clipDragThrottler.cancel();
+      clipPointerCaptureTargetRef.current = event.currentTarget;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [clipDragThrottler, durationSeconds, onMoveClipDrop, timelineTool],
+  );
+
+  const shouldSuppressClipClick = useCallback((clipId: string): boolean => {
+    if (suppressedClickClipIdRef.current !== clipId) {
+      return false;
+    }
+    suppressedClickClipIdRef.current = null;
+    return true;
+  }, []);
+
   return {
     onSurfacePointerCancel,
     onSurfacePointerDown,
     onSurfacePointerMove,
     onSurfacePointerUp,
+    onClipPointerDown,
     onTrimHandlePointerDown,
+    shouldSuppressClipClick,
+    clipDropTarget,
+    isClipDragging,
   };
 }
 
@@ -455,9 +740,18 @@ function TimelineOverlay({
   onSetTrimStartSeconds,
   onSetTrimEndSeconds,
   onTrimHandlePointerDown,
+  clipDropTarget,
+  isClipDragging,
+  lanes,
 }: TimelineOverlayProps) {
   return (
     <div ref={trackOverlayRef} className="gg-timeline-track-overlay">
+      <TimelineClipDropAffordance
+        durationSeconds={durationSeconds}
+        isDragging={isClipDragging}
+        lanes={lanes}
+        target={clipDropTarget}
+      />
       <TimelinePlayhead durationSeconds={durationSeconds} />
       {trimEnabled &&
       trimStartPercent != null &&
@@ -505,9 +799,12 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
   onToggleLaneLocked,
   onToggleLaneMuted,
   onToggleLaneSolo,
+  onClearSelection,
   onSelectClip,
   onSelectMarker,
   onBladeClipAtSeconds,
+  onClipPointerDown,
+  shouldSuppressClipClick,
   timelineTool,
 }: TimelineLanesLayerProps) {
   return (
@@ -579,21 +876,37 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                       variant="ghost"
                       size="sm"
                       data-timeline-selectable="true"
-                      className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id}${isSelected ? " gg-timeline-clip-selected" : ""}`}
+                      className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id} gg-timeline-clip-semantic-${clip.semantic}${isSelected ? " gg-timeline-clip-selected" : ""}`}
                       style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
-                      aria-label={labels.timelineClipAria(
-                        lane.label,
-                        clip.startSeconds,
-                        clip.endSeconds,
-                      )}
+                      aria-label={
+                        clip.semantic === "gap"
+                          ? labels.timelineGapAria(lane.label, clip.startSeconds, clip.endSeconds)
+                          : labels.timelineClipAria(lane.label, clip.startSeconds, clip.endSeconds)
+                      }
                       aria-pressed={isSelected}
                       disabled={laneLocked}
+                      onPointerDown={(event) =>
+                        onClipPointerDown(
+                          {
+                            clipId: clip.id,
+                            laneId: lane.id,
+                            laneLocked,
+                            semantic: clip.semantic,
+                            startSeconds: clip.startSeconds,
+                            endSeconds: clip.endSeconds,
+                          },
+                          event,
+                        )
+                      }
                       onClick={(event) => {
-                        if (
-                          timelineTool === "blade" &&
-                          clip.semantic !== "gap" &&
-                          onBladeClipAtSeconds
-                        ) {
+                        if (shouldSuppressClipClick(clip.id)) {
+                          return;
+                        }
+                        if (clip.semantic === "gap") {
+                          onClearSelection();
+                          return;
+                        }
+                        if (timelineTool === "blade" && onBladeClipAtSeconds) {
                           const rect = event.currentTarget.getBoundingClientRect();
                           const pointerRatio =
                             rect.width > 0
@@ -687,6 +1000,51 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
   );
 });
 
+function TimelineClipDropAffordance({
+  durationSeconds,
+  isDragging,
+  lanes,
+  target,
+}: {
+  durationSeconds: number;
+  isDragging: boolean;
+  lanes: TimelineLane[];
+  target: TimelineClipDropTarget;
+}) {
+  if (!isDragging || target.kind === "none") {
+    return null;
+  }
+
+  if (target.kind === "insert") {
+    return (
+      <div
+        className="gg-timeline-drop-insert"
+        data-testid="timeline-drop-insert"
+        style={{ left: `${toPercent(target.boundarySeconds, durationSeconds)}%` }}
+      />
+    );
+  }
+
+  const gapExists = lanes
+    .find((lane) => lane.id === "video")
+    ?.clips.some((clip) => clip.id === target.gapId && clip.semantic === "gap");
+  if (!gapExists) {
+    return null;
+  }
+
+  const left = toPercent(target.placementStartSeconds, durationSeconds);
+  const width =
+    toPercent(target.placementEndSeconds, durationSeconds) -
+    toPercent(target.placementStartSeconds, durationSeconds);
+  return (
+    <div
+      className="gg-timeline-drop-gap"
+      data-testid="timeline-drop-gap"
+      style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
+    />
+  );
+}
+
 export function TimelineSurface({
   durationSeconds,
   trimEnabled = false,
@@ -695,6 +1053,7 @@ export function TimelineSurface({
   zoomPercent,
   timelineTool,
   timelineSnapEnabled,
+  timelineRippleEnabled,
   lanes,
   laneControls,
   labels,
@@ -707,6 +1066,7 @@ export function TimelineSurface({
   onToggleLaneSolo,
   onClearSelection,
   onBladeClipAtSeconds,
+  onMoveClipDrop,
   selectedClip,
   selectedMarkerId,
   onSelectClip,
@@ -718,14 +1078,22 @@ export function TimelineSurface({
     onSurfacePointerDown,
     onSurfacePointerMove,
     onSurfacePointerUp,
+    onClipPointerDown,
     onTrimHandlePointerDown,
+    shouldSuppressClipClick,
+    clipDropTarget,
+    isClipDragging,
   } = useTimelineDragController({
     durationSeconds,
+    lanes,
+    timelineRippleEnabled,
+    timelineTool,
     trackOverlayRef,
     onSetPlayheadSeconds,
     onSetTrimStartSeconds,
     onSetTrimEndSeconds,
     onClearSelection,
+    onMoveClipDrop,
   });
 
   const effectiveTrimStart = trimEnabled ? (trimStartSeconds ?? 0) : 0;
@@ -758,7 +1126,9 @@ export function TimelineSurface({
 
       <div className="gg-timeline-scroll">
         <div
-          className={`gg-timeline-surface gg-timeline-tool-${timelineTool}`}
+          className={`gg-timeline-surface gg-timeline-tool-${timelineTool}${
+            isClipDragging && clipDropTarget.kind === "none" ? " gg-timeline-drop-invalid" : ""
+          }`}
           style={{ minWidth: `${Math.max(100, zoomPercent)}%` }}
           tabIndex={0}
           role="group"
@@ -790,9 +1160,12 @@ export function TimelineSurface({
             onToggleLaneLocked={onToggleLaneLocked}
             onToggleLaneMuted={onToggleLaneMuted}
             onToggleLaneSolo={onToggleLaneSolo}
+            onClearSelection={onClearSelection}
             onSelectClip={onSelectClip}
             onSelectMarker={onSelectMarker}
             onBladeClipAtSeconds={onBladeClipAtSeconds}
+            onClipPointerDown={onClipPointerDown}
+            shouldSuppressClipClick={shouldSuppressClipClick}
             timelineTool={timelineTool}
           />
           <TimelineOverlay
@@ -809,6 +1182,9 @@ export function TimelineSurface({
             onSetTrimStartSeconds={onSetTrimStartSeconds}
             onSetTrimEndSeconds={onSetTrimEndSeconds}
             onTrimHandlePointerDown={trimEnabled ? onTrimHandlePointerDown : undefined}
+            clipDropTarget={clipDropTarget}
+            isClipDragging={isClipDragging}
+            lanes={lanes}
           />
         </div>
       </div>

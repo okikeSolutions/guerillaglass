@@ -257,12 +257,14 @@ export function TimelineDock() {
               labels={studio.ui.labels}
               timelineTool={studio.timelineTool}
               timelineSnapEnabled={studio.timelineSnapEnabled}
+              timelineRippleEnabled={studio.timelineRippleEnabled}
               zoomPercent={studio.timelineZoomPercent}
               onSetPlayheadSeconds={studio.setPlayheadSeconds}
               onSetTrimStartSeconds={trimEnabled ? studio.setTrimStartSeconds : undefined}
               onSetTrimEndSeconds={trimEnabled ? studio.setTrimEndSeconds : undefined}
               onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
               onBladeClipAtSeconds={studio.splitTimelineClipAtSeconds}
+              onMoveClipDrop={studio.moveTimelineClipByDrop}
               onToggleLaneLocked={(laneId) => studio.toggleLaneControl(laneId, "locked")}
               onToggleLaneMuted={(laneId) => studio.toggleLaneControl(laneId, "muted")}
               onToggleLaneSolo={(laneId) => studio.toggleLaneControl(laneId, "solo")}

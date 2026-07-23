@@ -162,6 +162,106 @@ afterEach(() => {
 });
 
 describe("editor timeline export integration", () => {
+  test("drag-drop ripple move commits order, clears selection, moves playhead, and exports", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
+    );
+    await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
+    await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(2));
+
+    const movedClip = latestStudio!.timelineDocument.items[0];
+    expect(movedClip?.kind).toBe("clip");
+    await applyStudioAction((studio) => {
+      studio.selectTimelineClip({
+        laneId: "video",
+        clipId: movedClip.id,
+        startSeconds: 0,
+        endSeconds: 1,
+      });
+    });
+    await waitFor(() => expect(latestStudio?.inspectorSelection).not.toBeNull());
+    await applyStudioAction((studio) =>
+      studio.moveTimelineClipByDrop({ clipId: movedClip.id, destinationIndex: 2 }),
+    );
+
+    await waitFor(() => {
+      expect(latestStudio?.timelineDocument.items.map((item) => item.id)).toEqual([
+        expect.not.stringMatching(movedClip.id),
+        movedClip.id,
+      ]);
+      expect(latestStudio?.inspectorSelection).toEqual({ kind: "none" });
+      expect(latestStudio?.playbackStore.getSnapshot().playheadSeconds).toBe(3);
+    });
+
+    await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
+    expect((capturedExportParams as { timeline: TimelineDocument }).timeline).toEqual(
+      latestStudio!.timelineDocument,
+    );
+  });
+
+  test("drag-drop non-ripple move splits gaps and synchronizes selection and playhead", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
+    );
+    await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
+    await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(2));
+
+    const liftedClip = latestStudio!.timelineDocument.items[1];
+    await applyStudioAction((studio) => {
+      studio.selectTimelineClip({
+        laneId: "video",
+        clipId: liftedClip.id,
+        startSeconds: 1,
+        endSeconds: 4,
+      });
+    });
+    await applyStudioAction((studio) => studio.liftSelectedTimelineClip());
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items.map((item) => item.kind)).toEqual([
+        "clip",
+        "gap",
+      ]),
+    );
+    await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(0.5));
+    await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(3));
+
+    const movedClip = latestStudio!.timelineDocument.items[1];
+    const destinationGap = latestStudio!.timelineDocument.items[2];
+    expect(movedClip?.kind).toBe("clip");
+    expect(destinationGap?.kind).toBe("gap");
+    await applyStudioAction((studio) => {
+      studio.selectTimelineClip({
+        laneId: "video",
+        clipId: movedClip.id,
+        startSeconds: 0.5,
+        endSeconds: 1,
+      });
+    });
+    await applyStudioAction((studio) =>
+      studio.moveTimelineClipByDrop({
+        clipId: movedClip.id,
+        destinationGapId: destinationGap.id,
+        destinationOffsetSeconds: 1,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(latestStudio?.timelineDocument.items.map((item) => item.kind)).toEqual([
+        "clip",
+        "gap",
+        "clip",
+        "gap",
+      ]);
+      expect(latestStudio?.inspectorSelection).toEqual({ kind: "none" });
+      expect(latestStudio?.playbackStore.getSnapshot().playheadSeconds).toBe(2);
+    });
+
+    await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
+    expect((capturedExportParams as { timeline: TimelineDocument }).timeline).toEqual(
+      latestStudio!.timelineDocument,
+    );
+  });
+
   test("exports the timeline produced by split, lift, move, and delete controller actions", async () => {
     await waitFor(() => {
       expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items);

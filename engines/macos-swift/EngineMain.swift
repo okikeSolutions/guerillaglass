@@ -91,7 +91,9 @@ struct EngineHostOriginGuardMiddleware: ServerMiddleware {
 
     private func isAllowedOrigin(_ value: String?) -> Bool {
         guard let value, !value.isEmpty else { return true }
-        if value == "null" { return true }
+        if value == "null" {
+            return true
+        }
         guard let url = URL(string: value), url.scheme == "http" else { return false }
         let host = url.host(percentEncoded: false)?.lowercased()
         return host == "localhost" || host == "127.0.0.1" || host == "::1"

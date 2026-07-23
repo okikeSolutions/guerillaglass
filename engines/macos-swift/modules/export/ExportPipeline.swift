@@ -201,9 +201,13 @@ private func copyRegularFileNoFollow(from sourceURL: URL, to destinationURL: URL
         let bytesRead = buffer.withUnsafeMutableBytes { rawBuffer in
             Darwin.read(sourceFd, rawBuffer.baseAddress, rawBuffer.count)
         }
-        if bytesRead == 0 { break }
+        if bytesRead == 0 {
+            break
+        }
         if bytesRead < 0 {
-            if errno == EINTR { continue }
+            if errno == EINTR {
+                continue
+            }
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
 
@@ -217,7 +221,9 @@ private func copyRegularFileNoFollow(from sourceURL: URL, to destinationURL: URL
                 )
             }
             if bytesWritten < 0 {
-                if errno == EINTR { continue }
+                if errno == EINTR {
+                    continue
+                }
                 throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
             written += bytesWritten

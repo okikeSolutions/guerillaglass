@@ -175,6 +175,7 @@
   "studio_labels_timelineMarkerClick": "Klick",
   "studio_labels_timelineMarkerMixed": "Gemischt",
   "studio_labels_timelineClipAria": "{laneLabel}-Clip {startSeconds} bis {endSeconds} Sekunden",
+  "studio_labels_timelineGapAria": "{laneLabel}-Lücke {startSeconds} bis {endSeconds} Sekunden",
   "studio_labels_timelineMarkerAria": "Ereignismarker {markerKindLabel} bei {timestampSeconds} Sekunden",
   "studio_labels_resizeTimeline": "Zeitleiste in der Größe ändern",
   "studio_labels_resizeLeftPane": "Linkes Panel in der Größe ändern",

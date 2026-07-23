@@ -171,9 +171,15 @@ extension EngineService {
         importedTranscriptPath: String?
     ) -> AgentPreflightEvaluation {
         var reasons: [Components.Schemas.AgentPreflightResult.blockingReasonsPayloadPayload] = []
-        if !(1 ... 10).contains(runtimeBudgetMinutes) { reasons.append(.invalid_runtime_budget) }
-        if currentProjectURL == nil { reasons.append(.missing_project) }
-        if availableAgentRecordingURL() == nil { reasons.append(.missing_recording) }
+        if !(1 ... 10).contains(runtimeBudgetMinutes) {
+            reasons.append(.invalid_runtime_budget)
+        }
+        if currentProjectURL == nil {
+            reasons.append(.missing_project)
+        }
+        if availableAgentRecordingURL() == nil {
+            reasons.append(.missing_recording)
+        }
         switch transcriptionProvider {
         case "imported_transcript":
             if importedTranscriptPath?.isEmpty ?? true {
@@ -292,10 +298,18 @@ extension EngineService {
         for coverage: AgentCoverage
     ) -> [Components.Schemas.AgentQAReport.missingBeatsPayloadPayload] {
         var missing: [Components.Schemas.AgentQAReport.missingBeatsPayloadPayload] = []
-        if !coverage.hook { missing.append(.hook) }
-        if !coverage.action { missing.append(.action) }
-        if !coverage.payoff { missing.append(.payoff) }
-        if !coverage.takeaway { missing.append(.takeaway) }
+        if !coverage.hook {
+            missing.append(.hook)
+        }
+        if !coverage.action {
+            missing.append(.action)
+        }
+        if !coverage.payoff {
+            missing.append(.payoff)
+        }
+        if !coverage.takeaway {
+            missing.append(.takeaway)
+        }
         return missing
     }
 }

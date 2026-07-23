@@ -200,6 +200,45 @@ describe("timeline commands", () => {
     expect(result.timeline.items.map((item) => item.id)).toEqual(["clip-b", "clip-c", "clip-a"]);
   });
 
+  test("ripple move can drop before the first item and after the last item", () => {
+    const timeline = makeTimeline([
+      {
+        kind: "clip",
+        id: "clip-a",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 1,
+      },
+      {
+        kind: "clip",
+        id: "clip-b",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 1,
+        sourceEndSeconds: 2,
+      },
+      {
+        kind: "clip",
+        id: "clip-c",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 2,
+        sourceEndSeconds: 3,
+      },
+    ]);
+
+    expect(
+      moveTimelineItems(timeline, ["clip-c"], {
+        ripple: true,
+        destinationIndex: 0,
+      }).timeline.items.map((item) => item.id),
+    ).toEqual(["clip-c", "clip-a", "clip-b"]);
+    expect(
+      moveTimelineItems(timeline, ["clip-a"], {
+        ripple: true,
+        destinationIndex: 3,
+      }).timeline.items.map((item) => item.id),
+    ).toEqual(["clip-b", "clip-c", "clip-a"]);
+  });
+
   test("non-ripple move consumes destination gap and leaves source timing behind", () => {
     const timeline = makeTimeline([
       {
@@ -248,5 +287,173 @@ describe("timeline commands", () => {
         durationSeconds: 1,
       },
     ]);
+  });
+
+  test("non-ripple move into an adjacent gap preserves timing and the destination", () => {
+    const timeline = makeTimeline([
+      {
+        kind: "clip",
+        id: "clip-a",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 1,
+      },
+      { kind: "gap", id: "gap-target", durationSeconds: 2 },
+      {
+        kind: "clip",
+        id: "clip-b",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 1,
+        sourceEndSeconds: 2,
+      },
+    ]);
+
+    const result = moveTimelineItems(
+      timeline,
+      ["clip-a"],
+      {
+        ripple: false,
+        destinationGapId: "gap-target",
+        destinationOffsetSeconds: 1,
+      },
+      makeIdFactory(["gap-source", "gap-tail"]),
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.timeline.items).toEqual([
+      { kind: "gap", id: "gap-source", durationSeconds: 2 },
+      timeline.items[0],
+      timeline.items[2],
+    ]);
+  });
+
+  test("non-ripple move left into an adjacent gap preserves the source space", () => {
+    const timeline = makeTimeline([
+      {
+        kind: "clip",
+        id: "clip-a",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 1,
+      },
+      { kind: "gap", id: "gap-target", durationSeconds: 2 },
+      {
+        kind: "clip",
+        id: "clip-b",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 1,
+        sourceEndSeconds: 2,
+      },
+    ]);
+
+    const result = moveTimelineItems(
+      timeline,
+      ["clip-b"],
+      {
+        ripple: false,
+        destinationGapId: "gap-target",
+        destinationOffsetSeconds: 0,
+      },
+      makeIdFactory(["gap-source"]),
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.timeline.items).toEqual([
+      timeline.items[0],
+      timeline.items[2],
+      { kind: "gap", id: "gap-target", durationSeconds: 2 },
+    ]);
+  });
+
+  test("non-ripple move splits a destination gap around the moved clip", () => {
+    const timeline = makeTimeline([
+      {
+        kind: "clip",
+        id: "clip-a",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 1,
+      },
+      {
+        kind: "clip",
+        id: "clip-b",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 1,
+        sourceEndSeconds: 2,
+      },
+      { kind: "gap", id: "gap-target", durationSeconds: 3 },
+    ]);
+
+    const result = moveTimelineItems(
+      timeline,
+      ["clip-a"],
+      {
+        ripple: false,
+        destinationGapId: "gap-target",
+        destinationOffsetSeconds: 1,
+      },
+      makeIdFactory(["gap-source", "gap-tail"]),
+    );
+
+    expect(result.changed).toBe(true);
+    expect(result.timeline.items).toEqual([
+      { kind: "gap", id: "gap-source", durationSeconds: 1 },
+      timeline.items[1],
+      { kind: "gap", id: "gap-target", durationSeconds: 1 },
+      timeline.items[0],
+      { kind: "gap", id: "gap-tail", durationSeconds: 1 },
+    ]);
+  });
+
+  test("non-ripple move no-ops when the destination gap is missing", () => {
+    const timeline = makeTimeline([
+      {
+        kind: "clip",
+        id: "clip-a",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 1,
+      },
+      {
+        kind: "clip",
+        id: "clip-b",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 1,
+        sourceEndSeconds: 2,
+      },
+    ]);
+
+    const result = moveTimelineItems(timeline, ["clip-a"], {
+      ripple: false,
+      destinationGapId: "missing-gap",
+    });
+
+    expect(result.changed).toBe(false);
+    expect(result.timeline).toBe(timeline);
+  });
+
+  test("non-ripple move no-ops when the destination gap is too small", () => {
+    const timeline = makeTimeline([
+      {
+        kind: "clip",
+        id: "clip-a",
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 3,
+      },
+      {
+        kind: "gap",
+        id: "gap-target",
+        durationSeconds: 1,
+      },
+    ]);
+
+    const result = moveTimelineItems(timeline, ["clip-a"], {
+      ripple: false,
+      destinationGapId: "gap-target",
+    });
+
+    expect(result.changed).toBe(false);
+    expect(result.timeline).toBe(timeline);
   });
 });

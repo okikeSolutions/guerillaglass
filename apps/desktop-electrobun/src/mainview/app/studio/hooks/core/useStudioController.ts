@@ -44,6 +44,7 @@ import {
   selectionFromPreset,
 } from "../../domain/inspectorSelectionModel";
 import {
+  compileTimelineItems,
   createEmptyTimelineDocument,
   createSingleSegmentTimelineDocument,
 } from "../../domain/timelineDomainModel";
@@ -314,20 +315,20 @@ export function useStudioController() {
     timelineDraftState?.sourceSignature === baselineTimelineSignature
       ? timelineDraftState.draft
       : baselineTimelineDocument;
+  const timelineDocumentRef = useRef(timelineDocument);
+  useEffect(() => {
+    timelineDocumentRef.current = timelineDocument;
+  }, [timelineDocument]);
   const updateTimelineDocument = useCallback(
     (updater: (currentTimeline: TimelineDocument) => TimelineDocument) => {
-      setTimelineDraftState((currentDraftState) => {
-        const currentTimeline =
-          currentDraftState?.sourceSignature === baselineTimelineSignature
-            ? currentDraftState.draft
-            : baselineTimelineDocument;
-        return {
-          draft: updater(currentTimeline),
-          sourceSignature: baselineTimelineSignature,
-        };
+      const nextTimeline = updater(timelineDocumentRef.current);
+      timelineDocumentRef.current = nextTimeline;
+      setTimelineDraftState({
+        draft: nextTimeline,
+        sourceSignature: baselineTimelineSignature,
       });
     },
-    [baselineTimelineDocument, baselineTimelineSignature],
+    [baselineTimelineSignature],
   );
 
   const selectedDisplayId = useMemo(() => {
@@ -713,6 +714,43 @@ export function useStudioController() {
     timelineRippleEnabled,
     updateTimelineDocument,
   ]);
+
+  const moveTimelineClipByDrop = useCallback(
+    (
+      params:
+        | { clipId: string; destinationIndex: number }
+        | {
+            clipId: string;
+            destinationGapId: string;
+            destinationOffsetSeconds: number;
+          },
+    ) => {
+      const result =
+        "destinationGapId" in params
+          ? moveTimelineItems(timelineDocumentRef.current, [params.clipId], {
+              ripple: false,
+              destinationGapId: params.destinationGapId,
+              destinationOffsetSeconds: params.destinationOffsetSeconds,
+            })
+          : moveTimelineItems(timelineDocumentRef.current, [params.clipId], {
+              ripple: true,
+              destinationIndex: params.destinationIndex,
+            });
+      if (!result.changed) {
+        return;
+      }
+
+      updateTimelineDocument(() => result.timeline);
+      clearInspectorSelection();
+      const destinationSeconds = compileTimelineItems(result.timeline).find(
+        (item) => item.id === params.clipId,
+      )?.programStartSeconds;
+      if (destinationSeconds != null) {
+        setPlayheadSecondsClamped(destinationSeconds);
+      }
+    },
+    [clearInspectorSelection, setPlayheadSecondsClamped, updateTimelineDocument],
+  );
 
   const pickPathSafely = useCallback(
     async (params: { mode: HostPathPickerMode; startingFolder?: string }): Promise<string | null> =>
@@ -1109,6 +1147,7 @@ export function useStudioController() {
     liftSelectedTimelineClip,
     moveSelectedTimelineClipEarlier,
     moveSelectedTimelineClipLater,
+    moveTimelineClipByDrop,
     timelineDuration,
     timelineLanes,
     timelineDocument,

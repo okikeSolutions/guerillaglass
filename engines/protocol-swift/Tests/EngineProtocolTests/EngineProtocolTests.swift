@@ -337,7 +337,9 @@ final class TestServerTransport: ServerTransport {
 
     func respond(method: HTTPRequest.Method, path: String, headers: HTTPFields = [:], body: HTTPBody? = nil) async throws -> (HTTPResponse, HTTPBody?) {
         guard let handler = handlers["\(method.rawValue) \(path)"] else {
-            if paths.contains(path) { return (HTTPResponse(status: .methodNotAllowed), nil) }
+            if paths.contains(path) {
+                return (HTTPResponse(status: .methodNotAllowed), nil)
+            }
             return (HTTPResponse(status: .notFound), nil)
         }
         let request = HTTPRequest(method: method, scheme: nil, authority: "127.0.0.1", path: path, headerFields: headers)

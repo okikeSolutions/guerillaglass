@@ -144,7 +144,9 @@ private func rejectSymlinkIfExists(atPath path: String) throws {
         Darwin.lstat(fileSystemPath, &metadata)
     }
     if status != 0 {
-        if errno == ENOENT { return }
+        if errno == ENOENT {
+            return
+        }
         throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
     }
     if (metadata.st_mode & S_IFMT) == S_IFLNK {
