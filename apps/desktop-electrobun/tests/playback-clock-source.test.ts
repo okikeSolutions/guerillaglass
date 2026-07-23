@@ -27,7 +27,7 @@ describe("video playback clock source", () => {
     const source = await readFile(playbackSyncPath, "utf8");
 
     expect(source).toContain(
-      'if (boundaryResolution.kind === "gap") {\n          media.pause();\n          setPlayheadSecondsFromMedia(boundarySeconds);',
+      'if (boundaryResolution.kind === "gap") {\n          media.pause();\n          media.style.visibility = "hidden";\n          setPlayheadSecondsFromMedia(boundarySeconds);',
     );
   });
 });

@@ -282,9 +282,15 @@ private func pickBestTarget(_ first: FocusTarget, _ second: FocusTarget) -> Focu
 }
 
 private func targetPriority(_ target: FocusTarget) -> Int {
-    if target.isAnchor { return 3 }
-    if target.isClick { return 2 }
-    if target.isDwell { return 1 }
+    if target.isAnchor {
+        return 3
+    }
+    if target.isClick {
+        return 2
+    }
+    if target.isDwell {
+        return 1
+    }
     return 0
 }
 

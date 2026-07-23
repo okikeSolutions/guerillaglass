@@ -21,6 +21,7 @@ type MoveTimelineItemsOptions =
   | {
       ripple: false;
       destinationGapId: string;
+      destinationOffsetSeconds?: number;
     };
 
 function defaultTimelineIdFactory(): string {
@@ -289,19 +290,9 @@ export function moveTimelineItems(
     };
   }
 
-  const lifted = liftTimelineItems(timeline, selectedItemIds, idFactory);
-  if (!lifted.changed) {
-    return lifted;
-  }
-
-  const destinationIndex = lifted.timeline.items.findIndex(
+  const destinationGap = timeline.items.find(
     (item) => item.kind === "gap" && item.id === options.destinationGapId,
   );
-  if (destinationIndex === -1) {
-    return { timeline, changed: false };
-  }
-
-  const destinationGap = lifted.timeline.items[destinationIndex];
   if (!destinationGap || destinationGap.kind !== "gap") {
     return { timeline, changed: false };
   }
@@ -310,25 +301,58 @@ export function moveTimelineItems(
     (sum, item) => sum + timelineItemDurationSeconds(item),
     0,
   );
-  if (movingDurationSeconds > destinationGap.durationSeconds + Number.EPSILON) {
+  const availableOffsetSeconds = destinationGap.durationSeconds - movingDurationSeconds;
+  if (availableOffsetSeconds < -Number.EPSILON) {
     return { timeline, changed: false };
   }
 
-  const gapRemainderSeconds = destinationGap.durationSeconds - movingDurationSeconds;
-  const replacementItems: TimelineItem[] = [...movingItems];
-  if (gapRemainderSeconds > Number.EPSILON) {
-    replacementItems.push({
-      kind: "gap",
-      id: destinationGap.id,
-      durationSeconds: gapRemainderSeconds,
-    });
+  const requestedOffsetSeconds = options.destinationOffsetSeconds ?? 0;
+  if (!Number.isFinite(requestedOffsetSeconds)) {
+    return { timeline, changed: false };
+  }
+  const destinationOffsetSeconds = Math.min(
+    Math.max(requestedOffsetSeconds, 0),
+    Math.max(availableOffsetSeconds, 0),
+  );
+  const trailingGapSeconds = Math.max(
+    0,
+    destinationGap.durationSeconds - destinationOffsetSeconds - movingDurationSeconds,
+  );
+
+  const nextItems: TimelineItem[] = [];
+  for (const item of timeline.items) {
+    if (selectedSet.has(item.id)) {
+      nextItems.push({
+        kind: "gap",
+        id: idFactory(),
+        durationSeconds: timelineItemDurationSeconds(item),
+      });
+      continue;
+    }
+    if (item.id !== destinationGap.id) {
+      nextItems.push(item);
+      continue;
+    }
+
+    if (destinationOffsetSeconds > Number.EPSILON) {
+      nextItems.push({
+        kind: "gap",
+        id: destinationGap.id,
+        durationSeconds: destinationOffsetSeconds,
+      });
+    }
+    nextItems.push(...movingItems);
+    if (trailingGapSeconds > Number.EPSILON) {
+      nextItems.push({
+        kind: "gap",
+        id: destinationOffsetSeconds > Number.EPSILON ? idFactory() : destinationGap.id,
+        durationSeconds: trailingGapSeconds,
+      });
+    }
   }
 
   return {
-    timeline: normalizeTimelineDocument({
-      version: 2,
-      items: replaceItemRange(lifted.timeline.items, destinationIndex, 1, replacementItems),
-    }),
+    timeline: normalizeTimelineDocument({ version: 2, items: nextItems }),
     changed: true,
   };
 }

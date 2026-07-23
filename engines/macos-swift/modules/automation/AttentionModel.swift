@@ -108,8 +108,12 @@ private func mergeSamples(_ first: AttentionSample, _ second: AttentionSample) -
 }
 
 private func samplePriority(_ sample: AttentionSample) -> Int {
-    if sample.isClick { return 2 }
-    if sample.isDwell { return 1 }
+    if sample.isClick {
+        return 2
+    }
+    if sample.isDwell {
+        return 1
+    }
     return 0
 }
 

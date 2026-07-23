@@ -89,8 +89,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install Swift tools
-        run: brew install swiftformat swiftlint
+      - name: Install pinned SwiftFormat and SwiftLint
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/nicklockwood/SwiftFormat/releases/download/0.62.1/swiftformat.zip \
+            --output /tmp/swiftformat.zip
+          unzip -q /tmp/swiftformat.zip -d /tmp/swiftformat
+          sudo install /tmp/swiftformat/swiftformat /usr/local/bin/swiftformat
+          brew install swiftlint
+          swiftformat --version
 
       - name: Remove temporary experiments
         run: rm -rf .tmp

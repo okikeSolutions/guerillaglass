@@ -158,8 +158,9 @@ Editing depth checklist:
   - Implementation notes:
     - Timeline clips can be pointer-dragged in Select mode.
     - Ripple-enabled drags resolve to insertion indexes and reuse the pure `moveTimelineItems` command path.
-    - Ripple-disabled drags are conservative and only resolve valid explicit gap destinations.
+    - Ripple-disabled drags resolve only gaps large enough for the clip, preserve the pointer grab offset, and split destination space around the moved clip.
     - Gap regions use a recessed dashed treatment so lift/non-ripple edit space is visible on the timeline.
+    - Browser coverage verifies leading, interstitial, and trailing gap preview; paused gap seeks; reordered source mapping; and native media-end transitions.
 - [x] Make macOS export consume timeline v2 items so exported media matches editor split/delete/lift/move state.
   - Implementation notes:
     - macOS `export.run` parses `payload.timeline` v2 clip/gap items and builds an edited `AVMutableComposition` before export.

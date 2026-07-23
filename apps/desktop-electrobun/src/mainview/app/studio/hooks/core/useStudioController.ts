@@ -315,20 +315,20 @@ export function useStudioController() {
     timelineDraftState?.sourceSignature === baselineTimelineSignature
       ? timelineDraftState.draft
       : baselineTimelineDocument;
+  const timelineDocumentRef = useRef(timelineDocument);
+  useEffect(() => {
+    timelineDocumentRef.current = timelineDocument;
+  }, [timelineDocument]);
   const updateTimelineDocument = useCallback(
     (updater: (currentTimeline: TimelineDocument) => TimelineDocument) => {
-      setTimelineDraftState((currentDraftState) => {
-        const currentTimeline =
-          currentDraftState?.sourceSignature === baselineTimelineSignature
-            ? currentDraftState.draft
-            : baselineTimelineDocument;
-        return {
-          draft: updater(currentTimeline),
-          sourceSignature: baselineTimelineSignature,
-        };
+      const nextTimeline = updater(timelineDocumentRef.current);
+      timelineDocumentRef.current = nextTimeline;
+      setTimelineDraftState({
+        draft: nextTimeline,
+        sourceSignature: baselineTimelineSignature,
       });
     },
-    [baselineTimelineDocument, baselineTimelineSignature],
+    [baselineTimelineSignature],
   );
 
   const selectedDisplayId = useMemo(() => {
@@ -719,34 +719,34 @@ export function useStudioController() {
     (
       params:
         | { clipId: string; destinationIndex: number }
-        | { clipId: string; destinationGapId: string },
+        | {
+            clipId: string;
+            destinationGapId: string;
+            destinationOffsetSeconds: number;
+          },
     ) => {
-      let didChange = false;
-      let destinationSeconds: number | null = null;
-      updateTimelineDocument((currentTimeline) => {
-        const result =
-          "destinationGapId" in params
-            ? moveTimelineItems(currentTimeline, [params.clipId], {
-                ripple: false,
-                destinationGapId: params.destinationGapId,
-              })
-            : moveTimelineItems(currentTimeline, [params.clipId], {
-                ripple: true,
-                destinationIndex: params.destinationIndex,
-              });
-        didChange = result.changed;
-        if (result.changed) {
-          destinationSeconds =
-            compileTimelineItems(result.timeline).find((item) => item.id === params.clipId)
-              ?.programStartSeconds ?? null;
-        }
-        return result.timeline;
-      });
-      if (didChange) {
-        clearInspectorSelection();
-        if (destinationSeconds != null) {
-          setPlayheadSecondsClamped(destinationSeconds);
-        }
+      const result =
+        "destinationGapId" in params
+          ? moveTimelineItems(timelineDocumentRef.current, [params.clipId], {
+              ripple: false,
+              destinationGapId: params.destinationGapId,
+              destinationOffsetSeconds: params.destinationOffsetSeconds,
+            })
+          : moveTimelineItems(timelineDocumentRef.current, [params.clipId], {
+              ripple: true,
+              destinationIndex: params.destinationIndex,
+            });
+      if (!result.changed) {
+        return;
+      }
+
+      updateTimelineDocument(() => result.timeline);
+      clearInspectorSelection();
+      const destinationSeconds = compileTimelineItems(result.timeline).find(
+        (item) => item.id === params.clipId,
+      )?.programStartSeconds;
+      if (destinationSeconds != null) {
+        setPlayheadSecondsClamped(destinationSeconds);
       }
     },
     [clearInspectorSelection, setPlayheadSecondsClamped, updateTimelineDocument],

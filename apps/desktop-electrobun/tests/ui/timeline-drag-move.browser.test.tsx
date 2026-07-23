@@ -27,12 +27,14 @@ const labels = {
   timelineMarkerMixed: "Mixed",
   timelineClipAria: (laneLabel: string, startSeconds: number, endSeconds: number) =>
     `${laneLabel} clip ${startSeconds}-${endSeconds}`,
+  timelineGapAria: (laneLabel: string, startSeconds: number, endSeconds: number) =>
+    `${laneLabel} gap ${startSeconds}-${endSeconds}`,
   timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) =>
     `${markerKindLabel} marker ${timestampSeconds}`,
 };
 
-function makeLanes(): TimelineLane[] {
-  const clips = [
+function makeLanes(clips?: TimelineLane["clips"]): TimelineLane[] {
+  const resolvedClips = clips ?? [
     {
       id: "clip-a",
       startSeconds: 0,
@@ -62,11 +64,14 @@ function makeLanes(): TimelineLane[] {
     },
   ];
   return [
-    { id: "video", label: "Video", clips, markers: [] },
+    { id: "video", label: "Video", clips: resolvedClips, markers: [] },
     {
       id: "audio",
       label: "Audio",
-      clips: clips.map((clip) => ({ ...clip, semantic: clip.semantic === "gap" ? "gap" : "mix" })),
+      clips: resolvedClips.map((clip) => ({
+        ...clip,
+        semantic: clip.semantic === "gap" ? "gap" : "mix",
+      })),
       markers: [],
     },
     { id: "events", label: "Events", clips: [], markers: [] },
@@ -92,6 +97,8 @@ function renderSurface(
   options?: {
     laneLocked?: boolean;
     timelineTool?: "select" | "trim" | "blade";
+    lanes?: TimelineLane[];
+    onClearSelection?: () => void;
     onSelectClip?: () => void;
   },
 ) {
@@ -106,7 +113,7 @@ function renderSurface(
           timelineTool={options?.timelineTool ?? "select"}
           timelineSnapEnabled={true}
           timelineRippleEnabled={timelineRippleEnabled}
-          lanes={makeLanes()}
+          lanes={options?.lanes ?? makeLanes()}
           laneControls={{
             video: { locked: options?.laneLocked ?? false, muted: false, solo: false },
             audio: { locked: false, muted: false, solo: false },
@@ -117,7 +124,7 @@ function renderSurface(
           onToggleLaneLocked={() => {}}
           onToggleLaneMuted={() => {}}
           onToggleLaneSolo={() => {}}
-          onClearSelection={() => {}}
+          onClearSelection={options?.onClearSelection ?? (() => {})}
           onMoveClipDrop={(params) => {
             receivedDrop = params;
           }}
@@ -199,15 +206,110 @@ describe("timeline clip drag move", () => {
 
     dragFirstVideoClip(120, 520);
 
-    expect(receivedDrop).toEqual({ clipId: "clip-a", destinationGapId: "gap-a" });
+    expect(receivedDrop).toEqual({
+      clipId: "clip-a",
+      destinationGapId: "gap-a",
+      destinationOffsetSeconds: 0,
+    });
   });
 
   test("non-ripple drag resolves a nearby gap boundary", () => {
     renderSurface(false);
 
-    dragFirstVideoClip(120, 402);
+    dragFirstVideoClip(100, 402);
 
-    expect(receivedDrop).toEqual({ clipId: "clip-a", destinationGapId: "gap-a" });
+    expect(receivedDrop).toEqual({
+      clipId: "clip-a",
+      destinationGapId: "gap-a",
+      destinationOffsetSeconds: 0,
+    });
+  });
+
+  test("non-ripple drag preserves the drop offset inside a larger gap", () => {
+    renderSurface(false, {
+      lanes: makeLanes([
+        {
+          id: "clip-a",
+          startSeconds: 0,
+          endSeconds: 0.5,
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 0.5,
+          semantic: "screen",
+          waveform: null,
+        },
+        {
+          id: "gap-a",
+          startSeconds: 0.5,
+          endSeconds: 2.5,
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 0,
+          semantic: "gap",
+          waveform: null,
+        },
+        {
+          id: "clip-b",
+          startSeconds: 2.5,
+          endSeconds: 3,
+          sourceStartSeconds: 0.5,
+          sourceEndSeconds: 1,
+          semantic: "screen",
+          waveform: null,
+        },
+      ]),
+    });
+
+    dragFirstVideoClip(120, 550);
+
+    expect(receivedDrop).toMatchObject({
+      clipId: "clip-a",
+      destinationGapId: "gap-a",
+    });
+    expect(
+      (receivedDrop as Extract<MoveDropParams, { destinationGapId: string }>)
+        .destinationOffsetSeconds,
+    ).toBeCloseTo(0.967, 3);
+  });
+
+  test("a too-small gap renders an invalid target and does not dispatch", () => {
+    renderSurface(false, {
+      lanes: makeLanes([
+        {
+          id: "clip-a",
+          startSeconds: 0,
+          endSeconds: 1.5,
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 1.5,
+          semantic: "screen",
+          waveform: null,
+        },
+        {
+          id: "gap-a",
+          startSeconds: 1.5,
+          endSeconds: 2,
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 0,
+          semantic: "gap",
+          waveform: null,
+        },
+        {
+          id: "clip-b",
+          startSeconds: 2,
+          endSeconds: 3,
+          sourceStartSeconds: 1.5,
+          sourceEndSeconds: 2.5,
+          semantic: "screen",
+          waveform: null,
+        },
+      ]),
+    });
+
+    moveFirstVideoClipWithoutRelease(120, 600);
+
+    expect(document.querySelector(".gg-timeline-drop-invalid")).not.toBeNull();
+    act(() => {
+      document.querySelector(".gg-timeline-surface")?.dispatchEvent(pointer("pointerup", 600));
+    });
+    expect(receivedDrop).toBeNull();
   });
 
   test("non-ripple drag outside gaps is invalid and does not move", () => {
@@ -245,6 +347,37 @@ describe("timeline clip drag move", () => {
     });
 
     expect(receivedDrop).toBeNull();
+  });
+
+  test("Blade and Select gap clicks clear selection without selecting or splitting", () => {
+    let clearedCount = 0;
+    let selectedCount = 0;
+    for (const timelineTool of ["blade", "select"] as const) {
+      renderSurface(false, {
+        timelineTool,
+        onClearSelection: () => {
+          clearedCount += 1;
+        },
+        onSelectClip: () => {
+          selectedCount += 1;
+        },
+      });
+      const gap = document.querySelector(".gg-timeline-clip-video.gg-timeline-clip-semantic-gap");
+      act(() => {
+        gap?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+    }
+
+    expect(clearedCount).toBe(2);
+    expect(selectedCount).toBe(0);
+  });
+
+  test("gap accessibility text identifies the item as a gap", () => {
+    renderSurface(false);
+
+    expect(
+      document.querySelector(".gg-timeline-clip-video.gg-timeline-clip-semantic-gap"),
+    ).toHaveAttribute("aria-label", "Video gap 1-2");
   });
 
   test("dragging suppresses the follow-up clip click", () => {

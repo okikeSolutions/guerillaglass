@@ -175,6 +175,7 @@
   "studio_labels_timelineMarkerClick": "click",
   "studio_labels_timelineMarkerMixed": "mixed",
   "studio_labels_timelineClipAria": "{laneLabel} clip {startSeconds} to {endSeconds} seconds",
+  "studio_labels_timelineGapAria": "{laneLabel} gap {startSeconds} to {endSeconds} seconds",
   "studio_labels_timelineMarkerAria": "Event marker {markerKindLabel} at {timestampSeconds} seconds",
   "studio_labels_resizeTimeline": "Resize timeline",
   "studio_labels_resizeLeftPane": "Resize left panel",

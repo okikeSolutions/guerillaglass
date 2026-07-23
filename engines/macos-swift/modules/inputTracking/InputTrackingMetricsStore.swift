@@ -38,9 +38,13 @@ private func rejectSymlinkComponents(in url: URL) throws {
     var currentPath = isAbsolute ? "/" : ""
 
     for component in components {
-        if currentPath.isEmpty { currentPath = component }
-        else if currentPath == "/" { currentPath += component }
-        else { currentPath += "/\(component)" }
+        if currentPath.isEmpty {
+            currentPath = component
+        } else if currentPath == "/" {
+            currentPath += component
+        } else {
+            currentPath += "/\(component)"
+        }
         try rejectSymlinkIfExists(atPath: currentPath)
     }
 }
@@ -49,7 +53,9 @@ private func rejectSymlinkIfExists(atPath path: String) throws {
     var metadata = stat()
     let status = path.withCString { Darwin.lstat($0, &metadata) }
     if status != 0 {
-        if errno == ENOENT { return }
+        if errno == ENOENT {
+            return
+        }
         throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
     }
     if (metadata.st_mode & S_IFMT) == S_IFLNK {

@@ -37,6 +37,7 @@ type TimelineSurfaceLabels = {
   timelineMarkerClick: string;
   timelineMarkerMixed: string;
   timelineClipAria: (laneLabel: string, startSeconds: number, endSeconds: number) => string;
+  timelineGapAria: (laneLabel: string, startSeconds: number, endSeconds: number) => string;
   timelineMarkerAria: (markerKindLabel: string, timestampSeconds: number) => string;
 };
 
@@ -53,7 +54,7 @@ type TimelineSelectedClip = { laneId: "video" | "audio"; clipId: string } | null
 
 type MoveTimelineClipDropParams =
   | { clipId: string; destinationIndex: number }
-  | { clipId: string; destinationGapId: string };
+  | { clipId: string; destinationGapId: string; destinationOffsetSeconds: number };
 
 type TimelineSurfaceProps = {
   durationSeconds: number;
@@ -98,12 +99,19 @@ type TimelineClipDragState = {
   clipId: string;
   laneId: "video" | "audio";
   originClientX: number;
+  grabOffsetSeconds: number;
   isDragging: boolean;
 };
 type TimelineClipDropTarget =
   | { kind: "none" }
   | { kind: "insert"; destinationIndex: number; boundarySeconds: number }
-  | { kind: "gap"; gapId: string };
+  | {
+      kind: "gap";
+      gapId: string;
+      destinationOffsetSeconds: number;
+      placementStartSeconds: number;
+      placementEndSeconds: number;
+    };
 type TrimDragMode = Exclude<DragMode, "playhead">;
 
 type TimelineLanesLayerProps = {
@@ -116,6 +124,7 @@ type TimelineLanesLayerProps = {
   onToggleLaneLocked: (laneId: "video" | "audio") => void;
   onToggleLaneMuted: (laneId: "video" | "audio") => void;
   onToggleLaneSolo: (laneId: "video" | "audio") => void;
+  onClearSelection: () => void;
   onSelectClip: (params: {
     laneId: "video" | "audio";
     clipId: string;
@@ -135,6 +144,8 @@ type TimelineLanesLayerProps = {
       laneId: "video" | "audio";
       laneLocked: boolean;
       semantic: TimelineClipSemantic;
+      startSeconds: number;
+      endSeconds: number;
     },
     event: ReactPointerEvent<HTMLElement>,
   ) => void;
@@ -270,6 +281,8 @@ function resolveTimelineClipDropTarget(params: {
   durationSeconds: number;
   lanes: TimelineLane[];
   timelineRippleEnabled: boolean;
+  draggedClipId: string;
+  draggedClipGrabOffsetSeconds: number;
   trackOverlayRef: RefObject<HTMLDivElement | null>;
 }): TimelineClipDropTarget {
   const rect = params.trackOverlayRef.current?.getBoundingClientRect();
@@ -277,7 +290,12 @@ function resolveTimelineClipDropTarget(params: {
     return { kind: "none" };
   }
 
-  const seconds = pixelsToSeconds(params.clientX - rect.left, params.durationSeconds, rect.width);
+  const pointerSeconds = pixelsToSeconds(
+    params.clientX - rect.left,
+    params.durationSeconds,
+    rect.width,
+  );
+  const placementSeconds = pointerSeconds - params.draggedClipGrabOffsetSeconds;
   const boundarySnapSeconds = pixelsToSeconds(8, params.durationSeconds, rect.width);
   const videoLane = params.lanes.find((lane) => lane.id === "video");
   if (!videoLane) {
@@ -285,28 +303,54 @@ function resolveTimelineClipDropTarget(params: {
   }
 
   if (!params.timelineRippleEnabled) {
-    const targetGap = videoLane.clips.find(
-      (clip) =>
-        clip.semantic === "gap" && seconds >= clip.startSeconds && seconds < clip.endSeconds,
+    const draggedClip = videoLane.clips.find(
+      (clip) => clip.id === params.draggedClipId && clip.semantic !== "gap",
     );
-    if (targetGap) {
-      return { kind: "gap", gapId: targetGap.id };
+    if (!draggedClip) {
+      return { kind: "none" };
     }
-
-    const boundaryGap = videoLane.clips.find(
+    const draggedDurationSeconds = draggedClip.endSeconds - draggedClip.startSeconds;
+    const eligibleGaps = videoLane.clips.filter(
       (clip) =>
         clip.semantic === "gap" &&
-        (Math.abs(seconds - clip.startSeconds) <= boundarySnapSeconds ||
-          Math.abs(seconds - clip.endSeconds) <= boundarySnapSeconds),
+        clip.endSeconds - clip.startSeconds + Number.EPSILON >= draggedDurationSeconds,
     );
-    return boundaryGap ? { kind: "gap", gapId: boundaryGap.id } : { kind: "none" };
+    const targetGap = eligibleGaps.find(
+      (clip) => placementSeconds >= clip.startSeconds && placementSeconds < clip.endSeconds,
+    );
+    const boundaryGap =
+      targetGap ??
+      eligibleGaps.find(
+        (clip) =>
+          Math.abs(placementSeconds - clip.startSeconds) <= boundarySnapSeconds ||
+          Math.abs(placementSeconds - clip.endSeconds) <= boundarySnapSeconds,
+      );
+    if (!boundaryGap) {
+      return { kind: "none" };
+    }
+
+    const availableOffsetSeconds =
+      boundaryGap.endSeconds - boundaryGap.startSeconds - draggedDurationSeconds;
+    const destinationOffsetSeconds = Math.min(
+      Math.max(placementSeconds - boundaryGap.startSeconds, 0),
+      Math.max(availableOffsetSeconds, 0),
+    );
+    const placementStartSeconds = boundaryGap.startSeconds + destinationOffsetSeconds;
+    return {
+      kind: "gap",
+      gapId: boundaryGap.id,
+      destinationOffsetSeconds,
+      placementStartSeconds,
+      placementEndSeconds: placementStartSeconds + draggedDurationSeconds,
+    };
   }
 
   const destinationIndex = videoLane.clips.findIndex((clip) => {
     const midpoint = clip.startSeconds + (clip.endSeconds - clip.startSeconds) / 2;
-    return seconds < midpoint;
+    return pointerSeconds < midpoint;
   });
-  const resolvedDestinationIndex = destinationIndex === -1 ? videoLane.clips.length : destinationIndex;
+  const resolvedDestinationIndex =
+    destinationIndex === -1 ? videoLane.clips.length : destinationIndex;
   const destinationClip = videoLane.clips[resolvedDestinationIndex];
   const lastClip = videoLane.clips[videoLane.clips.length - 1];
   return {
@@ -420,6 +464,8 @@ function useTimelineDragController(params: {
         durationSeconds,
         lanes,
         timelineRippleEnabled,
+        draggedClipId: clipDragRef.current?.clipId ?? "",
+        draggedClipGrabOffsetSeconds: clipDragRef.current?.grabOffsetSeconds ?? 0,
         trackOverlayRef,
       });
       clipDropTargetRef.current = target;
@@ -508,7 +554,11 @@ function useTimelineDragController(params: {
               destinationIndex: target.destinationIndex,
             });
           } else if (target.kind === "gap") {
-            onMoveClipDrop?.({ clipId: dragState.clipId, destinationGapId: target.gapId });
+            onMoveClipDrop?.({
+              clipId: dragState.clipId,
+              destinationGapId: target.gapId,
+              destinationOffsetSeconds: target.destinationOffsetSeconds,
+            });
           }
         }
         const captureTarget = clipPointerCaptureTargetRef.current;
@@ -573,6 +623,8 @@ function useTimelineDragController(params: {
         laneId: "video" | "audio";
         laneLocked: boolean;
         semantic: TimelineClipSemantic;
+        startSeconds: number;
+        endSeconds: number;
       },
       event: ReactPointerEvent<HTMLElement>,
     ) => {
@@ -585,10 +637,17 @@ function useTimelineDragController(params: {
       ) {
         return;
       }
+      const clipRect = event.currentTarget.getBoundingClientRect();
+      const clipDurationSeconds = Math.max(0, params.endSeconds - params.startSeconds);
+      const grabRatio =
+        clipRect.width > 0
+          ? clampSeconds((event.clientX - clipRect.left) / clipRect.width, 0, 1)
+          : 0;
       clipDragRef.current = {
         clipId: params.clipId,
         laneId: params.laneId,
         originClientX: event.clientX,
+        grabOffsetSeconds: grabRatio * clipDurationSeconds,
         isDragging: false,
       };
       clipDropTargetRef.current = { kind: "none" };
@@ -740,6 +799,7 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
   onToggleLaneLocked,
   onToggleLaneMuted,
   onToggleLaneSolo,
+  onClearSelection,
   onSelectClip,
   onSelectMarker,
   onBladeClipAtSeconds,
@@ -818,11 +878,11 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                       data-timeline-selectable="true"
                       className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id} gg-timeline-clip-semantic-${clip.semantic}${isSelected ? " gg-timeline-clip-selected" : ""}`}
                       style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
-                      aria-label={labels.timelineClipAria(
-                        lane.label,
-                        clip.startSeconds,
-                        clip.endSeconds,
-                      )}
+                      aria-label={
+                        clip.semantic === "gap"
+                          ? labels.timelineGapAria(lane.label, clip.startSeconds, clip.endSeconds)
+                          : labels.timelineClipAria(lane.label, clip.startSeconds, clip.endSeconds)
+                      }
                       aria-pressed={isSelected}
                       disabled={laneLocked}
                       onPointerDown={(event) =>
@@ -832,6 +892,8 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                             laneId: lane.id,
                             laneLocked,
                             semantic: clip.semantic,
+                            startSeconds: clip.startSeconds,
+                            endSeconds: clip.endSeconds,
                           },
                           event,
                         )
@@ -840,11 +902,11 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                         if (shouldSuppressClipClick(clip.id)) {
                           return;
                         }
-                        if (
-                          timelineTool === "blade" &&
-                          clip.semantic !== "gap" &&
-                          onBladeClipAtSeconds
-                        ) {
+                        if (clip.semantic === "gap") {
+                          onClearSelection();
+                          return;
+                        }
+                        if (timelineTool === "blade" && onBladeClipAtSeconds) {
                           const rect = event.currentTarget.getBoundingClientRect();
                           const pointerRatio =
                             rect.width > 0
@@ -963,15 +1025,17 @@ function TimelineClipDropAffordance({
     );
   }
 
-  const gap = lanes
+  const gapExists = lanes
     .find((lane) => lane.id === "video")
-    ?.clips.find((clip) => clip.id === target.gapId && clip.semantic === "gap");
-  if (!gap) {
+    ?.clips.some((clip) => clip.id === target.gapId && clip.semantic === "gap");
+  if (!gapExists) {
     return null;
   }
 
-  const left = toPercent(gap.startSeconds, durationSeconds);
-  const width = toPercent(gap.endSeconds, durationSeconds) - left;
+  const left = toPercent(target.placementStartSeconds, durationSeconds);
+  const width =
+    toPercent(target.placementEndSeconds, durationSeconds) -
+    toPercent(target.placementStartSeconds, durationSeconds);
   return (
     <div
       className="gg-timeline-drop-gap"
@@ -1096,6 +1160,7 @@ export function TimelineSurface({
             onToggleLaneLocked={onToggleLaneLocked}
             onToggleLaneMuted={onToggleLaneMuted}
             onToggleLaneSolo={onToggleLaneSolo}
+            onClearSelection={onClearSelection}
             onSelectClip={onSelectClip}
             onSelectMarker={onSelectMarker}
             onBladeClipAtSeconds={onBladeClipAtSeconds}
