@@ -2,6 +2,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if ! command -v java >/dev/null 2>&1 || ! java -version >/dev/null 2>&1; then
+  echo "Java is required for OpenAPI generation. Install a JDK and ensure 'java' is on PATH (macOS/Homebrew: brew install openjdk; export PATH=\"/opt/homebrew/opt/openjdk/bin:\$PATH\")." >&2
+  exit 1
+fi
+
 OPENAPI_FILE="$ROOT_DIR/packages/engine-contract/generated/engine.openapi.json"
 RUST_CONFIG_FILE="$ROOT_DIR/engines/protocol-rust/openapi-generator-config.json"
 RUST_TEMPLATE_DIR="$ROOT_DIR/engines/protocol-rust/openapi-generator-templates"

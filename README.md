@@ -33,15 +33,19 @@ Important boundaries:
 - Bun 1.3+
 - Rust toolchain for Rust sidecars/protocol crates
 - Swift 5.10+ for macOS native engine work
+- SwiftFormat 0.62.1 and SwiftLint for the full local gate
+- Java for OpenAPI binding generation
 - macOS 13+ for the full macOS capture/export path and `bun run gate`
 
 ## Quick Start
 
 ```bash
-bun install
+# Initialize submodules, install frozen dependencies, compile localization,
+# and verify repository invariants.
+bun run bootstrap
 
-# Generate app-local Paraglide output used by typecheck/build/test
-bun run i18n:compile
+# Skip Playwright Chromium only when browser-backed desktop tests are not needed.
+bun run bootstrap --without-browser
 
 # Build native macOS engine. Desktop dev scripts launch this engine via GG_ENGINE_PATH.
 bun run swift:build
@@ -72,6 +76,7 @@ GG_ENGINE_PATH="$PWD/target/debug/guerillaglass-engine-linux" bun run desktop:de
 ## Verification
 
 ```bash
+bun run repo:check
 bun run js:lint
 bun run gate:typescript
 bun run gate:rust
@@ -121,4 +126,6 @@ bun run i18n:compile
 - Completed migration notes: `docs/MIGRATION.md`
 - Docs coverage thresholds: `docs/doc_coverage_policy.json`
 - Desktop accessibility + hotkey policy: `docs/DESKTOP_ACCESSIBILITY.md`
-- Agent repo conventions: `AGENTS.md`
+- Agent repo conventions: [`AGENTS.md`](AGENTS.md)
+- Change propagation guide: [`docs/CHANGE_MAP.md`](docs/CHANGE_MAP.md)
+- Review rubric: [`REVIEW.md`](REVIEW.md)

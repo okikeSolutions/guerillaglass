@@ -30,7 +30,10 @@ Creator Studio tracking checklist (current repo):
 - [x] Route `Current Window` recording through engine-side frontmost window resolution (`capture.startCurrentWindow`) instead of renderer-side source-order inference
 - [x] Handle host-dialog RPC timeouts as recoverable workflow interruptions with guidance copy
 - [x] Keep core keyboard shortcuts (`record`, `play/pause`, `trim in/out`, `save`, `export`)
-- [ ] Add user-configurable shortcut overrides with validation and conflict handling
+- [x] Add user-configurable shortcut overrides with validation and conflict handling
+  - Implementation notes:
+    - Shortcut overrides are edited in the inspector, validated against active bindings, persisted as desktop preferences, and reflected in renderer hotkeys plus native menu/tray hints.
+    - Shared shortcut registry tests cover sanitization, conflicts, host menu synchronization, and customized hotkey dispatch.
 - [x] Keep degraded-mode messaging visible near preview/recording context
 - [x] Add host command bus between Bun shell menu/tray and renderer actions
 - [x] Add cross-platform native shell actions (application menu on macOS/Windows, tray fallback on Linux)
@@ -185,7 +188,7 @@ Groundwork already present:
 
 - [x] Editor-first shell baseline exists (`Capture` / `Edit` / `Deliver`).
 - [x] Timeline toolbar and lane surface exist.
-- [x] Auto-zoom and background-framing settings exist in the inspector.
+- [x] Auto-zoom settings exist in the inspector; background-framing localization/scaffold labels exist for the pending contract and renderer slices.
 - [x] Deliver/export route exists as a local surface.
 - [x] Imported-transcript protocol groundwork exists for later caption/transcript editing.
 
@@ -302,7 +305,7 @@ Suggested Phase 2 PR slices:
 
 1. `phase2/timeline-v2-export-macos` — make macOS export honor timeline v2 edits, gaps, and program-time Deliver trims.
 2. `phase2/timeline-drag-move-gaps` — add drag-to-move, finish gap interaction/readability, and verify preview behavior across gaps.
-3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract.
+3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract per `docs/BACKGROUND_FRAMING_DESIGN.md`.
 4. `phase2/background-framing-renderer` — implement native export rendering for background stage, padding, rounded screen card, and shadow.
 5. `phase2/vertical-camera-replan` — make camera planning/export aspect-ratio-aware for 9:16 vertical output.
 6. `phase2/segment-camera-overrides` — add clip-level camera/keyframe override model and inspector controls.
@@ -318,7 +321,7 @@ Suggested Phase 2 PR slices:
 **Phase 3 — Packaging, hosted delivery, polish, and parity**
 
 - Motion blur controls
-- Per-segment overrides
+- Advanced per-segment visual/effect overrides beyond Phase 2 camera/keyframe controls
 - Simulator auto-crop
 - Optional ProRes mezzanine
 - Delivery packaging improvements (chapters/titles/end-card style metadata where they fit)
@@ -331,7 +334,7 @@ Suggested Phase 2 PR slices:
 Progress (current repo)
 
 - [ ] Motion blur controls
-- [ ] Per-segment overrides
+- [ ] Advanced per-segment visual/effect overrides beyond Phase 2 camera/keyframe controls
 - [ ] Simulator auto-crop
 - [ ] Optional ProRes mezzanine
 - [ ] Delivery packaging improvements
