@@ -71,6 +71,7 @@ Minimum checks:
 bun run desktop:typecheck
 bun run desktop:test
 bun run desktop:test:ui
+bun run desktop:acceptance
 swift test
 bun run desktop:test:e2e
 ```
@@ -93,7 +94,7 @@ shared bridge contract
   -> UI
 ```
 
-Do not add application logic directly to bridge handlers. Acquire windows, menus, trays, servers, processes, and subscriptions through scoped services. Test lifecycle cleanup and recoverable host-dialog timeouts.
+Do not add application logic directly to bridge handlers. Acquire windows, menus, trays, servers, processes, and subscriptions through scoped services. Test lifecycle cleanup and recoverable host-dialog timeouts. For UI-facing host changes on macOS, run `bun run desktop:acceptance` so the packaged Electrobun host, renderer, and native engine are exercised together.
 
 ## Native capture or export behavior
 

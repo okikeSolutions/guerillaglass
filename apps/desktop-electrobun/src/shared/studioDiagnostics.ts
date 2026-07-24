@@ -21,6 +21,13 @@ export function appendStudioDiagnosticsQuery(url: string, enabled: boolean): str
     return url;
   }
 
+  // Electrobun's bundled `views://` loader resolves both query strings and
+  // fragments as part of the resource path. Bundled renderers receive this
+  // runtime-only flag through the BrowserWindow preload instead.
+  if (url.startsWith("views://")) {
+    return url;
+  }
+
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}${studioDiagnosticsQueryKey}=1`;
 }

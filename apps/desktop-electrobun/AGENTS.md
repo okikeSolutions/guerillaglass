@@ -37,4 +37,10 @@ bun run desktop:typecheck
 bun run desktop:test
 bun run desktop:test:ui
 bun run desktop:test:e2e
+bun run desktop:acceptance
 ```
+
+UI-facing work is not complete from code-level tests alone. On macOS, run the
+packaged Electrobun application through `desktop:acceptance`, inspect its runtime
+report and browser screenshots, and exercise the affected real-app workflow. Use
+`desktop:acceptance:screenshot` when Screen Recording permission is available.
