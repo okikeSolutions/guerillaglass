@@ -5,6 +5,7 @@ public struct Project: Codable, Identifiable, Equatable {
     public let id: UUID
     public var createdAt: Date
     public var autoZoom: AutoZoomSettings
+    public var backgroundFraming: BackgroundFramingSettings
     public var timeline: TimelineDocument
     public var captureMetadata: CaptureMetadata?
     public var lastRecordingTelemetry: CaptureTelemetrySummary?
@@ -14,6 +15,7 @@ public struct Project: Codable, Identifiable, Equatable {
         id: UUID = UUID(),
         createdAt: Date = Date(),
         autoZoom: AutoZoomSettings = AutoZoomSettings(),
+        backgroundFraming: BackgroundFramingSettings = .defaults,
         timeline: TimelineDocument = TimelineDocument(),
         captureMetadata: CaptureMetadata? = nil,
         lastRecordingTelemetry: CaptureTelemetrySummary? = nil,
@@ -22,6 +24,7 @@ public struct Project: Codable, Identifiable, Equatable {
         self.id = id
         self.createdAt = createdAt
         self.autoZoom = autoZoom
+        self.backgroundFraming = backgroundFraming
         self.timeline = timeline
         self.captureMetadata = captureMetadata
         self.lastRecordingTelemetry = lastRecordingTelemetry
@@ -32,6 +35,7 @@ public struct Project: Codable, Identifiable, Equatable {
         case id
         case createdAt
         case autoZoom
+        case backgroundFraming
         case timeline
         case captureMetadata
         case lastRecordingTelemetry
@@ -43,6 +47,10 @@ public struct Project: Codable, Identifiable, Equatable {
         id = try container.decode(UUID.self, forKey: .id)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         autoZoom = try container.decodeIfPresent(AutoZoomSettings.self, forKey: .autoZoom) ?? AutoZoomSettings()
+        backgroundFraming = try container.decodeIfPresent(
+            BackgroundFramingSettings.self,
+            forKey: .backgroundFraming
+        ) ?? .defaults
         timeline = try container.decodeIfPresent(TimelineDocument.self, forKey: .timeline) ?? TimelineDocument()
         captureMetadata = try container.decodeIfPresent(CaptureMetadata.self, forKey: .captureMetadata)
         lastRecordingTelemetry = try container.decodeIfPresent(

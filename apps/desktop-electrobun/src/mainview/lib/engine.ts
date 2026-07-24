@@ -16,6 +16,7 @@ import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
 import {
   inputEventLogSchema,
   type AutoZoomSettings,
+  type BackgroundFramingSettings,
   type InputEvent,
   type TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
@@ -269,6 +270,7 @@ export const engineApi = {
     trimStartSeconds?: number;
     trimEndSeconds?: number;
     timeline?: TimelineDocument;
+    backgroundFraming?: BackgroundFramingSettings;
   }) {
     return await invokeBridgeContract("ggEngineRunExport", "export run result", params);
   },
@@ -288,6 +290,7 @@ export const engineApi = {
   async projectSave(params: {
     projectPath?: string;
     autoZoom?: AutoZoomSettings;
+    backgroundFraming?: BackgroundFramingSettings;
     timeline?: TimelineDocument;
   }): Promise<ProjectState> {
     return await invokeProjectState("ggEngineProjectSave", "project state", params);

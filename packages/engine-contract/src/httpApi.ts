@@ -15,7 +15,11 @@ import {
   ProjectRecentsLimitSchema,
   NonNegativeNumber,
 } from "./shared/helpers";
-import { autoZoomSettingsSchema, timelineDocumentSchema } from "./shared/valueObjects";
+import {
+  autoZoomSettingsSchema,
+  backgroundFramingSettingsSchema,
+  timelineDocumentSchema,
+} from "./shared/valueObjects";
 import {
   agentPreflightResultSchema,
   agentRunResultSchema,
@@ -88,6 +92,7 @@ export const exportRunPayloadSchema = Schema.Struct({
   trimStartSeconds: Schema.optionalKey(NonNegativeNumber),
   trimEndSeconds: Schema.optionalKey(NonNegativeNumber),
   timeline: Schema.optionalKey(timelineDocumentSchema),
+  backgroundFraming: Schema.optionalKey(backgroundFramingSettingsSchema),
 }).annotate({ identifier: "ExportRunPayload" });
 
 export const exportRunCutPlanPayloadSchema = Schema.Struct({
@@ -103,6 +108,7 @@ export const projectOpenPayloadSchema = Schema.Struct({
 export const projectSavePayloadSchema = Schema.Struct({
   projectPath: Schema.optionalKey(projectPathSchema),
   autoZoom: Schema.optionalKey(autoZoomSettingsSchema),
+  backgroundFraming: Schema.optionalKey(backgroundFramingSettingsSchema),
   timeline: Schema.optionalKey(timelineDocumentSchema),
 }).annotate({ identifier: "ProjectSavePayload" });
 

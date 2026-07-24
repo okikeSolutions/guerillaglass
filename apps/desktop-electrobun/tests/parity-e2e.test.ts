@@ -131,8 +131,19 @@ describe("engine HTTP parity e2e", () => {
                 intensity: 0.6,
                 minimumKeyframeInterval: 0.25,
               },
+              backgroundFraming: {
+                version: 1,
+                enabled: true,
+                backgroundColor: "#a1b2c3",
+                paddingFraction: 0.12,
+                cornerRadiusFraction: 0.05,
+                shadowStrength: 0.7,
+              },
             });
             expect(saved.autoZoom.intensity).toBe(0.6);
+            expect(saved.backgroundFraming.backgroundColor).toBe("#A1B2C3");
+            const reopened = yield* engine.projectOpen({ projectPath });
+            expect(reopened.backgroundFraming).toEqual(saved.backgroundFraming);
             const recents = yield* engine.projectRecents(5);
             expect(recents.items[0]?.projectPath).toBe(projectPath);
 

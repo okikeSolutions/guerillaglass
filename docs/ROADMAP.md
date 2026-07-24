@@ -288,7 +288,7 @@ Progress (current repo)
 
 - [x] Input Monitoring permission flow + event tracking
 - [x] Auto-zoom planning + constraints (planner + renderer wiring + UI tuning)
-- [ ] Background framing
+- [ ] Background framing (contract/persistence complete; renderer pending)
 - [ ] Vertical export with re-planned camera
 - [x] Live preview remains useful during recording
 - [x] Timeline v2 clip/gap data model implemented in contract, renderer, and Swift project state
@@ -307,7 +307,7 @@ Suggested Phase 2 PR slices:
 
 1. `phase2/timeline-v2-export-macos` — make macOS export honor timeline v2 edits, gaps, and program-time Deliver trims.
 2. `phase2/timeline-drag-move-gaps` — add drag-to-move, finish gap interaction/readability, and verify preview behavior across gaps.
-3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract per `docs/BACKGROUND_FRAMING_DESIGN.md`.
+3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract per `docs/BACKGROUND_FRAMING_DESIGN.md` (implemented).
 4. `phase2/background-framing-renderer` — implement native export rendering for background stage, padding, rounded screen card, and shadow.
 5. `phase2/vertical-camera-replan` — make camera planning/export aspect-ratio-aware for 9:16 vertical output.
 6. `phase2/segment-camera-overrides` — add clip-level camera/keyframe override model and inspector controls.

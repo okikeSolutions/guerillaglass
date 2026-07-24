@@ -4,7 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
-import type { TimelineDocument } from "@guerillaglass/engine-contract/shared/valueObjects";
+import {
+  defaultBackgroundFramingSettings,
+  type TimelineDocument,
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   useStudioController,
   type StudioController,
@@ -27,6 +30,7 @@ let root: Root | undefined;
 let queryClient: QueryClient | undefined;
 let latestStudio: StudioController | null = null;
 let capturedExportParams: unknown = null;
+let capturedSaveParams: unknown = null;
 
 function installMockBridge() {
   const bridgeWindow = window as unknown as Record<string, unknown>;
@@ -71,8 +75,19 @@ function installMockBridge() {
     projectPath: "/tmp/project.gglassproj",
     recordingURL: "/tmp/recording.mov",
     autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+    backgroundFraming: defaultBackgroundFramingSettings,
     timeline: initialTimeline,
   });
+  bridgeWindow.ggEngineProjectSave = async (params: unknown) => {
+    capturedSaveParams = params;
+    return {
+      projectPath: "/tmp/project.gglassproj",
+      recordingURL: "/tmp/recording.mov",
+      autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+      backgroundFraming: defaultBackgroundFramingSettings,
+      timeline: initialTimeline,
+    };
+  };
   bridgeWindow.ggEngineProjectRecents = async () => ({ items: [] });
   bridgeWindow.ggEngineRunExport = async (params: unknown) => {
     capturedExportParams = params;
@@ -132,6 +147,7 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
   capturedExportParams = null;
+  capturedSaveParams = null;
   latestStudio = null;
   installMockBridge();
   document.body.innerHTML = '<div id="root"></div>';
@@ -194,10 +210,18 @@ describe("editor timeline export integration", () => {
       expect(latestStudio?.playbackStore.getSnapshot().playheadSeconds).toBe(3);
     });
 
+    await applyStudioAction(async (studio) => studio.saveProjectMutation.mutateAsync(false));
+    expect(capturedSaveParams).toMatchObject({
+      backgroundFraming: defaultBackgroundFramingSettings,
+    });
+
     await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
     expect((capturedExportParams as { timeline: TimelineDocument }).timeline).toEqual(
       latestStudio!.timelineDocument,
     );
+    expect(capturedExportParams).toMatchObject({
+      backgroundFraming: defaultBackgroundFramingSettings,
+    });
   });
 
   test("drag-drop non-ripple move splits gaps and synchronizes selection and playhead", async () => {

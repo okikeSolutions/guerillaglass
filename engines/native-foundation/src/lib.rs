@@ -43,6 +43,7 @@ pub fn run_engine(config: EngineRuntimeConfig) {
 #[cfg(test)]
 mod tests {
     use super::{handle_request, record_recent_project, State};
+    use crate::params::BackgroundFramingParams;
     use crate::state::{
         is_valid_recent_project_item, load_recent_projects, save_recent_projects,
         MAX_RECENT_PROJECTS,
@@ -381,6 +382,79 @@ mod tests {
         });
     }
 
+    #[test]
+    fn export_run_resolves_background_framing_override_then_persisted_settings() {
+        with_state("export-run-background-framing", |state, root| {
+            let project_path = root.join("framing.gglassproj");
+            let save = handle_request(
+                "linux",
+                state,
+                &request(
+                    "framing-save",
+                    EngineMethod::ProjectSave,
+                    json!({
+                        "projectPath": project_path.to_string_lossy(),
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#112233",
+                            "paddingFraction": 0.1,
+                            "cornerRadiusFraction": 0.04,
+                            "shadowStrength": 0.5
+                        }
+                    }),
+                ),
+            );
+            expect_success(save);
+
+            let override_output = root.join("override.mp4");
+            let override_export = handle_request(
+                "linux",
+                state,
+                &request(
+                    "framing-override",
+                    EngineMethod::ExportRun,
+                    json!({
+                        "outputURL": override_output.to_string_lossy(),
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#abcdef",
+                            "paddingFraction": 0.2,
+                            "cornerRadiusFraction": 0.08,
+                            "shadowStrength": 0.8
+                        }
+                    }),
+                ),
+            );
+            expect_success(override_export);
+            let resolved_override = state
+                .latest_export_background_framing
+                .as_ref()
+                .expect("resolved override");
+            assert_eq!(resolved_override.background_color, "#ABCDEF");
+            assert_eq!(resolved_override.padding_fraction, 0.2);
+
+            let persisted_output = root.join("persisted.mp4");
+            let persisted_export = handle_request(
+                "linux",
+                state,
+                &request(
+                    "framing-persisted",
+                    EngineMethod::ExportRun,
+                    json!({ "outputURL": persisted_output.to_string_lossy() }),
+                ),
+            );
+            expect_success(persisted_export);
+            let resolved_persisted = state
+                .latest_export_background_framing
+                .as_ref()
+                .expect("resolved persisted settings");
+            assert_eq!(resolved_persisted.background_color, "#112233");
+            assert_eq!(resolved_persisted.padding_fraction, 0.1);
+        });
+    }
+
     #[cfg(unix)]
     #[test]
     fn export_run_rejects_symlink_output_file() {
@@ -709,6 +783,119 @@ mod tests {
         });
     }
 
+    #[test]
+    fn project_save_open_round_trips_background_framing_and_rejects_malformed_values() {
+        with_state("project-background-framing-round-trip", |state, root| {
+            let project_path = root.join("framing-project.gglassproj");
+            let save = handle_request(
+                "linux",
+                state,
+                &request(
+                    "framing-save",
+                    EngineMethod::ProjectSave,
+                    json!({
+                        "projectPath": project_path.to_string_lossy(),
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#a1b2c3",
+                            "paddingFraction": 0.12,
+                            "cornerRadiusFraction": 0.05,
+                            "shadowStrength": 0.7
+                        }
+                    }),
+                ),
+            );
+            let saved = expect_success(save);
+            assert_eq!(saved["backgroundFraming"]["backgroundColor"], "#A1B2C3");
+
+            state.background_framing = Default::default();
+            let opened = handle_request(
+                "linux",
+                state,
+                &request(
+                    "framing-open",
+                    EngineMethod::ProjectOpen,
+                    json!({ "projectPath": project_path.to_string_lossy() }),
+                ),
+            );
+            let opened = expect_success(opened);
+            assert_eq!(opened["backgroundFraming"]["paddingFraction"], 0.12);
+            assert_eq!(opened["backgroundFraming"]["backgroundColor"], "#A1B2C3");
+
+            let malformed = handle_request(
+                "linux",
+                state,
+                &request(
+                    "framing-malformed",
+                    EngineMethod::ProjectSave,
+                    json!({ "backgroundFraming": { "enabled": true } }),
+                ),
+            );
+            let message = expect_error(malformed, ProtocolErrorCode::InvalidParams);
+            assert!(message.contains("Invalid project save payload"));
+        });
+    }
+
+    #[test]
+    fn project_save_rejects_invalid_background_framing_boundaries() {
+        with_state("project-background-framing-invalid", |state, _| {
+            for background_framing in [
+                json!({
+                    "version": 2,
+                    "enabled": true,
+                    "backgroundColor": "#18181B",
+                    "paddingFraction": 0.06,
+                    "cornerRadiusFraction": 0.025,
+                    "shadowStrength": 0.35
+                }),
+                json!({
+                    "version": 1,
+                    "enabled": true,
+                    "backgroundColor": "18181B",
+                    "paddingFraction": 0.06,
+                    "cornerRadiusFraction": 0.025,
+                    "shadowStrength": 0.35
+                }),
+                json!({
+                    "version": 1,
+                    "enabled": true,
+                    "backgroundColor": "#18181B",
+                    "paddingFraction": 0.251,
+                    "cornerRadiusFraction": 0.025,
+                    "shadowStrength": 0.35
+                }),
+                json!({
+                    "version": 1,
+                    "enabled": true,
+                    "backgroundColor": "#18181B",
+                    "paddingFraction": 0.06,
+                    "cornerRadiusFraction": 0.101,
+                    "shadowStrength": 0.35
+                }),
+                json!({
+                    "version": 1,
+                    "enabled": true,
+                    "backgroundColor": "#18181B",
+                    "paddingFraction": 0.06,
+                    "cornerRadiusFraction": 0.025,
+                    "shadowStrength": 1.001
+                }),
+            ] {
+                let response = handle_request(
+                    "linux",
+                    state,
+                    &request(
+                        "framing-invalid",
+                        EngineMethod::ProjectSave,
+                        json!({ "backgroundFraming": background_framing }),
+                    ),
+                );
+                expect_error(response, ProtocolErrorCode::InvalidParams);
+            }
+        });
+    }
+
     #[cfg(unix)]
     #[test]
     fn project_save_rejects_symlink_project_path() {
@@ -732,6 +919,42 @@ mod tests {
             let message = expect_error(save, ProtocolErrorCode::PermissionDenied);
             assert!(message.contains("symlink"));
             assert!(!real_project_path.join("project.native.json").exists());
+        });
+    }
+
+    #[test]
+    fn failed_project_snapshot_write_does_not_commit_candidate_state() {
+        with_state("project-save-write-rollback", |state, root| {
+            let project_path = root.join("write-failure.gglassproj");
+            fs::create_dir_all(project_path.join("project.native.json"))
+                .expect("create directory at snapshot path");
+
+            let save = handle_request(
+                "linux",
+                state,
+                &request(
+                    "r12-write-failure",
+                    EngineMethod::ProjectSave,
+                    json!({
+                        "projectPath": project_path.to_string_lossy(),
+                        "autoZoom": { "isEnabled": true, "intensity": 0.9 },
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#1A2B3C",
+                            "paddingFraction": 0.12,
+                            "cornerRadiusFraction": 0.04,
+                            "shadowStrength": 0.7
+                        }
+                    }),
+                ),
+            );
+            expect_error(save, ProtocolErrorCode::PermissionDenied);
+
+            assert_eq!(state.project_path, None);
+            assert!(!state.auto_zoom_enabled);
+            assert!(!state.background_framing.enabled);
+            assert_eq!(state.background_framing, BackgroundFramingParams::default());
         });
     }
 

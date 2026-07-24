@@ -8,6 +8,7 @@ import {
 } from "../schema-primitives";
 import {
   autoZoomSettingsSchema,
+  backgroundFramingSettingsSchema,
   captureMetadataSchema,
   timelineDocumentSchema,
 } from "../shared/valueObjects";
@@ -33,6 +34,7 @@ export const projectStateSchema = Schema.Struct({
   eventsURL: Schema.optionalKey(eventsUrlSchema),
   lastRecordingTelemetry: Schema.optionalKey(captureTelemetrySchema),
   autoZoom: autoZoomSettingsSchema,
+  backgroundFraming: backgroundFramingSettingsSchema,
   timeline: timelineDocumentSchema,
   captureMetadata: Schema.optionalKey(captureMetadataSchema),
   agentAnalysis: Schema.optionalKey(projectAgentAnalysisSummarySchema),

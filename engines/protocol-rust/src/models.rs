@@ -1845,6 +1845,238 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentRunSumm
     }
 }
 
+/// Versioned project-global background stage and source-card framing settings.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct BackgroundFramingSettings {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "version")]
+    pub version: f64,
+
+    #[serde(rename = "enabled")]
+    pub enabled: bool,
+
+    #[serde(rename = "backgroundColor")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub background_color: String,
+
+    #[serde(rename = "paddingFraction")]
+    pub padding_fraction: f64,
+
+    #[serde(rename = "cornerRadiusFraction")]
+    pub corner_radius_fraction: f64,
+
+    #[serde(rename = "shadowStrength")]
+    pub shadow_strength: f64,
+}
+
+impl BackgroundFramingSettings {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        version: f64,
+        enabled: bool,
+        background_color: String,
+        padding_fraction: f64,
+        corner_radius_fraction: f64,
+        shadow_strength: f64,
+    ) -> BackgroundFramingSettings {
+        BackgroundFramingSettings {
+            version,
+            enabled,
+            background_color,
+            padding_fraction,
+            corner_radius_fraction,
+            shadow_strength,
+        }
+    }
+}
+
+/// Converts the BackgroundFramingSettings value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for BackgroundFramingSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("version".to_string()),
+            Some(self.version.to_string()),
+            Some("enabled".to_string()),
+            Some(self.enabled.to_string()),
+            Some("backgroundColor".to_string()),
+            Some(self.background_color.to_string()),
+            Some("paddingFraction".to_string()),
+            Some(self.padding_fraction.to_string()),
+            Some("cornerRadiusFraction".to_string()),
+            Some(self.corner_radius_fraction.to_string()),
+            Some("shadowStrength".to_string()),
+            Some(self.shadow_strength.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a BackgroundFramingSettings value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for BackgroundFramingSettings {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub version: Vec<f64>,
+            pub enabled: Vec<bool>,
+            pub background_color: Vec<String>,
+            pub padding_fraction: Vec<f64>,
+            pub corner_radius_fraction: Vec<f64>,
+            pub shadow_strength: Vec<f64>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing BackgroundFramingSettings".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "version" => intermediate_rep.version.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "enabled" => intermediate_rep.enabled.push(
+                        <bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "backgroundColor" => intermediate_rep.background_color.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "paddingFraction" => intermediate_rep.padding_fraction.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "cornerRadiusFraction" => intermediate_rep.corner_radius_fraction.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "shadowStrength" => intermediate_rep.shadow_strength.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing BackgroundFramingSettings".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(BackgroundFramingSettings {
+            version: intermediate_rep
+                .version
+                .into_iter()
+                .next()
+                .ok_or_else(|| "version missing in BackgroundFramingSettings".to_string())?,
+            enabled: intermediate_rep
+                .enabled
+                .into_iter()
+                .next()
+                .ok_or_else(|| "enabled missing in BackgroundFramingSettings".to_string())?,
+            background_color: intermediate_rep
+                .background_color
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "backgroundColor missing in BackgroundFramingSettings".to_string()
+                })?,
+            padding_fraction: intermediate_rep
+                .padding_fraction
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "paddingFraction missing in BackgroundFramingSettings".to_string()
+                })?,
+            corner_radius_fraction: intermediate_rep
+                .corner_radius_fraction
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "cornerRadiusFraction missing in BackgroundFramingSettings".to_string()
+                })?,
+            shadow_strength: intermediate_rep
+                .shadow_strength
+                .into_iter()
+                .next()
+                .ok_or_else(|| "shadowStrength missing in BackgroundFramingSettings".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<BackgroundFramingSettings> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<BackgroundFramingSettings>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<BackgroundFramingSettings>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for BackgroundFramingSettings - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<BackgroundFramingSettings> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <BackgroundFramingSettings as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into BackgroundFramingSettings - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CapabilitiesAgent {
@@ -6939,6 +7171,11 @@ pub struct ExportRunPayload {
     #[validate(nested)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeline: Option<models::ExportRunPayloadTimeline>,
+
+    #[serde(rename = "backgroundFraming")]
+    #[validate(nested)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_framing: Option<models::BackgroundFramingSettings>,
 }
 
 impl ExportRunPayload {
@@ -6950,6 +7187,7 @@ impl ExportRunPayload {
             trim_start_seconds: None,
             trim_end_seconds: None,
             timeline: None,
+            background_framing: None,
         }
     }
 }
@@ -6975,6 +7213,8 @@ impl std::fmt::Display for ExportRunPayload {
                 ["trimEndSeconds".to_string(), trim_end_seconds.to_string()].join(",")
             }),
             // Skipping timeline in query parameter serialization
+
+            // Skipping backgroundFraming in query parameter serialization
         ];
 
         write!(
@@ -7001,6 +7241,7 @@ impl std::str::FromStr for ExportRunPayload {
             pub trim_start_seconds: Vec<f64>,
             pub trim_end_seconds: Vec<f64>,
             pub timeline: Vec<models::ExportRunPayloadTimeline>,
+            pub background_framing: Vec<models::BackgroundFramingSettings>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -7043,6 +7284,11 @@ impl std::str::FromStr for ExportRunPayload {
                         <models::ExportRunPayloadTimeline as std::str::FromStr>::from_str(val)
                             .map_err(|x| x.to_string())?,
                     ),
+                    #[allow(clippy::redundant_clone)]
+                    "backgroundFraming" => intermediate_rep.background_framing.push(
+                        <models::BackgroundFramingSettings as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
                     _ => {
                         return std::result::Result::Err(
                             "Unexpected key while parsing ExportRunPayload".to_string(),
@@ -7070,6 +7316,7 @@ impl std::str::FromStr for ExportRunPayload {
             trim_start_seconds: intermediate_rep.trim_start_seconds.into_iter().next(),
             trim_end_seconds: intermediate_rep.trim_end_seconds.into_iter().next(),
             timeline: intermediate_rep.timeline.into_iter().next(),
+            background_framing: intermediate_rep.background_framing.into_iter().next(),
         })
     }
 }
@@ -8888,6 +9135,11 @@ pub struct ProjectSavePayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_zoom: Option<models::ProjectStateAutoZoom>,
 
+    #[serde(rename = "backgroundFraming")]
+    #[validate(nested)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_framing: Option<models::BackgroundFramingSettings>,
+
     #[serde(rename = "timeline")]
     #[validate(nested)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -8900,6 +9152,7 @@ impl ProjectSavePayload {
         ProjectSavePayload {
             project_path: None,
             auto_zoom: None,
+            background_framing: None,
             timeline: None,
         }
     }
@@ -8915,6 +9168,8 @@ impl std::fmt::Display for ProjectSavePayload {
                 ["projectPath".to_string(), project_path.to_string()].join(",")
             }),
             // Skipping autoZoom in query parameter serialization
+
+            // Skipping backgroundFraming in query parameter serialization
 
             // Skipping timeline in query parameter serialization
         ];
@@ -8940,6 +9195,7 @@ impl std::str::FromStr for ProjectSavePayload {
         struct IntermediateRep {
             pub project_path: Vec<String>,
             pub auto_zoom: Vec<models::ProjectStateAutoZoom>,
+            pub background_framing: Vec<models::BackgroundFramingSettings>,
             pub timeline: Vec<models::ExportRunPayloadTimeline>,
         }
 
@@ -8972,6 +9228,11 @@ impl std::str::FromStr for ProjectSavePayload {
                             .map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
+                    "backgroundFraming" => intermediate_rep.background_framing.push(
+                        <models::BackgroundFramingSettings as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
                     "timeline" => intermediate_rep.timeline.push(
                         <models::ExportRunPayloadTimeline as std::str::FromStr>::from_str(val)
                             .map_err(|x| x.to_string())?,
@@ -8992,6 +9253,7 @@ impl std::str::FromStr for ProjectSavePayload {
         std::result::Result::Ok(ProjectSavePayload {
             project_path: intermediate_rep.project_path.into_iter().next(),
             auto_zoom: intermediate_rep.auto_zoom.into_iter().next(),
+            background_framing: intermediate_rep.background_framing.into_iter().next(),
             timeline: intermediate_rep.timeline.into_iter().next(),
         })
     }
@@ -9066,6 +9328,10 @@ pub struct ProjectState {
     #[validate(nested)]
     pub auto_zoom: models::ProjectStateAutoZoom,
 
+    #[serde(rename = "backgroundFraming")]
+    #[validate(nested)]
+    pub background_framing: models::BackgroundFramingSettings,
+
     #[serde(rename = "timeline")]
     #[validate(nested)]
     pub timeline: models::ExportRunPayloadTimeline,
@@ -9085,6 +9351,7 @@ impl ProjectState {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
         auto_zoom: models::ProjectStateAutoZoom,
+        background_framing: models::BackgroundFramingSettings,
         timeline: models::ExportRunPayloadTimeline,
     ) -> ProjectState {
         ProjectState {
@@ -9093,6 +9360,7 @@ impl ProjectState {
             events_url: None,
             last_recording_telemetry: None,
             auto_zoom,
+            background_framing,
             timeline,
             capture_metadata: None,
             agent_analysis: None,
@@ -9118,6 +9386,8 @@ impl std::fmt::Display for ProjectState {
             // Skipping lastRecordingTelemetry in query parameter serialization
 
             // Skipping autoZoom in query parameter serialization
+
+            // Skipping backgroundFraming in query parameter serialization
 
             // Skipping timeline in query parameter serialization
 
@@ -9150,6 +9420,7 @@ impl std::str::FromStr for ProjectState {
             pub events_url: Vec<String>,
             pub last_recording_telemetry: Vec<models::CaptureTelemetry>,
             pub auto_zoom: Vec<models::ProjectStateAutoZoom>,
+            pub background_framing: Vec<models::BackgroundFramingSettings>,
             pub timeline: Vec<models::ExportRunPayloadTimeline>,
             pub capture_metadata: Vec<models::CaptureStatusResultCaptureMetadata>,
             pub agent_analysis: Vec<models::ProjectAgentAnalysisSummary>,
@@ -9185,6 +9456,8 @@ impl std::str::FromStr for ProjectState {
                     #[allow(clippy::redundant_clone)]
                     "autoZoom" => intermediate_rep.auto_zoom.push(<models::ProjectStateAutoZoom as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
+                    "backgroundFraming" => intermediate_rep.background_framing.push(<models::BackgroundFramingSettings as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
                     "timeline" => intermediate_rep.timeline.push(<models::ExportRunPayloadTimeline as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "captureMetadata" => intermediate_rep.capture_metadata.push(<models::CaptureStatusResultCaptureMetadata as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
@@ -9209,6 +9482,11 @@ impl std::str::FromStr for ProjectState {
                 .into_iter()
                 .next()
                 .ok_or_else(|| "autoZoom missing in ProjectState".to_string())?,
+            background_framing: intermediate_rep
+                .background_framing
+                .into_iter()
+                .next()
+                .ok_or_else(|| "backgroundFraming missing in ProjectState".to_string())?,
             timeline: intermediate_rep
                 .timeline
                 .into_iter()

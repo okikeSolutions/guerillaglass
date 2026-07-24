@@ -31,31 +31,35 @@ public enum ProjectMigration {
             throw MigrationError.invalidPayload
         }
 
+        let v6Data: Data
         switch probe.projectVersion {
         case 1:
             let v3Data = try migrateV1ToV3(data, decoder: decoder)
             let v4Data = try migrateV3ToV4(v3Data, decoder: decoder)
             let v5Data = try migrateV4ToV5(v4Data, decoder: decoder)
-            return try migrateV5ToV6(v5Data, decoder: decoder)
+            v6Data = try migrateV5ToV6(v5Data, decoder: decoder)
         case 2:
             let v3Data = try migrateV2ToV3(data, decoder: decoder)
             let v4Data = try migrateV3ToV4(v3Data, decoder: decoder)
             let v5Data = try migrateV4ToV5(v4Data, decoder: decoder)
-            return try migrateV5ToV6(v5Data, decoder: decoder)
+            v6Data = try migrateV5ToV6(v5Data, decoder: decoder)
         case 3:
             let v4Data = try migrateV3ToV4(data, decoder: decoder)
             let v5Data = try migrateV4ToV5(v4Data, decoder: decoder)
-            return try migrateV5ToV6(v5Data, decoder: decoder)
+            v6Data = try migrateV5ToV6(v5Data, decoder: decoder)
         case 4:
             let v5Data = try migrateV4ToV5(data, decoder: decoder)
-            return try migrateV5ToV6(v5Data, decoder: decoder)
+            v6Data = try migrateV5ToV6(v5Data, decoder: decoder)
         case 5:
-            return try migrateV5ToV6(data, decoder: decoder)
+            v6Data = try migrateV5ToV6(data, decoder: decoder)
+        case 6:
+            v6Data = data
         case ProjectSchemaVersion.current:
             return data
         default:
             throw MigrationError.unknownVersion
         }
+        return try migrateV6ToV7(v6Data, decoder: decoder)
     }
 
     private static func migrateV1ToV3(_ data: Data, decoder: JSONDecoder) throws -> Data {
@@ -108,7 +112,15 @@ public enum ProjectMigration {
 
     private static func migrateV5ToV6(_ data: Data, decoder: JSONDecoder) throws -> Data {
         var document = try decoder.decode(ProjectDocument.self, from: data)
+        document.projectVersion = 6
+        let encoder = ProjectStore.makeDefaultEncoder()
+        return try encoder.encode(document)
+    }
+
+    private static func migrateV6ToV7(_ data: Data, decoder: JSONDecoder) throws -> Data {
+        var document = try decoder.decode(ProjectDocument.self, from: data)
         document.projectVersion = ProjectSchemaVersion.current
+        document.project.backgroundFraming = .defaults
         let encoder = ProjectStore.makeDefaultEncoder()
         return try encoder.encode(document)
     }

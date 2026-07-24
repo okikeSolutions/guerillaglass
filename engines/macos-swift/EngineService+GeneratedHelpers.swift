@@ -63,6 +63,34 @@ extension EngineService {
         )
     }
 
+    func backgroundFramingState() -> Components.Schemas.BackgroundFramingSettings {
+        let settings = currentProjectDocument.project.backgroundFraming
+        return .init(
+            version: Double(settings.version),
+            enabled: settings.enabled,
+            backgroundColor: .init(value1: settings.backgroundColor),
+            paddingFraction: .init(value1: settings.paddingFraction),
+            cornerRadiusFraction: .init(value1: settings.cornerRadiusFraction),
+            shadowStrength: .init(value1: settings.shadowStrength)
+        )
+    }
+
+    func projectBackgroundFraming(
+        from payload: Components.Schemas.BackgroundFramingSettings
+    ) throws -> BackgroundFramingSettings {
+        guard payload.version == Double(BackgroundFramingSettings.currentVersion) else {
+            throw BackgroundFramingSettings.ValidationError.unsupportedVersion(payload.version)
+        }
+        return try BackgroundFramingSettings(
+            version: Int(payload.version),
+            enabled: payload.enabled,
+            backgroundColor: payload.backgroundColor.value1,
+            paddingFraction: payload.paddingFraction.value1,
+            cornerRadiusFraction: payload.cornerRadiusFraction.value1,
+            shadowStrength: payload.shadowStrength.value1
+        )
+    }
+
     func autoZoomState() -> Components.Schemas.ProjectState.autoZoomPayload {
         let autoZoom = currentProjectDocument.project.autoZoom
         return .init(
@@ -80,6 +108,7 @@ extension EngineService {
             },
             eventsURL: (projectEventsURL()?.path ?? currentEventsURL?.path).map { .init(value1: $0) },
             autoZoom: autoZoomState(),
+            backgroundFraming: backgroundFramingState(),
             timeline: timelineState(),
             agentAnalysis: agentAnalysisState()
         )

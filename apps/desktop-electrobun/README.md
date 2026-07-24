@@ -94,6 +94,13 @@ engine, waits for host/renderer/engine milestones, verifies a visible window,
 scans logs for fatal startup failures, verifies process cleanup, and writes its
 report under `.tmp/runtime-acceptance/latest/`.
 
+For every desktop/runtime change, also validate the packaged app with Peekaboo through
+the permissioned GUI bridge at
+`~/Library/Application Support/Peekaboo/bridge.sock`: navigate the affected workflow
+and retain native-window screenshots with the acceptance evidence. Check permissions
+with `peekaboo permissions status --bridge-socket "$HOME/Library/Application Support/Peekaboo/bridge.sock"`.
+Do not rely on Peekaboo's unpermissioned fallback daemon.
+
 Use `bun run desktop:acceptance:screenshot` when the invoking terminal has macOS
 Screen Recording permission. This additionally requires a screenshot of the real
 Electrobun window; browser acceptance screenshots are written under

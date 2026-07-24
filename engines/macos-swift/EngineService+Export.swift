@@ -2,6 +2,7 @@ import AVFoundation
 import EngineProtocol
 import Export
 import Foundation
+import Project
 
 extension EngineService {
     func export_period_exportInfo(
@@ -31,6 +32,11 @@ extension EngineService {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "No recording is available to export."))))
         }
         do {
+            let backgroundFramingOverride = try payload.backgroundFraming.map(projectBackgroundFraming)
+            let resolvedBackgroundFraming = BackgroundFramingSettings.resolve(
+                exportOverride: backgroundFramingOverride,
+                persisted: currentProjectDocument.project.backgroundFraming
+            )
             let exportedURL = try await exportPipeline.export(
                 recordingURL: recordingURL,
                 preset: preset,
@@ -41,11 +47,14 @@ extension EngineService {
             let jobId = "macos-export-\(UUID().uuidString)"
             latestExportJobId = jobId
             latestExportOutputURL = exportedURL
+            latestExportBackgroundFraming = resolvedBackgroundFraming
             return .ok(.init(body: .json(.init(
                 jobId: .init(value1: jobId),
                 status: .succeeded,
                 outputURL: .init(value1: exportedURL.path)
             ))))
+        } catch let error as BackgroundFramingSettings.ValidationError {
+            return .badRequest(.init(body: .json(badRequest(.invalid_params, error.localizedDescription))))
         } catch let error as ExportPipeline.ExportError {
             let code: Components.Schemas.EngineBadRequestError.codePayload = switch error {
             case .invalidTimeline: .invalid_params
