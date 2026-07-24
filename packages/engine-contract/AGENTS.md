@@ -7,6 +7,7 @@ This package is the source of truth for the native engine wire protocol. Domain 
 ## Rules
 
 - Define reusable constrained values in domain/shared schema modules rather than duplicating validation.
+- Use Effect v4 `Schema.brand` for domain identities (IDs, tokens, paths, and URL/path handles). Decode or construct brands at trust boundaries; do not erase them back to plain `string`/`number` inside contract and engine-client services.
 - Keep transport errors explicit and serializable.
 - Add encoding/decoding and operation-shape tests for contract changes.
 - Do not hand-edit `generated/engine.openapi.json`.

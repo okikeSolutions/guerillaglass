@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { NonEmptyString, NonNegativeInt, NonNegativeNumber } from "../shared/helpers";
-import { captureSessionIdSchema } from "../schema-primitives";
+import { captureSessionIdSchema, eventsUrlSchema, recordingUrlSchema } from "../schema-primitives";
 import { captureMetadataSchema } from "../shared/valueObjects";
 import { EngineBadRequestError } from "../errors";
 
@@ -37,10 +37,10 @@ export const captureStatusResultSchema = Schema.Struct({
   isRecording: Schema.Boolean,
   captureSessionId: Schema.optionalKey(captureSessionIdSchema),
   recordingDurationSeconds: NonNegativeNumber,
-  recordingURL: Schema.optionalKey(Schema.String),
+  recordingURL: Schema.optionalKey(recordingUrlSchema),
   captureMetadata: Schema.optionalKey(captureMetadataSchema),
   lastError: Schema.optionalKey(EngineBadRequestError),
-  eventsURL: Schema.optionalKey(Schema.String),
+  eventsURL: Schema.optionalKey(eventsUrlSchema),
   lastRecordingTelemetry: Schema.optionalKey(captureTelemetrySchema),
   telemetry: captureTelemetrySchema,
 }).annotate({ identifier: "CaptureStatusResult" });

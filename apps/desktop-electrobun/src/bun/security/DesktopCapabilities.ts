@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { Context, Effect, Layer, Redacted } from "effect";
+import {
+  desktopCapabilityTokenSchema,
+  type DesktopCapabilityToken,
+} from "../../shared/bridge/desktopBridgeContract";
 import { CapabilityTokenError } from "../../shared/errors/desktopErrors";
 
 export const desktopCapabilityScopes = [
@@ -11,7 +15,7 @@ export const desktopCapabilityScopes = [
 export type DesktopCapabilityScope = (typeof desktopCapabilityScopes)[number];
 
 type CapabilityRecord = {
-  readonly token: Redacted.Redacted<string>;
+  readonly token: Redacted.Redacted<DesktopCapabilityToken>;
   readonly scope: DesktopCapabilityScope;
   readonly subject: string;
   readonly expiresAt: number;
@@ -29,15 +33,17 @@ export type MintCapabilityParams = {
 };
 
 export type ConsumeCapabilityParams = {
-  readonly token: string;
+  readonly token: DesktopCapabilityToken;
   readonly scope: DesktopCapabilityScope;
   readonly subject: string;
 };
 
 export type CapabilityGrantServiceShape = {
-  readonly mint: (params: MintCapabilityParams) => Effect.Effect<string, CapabilityTokenError>;
+  readonly mint: (
+    params: MintCapabilityParams,
+  ) => Effect.Effect<DesktopCapabilityToken, CapabilityTokenError>;
   readonly consume: (params: ConsumeCapabilityParams) => Effect.Effect<void, CapabilityTokenError>;
-  readonly revoke: (token: string) => Effect.Effect<void>;
+  readonly revoke: (token: DesktopCapabilityToken) => Effect.Effect<void>;
 };
 
 export class CapabilityGrantService extends Context.Service<
@@ -57,8 +63,8 @@ const defaultIdleTtlMsByScope: Record<DesktopCapabilityScope, number> = {
   "capture:resolve-preview-url": 15 * 1000,
 };
 
-function makeOpaqueToken(): string {
-  return randomBytes(32).toString("base64url");
+function makeOpaqueToken(): DesktopCapabilityToken {
+  return desktopCapabilityTokenSchema.make(randomBytes(32).toString("base64url"));
 }
 
 function tokenError(description: string): CapabilityTokenError {

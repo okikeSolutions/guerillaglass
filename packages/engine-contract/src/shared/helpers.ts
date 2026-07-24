@@ -8,7 +8,9 @@ export const NonEmptyString = Schema.NonEmptyString;
 /**
  * ISO-8601 date-time string used for wire-safe timestamps.
  */
-export const IsoDateTime = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/));
+export const IsoDateTime = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/)).pipe(
+  Schema.brand("IsoDateTime"),
+);
 
 /**
  * Integer constrained to values greater than or equal to zero.

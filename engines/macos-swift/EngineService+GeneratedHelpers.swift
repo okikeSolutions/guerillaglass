@@ -25,8 +25,8 @@ extension EngineService {
             isRecording: captureEngine.isRecording,
             captureSessionId: captureEngine.captureSessionID.map { .init(value1: $0) },
             recordingDurationSeconds: .init(value1: max(0, captureEngine.recordingDuration)),
-            recordingURL: captureEngine.recordingURL?.path,
-            eventsURL: currentEventsURL?.path,
+            recordingURL: (captureEngine.recordingURL?.path).map { .init(value1: $0) },
+            eventsURL: (currentEventsURL?.path).map { .init(value1: $0) },
             telemetry: telemetry()
         )
     }
@@ -75,8 +75,10 @@ extension EngineService {
     func projectState() -> Components.Schemas.ProjectState {
         .init(
             projectPath: currentProjectURL.map { .init(value1: $0.path) },
-            recordingURL: projectRecordingURL()?.path ?? captureEngine.recordingURL?.path,
-            eventsURL: projectEventsURL()?.path ?? currentEventsURL?.path,
+            recordingURL: (projectRecordingURL()?.path ?? captureEngine.recordingURL?.path).map {
+                .init(value1: $0)
+            },
+            eventsURL: (projectEventsURL()?.path ?? currentEventsURL?.path).map { .init(value1: $0) },
             autoZoom: autoZoomState(),
             timeline: timelineState(),
             agentAnalysis: agentAnalysisState()

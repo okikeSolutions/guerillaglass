@@ -22,7 +22,21 @@ import type {
 } from "@guerillaglass/engine-contract/domains/project";
 import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
 import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
-import { EngineHttpApi } from "@guerillaglass/engine-contract/httpApi";
+import {
+  agentApplyPayloadSchema,
+  agentPreflightPayloadSchema,
+  agentRunPayloadSchema,
+  captureStartCurrentWindowPayloadSchema,
+  captureStartDisplayPayloadSchema,
+  captureStartWindowPayloadSchema,
+  EngineHttpApi,
+  exportRunCutPlanPayloadSchema,
+  exportRunPayloadSchema,
+  projectOpenPayloadSchema,
+  projectSavePayloadSchema,
+  recordingStartPayloadSchema,
+} from "@guerillaglass/engine-contract/httpApi";
+import type { AgentJobId, ExportJobId } from "@guerillaglass/engine-contract/schema-primitives";
 import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
 import * as BunServices from "@effect/platform-bun/BunServices";
 import { Context, Effect, Layer } from "effect";
@@ -35,47 +49,57 @@ import { makeEngineHttpProcess, type EngineHttpProcessOptions } from "./process/
 /**
  * Input for Agent Mode preflight checks.
  */
-export type AgentPreflightRequest = Record<string, unknown>;
+export type AgentPreflightRequest = typeof agentPreflightPayloadSchema.Type;
 
 /**
  * Input for creating an Agent Mode job.
  */
-export type AgentRunRequest = Record<string, unknown>;
+export type AgentRunRequest = typeof agentRunPayloadSchema.Type;
 
 /**
  * Input for applying an Agent Mode job result.
  */
-export type AgentApplyRequest = Record<string, unknown>;
+export type AgentApplyRequest = typeof agentApplyPayloadSchema.Type;
 
 /**
  * Input for capture start commands.
  */
-export type CaptureStartRequest = Record<string, unknown>;
+export type CaptureStartDisplayRequest = typeof captureStartDisplayPayloadSchema.Type;
+
+/**
+ * Input for capture start-current-window commands.
+ */
+export type CaptureStartCurrentWindowRequest = typeof captureStartCurrentWindowPayloadSchema.Type;
+
+/**
+ * Input for capture start-window commands.
+ */
+export type CaptureStartWindowRequest = typeof captureStartWindowPayloadSchema.Type;
 
 /**
  * Input for starting a recording session.
  */
-export type RecordingStartRequest = Record<string, unknown>;
+export type RecordingStartRequest = typeof recordingStartPayloadSchema.Type;
 
 /**
  * Input for standard export jobs.
  */
-export type ExportRunRequest = Record<string, unknown>;
+export type ExportRunRequest = typeof exportRunPayloadSchema.Type;
 
 /**
  * Input for export jobs created from Agent Mode cut plans.
  */
-export type ExportRunCutPlanRequest = Record<string, unknown>;
+export type ExportRunCutPlanRequest = typeof exportRunCutPlanPayloadSchema.Type;
 
 /**
  * Input for opening a project from disk.
  */
-export type ProjectOpenRequest = Record<string, unknown>;
+export type ProjectOpenRequest = typeof projectOpenPayloadSchema.Type;
 
 /**
  * Input for saving current project state.
  */
-export type ProjectSaveRequest = Record<string, unknown>;
+export type ProjectSaveRequest = typeof projectSavePayloadSchema.Type;
 
 /**
  * Generated low-level client shape derived directly from `EngineHttpApi`.
@@ -107,12 +131,12 @@ export type EngineClientService = {
   /**
    * Calls `GET /v1/agent/runs/{jobId}`.
    */
-  readonly agentStatus: (jobId: string) => Effect.Effect<AgentStatusResult, EngineClientError>;
+  readonly agentStatus: (jobId: AgentJobId) => Effect.Effect<AgentStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/agent/runs/{jobId}/apply`.
    */
   readonly agentApply: (
-    jobId: string,
+    jobId: AgentJobId,
     request: AgentApplyRequest,
   ) => Effect.Effect<ActionResult, EngineClientError>;
   /**
@@ -143,19 +167,19 @@ export type EngineClientService = {
    * Calls `POST /v1/capture/start-display`.
    */
   readonly captureStartDisplay: (
-    request: CaptureStartRequest,
+    request: CaptureStartDisplayRequest,
   ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/capture/start-current-window`.
    */
   readonly captureStartCurrentWindow: (
-    request: CaptureStartRequest,
+    request: CaptureStartCurrentWindowRequest,
   ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/capture/start-window`.
    */
   readonly captureStartWindow: (
-    request: CaptureStartRequest,
+    request: CaptureStartWindowRequest,
   ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Calls `POST /v1/capture/stop`.
@@ -198,7 +222,7 @@ export type EngineClientService = {
   /**
    * Calls `GET /v1/exports/{jobId}`.
    */
-  readonly exportGet: (jobId: string) => Effect.Effect<ExportRunResult, EngineClientError>;
+  readonly exportGet: (jobId: ExportJobId) => Effect.Effect<ExportRunResult, EngineClientError>;
   /**
    * Calls `GET /v1/project/current`.
    */
@@ -265,8 +289,7 @@ export function makeRawEngineHttpApiClient(
  * @returns The low-level EngineClient service implementation.
  */
 export function makeEngineClientService(rawClient: RawEngineHttpApiClient): EngineClientService {
-  // oxlint-disable-next-line typescript/no-explicit-any -- Effect HttpApiClient currently exposes a generated callable group shape that TypeScript cannot preserve here.
-  const client = rawClient as any;
+  const client = rawClient;
   return {
     systemPing: asClientEffect(client.system.systemPing({})),
     engineCapabilities: asClientEffect(client.system.engineCapabilities({})),

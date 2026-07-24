@@ -1,5 +1,6 @@
 import { Effect, Exit } from "effect";
 import { describe, expect, test } from "vitest";
+import { desktopCapabilityTokenSchema } from "@shared/bridge/desktopBridgeContract";
 import { CapabilityTokenError } from "@shared/errors/desktopErrors";
 import {
   deserializeBridgeError,
@@ -31,7 +32,7 @@ describe("desktop capability grants", () => {
     await expect(
       Effect.runPromise(
         service.consume({
-          token: "missing",
+          token: desktopCapabilityTokenSchema.make("missing"),
           scope: "review:mutate",
           subject: "review:abc",
         }),

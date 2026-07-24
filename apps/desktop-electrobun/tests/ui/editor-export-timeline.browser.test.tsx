@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import type { TimelineDocument } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   useStudioController,
@@ -14,7 +15,7 @@ const initialTimeline: TimelineDocument = {
   items: [
     {
       kind: "clip",
-      id: "segment-0",
+      id: timelineSegmentIdSchema.make("segment-0"),
       sourceAssetId: "recording",
       sourceStartSeconds: 0,
       sourceEndSeconds: 4,

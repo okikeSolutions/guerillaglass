@@ -1,6 +1,11 @@
 import { Effect, Layer } from "effect";
 import { beforeEach, describe, expect, test } from "vitest";
-import { reviewIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
+import {
+  reviewAuthTokenSchema,
+  reviewIdSchema,
+  timelineSegmentIdSchema,
+} from "@guerillaglass/engine-contract/schema-primitives";
+import { timelineDocumentSchema } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   desktopApi,
   engineApi,
@@ -474,19 +479,23 @@ describe("renderer engine bridge", () => {
       },
     });
 
-    const timeline = {
+    const timeline = timelineDocumentSchema.make({
       version: 2 as const,
       items: [
         {
           kind: "clip" as const,
-          id: "clip-a",
+          id: timelineSegmentIdSchema.make("clip-a"),
           sourceAssetId: "recording" as const,
           sourceStartSeconds: 0,
           sourceEndSeconds: 1,
         },
-        { kind: "gap" as const, id: "gap-a", durationSeconds: 0.5 },
+        {
+          kind: "gap" as const,
+          id: timelineSegmentIdSchema.make("gap-a"),
+          durationSeconds: 0.5,
+        },
       ],
-    };
+    });
 
     await engineApi.runExport({
       outputURL: "/tmp/out.mp4",
@@ -572,7 +581,7 @@ describe("renderer engine bridge", () => {
       const handlers = createEngineBridgeHandlers({ runtime });
 
       const response = await handlers.ggReviewSessionSnapshot({
-        authToken: "token",
+        authToken: reviewAuthTokenSchema.make("token"),
         reviewId: reviewIdSchema.make("review-123"),
       });
 

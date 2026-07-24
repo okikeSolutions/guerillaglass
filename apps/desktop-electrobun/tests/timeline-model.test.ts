@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
+import type {
+  InputEvent,
+  TimelineClipItem,
+  TimelineDocument,
+  TimelineGapItem,
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   buildEventWaveform,
   buildEventMarkers,
@@ -14,6 +20,17 @@ import {
   remapInputEventsToProgramTime,
   secondsToPixels,
 } from "@studio/domain/timelineDomainModel";
+
+type TimelineItemInput =
+  | (Omit<TimelineClipItem, "id"> & { id: string })
+  | (Omit<TimelineGapItem, "id"> & { id: string });
+
+function makeTimeline(items: TimelineItemInput[]): TimelineDocument {
+  return {
+    version: 2,
+    items: items.map((item) => ({ ...item, id: timelineSegmentIdSchema.make(item.id) })),
+  };
+}
 
 describe("timeline model", () => {
   test("converts between seconds and pixels with clamping", () => {
@@ -88,26 +105,23 @@ describe("timeline model", () => {
   });
 
   test("identifies gaps by program time before source remapping", () => {
-    const timeline = {
-      version: 2 as const,
-      items: [
-        {
-          kind: "clip" as const,
-          id: "clip-a",
-          sourceAssetId: "recording" as const,
-          sourceStartSeconds: 0,
-          sourceEndSeconds: 1,
-        },
-        { kind: "gap" as const, id: "gap-a", durationSeconds: 1 },
-        {
-          kind: "clip" as const,
-          id: "clip-b",
-          sourceAssetId: "recording" as const,
-          sourceStartSeconds: 3,
-          sourceEndSeconds: 4,
-        },
-      ],
-    };
+    const timeline = makeTimeline([
+      {
+        kind: "clip" as const,
+        id: "clip-a",
+        sourceAssetId: "recording" as const,
+        sourceStartSeconds: 0,
+        sourceEndSeconds: 1,
+      },
+      { kind: "gap" as const, id: "gap-a", durationSeconds: 1 },
+      {
+        kind: "clip" as const,
+        id: "clip-b",
+        sourceAssetId: "recording" as const,
+        sourceStartSeconds: 3,
+        sourceEndSeconds: 4,
+      },
+    ]);
 
     const items = compileTimelineItems(timeline);
 
@@ -118,25 +132,22 @@ describe("timeline model", () => {
   });
 
   test("compiles timeline segments into program ranges and remaps events", () => {
-    const timeline = {
-      version: 2 as const,
-      items: [
-        {
-          kind: "clip" as const,
-          id: "segment-a",
-          sourceAssetId: "recording" as const,
-          sourceStartSeconds: 2,
-          sourceEndSeconds: 4,
-        },
-        {
-          kind: "clip" as const,
-          id: "segment-b",
-          sourceAssetId: "recording" as const,
-          sourceStartSeconds: 6,
-          sourceEndSeconds: 7.5,
-        },
-      ],
-    };
+    const timeline = makeTimeline([
+      {
+        kind: "clip" as const,
+        id: "segment-a",
+        sourceAssetId: "recording" as const,
+        sourceStartSeconds: 2,
+        sourceEndSeconds: 4,
+      },
+      {
+        kind: "clip" as const,
+        id: "segment-b",
+        sourceAssetId: "recording" as const,
+        sourceStartSeconds: 6,
+        sourceEndSeconds: 7.5,
+      },
+    ]);
     const compiled = compileTimelineSegments(timeline);
     const events: InputEvent[] = [
       { type: "cursorMoved", timestamp: 2.5, position: { x: 10, y: 10 } },

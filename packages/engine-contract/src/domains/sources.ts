@@ -1,5 +1,6 @@
 import { Schema } from "effect";
-import { NonEmptyString, NonNegativeInt, PositiveInt, PositiveNumber } from "../shared/helpers";
+import { displayIdSchema, windowIdSchema } from "../schema-primitives";
+import { NonEmptyString, PositiveInt, PositiveNumber } from "../shared/helpers";
 
 /**
  * Supported capture frame rates for all engines.
@@ -20,7 +21,7 @@ export const captureFrameRateSchema = Schema.Literals(captureFrameRates);
  * Display capture source descriptor.
  */
 export const displaySourceSchema = Schema.Struct({
-  id: NonNegativeInt,
+  id: displayIdSchema,
   displayName: NonEmptyString,
   isPrimary: Schema.Boolean,
   width: PositiveInt,
@@ -34,7 +35,7 @@ export const displaySourceSchema = Schema.Struct({
  * Window capture source descriptor.
  */
 export const windowSourceSchema = Schema.Struct({
-  id: NonNegativeInt,
+  id: windowIdSchema,
   title: Schema.String,
   appName: Schema.String,
   width: PositiveNumber,

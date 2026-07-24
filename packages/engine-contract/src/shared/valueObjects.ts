@@ -1,9 +1,9 @@
 import { Schema } from "effect";
-import { IsoDateTime, NonNegativeInt, NonNegativeNumber, PositiveNumber } from "./helpers";
-import { timelineSegmentIdSchema } from "../schema-primitives";
+import { IsoDateTime, NonNegativeNumber, PositiveNumber } from "./helpers";
+import { timelineSegmentIdSchema, windowIdSchema } from "../schema-primitives";
 
 const captureWindowSchema = Schema.Struct({
-  id: NonNegativeInt,
+  id: windowIdSchema,
   title: Schema.String,
   appName: Schema.String,
 });

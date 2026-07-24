@@ -1,15 +1,20 @@
 import { describe, expect, test } from "vitest";
-import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
+import {
+  displaySourceSchema,
+  type SourcesResult,
+} from "@guerillaglass/engine-contract/domains/sources";
+import { displayIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   pickPreferredDisplayId,
   resolveSelectedDisplayId,
 } from "@studio/domain/preferredDisplaySelection";
 
 function makeDisplaySource(
-  overrides: Partial<SourcesResult["displays"][number]>,
+  overrides: Omit<Partial<SourcesResult["displays"][number]>, "id"> & { id?: number },
 ): SourcesResult["displays"][number] {
-  return {
-    id: 0,
+  const { id = 0, ...rest } = overrides;
+  return displaySourceSchema.make({
+    id: displayIdSchema.make(id),
     displayName: "Display",
     isPrimary: false,
     width: 1920,
@@ -17,8 +22,8 @@ function makeDisplaySource(
     pixelScale: 2,
     refreshHz: 60,
     supportedCaptureFrameRates: [24, 30, 60],
-    ...overrides,
-  };
+    ...rest,
+  });
 }
 
 describe("preferred display selection", () => {

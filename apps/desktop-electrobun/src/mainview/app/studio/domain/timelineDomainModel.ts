@@ -1,3 +1,4 @@
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import type {
   InputEvent,
   TimelineClipItem,
@@ -94,7 +95,7 @@ export function createSingleSegmentTimelineDocument(
     items: [
       {
         kind: "clip",
-        id: "segment-0",
+        id: timelineSegmentIdSchema.make("segment-0"),
         sourceAssetId: "recording",
         sourceStartSeconds: 0,
         sourceEndSeconds: duration,

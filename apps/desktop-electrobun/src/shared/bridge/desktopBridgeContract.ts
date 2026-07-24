@@ -50,13 +50,18 @@ import {
   reviewWorkflowStatusSchema,
   type ReviewBridgeEvent,
   type ReviewComment,
+  type ReviewCommentId,
   type ReviewCreateCommentRequest,
+  type ReviewId,
   type ReviewSessionSnapshot,
   type ReviewSessionSnapshotRequest,
   type ReviewSetWorkflowStatusRequest,
   type ReviewSetWorkflowStatusResponse,
 } from "@guerillaglass/review-protocol";
 import {
+  agentJobIdSchema,
+  agentPreflightTokenSchema,
+  displayIdSchema,
   exportPresetIdSchema,
   filePathSchema,
   isoDateTimeSchema,
@@ -66,6 +71,7 @@ import {
   reviewCommentIdSchema,
   captureSessionIdSchema,
   reviewIdSchema,
+  windowIdSchema,
 } from "@guerillaglass/engine-contract/schema-primitives";
 import { Schema } from "effect";
 import {
@@ -173,7 +179,12 @@ export const readTextFileRequestSchema = Schema.Struct({
   filePath: filePathSchema,
 });
 export const readTextFileResponseSchema = Schema.String;
-export const desktopCapabilityTokenSchema = Schema.NonEmptyString.check(Schema.isMaxLength(512));
+export const desktopCapabilityTokenSchema = Schema.NonEmptyString.check(
+  Schema.isMaxLength(512),
+).pipe(Schema.brand("DesktopCapabilityToken"));
+
+/** Nominal token authorizing one desktop capability operation. */
+export type DesktopCapabilityToken = typeof desktopCapabilityTokenSchema.Type;
 export const resolveMediaSourceURLRequestSchema = Schema.Struct({
   filePath: filePathSchema,
   capabilityToken: desktopCapabilityTokenSchema,
@@ -214,9 +225,9 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
 const undefinedBridgeParamsSchema = Schema.Void;
 const engineAgentPreflightBridgeParamsSchema = agentPreflightPayloadSchema;
 const engineAgentRunBridgeParamsSchema = agentRunPayloadSchema;
-const engineAgentStatusBridgeParamsSchema = Schema.Struct({ jobId: Schema.NonEmptyString });
+const engineAgentStatusBridgeParamsSchema = Schema.Struct({ jobId: agentJobIdSchema });
 const engineAgentApplyBridgeParamsSchema = Schema.Struct({
-  jobId: Schema.NonEmptyString,
+  jobId: agentJobIdSchema,
   destructiveIntent: Schema.optionalKey(Schema.Boolean),
 });
 const engineCaptureStartBridgeParamsSchema = captureStartCurrentWindowPayloadSchema;
@@ -292,9 +303,56 @@ const reviewSetWorkflowStatusBridgeParamsSchema = Schema.Struct({
   status: reviewWorkflowStatusSchema,
 });
 
-type ProjectPath = Schema.Schema.Type<typeof projectPathSchema>;
-type OutputUrl = Schema.Schema.Type<typeof outputUrlSchema>;
-type ExportPresetId = Schema.Schema.Type<typeof exportPresetIdSchema>;
+type CaptureSessionId = typeof captureSessionIdSchema.Type;
+type FilePath = typeof filePathSchema.Type;
+type ReviewAuthToken = typeof reviewAuthTokenSchema.Type;
+type AgentJobId = typeof agentJobIdSchema.Type;
+type AgentPreflightToken = typeof agentPreflightTokenSchema.Type;
+type DisplayId = typeof displayIdSchema.Type;
+type ProjectPath = typeof projectPathSchema.Type;
+type OutputUrl = typeof outputUrlSchema.Type;
+type ExportPresetId = typeof exportPresetIdSchema.Type;
+type WindowId = typeof windowIdSchema.Type;
+
+function makeCaptureSessionId(value: string): CaptureSessionId {
+  return captureSessionIdSchema.make(value);
+}
+
+function makeDesktopCapabilityToken(value: string): DesktopCapabilityToken {
+  return desktopCapabilityTokenSchema.make(value);
+}
+
+function makeFilePath(value: string): FilePath {
+  return filePathSchema.make(value);
+}
+
+function makeReviewAuthToken(value: string): ReviewAuthToken {
+  return reviewAuthTokenSchema.make(value);
+}
+
+function makeReviewCommentId(value: string): ReviewCommentId {
+  return reviewCommentIdSchema.make(value);
+}
+
+function makeOptionalReviewCommentId(value: string | undefined): ReviewCommentId | undefined {
+  return value === undefined ? undefined : makeReviewCommentId(value);
+}
+
+function makeReviewId(value: string): ReviewId {
+  return reviewIdSchema.make(value);
+}
+
+function makeAgentJobId(value: string): AgentJobId {
+  return agentJobIdSchema.make(value);
+}
+
+function makeAgentPreflightToken(value: string): AgentPreflightToken {
+  return agentPreflightTokenSchema.make(value);
+}
+
+function makeOptionalDisplayId(value: number | undefined): DisplayId | undefined {
+  return value === undefined ? undefined : displayIdSchema.make(value);
+}
 
 function makeOptionalProjectPath(value: string | undefined): ProjectPath | undefined {
   return value === undefined ? undefined : projectPathSchema.make(value);
@@ -308,6 +366,10 @@ function makeExportPresetId(value: string): ExportPresetId {
   return exportPresetIdSchema.make(value);
 }
 
+function makeWindowId(value: number): WindowId {
+  return windowIdSchema.make(value);
+}
+
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
   responseType: Response;
@@ -316,11 +378,11 @@ type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> 
 };
 
 type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
-  authToken: string;
+  authToken: ReviewAuthToken;
 };
 
 type ReviewBridgeMutationRequestWithAuth<TRequest> = ReviewBridgeRequestWithAuth<TRequest> & {
-  capabilityToken: string;
+  capabilityToken: DesktopCapabilityToken;
 };
 
 function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
@@ -390,7 +452,7 @@ export const bridgeRequestDefinitions = {
   ),
   ggEngineAgentRun: defineValidatedBridgeRequest<
     {
-      preflightToken: string;
+      preflightToken: AgentPreflightToken;
       runtimeBudgetMinutes?: number;
       transcriptionProvider?: "none" | "imported_transcript";
       importedTranscriptPath?: ProjectPath;
@@ -409,25 +471,30 @@ export const bridgeRequestDefinitions = {
   >(
     (params) => ({
       ...params,
+      preflightToken: makeAgentPreflightToken(params.preflightToken),
       importedTranscriptPath: makeOptionalProjectPath(params.importedTranscriptPath),
     }),
     engineAgentRunBridgeParamsSchema,
     engineSuccessSchema("agent.run"),
   ),
   ggEngineAgentStatus: defineValidatedBridgeRequest<
-    { jobId: string },
+    { jobId: AgentJobId },
     AgentStatusResult,
     [jobId: string]
   >(
-    (jobId) => ({ jobId }),
+    (jobId) => ({ jobId: makeAgentJobId(jobId) }),
     engineAgentStatusBridgeParamsSchema,
     engineSuccessSchema("agent.status"),
   ),
   ggEngineAgentApply: defineValidatedBridgeRequest<
-    { jobId: string; destructiveIntent?: boolean },
+    { jobId: AgentJobId; destructiveIntent?: boolean },
     ActionResult,
     [params: { jobId: string; destructiveIntent?: boolean }]
-  >((params) => params, engineAgentApplyBridgeParamsSchema, engineSuccessSchema("agent.apply")),
+  >(
+    (params) => ({ ...params, jobId: makeAgentJobId(params.jobId) }),
+    engineAgentApplyBridgeParamsSchema,
+    engineSuccessSchema("agent.apply"),
+  ),
   ggEngineRequestScreenRecordingPermission: defineValidatedBridgeRequest<
     undefined,
     ActionResult,
@@ -463,7 +530,7 @@ export const bridgeRequestDefinitions = {
   ),
   ggEngineStartDisplayCapture: defineValidatedBridgeRequest<
     {
-      displayId?: number;
+      displayId?: DisplayId;
       enableMic: boolean;
       enablePreview?: boolean;
       captureFps: CaptureFrameRate;
@@ -472,7 +539,7 @@ export const bridgeRequestDefinitions = {
     [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number, enablePreview?: boolean]
   >(
     (enableMic, captureFps, displayId, enablePreview) => ({
-      displayId,
+      displayId: makeOptionalDisplayId(displayId),
       enableMic,
       enablePreview,
       captureFps,
@@ -490,12 +557,17 @@ export const bridgeRequestDefinitions = {
     engineSuccessSchema("capture.startCurrentWindow"),
   ),
   ggEngineStartWindowCapture: defineValidatedBridgeRequest<
-    { windowId: number; enableMic: boolean; enablePreview?: boolean; captureFps: CaptureFrameRate },
+    {
+      windowId: WindowId;
+      enableMic: boolean;
+      enablePreview?: boolean;
+      captureFps: CaptureFrameRate;
+    },
     CaptureStatusResult,
     [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
   >(
     (windowId, enableMic, captureFps, enablePreview) => ({
-      windowId,
+      windowId: makeWindowId(windowId),
       enableMic,
       enablePreview,
       captureFps,
@@ -568,7 +640,7 @@ export const bridgeRequestDefinitions = {
     {
       outputURL: OutputUrl;
       presetId: ExportPresetId;
-      jobId: string;
+      jobId: AgentJobId;
     },
     ExportRunCutPlanResult,
     [params: { outputURL: string; presetId: string; jobId: string }]
@@ -577,6 +649,7 @@ export const bridgeRequestDefinitions = {
       ...params,
       outputURL: makeOutputUrl(params.outputURL),
       presetId: makeExportPresetId(params.presetId),
+      jobId: makeAgentJobId(params.jobId),
     }),
     engineRunCutPlanExportBridgeParamsSchema,
     engineSuccessSchema("export.runCutPlan"),
@@ -619,24 +692,70 @@ export const bridgeRequestDefinitions = {
   ggReviewSessionSnapshot: defineValidatedBridgeRequest<
     ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>,
     ReviewSessionSnapshot,
-    [params: ReviewBridgeRequestWithAuth<ReviewSessionSnapshotRequest>]
-  >((params) => params, reviewSessionSnapshotBridgeParamsSchema, reviewSessionSnapshotSchema),
-  ggGrantReviewMutationCapability: defineValidatedBridgeRequest<
-    { authToken: string; reviewId: string },
-    string,
     [params: { authToken: string; reviewId: string }]
-  >((params) => params, reviewMutationCapabilityBridgeParamsSchema, desktopCapabilityTokenSchema),
+  >(
+    (params) => ({
+      authToken: makeReviewAuthToken(params.authToken),
+      reviewId: makeReviewId(params.reviewId),
+    }),
+    reviewSessionSnapshotBridgeParamsSchema,
+    reviewSessionSnapshotSchema,
+  ),
+  ggGrantReviewMutationCapability: defineValidatedBridgeRequest<
+    { authToken: ReviewAuthToken; reviewId: ReviewId },
+    DesktopCapabilityToken,
+    [params: { authToken: string; reviewId: string }]
+  >(
+    (params) => ({
+      authToken: makeReviewAuthToken(params.authToken),
+      reviewId: makeReviewId(params.reviewId),
+    }),
+    reviewMutationCapabilityBridgeParamsSchema,
+    desktopCapabilityTokenSchema,
+  ),
   ggReviewCreateComment: defineValidatedBridgeRequest<
     ReviewBridgeMutationRequestWithAuth<ReviewCreateCommentRequest>,
     ReviewComment,
-    [params: ReviewBridgeMutationRequestWithAuth<ReviewCreateCommentRequest>]
-  >((params) => params, reviewCreateCommentBridgeParamsSchema, reviewCommentSchema),
+    [
+      params: {
+        authToken: string;
+        reviewId: string;
+        capabilityToken: string;
+        body: string;
+        frameNumber?: number;
+        timestampSeconds?: number;
+        parentCommentId?: string;
+      },
+    ]
+  >(
+    (params) => ({
+      ...params,
+      authToken: makeReviewAuthToken(params.authToken),
+      reviewId: makeReviewId(params.reviewId),
+      capabilityToken: makeDesktopCapabilityToken(params.capabilityToken),
+      parentCommentId: makeOptionalReviewCommentId(params.parentCommentId),
+    }),
+    reviewCreateCommentBridgeParamsSchema,
+    reviewCommentSchema,
+  ),
   ggReviewSetWorkflowStatus: defineValidatedBridgeRequest<
     ReviewBridgeMutationRequestWithAuth<ReviewSetWorkflowStatusRequest>,
     ReviewSetWorkflowStatusResponse,
-    [params: ReviewBridgeMutationRequestWithAuth<ReviewSetWorkflowStatusRequest>]
+    [
+      params: {
+        authToken: string;
+        reviewId: string;
+        capabilityToken: string;
+        status: ReviewSetWorkflowStatusRequest["status"];
+      },
+    ]
   >(
-    (params) => params,
+    (params) => ({
+      ...params,
+      authToken: makeReviewAuthToken(params.authToken),
+      reviewId: makeReviewId(params.reviewId),
+      capabilityToken: makeDesktopCapabilityToken(params.capabilityToken),
+    }),
     reviewSetWorkflowStatusBridgeParamsSchema,
     reviewSetWorkflowStatusResponseSchema,
   ),
@@ -645,49 +764,52 @@ export const bridgeRequestDefinitions = {
     string | null,
     [params: { mode: HostPathPickerMode; startingFolder?: string }]
   >((params) => params, pickPathRequestSchema, pickPathResponseSchema),
-  ggReadTextFile: defineValidatedBridgeRequest<{ filePath: string }, string, [filePath: string]>(
+  ggReadTextFile: defineValidatedBridgeRequest<{ filePath: FilePath }, string, [filePath: string]>(
     (filePath) => ({
-      filePath,
+      filePath: makeFilePath(filePath),
     }),
     readTextFileRequestSchema,
     readTextFileResponseSchema,
   ),
   ggGrantMediaSourceCapability: defineValidatedBridgeRequest<
-    { filePath: string },
-    string,
+    { filePath: FilePath },
+    DesktopCapabilityToken,
     [filePath: string]
   >(
-    (filePath) => ({ filePath }),
+    (filePath) => ({ filePath: makeFilePath(filePath) }),
     mediaSourceCapabilityBridgeParamsSchema,
     desktopCapabilityTokenSchema,
   ),
   ggResolveMediaSourceURL: defineValidatedBridgeRequest<
-    { filePath: string; capabilityToken: string },
-    string,
+    { filePath: FilePath; capabilityToken: DesktopCapabilityToken },
+    OutputUrl,
     [filePath: string, capabilityToken: string]
   >(
     (filePath, capabilityToken) => ({
-      filePath,
-      capabilityToken,
+      filePath: makeFilePath(filePath),
+      capabilityToken: makeDesktopCapabilityToken(capabilityToken),
     }),
     resolveMediaSourceURLRequestSchema,
     resolveMediaSourceURLResponseSchema,
   ),
   ggGrantCapturePreviewCapability: defineValidatedBridgeRequest<
-    { captureSessionId: string },
-    string,
+    { captureSessionId: CaptureSessionId },
+    DesktopCapabilityToken,
     [captureSessionId: string]
   >(
-    (captureSessionId) => ({ captureSessionId }),
+    (captureSessionId) => ({ captureSessionId: makeCaptureSessionId(captureSessionId) }),
     capturePreviewCapabilityBridgeParamsSchema,
     desktopCapabilityTokenSchema,
   ),
   ggResolveCapturePreviewURL: defineValidatedBridgeRequest<
-    { captureSessionId: string; capabilityToken: string },
-    string,
+    { captureSessionId: CaptureSessionId; capabilityToken: DesktopCapabilityToken },
+    OutputUrl,
     [captureSessionId: string, capabilityToken: string]
   >(
-    (captureSessionId, capabilityToken) => ({ captureSessionId, capabilityToken }),
+    (captureSessionId, capabilityToken) => ({
+      captureSessionId: makeCaptureSessionId(captureSessionId),
+      capabilityToken: makeDesktopCapabilityToken(capabilityToken),
+    }),
     resolveCapturePreviewURLRequestSchema,
     resolveCapturePreviewURLResponseSchema,
   ),

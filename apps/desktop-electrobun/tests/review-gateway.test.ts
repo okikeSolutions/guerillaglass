@@ -1,5 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Option } from "effect";
+import {
+  reviewAuthTokenSchema,
+  reviewIdSchema,
+} from "@guerillaglass/engine-contract/schema-primitives";
 import { ReviewBridgeError } from "@shared/errors/desktopErrors";
 import { makeReviewGateway } from "../src/bun/review/service";
 
@@ -27,8 +31,8 @@ describe("review gateway service", () => {
 
       const exit = yield* Effect.exit(
         gateway.sessionSnapshot({
-          authToken: "token",
-          reviewId: "review-123",
+          authToken: reviewAuthTokenSchema.make("token"),
+          reviewId: reviewIdSchema.make("review-123"),
         }),
       );
       expectReviewBridgeError(exit, "REVIEW_BRIDGE_URL_MISSING");
@@ -43,8 +47,8 @@ describe("review gateway service", () => {
 
       const exit = yield* Effect.exit(
         gateway.sessionSnapshot({
-          authToken: "   ",
-          reviewId: "review-123",
+          authToken: reviewAuthTokenSchema.make("   "),
+          reviewId: reviewIdSchema.make("review-123"),
         }),
       );
       expectReviewBridgeError(exit, "REVIEW_AUTH_TOKEN_MISSING");
@@ -68,8 +72,8 @@ describe("review gateway service", () => {
 
       const exit = yield* Effect.exit(
         gateway.sessionSnapshot({
-          authToken: "token",
-          reviewId: "review-123",
+          authToken: reviewAuthTokenSchema.make("token"),
+          reviewId: reviewIdSchema.make("review-123"),
         }),
       );
       expectReviewBridgeError(exit, "REVIEW_REQUEST_FAILED");

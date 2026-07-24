@@ -9,7 +9,12 @@ import {
   captureOperationFailuresTotal,
   captureOperationsTotal,
 } from "../metrics";
-import { EngineClient, type CaptureStartRequest } from "../service";
+import {
+  EngineClient,
+  type CaptureStartCurrentWindowRequest,
+  type CaptureStartDisplayRequest,
+  type CaptureStartWindowRequest,
+} from "../service";
 
 /**
  * Domain service for capture lifecycle and polling operations.
@@ -19,19 +24,19 @@ export type CaptureServiceShape = {
    * Starts capture for a display source.
    */
   readonly startDisplay: (
-    request: CaptureStartRequest,
+    request: CaptureStartDisplayRequest,
   ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Starts capture for the current foreground window.
    */
   readonly startCurrentWindow: (
-    request: CaptureStartRequest,
+    request: CaptureStartCurrentWindowRequest,
   ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Starts capture for a specific window source.
    */
   readonly startWindow: (
-    request: CaptureStartRequest,
+    request: CaptureStartWindowRequest,
   ) => Effect.Effect<CaptureStatusResult, EngineClientError>;
   /**
    * Stops the active capture session.
@@ -78,7 +83,10 @@ const captureOperation = <A, E>(
 
 const captureStartOperation = (
   operation: string,
-  request: CaptureStartRequest,
+  request:
+    | CaptureStartDisplayRequest
+    | CaptureStartCurrentWindowRequest
+    | CaptureStartWindowRequest,
   effect: Effect.Effect<CaptureStatusResult, EngineClientError>,
 ): Effect.Effect<CaptureStatusResult, EngineClientError> =>
   captureOperation(operation, effect).pipe(

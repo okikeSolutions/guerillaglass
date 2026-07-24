@@ -2,16 +2,17 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
 import { Schema } from "effect";
 import {
   agentJobIdSchema,
+  agentPreflightTokenSchema,
+  displayIdSchema,
   exportJobIdSchema,
   exportPresetIdSchema,
   outputUrlSchema,
   projectPathSchema,
+  windowIdSchema,
 } from "./schema-primitives";
 import {
   RuntimeBudgetMinutesSchema,
   ProjectRecentsLimitSchema,
-  NonEmptyString,
-  NonNegativeInt,
   NonNegativeNumber,
 } from "./shared/helpers";
 import { autoZoomSettingsSchema, timelineDocumentSchema } from "./shared/valueObjects";
@@ -46,7 +47,7 @@ export const agentPreflightPayloadSchema = Schema.Struct({
 }).annotate({ identifier: "AgentPreflightPayload" });
 
 export const agentRunPayloadSchema = Schema.Struct({
-  preflightToken: NonEmptyString,
+  preflightToken: agentPreflightTokenSchema,
   runtimeBudgetMinutes: Schema.optionalKey(RuntimeBudgetMinutesSchema),
   transcriptionProvider: Schema.optionalKey(transcriptionProviderSchema),
   importedTranscriptPath: Schema.optionalKey(projectPathSchema),
@@ -58,7 +59,7 @@ export const agentApplyPayloadSchema = Schema.Struct({
 }).annotate({ identifier: "AgentApplyPayload" });
 
 export const captureStartDisplayPayloadSchema = Schema.Struct({
-  displayId: Schema.optionalKey(NonNegativeInt),
+  displayId: Schema.optionalKey(displayIdSchema),
   enableMic: Schema.optionalKey(Schema.Boolean),
   enablePreview: Schema.optionalKey(Schema.Boolean),
   captureFps: Schema.optionalKey(captureFrameRateSchema),
@@ -71,7 +72,7 @@ export const captureStartCurrentWindowPayloadSchema = Schema.Struct({
 }).annotate({ identifier: "CaptureStartCurrentWindowPayload" });
 
 export const captureStartWindowPayloadSchema = Schema.Struct({
-  windowId: NonNegativeInt,
+  windowId: windowIdSchema,
   enableMic: Schema.optionalKey(Schema.Boolean),
   enablePreview: Schema.optionalKey(Schema.Boolean),
   captureFps: Schema.optionalKey(captureFrameRateSchema),

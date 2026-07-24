@@ -1,5 +1,8 @@
 import { Context, Effect, Layer, Option, Schema } from "effect";
-import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
+import {
+  isoDateTimeSchema,
+  type AgentJobId,
+} from "@guerillaglass/engine-contract/schema-primitives";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
 import {
   capturePreviewFrameResultSchema,
@@ -135,11 +138,11 @@ export const layerHostBridgeService = Layer.succeed(
           }
           case "ggEngineAgentStatus": {
             const agent = yield* AgentService;
-            return yield* agent.status((params as { jobId: string }).jobId);
+            return yield* agent.status((params as { jobId: AgentJobId }).jobId);
           }
           case "ggEngineAgentApply": {
             const agent = yield* AgentService;
-            return yield* agent.apply((params as { jobId: string }).jobId, params as never);
+            return yield* agent.apply((params as { jobId: AgentJobId }).jobId, params as never);
           }
           case "ggEngineRequestScreenRecordingPermission": {
             const permissions = yield* PermissionsService;
@@ -306,7 +309,7 @@ export const layerHostBridgeService = Layer.succeed(
             const capabilities = yield* CapabilityGrantService;
             const reviewId = (params as { reviewId: string }).reviewId;
             yield* capabilities.consume({
-              token: (params as { capabilityToken: string }).capabilityToken,
+              token: (params as BridgeRequests["ggReviewCreateComment"]["params"]).capabilityToken,
               scope: "review:mutate",
               subject: reviewMutationSubject(reviewId),
             });
@@ -320,7 +323,8 @@ export const layerHostBridgeService = Layer.succeed(
             const capabilities = yield* CapabilityGrantService;
             const reviewId = (params as { reviewId: string }).reviewId;
             yield* capabilities.consume({
-              token: (params as { capabilityToken: string }).capabilityToken,
+              token: (params as BridgeRequests["ggReviewSetWorkflowStatus"]["params"])
+                .capabilityToken,
               scope: "review:mutate",
               subject: reviewMutationSubject(reviewId),
             });
@@ -372,7 +376,8 @@ export const layerHostBridgeService = Layer.succeed(
               ),
             );
             yield* capabilities.consume({
-              token: (params as { capabilityToken: string }).capabilityToken,
+              token: (params as BridgeRequests["ggResolveMediaSourceURL"]["params"])
+                .capabilityToken,
               scope: "media:resolve-source",
               subject: mediaSourceSubject(allowedMediaPath),
             });
@@ -426,7 +431,8 @@ export const layerHostBridgeService = Layer.succeed(
               Effect.annotateLogs({ component: "host-bridge-capture", captureSessionId }),
             );
             yield* capabilities.consume({
-              token: (params as { capabilityToken: string }).capabilityToken,
+              token: (params as BridgeRequests["ggResolveCapturePreviewURL"]["params"])
+                .capabilityToken,
               scope: "capture:resolve-preview-url",
               subject: capturePreviewSubject(captureSessionId),
             });
