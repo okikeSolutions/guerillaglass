@@ -98,6 +98,7 @@ bun run swift:test
 bun run desktop:typecheck
 bun run desktop:test
 bun run desktop:test:ui
+bun run desktop:acceptance
 bun run web:typecheck
 bun run protocol:typecheck
 bun run protocol:generate-bindings
@@ -112,6 +113,7 @@ Before declaring work complete:
 
 - Run `bun run repo:check` and relevant focused tests.
 - Run `bun run gate` when the platform supports it.
+- For UI-facing work on macOS, build and launch the real application with `bun run desktop:acceptance`; inspect its runtime report and captured browser screenshots, then exercise the affected workflow.
 - Confirm generated files are current and deterministic for contract changes.
 - Confirm preview/export/persistence parity for editor-model changes.
 - Confirm new UI is localized, keyboard accessible, and covered by reduced-motion/focus conventions.

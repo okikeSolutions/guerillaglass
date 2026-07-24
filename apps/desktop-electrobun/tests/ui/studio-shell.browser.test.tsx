@@ -152,7 +152,16 @@ describe("studio shell browser smoke", () => {
     await expect.element(page.getByRole("link", { name: "Deliver" })).toBeVisible();
 
     await expect.element(page.getByText("Preview Stage")).toBeVisible();
+    await page.screenshot({ path: "../../test-results/screenshots/acceptance-capture.png" });
+
     await page.getByRole("link", { name: "Edit" }).click();
     await expect.element(page.getByRole("heading", { name: "Editor Stage" })).toBeVisible();
+    await page.screenshot({ path: "../../test-results/screenshots/acceptance-edit.png" });
+
+    await page.getByRole("link", { name: "Deliver" }).click();
+    await expect
+      .element(page.getByRole("link", { name: "Deliver" }))
+      .toHaveAttribute("aria-current");
+    await page.screenshot({ path: "../../test-results/screenshots/acceptance-deliver.png" });
   });
 });

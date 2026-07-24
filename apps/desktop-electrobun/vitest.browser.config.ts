@@ -1,10 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { playwright } from "@vitest/browser-playwright";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
 
 const resolvePath = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
 export default defineConfig({
+  plugins: [tailwindcss()],
   resolve: {
     alias: {
       "@": resolvePath("./src/mainview"),
@@ -15,6 +17,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/ui/**/*.browser.test.{ts,tsx}"],
+    setupFiles: ["tests/ui/browserSetup.js"],
     browser: {
       enabled: true,
       provider: playwright(),

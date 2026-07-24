@@ -51,6 +51,19 @@ jobs:
       - name: Desktop browser tests
         run: cd apps/desktop-electrobun && bun run test:ui:ci -- --run
 
+      - name: Packaged desktop runtime smoke
+        run: bun run desktop:test:runtime
+
+      - name: Upload desktop acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-acceptance-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            apps/desktop-electrobun/test-results/screenshots/acceptance-*.png
+            .tmp/runtime-acceptance/latest/
+
   rust:
     name: Rust
     runs-on: ubuntu-latest

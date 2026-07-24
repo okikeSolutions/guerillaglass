@@ -17,7 +17,7 @@ describe("studio diagnostics helpers", () => {
       "http://localhost:5173?ggDiagnostics=1",
     );
     expect(appendStudioDiagnosticsQuery("views://mainview/index.html", true)).toBe(
-      "views://mainview/index.html?ggDiagnostics=1",
+      "views://mainview/index.html",
     );
     expect(appendStudioDiagnosticsQuery("views://mainview/index.html", false)).toBe(
       "views://mainview/index.html",

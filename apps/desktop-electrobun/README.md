@@ -85,7 +85,19 @@ bun run desktop:test
 bun run desktop:test:coverage
 bun run desktop:test:e2e
 bun run desktop:test:ui
+bun run desktop:acceptance
 ```
+
+`desktop:acceptance` combines browser interaction/screenshots with a real packaged-app
+startup smoke on macOS. The runtime smoke launches the Electrobun app and Swift
+engine, waits for host/renderer/engine milestones, verifies a visible window,
+scans logs for fatal startup failures, verifies process cleanup, and writes its
+report under `.tmp/runtime-acceptance/latest/`.
+
+Use `bun run desktop:acceptance:screenshot` when the invoking terminal has macOS
+Screen Recording permission. This additionally requires a screenshot of the real
+Electrobun window; browser acceptance screenshots are written under
+`apps/desktop-electrobun/test-results/screenshots/`.
 
 The app-level `typecheck`, `build`, lint, and test scripts generate Paraglide output first, so fresh clones and CI do not need generated files committed.
 

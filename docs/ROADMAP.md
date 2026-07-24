@@ -136,7 +136,9 @@ Release workflow checklist:
 - [ ] Add release preflight job that reruns canonical quality gates before packaging/publish
 - [ ] Add desktop packaging pipeline for supported artifact targets
 - [ ] Add release-smoke validation job for version propagation and packaging metadata
-- [ ] Add packaged-app startup smoke coverage in CI where feasible
+- [x] Add packaged-app startup smoke coverage in CI where feasible
+  - `bun run desktop:acceptance` launches the real packaged macOS Electrobun app with the Swift engine, verifies runtime milestones/window/cleanup, captures styled browser acceptance screenshots, and emits a machine-readable report.
+  - The macOS TypeScript CI job runs the packaged runtime smoke and uploads browser screenshots plus runtime logs/report. Real-window screenshot capture remains opt-in because it requires Screen Recording permission.
 - [x] Document desktop executable-trust signing requirements and remaining platform validation notes (`docs/RELEASE_HARDENING.md`)
 - [ ] Document notarization secret requirements and dry-run unsigned packaging path
 - [ ] Document expected artifact set and manual release verification checklist

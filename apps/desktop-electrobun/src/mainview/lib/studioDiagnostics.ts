@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { Effect, Metric } from "effect";
 import { sendHostStudioDiagnostics } from "./engine";
-import type { StudioDiagnosticsEntry } from "@shared/bridge/desktopBridgeContract";
+import type {
+  DesktopRuntimeFlags,
+  StudioDiagnosticsEntry,
+} from "@shared/bridge/desktopBridgeContract";
 import {
   isStudioDiagnosticsEnabledFromSearch,
   type StudioDiagnosticsValue,
@@ -58,7 +61,11 @@ function diagnosticsEnabled(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
+  const runtimeWindow = window as Window & {
+    __ggDesktopRuntimeFlags?: DesktopRuntimeFlags;
+  };
   return (
+    runtimeWindow.__ggDesktopRuntimeFlags?.studioDiagnosticsEnabled === true ||
     isStudioDiagnosticsEnabledFromSearch(window.location.search) ||
     isStudioDiagnosticsEnabledFromSearch(window.location.hash)
   );
