@@ -6,14 +6,42 @@ import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Layer, Option } from "effect";
 import { HttpServer } from "effect/unstable/http";
 import { MediaRegistry, layerMediaRegistry } from "../src/bun/media/MediaRegistry";
-import { MediaSourceService, layerMediaSourceServiceCore } from "../src/bun/media/service";
+import {
+  MediaSourceService,
+  layerMediaSourceServiceCore,
+  makeLayerMediaSourceService,
+} from "../src/bun/media/service";
 import { MediaServerError } from "@shared/errors/desktopErrors";
+import { AppConfig, type DesktopAppConfig } from "../src/bun/app/AppConfig";
 import { DesktopTempDirectory } from "../src/bun/security/DesktopTempDirectory";
 
 function firstFailure(cause: Cause.Cause<unknown>): unknown {
   const error = Cause.findErrorOption(cause);
   return Option.isSome(error) ? error.value : Cause.squash(cause);
 }
+
+const testAppConfig: DesktopAppConfig = {
+  captureBenchmarkEnabled: false,
+  studioDiagnosticsEnabled: false,
+  mediaServerDebugLoggingEnabled: false,
+  devServerPort: 5173,
+  nodeEnv: "test",
+  electrobunBuild: null,
+  allowCustomEnginePath: false,
+  enginePath: null,
+  engineExpectedSha256: null,
+  engineExpectedTeamId: null,
+  engineSigningRequirement: null,
+  macosCodeSignatureHelperPath: null,
+  windowsAuthenticodeHelperPath: null,
+  windowsExpectedPublisherSha256Thumbprint: null,
+  windowsExpectedPublisherSubject: null,
+  windowsAllowOfflineRevocation: false,
+  engineRequireCurrentUserOwner: false,
+  engineRejectWorldWritable: true,
+  tempDirectory: null,
+  reviewConvexUrl: null,
+};
 
 describe("media source service", () => {
   it.effect("fails layer acquisition with a typed error for non-TCP HTTP servers", () =>
@@ -42,6 +70,36 @@ describe("media source service", () => {
       }
     }),
   );
+
+  it("starts, serves, and stops the real Node media server composition", async () => {
+    const testDirectory = mkdtempSync(path.join(os.tmpdir(), "gg-node-media-server-"));
+    const sourcePath = path.join(testDirectory, "source.mov");
+    writeFileSync(sourcePath, "node-media-server-fixture");
+    const layer = makeLayerMediaSourceService().pipe(
+      Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: testDirectory })),
+      Layer.provide(Layer.succeed(AppConfig, testAppConfig)),
+    );
+
+    try {
+      const mediaURL = await Effect.runPromise(
+        Effect.scoped(
+          Effect.gen(function* () {
+            const service = yield* MediaSourceService;
+            const url = yield* service.resolveMediaSourceURL(sourcePath);
+            const response = yield* Effect.promise(() => fetch(url));
+            expect(response.status).toBe(200);
+            const body = yield* Effect.promise(() => response.text());
+            expect(body).toBe("node-media-server-fixture");
+            return url;
+          }).pipe(Effect.provide(layer)),
+        ),
+      );
+
+      await expect(fetch(mediaURL)).rejects.toThrow();
+    } finally {
+      rmSync(testDirectory, { recursive: true, force: true });
+    }
+  });
 
   it("mints loopback media and preview URLs from the scoped HTTP server address", async () => {
     const layer = layerMediaSourceServiceCore.pipe(
