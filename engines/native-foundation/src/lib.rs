@@ -43,6 +43,7 @@ pub fn run_engine(config: EngineRuntimeConfig) {
 #[cfg(test)]
 mod tests {
     use super::{handle_request, record_recent_project, State};
+    use crate::params::BackgroundFramingParams;
     use crate::state::{
         is_valid_recent_project_item, load_recent_projects, save_recent_projects,
         MAX_RECENT_PROJECTS,
@@ -918,6 +919,42 @@ mod tests {
             let message = expect_error(save, ProtocolErrorCode::PermissionDenied);
             assert!(message.contains("symlink"));
             assert!(!real_project_path.join("project.native.json").exists());
+        });
+    }
+
+    #[test]
+    fn failed_project_snapshot_write_does_not_commit_candidate_state() {
+        with_state("project-save-write-rollback", |state, root| {
+            let project_path = root.join("write-failure.gglassproj");
+            fs::create_dir_all(project_path.join("project.native.json"))
+                .expect("create directory at snapshot path");
+
+            let save = handle_request(
+                "linux",
+                state,
+                &request(
+                    "r12-write-failure",
+                    EngineMethod::ProjectSave,
+                    json!({
+                        "projectPath": project_path.to_string_lossy(),
+                        "autoZoom": { "isEnabled": true, "intensity": 0.9 },
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#1A2B3C",
+                            "paddingFraction": 0.12,
+                            "cornerRadiusFraction": 0.04,
+                            "shadowStrength": 0.7
+                        }
+                    }),
+                ),
+            );
+            expect_error(save, ProtocolErrorCode::PermissionDenied);
+
+            assert_eq!(state.project_path, None);
+            assert!(!state.auto_zoom_enabled);
+            assert!(!state.background_framing.enabled);
+            assert_eq!(state.background_framing, BackgroundFramingParams::default());
         });
     }
 

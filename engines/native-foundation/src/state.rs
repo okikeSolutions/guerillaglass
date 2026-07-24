@@ -32,6 +32,7 @@ pub(crate) struct PreflightSession {
     pub(crate) created_at_unix_seconds: i64,
 }
 
+#[derive(Clone)]
 pub(crate) struct State {
     pub(crate) clock: CaptureClock,
     pub(crate) is_running: bool,

@@ -43,11 +43,16 @@ extension EngineService {
         _ input: Operations.project_period_projectSave.Input
     ) async throws -> Operations.project_period_projectSave.Output {
         let payload: Components.Schemas.ProjectSavePayload = switch input.body { case let .json(body): body }
-        if let projectPath = payload.projectPath?.value1 {
-            currentProjectURL = URL(fileURLWithPath: projectPath, isDirectory: true)
+        let projectURL = payload.projectPath.map {
+            URL(fileURLWithPath: $0.value1, isDirectory: true)
+        } ?? currentProjectURL
+        guard let projectURL else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, "projectPath is required before saving."))))
         }
+
+        var document = currentProjectDocument
         if let autoZoom = payload.autoZoom {
-            currentProjectDocument.project.autoZoom = AutoZoomSettings(
+            document.project.autoZoom = AutoZoomSettings(
                 isEnabled: autoZoom.isEnabled,
                 intensity: autoZoom.intensity.value1,
                 minimumKeyframeInterval: autoZoom.minimumKeyframeInterval.value1
@@ -55,27 +60,24 @@ extension EngineService {
         }
         if let backgroundFraming = payload.backgroundFraming {
             do {
-                currentProjectDocument.project.backgroundFraming = try projectBackgroundFraming(
-                    from: backgroundFraming
-                )
+                document.project.backgroundFraming = try projectBackgroundFraming(from: backgroundFraming)
             } catch {
                 return .badRequest(.init(body: .json(badRequest(.invalid_params, error.localizedDescription))))
             }
         }
-        guard let currentProjectURL else {
-            return .badRequest(.init(body: .json(badRequest(.invalid_request, "projectPath is required before saving."))))
-        }
         do {
-            currentProjectDocument = try projectStore.writeProject(
-                document: currentProjectDocument,
+            let savedDocument = try projectStore.writeProject(
+                document: document,
                 assets: .init(
                     recordingURL: captureEngine.recordingURL,
                     eventsURL: currentEventsURL
                 ),
-                to: currentProjectURL
+                to: projectURL
             )
-            try projectLibraryStore.recordRecentProject(url: currentProjectURL)
+            currentProjectURL = projectURL
+            currentProjectDocument = savedDocument
             hasUnsavedProjectChanges = false
+            try projectLibraryStore.recordRecentProject(url: projectURL)
             return .ok(.init(body: .json(projectState())))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
