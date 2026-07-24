@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
-import ts from "typescript";
+import { delimiter, extname, join } from "node:path";
+import { parseSync } from "oxc-parser";
 
-const roots = ["apps", "packages"];
+const roots = process.env.GG_REACT_EFFECT_LINT_ROOTS
+  ? process.env.GG_REACT_EFFECT_LINT_ROOTS.split(delimiter).filter(Boolean)
+  : ["apps", "packages"];
 const ignoredDirectoryNames = new Set([
   ".bun",
   ".git",
@@ -37,10 +39,9 @@ function collectSourceFiles(root) {
       }
 
       if (stats.isDirectory()) {
-        if (ignoredDirectoryNames.has(entry)) {
-          continue;
+        if (!ignoredDirectoryNames.has(entry)) {
+          walk(absolutePath);
         }
-        walk(absolutePath);
         continue;
       }
 
@@ -54,7 +55,37 @@ function collectSourceFiles(root) {
   return files;
 }
 
-function collectReactHookNames(sourceFile) {
+function walkAst(root, visit, shouldDescend = () => true) {
+  const seen = new WeakSet();
+
+  function walk(value) {
+    if (!value || typeof value !== "object") {
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        walk(item);
+      }
+      return;
+    }
+    if (seen.has(value) || typeof value.type !== "string") {
+      return;
+    }
+
+    seen.add(value);
+    visit(value);
+    if (!shouldDescend(value)) {
+      return;
+    }
+    for (const child of Object.values(value)) {
+      walk(child);
+    }
+  }
+
+  walk(root);
+}
+
+function collectReactHookNames(program) {
   const hookNames = {
     effect: new Set(["useEffect"]),
     layoutEffect: new Set(["useLayoutEffect"]),
@@ -62,40 +93,30 @@ function collectReactHookNames(sourceFile) {
     namespaceImports: new Set(),
   };
 
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !statement.importClause) {
+  for (const statement of program.body) {
+    if (statement.type !== "ImportDeclaration" || statement.source.value !== "react") {
       continue;
     }
 
-    const moduleName = statement.moduleSpecifier.getText(sourceFile).slice(1, -1);
-    if (moduleName !== "react") {
-      continue;
-    }
+    for (const specifier of statement.specifiers) {
+      if (specifier.type === "ImportNamespaceSpecifier") {
+        hookNames.namespaceImports.add(specifier.local.name);
+        continue;
+      }
+      if (specifier.type !== "ImportSpecifier") {
+        continue;
+      }
 
-    if (
-      statement.importClause.namedBindings &&
-      ts.isNamespaceImport(statement.importClause.namedBindings)
-    ) {
-      hookNames.namespaceImports.add(statement.importClause.namedBindings.name.text);
-    }
-
-    if (
-      statement.importClause.namedBindings &&
-      ts.isNamedImports(statement.importClause.namedBindings)
-    ) {
-      for (const specifier of statement.importClause.namedBindings.elements) {
-        const importedName = specifier.propertyName?.text ?? specifier.name.text;
-        const localName = specifier.name.text;
-
-        if (importedName === "useState") {
-          hookNames.state.add(localName);
-        }
-        if (importedName === "useEffect") {
-          hookNames.effect.add(localName);
-        }
-        if (importedName === "useLayoutEffect") {
-          hookNames.layoutEffect.add(localName);
-        }
+      const importedName = specifier.imported.name ?? specifier.imported.value;
+      const localName = specifier.local.name;
+      if (importedName === "useState") {
+        hookNames.state.add(localName);
+      }
+      if (importedName === "useEffect") {
+        hookNames.effect.add(localName);
+      }
+      if (importedName === "useLayoutEffect") {
+        hookNames.layoutEffect.add(localName);
       }
     }
   }
@@ -103,141 +124,144 @@ function collectReactHookNames(sourceFile) {
   return hookNames;
 }
 
-function isReactHookCall(expression, hookLocalNames, namespaceImports, hookName) {
-  if (ts.isIdentifier(expression)) {
-    return hookLocalNames.has(expression.text);
+function unwrapParenthesizedExpression(expression) {
+  let current = expression;
+  while (current?.type === "ParenthesizedExpression") {
+    current = current.expression;
   }
-  if (ts.isPropertyAccessExpression(expression)) {
-    if (!ts.isIdentifier(expression.expression)) {
-      return false;
-    }
-    return namespaceImports.has(expression.expression.text) && expression.name.text === hookName;
-  }
-  return false;
+  return current;
 }
 
-function collectStateSetterNames(sourceFile, hookNames) {
+function isReactHookCall(callee, hookLocalNames, namespaceImports, hookName) {
+  if (callee.type === "Identifier") {
+    return hookLocalNames.has(callee.name);
+  }
+  return (
+    callee.type === "MemberExpression" &&
+    !callee.computed &&
+    callee.object.type === "Identifier" &&
+    callee.property.type === "Identifier" &&
+    namespaceImports.has(callee.object.name) &&
+    callee.property.name === hookName
+  );
+}
+
+function collectStateSetterNames(program, hookNames) {
   const setterNames = new Set();
 
-  function visit(node) {
-    if (ts.isVariableDeclaration(node) && ts.isArrayBindingPattern(node.name) && node.initializer) {
-      if (
-        ts.isCallExpression(node.initializer) &&
-        isReactHookCall(
-          node.initializer.expression,
-          hookNames.state,
-          hookNames.namespaceImports,
-          "useState",
-        )
-      ) {
-        const secondElement = node.name.elements[1];
-        if (
-          secondElement &&
-          ts.isBindingElement(secondElement) &&
-          ts.isIdentifier(secondElement.name)
-        ) {
-          setterNames.add(secondElement.name.text);
-        }
-      }
+  walkAst(program, (node) => {
+    if (
+      node.type !== "VariableDeclarator" ||
+      node.id.type !== "ArrayPattern" ||
+      node.init?.type !== "CallExpression" ||
+      !isReactHookCall(node.init.callee, hookNames.state, hookNames.namespaceImports, "useState")
+    ) {
+      return;
     }
 
-    ts.forEachChild(node, visit);
-  }
+    const setter = node.id.elements[1];
+    if (setter?.type === "Identifier") {
+      setterNames.add(setter.name);
+    }
+  });
 
-  visit(sourceFile);
   return setterNames;
 }
 
-function getLineAndColumn(sourceFile, node) {
-  const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-  return `${line + 1}:${character + 1}`;
+function isFunctionLike(node) {
+  return (
+    node.type === "ArrowFunctionExpression" ||
+    node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" ||
+    node.type === "TSDeclareFunction"
+  );
+}
+
+function getLineAndColumn(sourceText, offset) {
+  const before = sourceText.slice(0, offset);
+  const lines = before.split(/\r?\n/);
+  return `${lines.length}:${lines.at(-1).length + 1}`;
 }
 
 function findViolationsInEffectCallback(
-  callbackNode,
+  callbackBody,
   setterNames,
-  sourceFile,
+  sourceText,
   filePath,
   effectName,
 ) {
   const violations = [];
 
-  function visit(node) {
-    if (node !== callbackNode && ts.isFunctionLike(node)) {
-      return;
-    }
-
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      const calledFunctionName = node.expression.text;
-      if (setterNames.has(calledFunctionName)) {
+  walkAst(
+    callbackBody,
+    (node) => {
+      if (
+        node.type === "CallExpression" &&
+        node.callee.type === "Identifier" &&
+        setterNames.has(node.callee.name)
+      ) {
         violations.push(
-          `${filePath}:${getLineAndColumn(sourceFile, node)} - ${effectName} should not call React state setter \`${calledFunctionName}\` directly.`,
+          `${filePath}:${getLineAndColumn(sourceText, node.start)} - ${effectName} should not call React state setter \`${node.callee.name}\` directly.`,
         );
       }
-    }
+    },
+    (node) => node === callbackBody || !isFunctionLike(node),
+  );
 
-    ts.forEachChild(node, visit);
-  }
-
-  visit(callbackNode);
   return violations;
 }
 
 function lintFile(filePath) {
   const sourceText = readFileSync(filePath, "utf8");
-  const scriptKind = filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sourceFile = ts.createSourceFile(
-    filePath,
-    sourceText,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKind,
-  );
+  const { program, errors } = parseSync(filePath, sourceText);
+  if (errors.length > 0) {
+    throw new Error(`Unable to parse ${filePath}: ${errors[0].message}`);
+  }
 
-  const hookNames = collectReactHookNames(sourceFile);
-  const setterNames = collectStateSetterNames(sourceFile, hookNames);
+  const hookNames = collectReactHookNames(program);
+  const setterNames = collectStateSetterNames(program, hookNames);
   if (setterNames.size === 0) {
     return [];
   }
 
   const violations = [];
-
-  function visit(node) {
-    if (ts.isCallExpression(node) && node.arguments.length > 0) {
-      const isUseEffectCall = isReactHookCall(
-        node.expression,
-        hookNames.effect,
-        hookNames.namespaceImports,
-        "useEffect",
-      );
-      const isUseLayoutEffectCall = isReactHookCall(
-        node.expression,
-        hookNames.layoutEffect,
-        hookNames.namespaceImports,
-        "useLayoutEffect",
-      );
-
-      if (isUseEffectCall || isUseLayoutEffectCall) {
-        const callbackNode = node.arguments[0];
-        if (ts.isArrowFunction(callbackNode) || ts.isFunctionExpression(callbackNode)) {
-          const effectName = isUseLayoutEffectCall ? "useLayoutEffect" : "useEffect";
-          violations.push(
-            ...findViolationsInEffectCallback(
-              callbackNode.body,
-              setterNames,
-              sourceFile,
-              filePath,
-              effectName,
-            ),
-          );
-        }
-      }
+  walkAst(program, (node) => {
+    if (node.type !== "CallExpression" || node.arguments.length === 0) {
+      return;
     }
 
-    ts.forEachChild(node, visit);
-  }
+    const isUseEffectCall = isReactHookCall(
+      node.callee,
+      hookNames.effect,
+      hookNames.namespaceImports,
+      "useEffect",
+    );
+    const isUseLayoutEffectCall = isReactHookCall(
+      node.callee,
+      hookNames.layoutEffect,
+      hookNames.namespaceImports,
+      "useLayoutEffect",
+    );
+    if (!isUseEffectCall && !isUseLayoutEffectCall) {
+      return;
+    }
 
-  visit(sourceFile);
+    const callback = unwrapParenthesizedExpression(node.arguments[0]);
+    if (callback.type !== "ArrowFunctionExpression" && callback.type !== "FunctionExpression") {
+      return;
+    }
+
+    violations.push(
+      ...findViolationsInEffectCallback(
+        callback.body,
+        setterNames,
+        sourceText,
+        filePath,
+        isUseLayoutEffectCall ? "useLayoutEffect" : "useEffect",
+      ),
+    );
+  });
+
   return violations;
 }
 
