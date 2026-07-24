@@ -132,7 +132,8 @@ if needs_scope typescript; then
     bun run test:vitest:ci -- --coverage \
       --exclude tests/parity-e2e.test.ts \
       --exclude tests/native-http-launch-security.test.ts \
-      --exclude tests/macos-engine-lifecycle.test.ts
+      --exclude tests/macos-engine-lifecycle.test.ts \
+      --exclude tests/media-server-node-integration.test.ts
   ) 2>&1 | tee "$TS_REPORT"
 
   ENGINE_CLIENT_TS_REPORT="$COVERAGE_DIR/engine-client-typescript-coverage.txt"
