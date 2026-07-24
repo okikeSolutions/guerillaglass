@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { windowIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { formatCaptureTargetLabelFromMetadata } from "@studio/view-model/captureTargetLabelFormatter";
 
 const formatInteger = (value: number): string => String(Math.trunc(value));
@@ -37,7 +38,7 @@ describe("capture target label", () => {
       formatCaptureTargetLabelFromMetadata({
         metadata: {
           source: "window",
-          window: { id: 42, appName: "Xcode", title: "Simulator" },
+          window: { id: windowIdSchema.make(42), appName: "Xcode", title: "Simulator" },
           contentRect: { x: 0, y: 0, width: 1280, height: 720 },
           pixelScale: 2,
         },

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Effect, Fiber, Layer, Schema } from "effect";
+import { captureSessionIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
@@ -16,10 +17,10 @@ import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 
 function makeCaptureStatus(overrides: Partial<CaptureStatusResult> = {}): CaptureStatusResult {
   const isRunning = overrides.isRunning === true;
-  return {
+  return captureStatusResultSchema.make({
     isRunning,
     isRecording: false,
-    ...(isRunning ? { captureSessionId: "capture-session-1" } : {}),
+    ...(isRunning ? { captureSessionId: captureSessionIdSchema.make("capture-session-1") } : {}),
     recordingDurationSeconds: 0,
     telemetry: {
       sourceDroppedFrames: 0,
@@ -31,7 +32,7 @@ function makeCaptureStatus(overrides: Partial<CaptureStatusResult> = {}): Captur
       writerAppendMs: 0,
     },
     ...overrides,
-  };
+  });
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

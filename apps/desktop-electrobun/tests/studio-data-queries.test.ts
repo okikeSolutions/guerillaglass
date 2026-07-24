@@ -1,4 +1,9 @@
 import { describe, expect, test } from "vitest";
+import { captureStatusResultSchema } from "@guerillaglass/engine-contract/domains/capture";
+import {
+  captureSessionIdSchema,
+  recordingUrlSchema,
+} from "@guerillaglass/engine-contract/schema-primitives";
 import {
   captureStatusResultsEqual,
   parseCaptureStatusEvent,
@@ -48,12 +53,12 @@ describe("studio capture status stream events", () => {
   });
 
   test("treats structurally identical capture status payloads as unchanged", () => {
-    const previous = {
+    const previous = captureStatusResultSchema.make({
       isRunning: true,
       isRecording: false,
-      captureSessionId: "capture-session-1",
+      captureSessionId: captureSessionIdSchema.make("capture-session-1"),
       recordingDurationSeconds: 12.5,
-      recordingURL: "/tmp/recording.mov",
+      recordingURL: recordingUrlSchema.make("/tmp/recording.mov"),
       lastRecordingTelemetry: {
         sourceDroppedFrames: 2,
         writerDroppedFrames: 0,
@@ -78,7 +83,7 @@ describe("studio capture status stream events", () => {
         recordQueueLagMs: 0.18,
         writerAppendMs: 1.11,
       },
-    };
+    });
     const next = structuredClone(previous);
 
     expect(captureStatusResultsEqual(previous, next)).toBe(true);

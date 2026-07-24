@@ -3,33 +3,36 @@ import { makeFunctionReference } from "convex/server";
 import { Context, Effect, Layer, Redacted } from "effect";
 import type {
   ReviewComment,
+  ReviewCommentId,
+  ReviewId,
   ReviewSessionSnapshot,
   ReviewSetWorkflowStatusResponse,
   ReviewWorkflowStatus,
 } from "@guerillaglass/review-protocol";
+import type { ReviewAuthToken } from "@guerillaglass/engine-contract/schema-primitives";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { AppConfig } from "../app/AppConfig";
 import { ReviewBridgeError } from "../../shared/errors/desktopErrors";
 
 const reviewSessionSnapshotQuery = makeFunctionReference<
   "query",
-  { reviewId: string },
+  { reviewId: ReviewId },
   ReviewSessionSnapshot
 >("review:sessionSnapshot");
 const reviewCreateCommentMutation = makeFunctionReference<
   "mutation",
   {
-    reviewId: string;
+    reviewId: ReviewId;
     body: string;
     frameNumber?: number;
     timestampSeconds?: number;
-    parentCommentId?: string;
+    parentCommentId?: ReviewCommentId;
   },
   ReviewComment
 >("review:createComment");
 const reviewSetWorkflowStatusMutation = makeFunctionReference<
   "mutation",
-  { reviewId: string; status: ReviewWorkflowStatus },
+  { reviewId: ReviewId; status: ReviewWorkflowStatus },
   ReviewSetWorkflowStatusResponse
 >("review:setWorkflowStatus");
 
@@ -37,20 +40,20 @@ type ReviewClientLike = Pick<ConvexHttpClient, "query" | "mutation">;
 
 type ReviewGatewayService = {
   sessionSnapshot: (params: {
-    authToken: string;
-    reviewId: string;
+    authToken: ReviewAuthToken;
+    reviewId: ReviewId;
   }) => Effect.Effect<ReviewSessionSnapshot, ReviewBridgeError>;
   createComment: (params: {
-    authToken: string;
-    reviewId: string;
+    authToken: ReviewAuthToken;
+    reviewId: ReviewId;
     body: string;
     frameNumber?: number;
     timestampSeconds?: number;
-    parentCommentId?: string;
+    parentCommentId?: ReviewCommentId;
   }) => Effect.Effect<ReviewComment, ReviewBridgeError>;
   setWorkflowStatus: (params: {
-    authToken: string;
-    reviewId: string;
+    authToken: ReviewAuthToken;
+    reviewId: ReviewId;
     status: ReviewWorkflowStatus;
   }) => Effect.Effect<ReviewSetWorkflowStatusResponse, ReviewBridgeError>;
 };

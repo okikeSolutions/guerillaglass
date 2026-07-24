@@ -1,6 +1,16 @@
 import { describe, expect, test } from "vitest";
 import { Effect, Layer, Option, Redacted } from "effect";
 import { HttpClient, HttpClientRequest, Headers } from "effect/unstable/http";
+import {
+  agentJobIdSchema,
+  agentPreflightTokenSchema,
+  displayIdSchema,
+  exportJobIdSchema,
+  exportPresetIdSchema,
+  outputUrlSchema,
+  projectPathSchema,
+  windowIdSchema,
+} from "@guerillaglass/engine-contract/schema-primitives";
 import { SystemService, layerSystemService } from "../src/services/SystemService";
 import {
   EngineClient,
@@ -88,37 +98,56 @@ describe("EngineClient service", () => {
     await Promise.all([
       Effect.runPromise(client.systemPing),
       Effect.runPromise(client.engineCapabilities),
-      Effect.runPromise(client.agentPreflight({ transcript: "ok" })),
-      Effect.runPromise(client.agentRun({ prompt: "cut" })),
-      Effect.runPromise(client.agentStatus("agent-job")),
-      Effect.runPromise(client.agentApply("agent-job", { confirmed: true })),
+      Effect.runPromise(client.agentPreflight({})),
+      Effect.runPromise(
+        client.agentRun({ preflightToken: agentPreflightTokenSchema.make("preflight-token") }),
+      ),
+      Effect.runPromise(client.agentStatus(agentJobIdSchema.make("agent-job"))),
+      Effect.runPromise(
+        client.agentApply(agentJobIdSchema.make("agent-job"), { destructiveIntent: true }),
+      ),
       Effect.runPromise(client.permissionsGet),
       Effect.runPromise(client.permissionsRequestScreenRecording),
       Effect.runPromise(client.permissionsRequestMicrophone),
       Effect.runPromise(client.permissionsRequestInputMonitoring),
       Effect.runPromise(client.permissionsOpenInputMonitoringSettings),
       Effect.runPromise(client.sourcesList),
-      Effect.runPromise(client.captureStartDisplay({ displayId: 1 })),
+      Effect.runPromise(client.captureStartDisplay({ displayId: displayIdSchema.make(1) })),
       Effect.runPromise(client.captureStartCurrentWindow({})),
-      Effect.runPromise(client.captureStartWindow({ windowId: 2 })),
+      Effect.runPromise(client.captureStartWindow({ windowId: windowIdSchema.make(2) })),
       Effect.runPromise(client.captureStop),
       Effect.runPromise(client.captureStatus),
       Effect.runPromise(client.capturePreviewFrame),
       Effect.runPromise(client.recordingStart({ trackInputEvents: true })),
       Effect.runPromise(client.recordingStop),
       Effect.runPromise(client.exportInfo),
-      Effect.runPromise(client.exportRun({ outputURL: "file:///tmp/out.mp4" })),
-      Effect.runPromise(client.exportRunCutPlan({ jobId: "agent-job" })),
-      Effect.runPromise(client.exportGet("export-job")),
+      Effect.runPromise(
+        client.exportRun({
+          outputURL: outputUrlSchema.make("file:///tmp/out.mp4"),
+          presetId: exportPresetIdSchema.make("mp4-1080p"),
+        }),
+      ),
+      Effect.runPromise(
+        client.exportRunCutPlan({
+          outputURL: outputUrlSchema.make("file:///tmp/cut-plan.mp4"),
+          presetId: exportPresetIdSchema.make("mp4-1080p"),
+          jobId: agentJobIdSchema.make("agent-job"),
+        }),
+      ),
+      Effect.runPromise(client.exportGet(exportJobIdSchema.make("export-job"))),
       Effect.runPromise(client.projectCurrent),
-      Effect.runPromise(client.projectOpen({ projectURL: "file:///tmp/project.ggproj" })),
-      Effect.runPromise(client.projectSave({ projectURL: "file:///tmp/project.ggproj" })),
+      Effect.runPromise(
+        client.projectOpen({ projectPath: projectPathSchema.make("/tmp/project.ggproj") }),
+      ),
+      Effect.runPromise(
+        client.projectSave({ projectPath: projectPathSchema.make("/tmp/project.ggproj") }),
+      ),
       Effect.runPromise(client.projectRecents(5)),
     ]);
 
     expect(calls).toContainEqual({
       name: "agent.agentApply",
-      request: { params: { jobId: "agent-job" }, payload: { confirmed: true } },
+      request: { params: { jobId: "agent-job" }, payload: { destructiveIntent: true } },
     });
     expect(calls).toContainEqual({
       name: "export.exportGet",

@@ -1,30 +1,33 @@
 import { act, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { compileTimelineItems } from "../../src/mainview/app/studio/domain/timelineDomainModel";
 import { useVideoPlaybackSync } from "../../src/mainview/app/studio/hooks/useVideoPlaybackSync";
 import { createPlaybackTransportStore } from "../../src/mainview/app/studio/hooks/timeline/usePlaybackTransport";
 
+const segmentId = (value: string) => timelineSegmentIdSchema.make(value);
+
 const timelineItems = compileTimelineItems({
   version: 2,
   items: [
-    { kind: "gap", id: "leading", durationSeconds: 0.5 },
+    { kind: "gap", id: segmentId("leading"), durationSeconds: 0.5 },
     {
       kind: "clip",
-      id: "clip-a",
+      id: segmentId("clip-a"),
       sourceAssetId: "recording",
       sourceStartSeconds: 0,
       sourceEndSeconds: 1,
     },
-    { kind: "gap", id: "middle", durationSeconds: 1 },
+    { kind: "gap", id: segmentId("middle"), durationSeconds: 1 },
     {
       kind: "clip",
-      id: "clip-b",
+      id: segmentId("clip-b"),
       sourceAssetId: "recording",
       sourceStartSeconds: 1,
       sourceEndSeconds: 2,
     },
-    { kind: "gap", id: "trailing", durationSeconds: 0.5 },
+    { kind: "gap", id: segmentId("trailing"), durationSeconds: 0.5 },
   ],
 });
 const timelineDuration = 4;
@@ -170,14 +173,14 @@ describe("timeline preview across gaps", () => {
       items: [
         {
           kind: "clip",
-          id: "source-ending",
+          id: segmentId("source-ending"),
           sourceAssetId: "recording",
           sourceStartSeconds: 1,
           sourceEndSeconds: 2,
         },
         {
           kind: "clip",
-          id: "following",
+          id: segmentId("following"),
           sourceAssetId: "recording",
           sourceStartSeconds: 0,
           sourceEndSeconds: 1,
@@ -203,14 +206,14 @@ describe("timeline preview across gaps", () => {
       items: [
         {
           kind: "clip",
-          id: "second-source-first",
+          id: segmentId("second-source-first"),
           sourceAssetId: "recording",
           sourceStartSeconds: 1,
           sourceEndSeconds: 2,
         },
         {
           kind: "clip",
-          id: "first-source-second",
+          id: segmentId("first-source-second"),
           sourceAssetId: "recording",
           sourceStartSeconds: 0,
           sourceEndSeconds: 1,

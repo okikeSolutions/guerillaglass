@@ -1,13 +1,27 @@
 import { describe, expect, test } from "vitest";
-import type { TimelineDocument } from "@guerillaglass/engine-contract/shared/valueObjects";
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
+import type {
+  TimelineClipItem,
+  TimelineGapItem,
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import { compileTimelineItems } from "@studio/domain/timelineDomainModel";
 import {
   findNextPlayableClipAfterProgramTime,
   resolveTimelinePlaybackAtProgramTime,
 } from "@studio/domain/timelinePlaybackModel";
 
-function compile(timeline: TimelineDocument) {
-  return compileTimelineItems(timeline);
+type TimelineItemInput =
+  | (Omit<TimelineClipItem, "id"> & { id: string })
+  | (Omit<TimelineGapItem, "id"> & { id: string });
+
+function compile(timeline: { version: 2; items: TimelineItemInput[] }) {
+  return compileTimelineItems({
+    ...timeline,
+    items: timeline.items.map((item) => ({
+      ...item,
+      id: timelineSegmentIdSchema.make(item.id),
+    })),
+  });
 }
 
 describe("timeline playback model", () => {

@@ -4,6 +4,7 @@ import type {
   AgentStatusResult,
 } from "@guerillaglass/engine-contract/domains/agent";
 import type { ActionResult } from "@guerillaglass/engine-contract/domains/permissions";
+import type { AgentJobId } from "@guerillaglass/engine-contract/schema-primitives";
 import { Context, Effect, Layer } from "effect";
 import type { EngineClientError } from "../errors";
 import {
@@ -30,12 +31,12 @@ export type AgentServiceShape = {
   /**
    * Polls Agent Mode job status.
    */
-  readonly status: (jobId: string) => Effect.Effect<AgentStatusResult, EngineClientError>;
+  readonly status: (jobId: AgentJobId) => Effect.Effect<AgentStatusResult, EngineClientError>;
   /**
    * Applies Agent Mode job output to the current project.
    */
   readonly apply: (
-    jobId: string,
+    jobId: AgentJobId,
     request: AgentApplyRequest,
   ) => Effect.Effect<ActionResult, EngineClientError>;
 };

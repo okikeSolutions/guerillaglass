@@ -1,6 +1,11 @@
 import { Schema } from "effect";
 import { IsoDateTime, NonEmptyString } from "../shared/helpers";
-import { agentJobIdSchema, projectPathSchema } from "../schema-primitives";
+import {
+  agentJobIdSchema,
+  eventsUrlSchema,
+  projectPathSchema,
+  recordingUrlSchema,
+} from "../schema-primitives";
 import {
   autoZoomSettingsSchema,
   captureMetadataSchema,
@@ -24,8 +29,8 @@ export const projectAgentAnalysisSummarySchema = Schema.Struct({
  */
 export const projectStateSchema = Schema.Struct({
   projectPath: Schema.optionalKey(projectPathSchema),
-  recordingURL: Schema.optionalKey(Schema.String),
-  eventsURL: Schema.optionalKey(Schema.String),
+  recordingURL: Schema.optionalKey(recordingUrlSchema),
+  eventsURL: Schema.optionalKey(eventsUrlSchema),
   lastRecordingTelemetry: Schema.optionalKey(captureTelemetrySchema),
   autoZoom: autoZoomSettingsSchema,
   timeline: timelineDocumentSchema,

@@ -108,7 +108,7 @@ function createBenchmarkEngineClient(enginePath: string) {
     startDisplayCapture: (
       enableMic: boolean,
       captureFps: CaptureFrameRate,
-      displayId?: number,
+      displayId?: DisplaySource["id"],
       enablePreview?: boolean,
     ) =>
       runCaptureStatus(
@@ -117,7 +117,7 @@ function createBenchmarkEngineClient(enginePath: string) {
         ),
       ),
     startWindowCapture: (
-      windowId: number,
+      windowId: WindowSource["id"],
       enableMic: boolean,
       captureFps: CaptureFrameRate,
       enablePreview?: boolean,

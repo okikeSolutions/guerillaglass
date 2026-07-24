@@ -3602,7 +3602,12 @@
             ]
           },
           "recordingURL": {
-            "type": "string"
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
           },
           "captureMetadata": {
             "type": "object",
@@ -3701,7 +3706,12 @@
             "$ref": "#/components/schemas/EngineBadRequestError"
           },
           "eventsURL": {
-            "type": "string"
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
           },
           "lastRecordingTelemetry": {
             "$ref": "#/components/schemas/CaptureTelemetry"
@@ -4207,10 +4217,20 @@
             ]
           },
           "recordingURL": {
-            "type": "string"
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
           },
           "eventsURL": {
-            "type": "string"
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
           },
           "lastRecordingTelemetry": {
             "$ref": "#/components/schemas/CaptureTelemetry"

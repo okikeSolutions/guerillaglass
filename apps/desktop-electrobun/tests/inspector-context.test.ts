@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { exportPresetSchema } from "@guerillaglass/engine-contract/domains/export";
+import { exportPresetIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   emptyInspectorSelection,
   normalizeInspectorSelection,
@@ -71,14 +73,16 @@ describe("inspector context", () => {
   });
 
   test("builds export preset selection from preset data", () => {
-    const selection = selectionFromPreset({
-      id: "preset-id",
-      name: "1080p",
-      width: 1920,
-      height: 1080,
-      fileType: "mp4",
-      fps: 60,
-    });
+    const selection = selectionFromPreset(
+      exportPresetSchema.make({
+        id: exportPresetIdSchema.make("preset-id"),
+        name: "1080p",
+        width: 1920,
+        height: 1080,
+        fileType: "mp4",
+        fps: 60,
+      }),
+    );
     expect(selection).toEqual({
       kind: "exportPreset",
       presetId: "preset-id",

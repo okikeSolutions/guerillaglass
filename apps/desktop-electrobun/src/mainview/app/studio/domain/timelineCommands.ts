@@ -4,6 +4,7 @@ import type {
   TimelineGapItem,
   TimelineItem,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { compileTimelineItems } from "./timelineDomainModel";
 
 type TimelineIdFactory = () => string;
@@ -23,6 +24,10 @@ type MoveTimelineItemsOptions =
       destinationGapId: string;
       destinationOffsetSeconds?: number;
     };
+
+function makeTimelineSegmentId(idFactory: TimelineIdFactory) {
+  return timelineSegmentIdSchema.make(idFactory());
+}
 
 function defaultTimelineIdFactory(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -112,7 +117,7 @@ function selectedIndexRuns(
 function buildGapItem(durationSeconds: number, idFactory: TimelineIdFactory): TimelineGapItem {
   return {
     kind: "gap",
-    id: idFactory(),
+    id: makeTimelineSegmentId(idFactory),
     durationSeconds,
   };
 }
@@ -156,7 +161,7 @@ export function splitTimelineClipAtProgramTime(
   };
   const rightClip: TimelineClipItem = {
     kind: "clip",
-    id: idFactory(),
+    id: makeTimelineSegmentId(idFactory),
     sourceAssetId: target.sourceAssetId,
     sourceStartSeconds: splitSeconds,
     sourceEndSeconds: target.sourceEndSeconds,
@@ -324,7 +329,7 @@ export function moveTimelineItems(
     if (selectedSet.has(item.id)) {
       nextItems.push({
         kind: "gap",
-        id: idFactory(),
+        id: makeTimelineSegmentId(idFactory),
         durationSeconds: timelineItemDurationSeconds(item),
       });
       continue;
@@ -345,7 +350,10 @@ export function moveTimelineItems(
     if (trailingGapSeconds > Number.EPSILON) {
       nextItems.push({
         kind: "gap",
-        id: destinationOffsetSeconds > Number.EPSILON ? idFactory() : destinationGap.id,
+        id:
+          destinationOffsetSeconds > Number.EPSILON
+            ? makeTimelineSegmentId(idFactory)
+            : destinationGap.id,
         durationSeconds: trailingGapSeconds,
       });
     }

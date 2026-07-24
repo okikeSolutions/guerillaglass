@@ -3,6 +3,7 @@ import type {
   ExportRunCutPlanResult,
   ExportRunResult,
 } from "@guerillaglass/engine-contract/domains/export";
+import type { ExportJobId } from "@guerillaglass/engine-contract/schema-primitives";
 import { Context, Effect, Layer } from "effect";
 import type { EngineClientError } from "../errors";
 import { EngineClient, type ExportRunCutPlanRequest, type ExportRunRequest } from "../service";
@@ -28,7 +29,7 @@ export type ExportServiceShape = {
   /**
    * Polls an export job.
    */
-  readonly get: (jobId: string) => Effect.Effect<ExportRunResult, EngineClientError>;
+  readonly get: (jobId: ExportJobId) => Effect.Effect<ExportRunResult, EngineClientError>;
 };
 
 /**

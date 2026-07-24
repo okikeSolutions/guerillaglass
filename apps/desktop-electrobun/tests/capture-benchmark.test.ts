@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { windowIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   benchmarkSceneWindow,
   collectBenchmarkFailures,
@@ -151,7 +152,7 @@ describe("capture benchmark policy", () => {
         displays: [],
         windows: [
           {
-            id: 41,
+            id: windowIdSchema.make(41),
             title: "package.json — guerillaglass",
             appName: "Code",
             width: 2200,
@@ -162,7 +163,7 @@ describe("capture benchmark policy", () => {
             supportedCaptureFrameRates: [24, 30, 60],
           },
           {
-            id: 55,
+            id: windowIdSchema.make(55),
             title: "GG Capture Benchmark",
             appName: "Guerillaglass",
             width: 1440,

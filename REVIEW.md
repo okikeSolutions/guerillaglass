@@ -35,6 +35,7 @@ Use this rubric for human and agent review. Report concrete defects with file/li
 ## Engine contract and native code
 
 - Effect Schema/`HttpApi` changes are the wire-contract source of truth.
+- Domain IDs, tokens, paths, and URL/path handles retain `Schema.brand` types through engine-client and bridge internals; raw primitives are converted at boundaries.
 - OpenAPI and Swift/Rust bindings regenerate without unexplained diffs.
 - `engines/protocol-rust/Cargo.toml` dependency changes originate in `openapi-generator-templates/Cargo.mustache`.
 - Swift and Rust handlers use generated request/response types rather than parallel DTOs.

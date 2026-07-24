@@ -1,15 +1,20 @@
 import { describe, expect, test } from "vitest";
-import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
+import {
+  windowSourceSchema,
+  type SourcesResult,
+} from "@guerillaglass/engine-contract/domains/sources";
+import { windowIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   pickPreferredWindowId,
   resolveSelectedWindowId,
 } from "@studio/domain/preferredWindowSelection";
 
 function makeWindowSource(
-  overrides: Partial<SourcesResult["windows"][number]>,
+  overrides: Omit<Partial<SourcesResult["windows"][number]>, "id"> & { id?: number },
 ): SourcesResult["windows"][number] {
-  return {
-    id: 0,
+  const { id = 0, ...rest } = overrides;
+  return windowSourceSchema.make({
+    id: windowIdSchema.make(id),
     title: "",
     appName: "App",
     width: 1280,
@@ -17,8 +22,8 @@ function makeWindowSource(
     isOnScreen: true,
     refreshHz: 60,
     supportedCaptureFrameRates: [24, 30, 60],
-    ...overrides,
-  };
+    ...rest,
+  });
 }
 
 describe("preferred window selection", () => {

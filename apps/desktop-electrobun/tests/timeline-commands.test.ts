@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import type { TimelineDocument } from "@guerillaglass/engine-contract/shared/valueObjects";
+import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
+import type {
+  TimelineClipItem,
+  TimelineDocument,
+  TimelineGapItem,
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   deleteTimelineItems,
   liftTimelineItems,
@@ -8,10 +13,14 @@ import {
   splitTimelineClipAtProgramTime,
 } from "@studio/domain/timelineCommands";
 
-function makeTimeline(items: TimelineDocument["items"]): TimelineDocument {
+type TimelineItemInput =
+  | (Omit<TimelineClipItem, "id"> & { id: string })
+  | (Omit<TimelineGapItem, "id"> & { id: string });
+
+function makeTimeline(items: TimelineItemInput[]): TimelineDocument {
   return {
     version: 2,
-    items,
+    items: items.map((item) => ({ ...item, id: timelineSegmentIdSchema.make(item.id) })),
   };
 }
 

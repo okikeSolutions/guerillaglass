@@ -9,10 +9,12 @@ import { Schema } from "effect";
 function greaterThanOrEqualTo(minimum: number) {
   return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
 }
-const isoDateTimeSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/));
-const reviewCommentIdSchema = Schema.NonEmptyString;
-const reviewIdSchema = Schema.NonEmptyString;
-const reviewUserIdSchema = Schema.NonEmptyString;
+export const isoDateTimeSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/)).pipe(
+  Schema.brand("IsoDateTime"),
+);
+export const reviewCommentIdSchema = Schema.NonEmptyString.pipe(Schema.brand("ReviewCommentId"));
+export const reviewIdSchema = Schema.NonEmptyString.pipe(Schema.brand("ReviewId"));
+export const reviewUserIdSchema = Schema.NonEmptyString.pipe(Schema.brand("ReviewUserId"));
 
 /** Core review enums and shared entities used across snapshot, mutation, and event payloads. */
 /** Canonical review workflow statuses used in Deliver review. */
@@ -67,7 +69,7 @@ export const reviewCommentSchema = Schema.Struct({
   authorName: Schema.NonEmptyString,
   body: Schema.NonEmptyString,
   frameNumber: Schema.NullOr(Schema.Int.pipe(greaterThanOrEqualTo(0))),
-  timestampSeconds: Schema.NullOr(Schema.Number.pipe(greaterThanOrEqualTo(0))),
+  timestampSeconds: Schema.NullOr(Schema.Finite.pipe(greaterThanOrEqualTo(0))),
   resolved: Schema.Boolean,
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
@@ -97,7 +99,7 @@ export const reviewCreateCommentRequestSchema = Schema.Struct({
   reviewId: reviewIdSchema,
   body: Schema.NonEmptyString,
   frameNumber: Schema.optional(Schema.Int.pipe(greaterThanOrEqualTo(0))),
-  timestampSeconds: Schema.optional(Schema.Number.pipe(greaterThanOrEqualTo(0))),
+  timestampSeconds: Schema.optional(Schema.Finite.pipe(greaterThanOrEqualTo(0))),
   parentCommentId: Schema.optional(reviewCommentIdSchema),
 });
 
@@ -162,6 +164,14 @@ export const reviewBridgeEventSchema = Schema.Union([
 ]);
 
 /** Inferred TypeScript aliases for consumers that only need the review data model. */
+/** Branded hosted review identifier. */
+export type ReviewId = typeof reviewIdSchema.Type;
+/** Branded hosted review comment identifier. */
+export type ReviewCommentId = typeof reviewCommentIdSchema.Type;
+/** Branded hosted review user identifier. */
+export type ReviewUserId = typeof reviewUserIdSchema.Type;
+/** Branded ISO-8601 timestamp. */
+export type IsoDateTime = typeof isoDateTimeSchema.Type;
 /** Type alias for ReviewWorkflowStatus. */
 export type ReviewWorkflowStatus = typeof reviewWorkflowStatusSchema.Type;
 /** Type alias for ReviewRole. */

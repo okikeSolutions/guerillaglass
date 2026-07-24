@@ -579,7 +579,7 @@ export function useStudioMutations({
 
   const saveProjectMutation = useMutation({
     mutationFn: async (saveAs: boolean) => {
-      let projectPath = projectQuery.data?.projectPath ?? undefined;
+      let projectPath: string | undefined = projectQuery.data?.projectPath ?? undefined;
       if (saveAs || !projectPath) {
         const pickedPath = await pickPathSafely({
           mode: "saveProjectAs",
