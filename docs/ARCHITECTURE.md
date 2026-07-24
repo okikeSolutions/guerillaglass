@@ -68,6 +68,8 @@ Production Bun transport:
 - Requires `GG_ENGINE_TRANSPORT=http` and per-process bearer auth.
 - Reads the `guerillaglass.engine.http.ready` readiness envelope from stdout.
 - Connects over authenticated loopback HTTP through `@effect/platform-node/NodeHttpClient` running under Electrobun's Bun executable.
+- Resolves application paths and performs ordinary filesystem and cryptographic operations through Effect `Path`, `FileSystem`, and `Crypto` services supplied by `NodeServices.layer` at composition roots.
+- Keeps descriptor-level symlink protection in `src/bun/security/fileAccess.ts` as an explicit Node platform adapter because Effect `FileSystem.open` does not currently expose `O_NOFOLLOW`; application services must not add other direct `node:path`, `node:fs`, or `node:crypto` imports.
 - Does not perform generic RPC retries.
 - Does not automatically restart native engines.
 - Logs/spans process spawn, readiness, HTTP requests, protocol errors, stderr, and shutdown.

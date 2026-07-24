@@ -32,6 +32,7 @@ for (const guide of requiredGuides) {
 
 checkEffectVersionAlignment();
 checkJavaScriptRuntimePolicy();
+checkEffectPlatformServiceBoundaries();
 checkGeneratedRustDependencyOwnership();
 checkLocalizationParity();
 checkMarkdownLinks();
@@ -52,6 +53,7 @@ console.log(
     : "- Effect runtime packages are aligned (vendor comparison skipped; submodule not initialized)",
 );
 console.log("- Bun is the only package manager and Effect uses the Node platform adapter");
+console.log("- application services use Effect Path, FileSystem, and Crypto boundaries");
 console.log("- generated Rust dependency table matches the generator template");
 console.log("- localization keys and placeholders match across supported locales");
 console.log("- inline local Markdown file links resolve");
@@ -150,6 +152,40 @@ function checkJavaScriptRuntimePolicy(): void {
           `${manifestPath} must use @effect/platform-node instead of @effect/platform-bun`,
         );
       }
+    }
+  }
+}
+
+function checkEffectPlatformServiceBoundaries(): void {
+  const allowedNodePlatformAdapters = new Set([
+    "apps/desktop-electrobun/src/bun/security/fileAccess.ts",
+  ]);
+  const forbiddenImport = /(?:from\s+|import\s*\()(["'])node:(?:path|fs(?:\/promises)?|crypto)\1/g;
+
+  const applicationSourceRoots = ["apps", "packages"].flatMap((workspaceRoot) => {
+    const absoluteWorkspaceRoot = join(root, workspaceRoot);
+    if (!existsSync(absoluteWorkspaceRoot)) {
+      return [];
+    }
+    return readdirSync(absoluteWorkspaceRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(absoluteWorkspaceRoot, entry.name, "src"))
+      .filter(existsSync);
+  });
+
+  for (const absoluteSourceRoot of applicationSourceRoots) {
+    for (const sourcePath of collectSourceFiles(absoluteSourceRoot)) {
+      const repositoryPath = relative(root, sourcePath);
+      if (allowedNodePlatformAdapters.has(repositoryPath)) {
+        continue;
+      }
+      const source = readFileSync(sourcePath, "utf8");
+      if (forbiddenImport.test(source)) {
+        failures.push(
+          `${repositoryPath} must use Effect Path, FileSystem, or Crypto services instead of direct Node platform imports`,
+        );
+      }
+      forbiddenImport.lastIndex = 0;
     }
   }
 }
@@ -279,6 +315,22 @@ function placeholders(message: string): Array<string> {
     .map((match) => match[1] ?? "")
     .filter(Boolean)
     .sort();
+}
+
+function collectSourceFiles(directory: string): Array<string> {
+  const files: Array<string> = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === "paraglide") {
+      continue;
+    }
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectSourceFiles(entryPath));
+    } else if (entry.isFile() && /\.[cm]?[jt]sx?$/.test(entry.name)) {
+      files.push(entryPath);
+    }
+  }
+  return files;
 }
 
 function collectMarkdownFiles(directory: string): Array<string> {

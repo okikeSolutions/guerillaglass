@@ -1,4 +1,4 @@
-import path from "node:path";
+import type { Path } from "effect";
 
 const supportedMediaExtensions = [".mov", ".mp4", ".m4v", ".webm"] as const;
 
@@ -13,16 +13,16 @@ const mediaMimeByExtension: Record<string, string> = {
 };
 
 /** Returns the normalized extension for a media path. */
-export function mediaExtension(filePath: string): string {
+export function mediaExtension(path: Pick<Path.Path, "extname">, filePath: string): string {
   return path.extname(filePath).toLowerCase();
 }
 
 /** Returns whether the path extension is supported media. */
-export function isSupportedMediaPath(filePath: string): boolean {
-  return mediaExtensions.has(mediaExtension(filePath));
+export function isSupportedMediaPath(path: Pick<Path.Path, "extname">, filePath: string): boolean {
+  return mediaExtensions.has(mediaExtension(path, filePath));
 }
 
 /** Returns the response MIME type for a supported media path. */
-export function mediaTypeForPath(filePath: string): string {
-  return mediaMimeByExtension[mediaExtension(filePath)] ?? "application/octet-stream";
+export function mediaTypeForPath(path: Pick<Path.Path, "extname">, filePath: string): string {
+  return mediaMimeByExtension[mediaExtension(path, filePath)] ?? "application/octet-stream";
 }

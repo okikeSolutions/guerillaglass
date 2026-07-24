@@ -144,7 +144,7 @@ export function resolveAllowedMediaFilePath(
   }
 
   const resolvedPath = path.resolve(normalizeLocalFilePathInput(filePath));
-  if (!isSupportedMediaPath(resolvedPath)) {
+  if (!isSupportedMediaPath(path, resolvedPath)) {
     throw new FileAccessPolicyError({
       code: "MEDIA_FILE_TYPE_UNSUPPORTED",
       description: "Only video media files can be read through the desktop bridge.",

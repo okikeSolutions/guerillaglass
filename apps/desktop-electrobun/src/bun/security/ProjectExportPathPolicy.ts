@@ -1,6 +1,4 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Path } from "effect";
 import { FileAccessPolicyError } from "../../shared/errors/desktopErrors";
 import type { FileAccessGrantsService } from "./FileAccessGrants";
 import { FileAccessGrants } from "./FileAccessGrants";
@@ -25,28 +23,55 @@ export class ProjectExportPathPolicy extends Context.Service<
   ProjectExportPathPolicyService
 >()("@guerillaglass/desktop/ProjectExportPathPolicy") {}
 
-function normalizeLocalPath(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    throw new FileAccessPolicyError({
-      code: "FILE_PATH_REQUIRED",
-      description: "A file path is required.",
+function normalizeLocalPath(
+  path: Path.Path,
+  value: string,
+): Effect.Effect<string, FileAccessPolicyError> {
+  return Effect.gen(function* () {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return yield* new FileAccessPolicyError({
+        code: "FILE_PATH_REQUIRED",
+        description: "A file path is required.",
+      });
+    }
+    if (!/^file:\/\//i.test(trimmed)) {
+      return path.resolve(trimmed);
+    }
+    const url = yield* Effect.try({
+      try: () => new URL(trimmed),
+      catch: (cause) =>
+        new FileAccessPolicyError({
+          code: "LOCAL_FILE_URL_UNSUPPORTED",
+          description: "Only local file URLs are supported.",
+          cause,
+        }),
     });
-  }
-  if (!/^file:\/\//i.test(trimmed)) {
-    return path.resolve(trimmed);
-  }
-  const url = new URL(trimmed);
-  if (url.protocol !== "file:" || (url.hostname && url.hostname.toLowerCase() !== "localhost")) {
-    throw new FileAccessPolicyError({
-      code: "LOCAL_FILE_URL_UNSUPPORTED",
-      description: "Only local file URLs are supported.",
-    });
-  }
-  return path.resolve(fileURLToPath(url));
+    if (url.protocol !== "file:" || (url.hostname && url.hostname.toLowerCase() !== "localhost")) {
+      return yield* new FileAccessPolicyError({
+        code: "LOCAL_FILE_URL_UNSUPPORTED",
+        description: "Only local file URLs are supported.",
+      });
+    }
+    const localPath = yield* path.fromFileUrl(url).pipe(
+      Effect.mapError(
+        (cause) =>
+          new FileAccessPolicyError({
+            code: "LOCAL_FILE_URL_UNSUPPORTED",
+            description: "Only local file URLs are supported.",
+            cause,
+          }),
+      ),
+    );
+    return path.resolve(localPath);
+  });
 }
 
-function requireExtension(filePath: string, expected: string | ReadonlySet<string>): string {
+function requireExtension(
+  path: Path.Path,
+  filePath: string,
+  expected: string | ReadonlySet<string>,
+): string {
   const extension = path.extname(filePath).toLowerCase();
   const allowed = typeof expected === "string" ? extension === expected : expected.has(extension);
   if (!allowed) {
@@ -82,19 +107,24 @@ export const layerProjectExportPathPolicy = Layer.effect(
   ProjectExportPathPolicy,
   Effect.gen(function* () {
     const grants = yield* FileAccessGrants;
+    const path = yield* Path.Path;
 
     const validateProjectPath = (kind: "project-open" | "project-save", projectPath: string) =>
-      Effect.sync(() =>
-        requireExtension(normalizeLocalPath(projectPath), projectPackageExtension),
-      ).pipe(Effect.flatMap((normalizedPath) => requireGranted(grants, kind, normalizedPath)));
+      normalizeLocalPath(path, projectPath).pipe(
+        Effect.map((normalizedPath) =>
+          requireExtension(path, normalizedPath, projectPackageExtension),
+        ),
+        Effect.flatMap((normalizedPath) => requireGranted(grants, kind, normalizedPath)),
+      );
 
     return ProjectExportPathPolicy.of({
       validateProjectOpenPath: (projectPath) => validateProjectPath("project-open", projectPath),
       validateProjectSavePath: (projectPath) => validateProjectPath("project-save", projectPath),
       validateExportOutputPath: (outputURL) =>
-        Effect.sync(() =>
-          requireExtension(normalizeLocalPath(outputURL), exportFileExtensions),
-        ).pipe(
+        normalizeLocalPath(path, outputURL).pipe(
+          Effect.map((normalizedPath) =>
+            requireExtension(path, normalizedPath, exportFileExtensions),
+          ),
           Effect.flatMap((normalizedPath) =>
             requireGranted(grants, "export-directory", normalizedPath),
           ),

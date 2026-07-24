@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
-import path from "node:path";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
-import { Context, Crypto, Effect, FileSystem, Layer } from "effect";
+import { Context, Crypto, Effect, FileSystem, Layer, Path } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { AppConfig } from "../app/AppConfig";
@@ -46,6 +45,7 @@ export const layerMediaSourceServiceCore = Layer.effect(
     const server = yield* HttpServer.HttpServer;
     const crypto = yield* Crypto.Crypto;
     const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
     const tempDirectory = yield* DesktopTempDirectory;
     const origin = yield* originFromAddress(server.address);
 

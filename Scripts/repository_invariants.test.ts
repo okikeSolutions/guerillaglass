@@ -90,6 +90,16 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("unsupported package-manager lockfile present");
   });
 
+  test("rejects direct Node path, filesystem, and crypto imports in application services", () => {
+    writeFixture(
+      "apps/desktop-electrobun/src/bun/media/unsafe.ts",
+      'import path from "node:path";\nexport const value = path.resolve(".");\n',
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("must use Effect Path, FileSystem, or Crypto services");
+  });
+
   test("reports vendor drift when the Effect submodule is initialized", () => {
     writeFixture(
       "vendor/effect/packages/effect/package.json",

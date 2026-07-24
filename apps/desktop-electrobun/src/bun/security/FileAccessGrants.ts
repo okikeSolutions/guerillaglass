@@ -1,5 +1,4 @@
-import path from "node:path";
-import { Context, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Layer, Path, Ref } from "effect";
 import type { HostPathPickerMode } from "../../shared/bridge/desktopBridgeContract";
 
 export type FileAccessGrantKind = "project-open" | "project-save" | "export-directory";
@@ -23,18 +22,13 @@ export class FileAccessGrants extends Context.Service<FileAccessGrants, FileAcce
 
 const grantTtlMs = 30 * 60 * 1000;
 
-function normalizeGrantPath(filePath: string): string {
+function normalizeGrantPath(path: Path.Path, filePath: string): string {
   return path.resolve(filePath.trim());
 }
 
-function isPathWithinRoot(targetPath: string, rootPath: string): boolean {
+function isPathWithinRoot(path: Path.Path, targetPath: string, rootPath: string): boolean {
   const relative = path.relative(rootPath, targetPath);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
-
-function grantPathForKind(kind: FileAccessGrantKind, filePath: string): string {
-  const normalizedPath = normalizeGrantPath(filePath);
-  return kind === "export-directory" ? normalizedPath : normalizedPath;
 }
 
 function grantKindForPickerMode(mode: HostPathPickerMode): FileAccessGrantKind {
@@ -49,6 +43,7 @@ function grantKindForPickerMode(mode: HostPathPickerMode): FileAccessGrantKind {
 }
 
 function grantMatchesPath(
+  path: Path.Path,
   grant: FileAccessGrant,
   kind: FileAccessGrantKind,
   filePath: string,
@@ -57,7 +52,7 @@ function grantMatchesPath(
     return false;
   }
   if (kind === "export-directory") {
-    return isPathWithinRoot(filePath, grant.path);
+    return isPathWithinRoot(path, filePath, grant.path);
   }
   return filePath === grant.path;
 }
@@ -65,17 +60,18 @@ function grantMatchesPath(
 export const layerFileAccessGrants = Layer.effect(
   FileAccessGrants,
   Effect.gen(function* () {
+    const path = yield* Path.Path;
     const grantsRef = yield* Ref.make(new Map<string, FileAccessGrant>());
 
     const grantPath = (kind: FileAccessGrantKind, filePath: string) =>
-      Effect.sync(() => normalizeGrantPath(filePath)).pipe(
+      Effect.sync(() => normalizeGrantPath(path, filePath)).pipe(
         Effect.flatMap((normalizedPath) =>
           Ref.update(grantsRef, (grants) => {
             const now = Date.now();
             const next = new Map(
               Array.from(grants.entries()).filter(([, grant]) => grant.expiresAt > now),
             );
-            const grantRoot = grantPathForKind(kind, normalizedPath);
+            const grantRoot = normalizedPath;
             next.set(`${kind}:${grantRoot}`, {
               kind,
               path: grantRoot,
@@ -91,12 +87,12 @@ export const layerFileAccessGrants = Layer.effect(
       grantPickedPath: (mode, filePath) => grantPath(grantKindForPickerMode(mode), filePath),
       grantPath,
       isGrantedPath: (kind, filePath) =>
-        Effect.sync(() => normalizeGrantPath(filePath)).pipe(
+        Effect.sync(() => normalizeGrantPath(path, filePath)).pipe(
           Effect.flatMap((normalizedPath) =>
             Ref.get(grantsRef).pipe(
               Effect.map((grants) =>
                 Array.from(grants.values()).some((grant) =>
-                  grantMatchesPath(grant, kind, normalizedPath),
+                  grantMatchesPath(path, grant, kind, normalizedPath),
                 ),
               ),
             ),
