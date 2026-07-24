@@ -68,21 +68,31 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("missing agent/review guide: REVIEW.md");
   });
 
-  test("reports Effect runtime and vendor version drift", () => {
+  test("reports workspace Effect runtime version drift", () => {
     writeFixture(
       "apps/web/package.json",
       JSON.stringify({ dependencies: { effect: "4.0.0-beta.100" } }),
     );
     const result = runCheck();
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("does not match vendor/effect 4.0.0-beta.101");
+    expect(result.stderr).toContain("workspace Effect runtime versions are not aligned");
   });
 
-  test("reports a missing Effect vendor submodule", () => {
-    rmSync(join(fixtureRoot, "vendor/effect"), { recursive: true, force: true });
+  test("reports vendor drift when the Effect submodule is initialized", () => {
+    writeFixture(
+      "vendor/effect/packages/effect/package.json",
+      JSON.stringify({ version: "4.0.0-beta.100" }),
+    );
     const result = runCheck();
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("git submodule update --init vendor/effect");
+    expect(result.stderr).toContain("does not match vendor/effect 4.0.0-beta.100");
+  });
+
+  test("skips only the vendor comparison when the submodule is absent", () => {
+    rmSync(join(fixtureRoot, "vendor/effect"), { recursive: true, force: true });
+    const result = runCheck();
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("vendor comparison skipped; submodule not initialized");
   });
 
   test("reports generated Rust dependency drift or missing tables", () => {

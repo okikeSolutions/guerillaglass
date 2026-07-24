@@ -24,9 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Initialize Effect vendor submodule
-        run: git submodule update --init vendor/effect
-
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:

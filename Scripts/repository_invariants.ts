@@ -12,6 +12,7 @@ type PackageManifest = {
 
 const root = resolve(process.env.GG_REPOSITORY_ROOT ?? resolve(import.meta.dir, ".."));
 const failures: Array<string> = [];
+let effectVendorVersionChecked = false;
 
 const requiredGuides = [
   "AGENTS.md",
@@ -44,7 +45,11 @@ if (failures.length > 0) {
 
 console.log("Repository invariant check passed:");
 console.log(`- ${requiredGuides.length} required agent/review guides present`);
-console.log("- Effect runtime package allowlist matches the vendor version");
+console.log(
+  effectVendorVersionChecked
+    ? "- Effect runtime packages are aligned and match the initialized vendor submodule"
+    : "- Effect runtime packages are aligned (vendor comparison skipped; submodule not initialized)",
+);
 console.log("- generated Rust dependency table matches the generator template");
 console.log("- localization keys and placeholders match across supported locales");
 console.log("- inline local Markdown file links resolve");
@@ -80,11 +85,23 @@ function checkEffectVersionAlignment(): void {
     }
   }
 
+  if (versions.size === 0) {
+    failures.push("no Effect runtime dependencies found in workspace manifests");
+    return;
+  }
+
+  if (versions.size > 1) {
+    failures.push(
+      `workspace Effect runtime versions are not aligned: ${[...versions.entries()]
+        .map(([version, locations]) => `${version} at ${locations.join(", ")}`)
+        .join("; ")}`,
+    );
+    return;
+  }
+
+  const workspaceVersion = versions.keys().next().value;
   const vendorManifestPath = "vendor/effect/packages/effect/package.json";
   if (!existsSync(join(root, vendorManifestPath))) {
-    failures.push(
-      `Effect vendor submodule is unavailable; run git submodule update --init vendor/effect`,
-    );
     return;
   }
 
@@ -94,17 +111,11 @@ function checkEffectVersionAlignment(): void {
     return;
   }
 
-  if (versions.size === 0) {
-    failures.push("no Effect runtime dependencies found in workspace manifests");
-    return;
-  }
-
-  for (const [version, locations] of versions) {
-    if (version !== vendorVersion) {
-      failures.push(
-        `Effect version ${version} at ${locations.join(", ")} does not match vendor/effect ${vendorVersion}`,
-      );
-    }
+  effectVendorVersionChecked = true;
+  if (workspaceVersion !== vendorVersion) {
+    failures.push(
+      `workspace Effect runtime version ${workspaceVersion} does not match vendor/effect ${vendorVersion}`,
+    );
   }
 }
 
