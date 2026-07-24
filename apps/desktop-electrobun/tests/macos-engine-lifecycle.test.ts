@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Stream } from "effect";
 import * as ChildProcess from "effect/unstable/process/ChildProcess";
 import { describe, expect, test } from "vitest";
@@ -42,7 +42,7 @@ async function runCommand(command: string, args: readonly string[], timeoutMs = 
           Effect.succeed({ exitCode: -1, stderr: "command timed out", stdout: "" }),
         ),
       ),
-    ).pipe(Effect.provide(BunServices.layer)),
+    ).pipe(Effect.provide(NodeServices.layer)),
   );
 }
 

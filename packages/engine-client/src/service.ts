@@ -37,8 +37,8 @@ import {
   recordingStartPayloadSchema,
 } from "@guerillaglass/engine-contract/httpApi";
 import type { AgentJobId, ExportJobId } from "@guerillaglass/engine-contract/schema-primitives";
-import * as BunHttpClient from "@effect/platform-bun/BunHttpClient";
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Context, Effect, Layer } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
@@ -366,7 +366,7 @@ export const layerEngineClientFromConfig = Layer.effect(
 );
 
 /**
- * Bun-backed layer that launches a scoped native engine process and provides `EngineClient`.
+ * Node-platform-backed layer that launches a scoped native engine process under Bun and provides `EngineClient`.
  *
  * @param options - Native engine process launch options.
  * @returns A scoped layer providing {@link EngineClient}.
@@ -377,15 +377,13 @@ export function layerEngineClientBun(
   return Layer.effect(
     EngineClient,
     Effect.gen(function* () {
-      const engineProcess = yield* makeEngineHttpProcess(options).pipe(
-        Effect.provide(BunServices.layer),
-      );
+      const engineProcess = yield* makeEngineHttpProcess(options);
       const rawClient = yield* makeRawEngineHttpApiClient({
         baseUrl: engineProcess.baseUrl,
         bearerToken: engineProcess.bearerToken,
         requestTimeoutMs: 30_000,
-      }).pipe(Effect.provide(BunHttpClient.layer));
+      });
       return EngineClient.of(makeEngineClientService(rawClient));
     }),
-  );
+  ).pipe(Layer.provide(NodeServices.layer), Layer.provide(NodeHttpClient.layerNodeHttp));
 }

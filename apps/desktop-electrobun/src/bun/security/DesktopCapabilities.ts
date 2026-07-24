@@ -1,5 +1,4 @@
-import { randomBytes } from "node:crypto";
-import { Context, Effect, Layer, Redacted } from "effect";
+import { Context, Crypto, Effect, Encoding, Layer, Redacted } from "effect";
 import {
   desktopCapabilityTokenSchema,
   type DesktopCapabilityToken,
@@ -63,18 +62,15 @@ const defaultIdleTtlMsByScope: Record<DesktopCapabilityScope, number> = {
   "capture:resolve-preview-url": 15 * 1000,
 };
 
-function makeOpaqueToken(): DesktopCapabilityToken {
-  return desktopCapabilityTokenSchema.make(randomBytes(32).toString("base64url"));
-}
-
 function tokenError(description: string): CapabilityTokenError {
   return new CapabilityTokenError({ code: "CAPABILITY_TOKEN_INVALID", description });
 }
 
 /** Local opaque capability-token registry for privileged host bridge operations. */
-export function makeCapabilityGrantService(
+export const makeCapabilityGrantService = Effect.fn("CapabilityGrantService.make")(function* (
   options: { maxEntries?: number } = {},
-): CapabilityGrantServiceShape {
+) {
+  const crypto = yield* Crypto.Crypto;
   const maxEntries = Math.max(1, options.maxEntries ?? 1024);
   const records = new Map<string, CapabilityRecord>();
 
@@ -94,32 +90,35 @@ export function makeCapabilityGrantService(
   }
 
   return {
-    mint: (params) =>
-      Effect.try({
-        try: () => {
-          const subject = params.subject.trim();
-          if (subject.length === 0) {
-            throw tokenError("Capability subject is required.");
-          }
-          prune();
-          const token = makeOpaqueToken();
-          const now = Date.now();
-          const ttlMs = Math.max(1, params.ttlMs ?? defaultTtlMsByScope[params.scope]);
-          const idleTtlMs = Math.max(1, params.idleTtlMs ?? defaultIdleTtlMsByScope[params.scope]);
-          records.set(token, {
-            token: Redacted.make(token, { label: "desktop-capability-token" }),
-            scope: params.scope,
-            subject,
-            expiresAt: now + ttlMs,
-            idleExpiresAt: now + idleTtlMs,
-            idleTtlMs,
-            singleUse: params.singleUse ?? false,
-          });
-          return token;
-        },
-        catch: (error) => error as CapabilityTokenError,
+    mint: (params: MintCapabilityParams) =>
+      Effect.gen(function* () {
+        const subject = params.subject.trim();
+        if (subject.length === 0) {
+          return yield* tokenError("Capability subject is required.");
+        }
+        prune();
+        const token = desktopCapabilityTokenSchema.make(
+          Encoding.encodeBase64Url(
+            yield* crypto
+              .randomBytes(32)
+              .pipe(Effect.mapError(() => tokenError("Unable to mint capability token."))),
+          ),
+        );
+        const now = Date.now();
+        const ttlMs = Math.max(1, params.ttlMs ?? defaultTtlMsByScope[params.scope]);
+        const idleTtlMs = Math.max(1, params.idleTtlMs ?? defaultIdleTtlMsByScope[params.scope]);
+        records.set(token, {
+          token: Redacted.make(token, { label: "desktop-capability-token" }),
+          scope: params.scope,
+          subject,
+          expiresAt: now + ttlMs,
+          idleExpiresAt: now + idleTtlMs,
+          idleTtlMs,
+          singleUse: params.singleUse ?? false,
+        });
+        return token;
       }),
-    consume: ({ token, scope, subject }) =>
+    consume: ({ token, scope, subject }: ConsumeCapabilityParams) =>
       Effect.try({
         try: () => {
           prune();
@@ -147,11 +146,11 @@ export function makeCapabilityGrantService(
         },
         catch: (error) => error as CapabilityTokenError,
       }),
-    revoke: (token) => Effect.sync(() => void records.delete(token.trim())),
-  };
-}
+    revoke: (token: DesktopCapabilityToken) => Effect.sync(() => void records.delete(token.trim())),
+  } satisfies CapabilityGrantServiceShape;
+});
 
-export const layerCapabilityGrantService = Layer.succeed(
+export const layerCapabilityGrantService = Layer.effect(
   CapabilityGrantService,
   makeCapabilityGrantService(),
 );

@@ -11,12 +11,13 @@ Use this rubric for human and agent review. Report concrete defects with file/li
 - **Tests:** Tests assert externally meaningful behavior and would fail before the fix.
 - **Documentation:** Active roadmap state and operational guidance match the implementation.
 - **Security:** File paths, bearer tokens, loopback origins, symlinks, and untrusted payloads retain defensive validation.
-- **Dependencies:** Manifest, lockfile, generated templates, and vendor pins remain aligned.
+- **Dependencies:** Manifest, lockfile, generated templates, and vendor pins remain aligned. Bun remains the only JavaScript package manager, and Effect runtime integrations use `@effect/platform-node` rather than `@effect/platform-bun`.
 
 ## Desktop and UI
 
 - Host/renderer bridge handlers remain typed and thin.
-- Long-lived Bun resources are scoped through the existing Effect runtime.
+- Long-lived host resources are scoped through the existing Effect runtime and Node platform layer.
+- Application path, filesystem, and cryptographic operations depend on Effect `Path`, `FileSystem`, and `Crypto` services rather than direct Node core imports.
 - User-visible text comes from `messages/*.json`; both `en-US` and `de-DE` are updated.
 - Controls are keyboard reachable, have visible focus, expose names/state, and respect reduced motion.
 - Shortcuts use the shared registry and honor user overrides/conflict validation.

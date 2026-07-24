@@ -1,4 +1,4 @@
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Config, Duration, Effect, Layer, Logger, Metric, References } from "effect";
 import { DevTools } from "effect/unstable/devtools";
 import { platform, release } from "node:os";
@@ -69,8 +69,8 @@ const loggerLayer = Layer.unwrap(
       ),
     );
 
-    return Logger.layer([consoleLogger, ...fileLoggers]).pipe(Layer.provide(BunServices.layer));
-  }).pipe(Effect.provide(BunServices.layer)),
+    return Logger.layer([consoleLogger, ...fileLoggers]).pipe(Layer.provide(NodeServices.layer));
+  }).pipe(Effect.provide(NodeServices.layer)),
 );
 
 /** Desktop backend logging policy: structured JSON in production, verbose diagnostics in dev. */
@@ -198,5 +198,5 @@ export const layerDesktopProcessDiagnostics = Layer.effectDiscard(
         process.removeListener("exit", onExit);
       }),
     );
-  }).pipe(Effect.provide(BunServices.layer)),
+  }).pipe(Effect.provide(NodeServices.layer)),
 );

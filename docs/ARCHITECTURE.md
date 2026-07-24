@@ -67,7 +67,7 @@ Production Bun transport:
 - Spawns sidecars with Effect process primitives.
 - Requires `GG_ENGINE_TRANSPORT=http` and per-process bearer auth.
 - Reads the `guerillaglass.engine.http.ready` readiness envelope from stdout.
-- Connects over authenticated loopback HTTP through `@effect/platform-bun/BunHttpClient`.
+- Connects over authenticated loopback HTTP through `@effect/platform-node/NodeHttpClient` running under Electrobun's Bun executable.
 - Does not perform generic RPC retries.
 - Does not automatically restart native engines.
 - Logs/spans process spawn, readiness, HTTP requests, protocol errors, stderr, and shutdown.
@@ -85,7 +85,7 @@ Implementation:
 - `MediaRegistry` owns token state in an Effect `Ref<Map<...>>`.
 - `MediaHttpRoutes` owns `/media/*` and `/health` Effect HTTP routes.
 - `MediaSourceService` mints URLs from `HttpServer.address`.
-- `makeLayerMediaSourceService` composes registry + routes + `BunHttpServer.layer`.
+- `makeLayerMediaSourceService` composes registry + routes + `NodeHttpServer.layer`; the Node platform adapter is used for stability while Bun remains the package manager and Electrobun host executable.
 - File responses use `HttpServerResponse.file`/`HttpPlatform` and support `GET`, `HEAD`, byte ranges, and defensive headers.
 - Capture preview URLs serve live JPEG frames with cached fallback frames.
 

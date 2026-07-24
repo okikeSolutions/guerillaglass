@@ -1,7 +1,7 @@
 import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, test } from "vitest";
 import { ConfigProvider, Effect, Exit, Option, Redacted } from "effect";
 import { EngineProcessConfig } from "../src/process/config";
@@ -10,6 +10,12 @@ import {
   makeEngineHttpProcess,
   resolveEnginePath,
 } from "../src/process/launchBun";
+
+function resolveEnginePathExit(enginePath: string) {
+  return Effect.runPromise(
+    Effect.exit(resolveEnginePath(enginePath)).pipe(Effect.provide(NodeServices.layer)),
+  );
+}
 
 describe("engine process config", () => {
   test("loads launch inputs from the active ConfigProvider", async () => {
@@ -36,7 +42,10 @@ describe("engine process config", () => {
     const provider = ConfigProvider.fromEnv({ env: { GG_ENGINE_PATH: enginePath } });
 
     const resolved = await Effect.runPromise(
-      resolveEnginePath().pipe(Effect.provideService(ConfigProvider.ConfigProvider, provider)),
+      resolveEnginePath().pipe(
+        Effect.provideService(ConfigProvider.ConfigProvider, provider),
+        Effect.provide(NodeServices.layer),
+      ),
     );
 
     expect(resolved).toBe(enginePath);
@@ -47,7 +56,9 @@ describe("engine process config", () => {
     const enginePath = join(dir, "engine");
     await writeFile(enginePath, "#!/bin/sh\n");
 
-    await expect(Effect.runPromise(resolveEnginePath(enginePath))).resolves.toBe(enginePath);
+    await expect(
+      Effect.runPromise(resolveEnginePath(enginePath).pipe(Effect.provide(NodeServices.layer))),
+    ).resolves.toBe(enginePath);
   });
 
   test("rejects blank, missing, and directory engine paths", async () => {
@@ -55,13 +66,13 @@ describe("engine process config", () => {
     const engineDirectory = join(dir, "engine-dir");
     await mkdir(engineDirectory);
 
-    const blank = await Effect.runPromise(Effect.exit(resolveEnginePath("   ")));
+    const blank = await resolveEnginePathExit("   ");
     expect(Exit.isFailure(blank)).toBe(true);
 
-    const missing = await Effect.runPromise(Effect.exit(resolveEnginePath(join(dir, "missing"))));
+    const missing = await resolveEnginePathExit(join(dir, "missing"));
     expect(Exit.isFailure(missing)).toBe(true);
 
-    const directory = await Effect.runPromise(Effect.exit(resolveEnginePath(engineDirectory)));
+    const directory = await resolveEnginePathExit(engineDirectory);
     expect(Exit.isFailure(directory)).toBe(true);
   });
 
@@ -76,7 +87,7 @@ describe("engine process config", () => {
 
     const launched = await Effect.runPromise(
       Effect.scoped(makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1000 })).pipe(
-        Effect.provide(BunServices.layer),
+        Effect.provide(NodeServices.layer),
       ),
     );
 
@@ -94,7 +105,7 @@ describe("engine process config", () => {
     await expect(
       Effect.runPromise(
         Effect.scoped(makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1000 })).pipe(
-          Effect.provide(BunServices.layer),
+          Effect.provide(NodeServices.layer),
         ),
       ),
     ).rejects.toMatchObject({
@@ -102,8 +113,10 @@ describe("engine process config", () => {
     });
   });
 
-  test("creates redacted bearer tokens", () => {
-    const token = makeEngineBearerToken();
+  test("creates redacted bearer tokens", async () => {
+    const token = await Effect.runPromise(
+      makeEngineBearerToken.pipe(Effect.provide(NodeServices.layer)),
+    );
     expect(Redacted.value(token)).toMatch(/^[a-f0-9]{64}$/);
     expect(String(token)).not.toContain(Redacted.value(token));
   });

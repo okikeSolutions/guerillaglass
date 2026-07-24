@@ -2,6 +2,7 @@ import {
   captureStatusResultSchema,
   type CaptureStatusResult,
 } from "@guerillaglass/engine-contract/domains/capture";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Exit, Layer, Schema, Cause } from "effect";
 import { AgentService } from "@guerillaglass/engine-client/services/AgentService";
 import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
@@ -176,8 +177,11 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   );
 
   if (options.enableCaptureStatusPolling === false) {
-    return servicesLayer;
+    return servicesLayer.pipe(Layer.provide(NodeServices.layer));
   }
 
-  return makeCaptureStatusPollingLayer(options).pipe(Layer.provideMerge(servicesLayer));
+  return makeCaptureStatusPollingLayer(options).pipe(
+    Layer.provideMerge(servicesLayer),
+    Layer.provide(NodeServices.layer),
+  );
 }
