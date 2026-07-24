@@ -92,12 +92,22 @@ describe("repository invariants", () => {
 
   test("rejects direct Node path, filesystem, and crypto imports in application services", () => {
     writeFixture(
-      "apps/desktop-electrobun/src/bun/media/unsafe.ts",
+      "apps/desktop-electrobun/src/bun/media/unsafe-static.ts",
       'import path from "node:path";\nexport const value = path.resolve(".");\n',
+    );
+    writeFixture(
+      "apps/desktop-electrobun/src/bun/media/unsafe-require.ts",
+      'const fs = require("node:fs");\nexport const value = fs.existsSync(".");\n',
+    );
+    writeFixture(
+      "apps/desktop-electrobun/src/bun/media/unsafe-dynamic.ts",
+      "export const value = import(`node:crypto`);\n",
     );
     const result = runCheck();
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("must use Effect Path, FileSystem, or Crypto services");
+    expect(result.stderr).toContain("unsafe-static.ts must use Effect Path");
+    expect(result.stderr).toContain("unsafe-require.ts must use Effect Path");
+    expect(result.stderr).toContain("unsafe-dynamic.ts must use Effect Path");
   });
 
   test("reports vendor drift when the Effect submodule is initialized", () => {

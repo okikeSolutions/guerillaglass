@@ -160,7 +160,8 @@ function checkEffectPlatformServiceBoundaries(): void {
   const allowedNodePlatformAdapters = new Set([
     "apps/desktop-electrobun/src/bun/security/fileAccess.ts",
   ]);
-  const forbiddenImport = /(?:from\s+|import\s*\()(["'])node:(?:path|fs(?:\/promises)?|crypto)\1/g;
+  const forbiddenImport =
+    /(?:from\s+|import\s*(?:\(\s*)?|require\s*\(\s*)(["'`])node:(?:path|fs(?:\/promises)?|crypto)\1/g;
 
   const applicationSourceRoots = ["apps", "packages"].flatMap((workspaceRoot) => {
     const absoluteWorkspaceRoot = join(root, workspaceRoot);
