@@ -1,5 +1,4 @@
-import path from "node:path";
-import { Effect } from "effect";
+import { Effect, Path } from "effect";
 import { EngineProcessError } from "@guerillaglass/engine-client/errors";
 import { AppConfig, type DesktopAppConfig } from "../app/AppConfig";
 
@@ -18,7 +17,10 @@ function configuredWindowsAuthenticodeTrust(config: DesktopAppConfig): boolean {
   );
 }
 
-function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, EngineProcessError> {
+function validateStaticConfig(
+  path: Path.Path,
+  config: DesktopAppConfig,
+): Effect.Effect<void, EngineProcessError> {
   return Effect.try({
     try: () => {
       const overridePath = config.enginePath?.trim();
@@ -72,8 +74,12 @@ function validateStaticConfig(config: DesktopAppConfig): Effect.Effect<void, Eng
 }
 
 /** Validates development-only native engine executable overrides before the engine layer starts. */
-export const validateEngineExecutablePolicy: Effect.Effect<void, EngineProcessError, AppConfig> =
-  Effect.gen(function* () {
-    const config = yield* AppConfig;
-    yield* validateStaticConfig(config);
-  });
+export const validateEngineExecutablePolicy: Effect.Effect<
+  void,
+  EngineProcessError,
+  AppConfig | Path.Path
+> = Effect.gen(function* () {
+  const config = yield* AppConfig;
+  const path = yield* Path.Path;
+  yield* validateStaticConfig(path, config);
+});

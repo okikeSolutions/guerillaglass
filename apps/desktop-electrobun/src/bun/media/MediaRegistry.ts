@@ -1,5 +1,4 @@
-import path from "node:path";
-import { Context, Crypto, Effect, FileSystem, Layer, Option, Ref } from "effect";
+import { Context, Crypto, Effect, FileSystem, Layer, Option, Path, Ref } from "effect";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -74,6 +73,7 @@ function pruneTokenMap(tokens: Map<string, TokenEntry>, now: number): Map<string
 }
 
 function normalizeMediaPath(
+  path: Path.Path,
   filePath: string,
 ): Effect.Effect<string, MediaServerError, FileSystem.FileSystem> {
   return Effect.gen(function* () {
@@ -93,7 +93,7 @@ function normalizeMediaPath(
     }
 
     const normalizedPath = path.resolve(trimmedPath);
-    if (!isSupportedMediaPath(normalizedPath)) {
+    if (!isSupportedMediaPath(path, normalizedPath)) {
       return yield* new MediaServerError({
         code: "MEDIA_TYPE_UNSUPPORTED",
         description: "Unsupported media file format.",
@@ -124,6 +124,7 @@ function normalizeMediaPath(
 
 export const makeMediaRegistryService = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
+  const path = yield* Path.Path;
   const tokensRef = yield* Ref.make(new Map<string, TokenEntry>());
 
   const insertToken = (entry: TokenEntry) =>
@@ -140,7 +141,7 @@ export const makeMediaRegistryService = Effect.gen(function* () {
 
   return MediaRegistry.of({
     registerMediaFile: (filePath) =>
-      normalizeMediaPath(filePath).pipe(
+      normalizeMediaPath(path, filePath).pipe(
         Effect.flatMap((normalizedPath) => {
           const now = Date.now();
           return insertToken({

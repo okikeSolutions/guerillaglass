@@ -1,6 +1,8 @@
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { ConfigProvider, Effect, Layer } from "effect";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { AppConfig, layerAppConfig } from "../src/bun/app/AppConfig";
@@ -14,6 +16,7 @@ import { buildMainViewNavigationRules } from "../src/bun/security/DesktopNavigat
 
 const pathPolicyLayer = layerProjectExportPathPolicy.pipe(
   Layer.provideMerge(layerFileAccessGrants),
+  Layer.provide(NodeServices.layer),
 );
 
 afterEach(() => {
@@ -128,6 +131,39 @@ describe("project/export path grants", () => {
     );
 
     expect(normalized).toBe(path.resolve(outputPath));
+  });
+
+  test("normalizes local file URLs through the Effect Path service", async () => {
+    const projectPath = path.join(tmpdir(), "local-url.gglassproj");
+    const projectURL = pathToFileURL(projectPath);
+    projectURL.hostname = "localhost";
+
+    const normalized = await Effect.runPromise(
+      Effect.gen(function* () {
+        const grants = yield* FileAccessGrants;
+        const policy = yield* ProjectExportPathPolicy;
+        yield* grants.grantPath("project-open", projectPath);
+        return yield* policy.validateProjectOpenPath(projectURL.href);
+      }).pipe(Effect.provide(pathPolicyLayer)),
+    );
+
+    expect(normalized).toBe(path.resolve(projectPath));
+  });
+
+  test("rejects non-local file URL hosts", async () => {
+    const exit = await Effect.runPromise(
+      Effect.gen(function* () {
+        const policy = yield* ProjectExportPathPolicy;
+        return yield* Effect.exit(
+          policy.validateProjectOpenPath("file://remote.example/project.gglassproj"),
+        );
+      }).pipe(Effect.provide(pathPolicyLayer)),
+    );
+
+    expect(exit._tag).toBe("Failure");
+    if (exit._tag === "Failure") {
+      expect(String(exit.cause)).toContain("Only local file URLs are supported");
+    }
   });
 });
 

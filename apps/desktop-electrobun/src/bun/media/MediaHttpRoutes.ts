@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { Effect, FileSystem, Layer, Option } from "effect";
+import { Effect, FileSystem, Layer, Option, Path } from "effect";
 import {
   HttpPlatform,
   HttpRouter,
@@ -83,11 +83,11 @@ function textResponse(
   });
 }
 
-function mediaHeaders(filePath: string): Record<string, string> {
+function mediaHeaders(path: Path.Path, filePath: string): Record<string, string> {
   return {
     ...mediaSecurityHeaders(),
     "accept-ranges": "bytes",
-    "content-type": mediaTypeForPath(filePath),
+    "content-type": mediaTypeForPath(path, filePath),
   };
 }
 
@@ -187,10 +187,11 @@ function handleFileRequest(
 ): Effect.Effect<
   HttpServerResponse.HttpServerResponse,
   MediaServerError,
-  FileSystem.FileSystem | HttpPlatform.HttpPlatform
+  FileSystem.FileSystem | HttpPlatform.HttpPlatform | Path.Path
 > {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
     const info = yield* fs.stat(entry.filePath).pipe(
       Effect.mapError(
         (cause) =>
@@ -207,7 +208,7 @@ function handleFileRequest(
     }
 
     const size = Number(info.size);
-    const commonHeaders = mediaHeaders(entry.filePath);
+    const commonHeaders = mediaHeaders(path, entry.filePath);
     const rangeHeader = request.headers.range;
 
     if (!rangeHeader) {

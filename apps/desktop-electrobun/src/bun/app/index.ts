@@ -50,7 +50,7 @@ const guardedEngineClientLayer = Layer.unwrap(
       },
     });
   }),
-);
+).pipe(Layer.provide(NodeServices.layer));
 
 const guardedEngineDomainServicesLayer = layerEngineDomainServices.pipe(
   Layer.provideMerge(guardedEngineClientLayer),
