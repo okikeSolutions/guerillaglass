@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { unresolvedReviewThreads } from "./check_pr_review_threads";
+import { collectReviewThreadPages, unresolvedReviewThreads } from "./check_pr_review_threads";
 
 function thread(id: string, isResolved: boolean, isOutdated = false) {
   return {
@@ -29,6 +29,34 @@ describe("pull request review-thread gate", () => {
         thread("outdated", false, true),
       ]).map(({ id }) => id),
     ).toEqual(["active", "outdated"]);
+  });
+
+  test("accumulates unresolved threads from every GraphQL page", () => {
+    const requestedCursors: Array<string | null> = [];
+    const threads = collectReviewThreadPages(120, (cursor) => {
+      requestedCursors.push(cursor);
+      const lastPage = cursor === "page-2";
+      return {
+        data: {
+          repository: {
+            pullRequest: {
+              reviewThreads: {
+                nodes: [lastPage ? thread("second-page-unresolved", false) : thread("first", true)],
+                pageInfo: {
+                  hasNextPage: !lastPage,
+                  endCursor: lastPage ? null : "page-2",
+                },
+              },
+            },
+          },
+        },
+      };
+    });
+
+    expect(requestedCursors).toEqual([null, "page-2"]);
+    expect(unresolvedReviewThreads(threads).map(({ id }) => id)).toEqual([
+      "second-page-unresolved",
+    ]);
   });
 
   test("passes only when every review thread is resolved", () => {

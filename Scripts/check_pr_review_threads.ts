@@ -88,28 +88,15 @@ function parsePullRequestNumber(rawValue: string): number {
   return number;
 }
 
-function fetchReviewThreads(owner: string, name: string, number: number): ReviewThread[] {
+export function collectReviewThreadPages(
+  number: number,
+  fetchPage: (cursor: string | null) => ReviewThreadsPage,
+): ReviewThread[] {
   const threads: ReviewThread[] = [];
   let cursor: string | null = null;
 
   do {
-    const args = [
-      "api",
-      "graphql",
-      "-f",
-      `query=${reviewThreadsQuery}`,
-      "-F",
-      `owner=${owner}`,
-      "-F",
-      `name=${name}`,
-      "-F",
-      `number=${number}`,
-    ];
-    if (cursor) {
-      args.push("-F", `cursor=${cursor}`);
-    }
-
-    const response = JSON.parse(runGh(args)) as ReviewThreadsPage;
+    const response = fetchPage(cursor);
     if (response.errors?.length) {
       throw new Error(
         `GitHub GraphQL error: ${response.errors.map((error) => error.message ?? "unknown error").join("; ")}`,
@@ -128,6 +115,27 @@ function fetchReviewThreads(owner: string, name: string, number: number): Review
   } while (cursor);
 
   return threads;
+}
+
+function fetchReviewThreads(owner: string, name: string, number: number): ReviewThread[] {
+  return collectReviewThreadPages(number, (cursor) => {
+    const args = [
+      "api",
+      "graphql",
+      "-f",
+      `query=${reviewThreadsQuery}`,
+      "-F",
+      `owner=${owner}`,
+      "-F",
+      `name=${name}`,
+      "-F",
+      `number=${number}`,
+    ];
+    if (cursor) {
+      args.push("-F", `cursor=${cursor}`);
+    }
+    return JSON.parse(runGh(args)) as ReviewThreadsPage;
+  });
 }
 
 function summarizeComment(thread: ReviewThread): string {
