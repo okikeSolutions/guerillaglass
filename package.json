@@ -7,15 +7,18 @@
     "packages/*"
   ],
   "scripts": {
+    "bootstrap": "bash ./Scripts/bootstrap.sh",
     "gate": "bash ./Scripts/full_gate.sh",
     "gate:rust": "bash ./Scripts/rust_gate.sh",
     "gate:typescript": "bash ./Scripts/typescript_gate.sh",
-    "js:format": "bunx oxfmt --write apps packages '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
-    "js:format:check": "bunx oxfmt --check apps packages '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
+    "repo:check": "bun ./Scripts/repository_invariants.ts",
+    "repo:test": "bun test Scripts/repository_invariants.test.ts",
+    "js:format": "bunx oxfmt --write apps packages Scripts '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
+    "js:format:check": "bunx oxfmt --check apps packages Scripts '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
     "js:lint": "bun run i18n:compile && bun run js:lint:ci",
     "js:lint:ci": "bunx oxlint --type-aware --type-check --deny-warnings apps packages Scripts",
     "js:lint:react-effects": "bun ./Scripts/lint_no_state_updates_in_effect.mjs",
-    "i18n:compile": "bun run i18n:compile:desktop && bun run i18n:compile:web",
+    "i18n:compile": "bun ./Scripts/compile_i18n.ts",
     "i18n:compile:desktop": "paraglide-js compile --project ./project.inlang --outdir ./apps/desktop-electrobun/src/paraglide --strategy localStorage baseLocale --emit-ts-declarations --no-emit-git-ignore",
     "i18n:compile:web": "paraglide-js compile --project ./project.inlang --outdir ./apps/web/src/paraglide --strategy localStorage baseLocale --emit-ts-declarations --no-emit-git-ignore",
     "desktop:dev": "cd apps/desktop-electrobun && bun run dev",
@@ -32,6 +35,7 @@
     "web:build": "cd apps/web && bun run build",
     "web:typecheck": "cd apps/web && bun run typecheck",
     "protocol:generate-bindings": "bash Scripts/generate_engine_protocol_v2.sh",
+    "protocol:check-determinism": "bun ./Scripts/check_protocol_determinism.ts",
     "protocol:typecheck": "(cd packages/engine-contract && bun run check:contract:full) && (cd packages/engine-client && bun run typecheck) && (cd packages/review-protocol && bun run typecheck)",
     "protocol:rust:test": "cargo test --manifest-path engines/protocol-rust/Cargo.toml",
     "swift:build": "swift build",
@@ -47,6 +51,12 @@
     "coverage:check": "bash ./Scripts/coverage_check.sh",
     "prepare": "effect-language-service patch"
   },
+  "dependencies": {
+    "@better-auth/expo": "~1.6.15",
+    "@convex-dev/better-auth": "^0.12.5",
+    "better-auth": "~1.6.15",
+    "convex": "^1.42.3"
+  },
   "devDependencies": {
     "@effect/language-service": "^0.87.1",
     "@inlang/paraglide-js": "^2.22.0",
@@ -60,11 +70,5 @@
     "oxlint-tsgolint": "^7.0.2001",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0"
-  },
-  "dependencies": {
-    "@better-auth/expo": "~1.6.15",
-    "@convex-dev/better-auth": "^0.12.5",
-    "better-auth": "~1.6.15",
-    "convex": "^1.42.3"
   }
 }

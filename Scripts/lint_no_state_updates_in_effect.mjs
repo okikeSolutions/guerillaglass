@@ -111,9 +111,7 @@ function isReactHookCall(expression, hookLocalNames, namespaceImports, hookName)
     if (!ts.isIdentifier(expression.expression)) {
       return false;
     }
-    return (
-      namespaceImports.has(expression.expression.text) && expression.name.text === hookName
-    );
+    return namespaceImports.has(expression.expression.text) && expression.name.text === hookName;
   }
   return false;
 }
@@ -133,7 +131,11 @@ function collectStateSetterNames(sourceFile, hookNames) {
         )
       ) {
         const secondElement = node.name.elements[1];
-        if (secondElement && ts.isBindingElement(secondElement) && ts.isIdentifier(secondElement.name)) {
+        if (
+          secondElement &&
+          ts.isBindingElement(secondElement) &&
+          ts.isIdentifier(secondElement.name)
+        ) {
           setterNames.add(secondElement.name.text);
         }
       }
@@ -151,7 +153,13 @@ function getLineAndColumn(sourceFile, node) {
   return `${line + 1}:${character + 1}`;
 }
 
-function findViolationsInEffectCallback(callbackNode, setterNames, sourceFile, filePath, effectName) {
+function findViolationsInEffectCallback(
+  callbackNode,
+  setterNames,
+  sourceFile,
+  filePath,
+  effectName,
+) {
   const violations = [];
 
   function visit(node) {
@@ -178,7 +186,13 @@ function findViolationsInEffectCallback(callbackNode, setterNames, sourceFile, f
 function lintFile(filePath) {
   const sourceText = readFileSync(filePath, "utf8");
   const scriptKind = filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-  const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true, scriptKind);
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKind,
+  );
 
   const hookNames = collectReactHookNames(sourceFile);
   const setterNames = collectStateSetterNames(sourceFile, hookNames);

@@ -136,11 +136,8 @@ jobs:
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile
 
-      - name: Generate protocol bindings
-        run: bun run protocol:generate-bindings
-
-      - name: Format generated Rust bindings
-        run: cargo fmt --all
+      - name: Generate protocol bindings and verify deterministic inventory
+        run: bun run protocol:check-determinism
 
       - name: Assert generated files are current
         run: git diff --exit-code
