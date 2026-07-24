@@ -12,21 +12,22 @@ process_start_identity() {
 
 while ! mkdir "$lock_dir" 2>/dev/null; do
   if [[ ! -f "$lock_dir/owner" ]]; then
-    # The owner writes this immediately after mkdir. Give it one second, then recover a lock
-    # left by a process that exited between those operations.
+    # The owner writes this immediately after mkdir. Give it one second to publish ownership.
     sleep 1
     lock_waited_seconds=$((lock_waited_seconds + 1))
     if [[ ! -f "$lock_dir/owner" ]]; then
-      rm -rf "$lock_dir"
-      continue
+      echo "Stale TypeScript gate lock has no owner metadata: $lock_dir" >&2
+      echo "After confirming no gate is running, remove it with: rm -rf '$lock_dir'" >&2
+      exit 1
     fi
   fi
 
   IFS='|' read -r lock_pid lock_process_start < "$lock_dir/owner" || true
   current_process_start="$(process_start_identity "${lock_pid:-0}")"
   if [[ -z "$current_process_start" || "$current_process_start" != "$lock_process_start" ]]; then
-    rm -rf "$lock_dir"
-    continue
+    echo "Stale TypeScript gate lock is owned by an exited or recycled process: $lock_dir" >&2
+    echo "After confirming no gate is running, remove it with: rm -rf '$lock_dir'" >&2
+    exit 1
   fi
 
   if ((lock_waited_seconds >= lock_timeout_seconds)); then
