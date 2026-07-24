@@ -120,5 +120,6 @@ Before declaring work complete:
 - Confirm preview/export/persistence parity for editor-model changes.
 - Confirm new UI is localized, keyboard accessible, and covered by reduced-motion/focus conventions.
 - Check `git diff --check` and review the final diff for accidental generated or vendor changes.
+- Before merging a PR, run `bun run pr:check-review-threads -- <PR number>` and require zero unresolved review threads. A passing Greptile check or 5/5 summary does not replace addressing, replying to, and resolving every concrete comment, including outdated threads.
 - Reconcile the roadmap and documentation.
 - Report validation commands and any platform checks that remain for CI.

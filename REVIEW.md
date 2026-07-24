@@ -69,3 +69,5 @@ Use this rubric for human and agent review. Report concrete defects with file/li
 ## Required evidence
 
 The author should list commands actually run and identify checks deferred to CI or another platform. For UI changes, code-level tests alone are insufficient: include browser-test evidence and screenshots, plus a real packaged-app runtime report and affected-workflow exercise on macOS. When Screen Recording permission is available, require a real Electrobun-window screenshot as well. For generated changes, include the generation command and a clean determinism check.
+
+Before merge, every actionable review comment must be addressed with a code/docs change or an evidence-backed reply, and every review thread must be explicitly resolved. This includes outdated threads: outdated is not equivalent to addressed. Run `bun run pr:check-review-threads -- <PR number>` and require zero unresolved threads. Greptile confidence and summary status are additional signals, not substitutes for this gate.
