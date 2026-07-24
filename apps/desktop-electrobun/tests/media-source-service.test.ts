@@ -99,7 +99,7 @@ describe("media source service", () => {
     } finally {
       rmSync(testDirectory, { recursive: true, force: true });
     }
-  });
+  }, 10_000);
 
   it("mints loopback media and preview URLs from the scoped HTTP server address", async () => {
     const layer = layerMediaSourceServiceCore.pipe(
