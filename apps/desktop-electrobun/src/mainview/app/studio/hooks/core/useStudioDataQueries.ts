@@ -11,7 +11,7 @@ import type {
   ProjectState,
 } from "@guerillaglass/engine-contract/domains/project";
 import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
-import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
+import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
 import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
 import { validateEncodedUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
@@ -24,6 +24,7 @@ const emptySourceWindows: SourcesResult["windows"] = [];
 
 export const studioQueryKeys = {
   ping: () => ["studio", "ping"] as const,
+  capabilities: () => ["studio", "capabilities"] as const,
   permissions: () => ["studio", "permissions"] as const,
   sources: () => ["studio", "sources"] as const,
   captureStatus: () => ["studio", "captureStatus"] as const,
@@ -104,6 +105,13 @@ export function useStudioDataQueries({
     staleTime: 30_000,
   });
 
+  const capabilitiesQuery = useQuery<CapabilitiesResult>({
+    queryKey: studioQueryKeys.capabilities(),
+    queryFn: () => engineApi.capabilities(),
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
+
   const permissionsQuery = useQuery<PermissionsResult>({
     queryKey: studioQueryKeys.permissions(),
     queryFn: () => engineApi.getPermissions(),
@@ -177,6 +185,7 @@ export function useStudioDataQueries({
   const windowChoices = sourcesQuery.data?.windows ?? emptySourceWindows;
 
   return {
+    capabilitiesQuery,
     captureStatusQuery,
     eventsQuery,
     eventsURL,

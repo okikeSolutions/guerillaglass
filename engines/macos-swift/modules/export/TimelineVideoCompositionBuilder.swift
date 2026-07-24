@@ -1,23 +1,35 @@
 import Automation
 import AVFoundation
 import CoreGraphics
+import Project
+import Rendering
 
 public enum TimelineVideoCompositionBuilder {
     public static func makeComposition(
         timelineComposition: ExportTimelineComposition,
         renderSize: CGSize,
         frameRate: Double,
-        plan: CameraPlan? = nil
+        plan: CameraPlan? = nil,
+        backgroundFraming: BackgroundFramingSettings = .defaults
     ) -> AVVideoComposition? {
         guard renderSize.width > 0, renderSize.height > 0 else { return nil }
         guard let videoTrack = timelineComposition.videoTrack else { return nil }
         guard let sourceNaturalSize = timelineComposition.sourceNaturalSize else { return nil }
 
         let sourcePreferredTransform = timelineComposition.sourcePreferredTransform ?? .identity
-        let baseTransform = makeBaseTransform(
-            preferredTransform: sourcePreferredTransform,
+        let sourceBounds = VideoGeometryTransforms.orientedBounds(
             naturalSize: sourceNaturalSize,
-            renderSize: renderSize
+            preferredTransform: sourcePreferredTransform
+        )
+        guard let geometry = BackgroundFramingGeometry(
+            renderSize: renderSize,
+            orientedSourceSize: sourceBounds.size,
+            settings: backgroundFraming
+        ) else { return nil }
+        let baseTransform = VideoGeometryTransforms.sourceToCardTransform(
+            naturalSize: sourceNaturalSize,
+            preferredTransform: sourcePreferredTransform,
+            cardRect: geometry.cardRect
         )
         let sortedKeyframes = plan?.keyframes.sorted(by: { $0.time < $1.time }) ?? []
 
@@ -26,7 +38,10 @@ public enum TimelineVideoCompositionBuilder {
             guard range.duration > .zero else { return nil }
             let instruction = AVMutableVideoCompositionInstruction()
             instruction.timeRange = range
-            instruction.backgroundColor = CGColor(gray: 0, alpha: 1)
+            instruction.enablePostProcessing = backgroundFraming.enabled
+            instruction.backgroundColor = BackgroundFramingColor(
+                hex: backgroundFraming.enabled ? backgroundFraming.backgroundColor : "#000000"
+            )?.cgColor
             switch item {
             case let .clip(_, sourceRange, programRange):
                 let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
@@ -50,7 +65,25 @@ public enum TimelineVideoCompositionBuilder {
         composition.renderSize = renderSize
         let timescale = max(1, Int32(frameRate.rounded()))
         composition.frameDuration = CMTime(value: 1, timescale: timescale)
+        if backgroundFraming.enabled {
+            composition.colorPrimaries = AVVideoColorPrimaries_ITU_R_709_2
+            composition.colorTransferFunction = AVVideoTransferFunction_ITU_R_709_2
+            composition.colorYCbCrMatrix = AVVideoYCbCrMatrix_ITU_R_709_2
+        }
         composition.instructions = instructions
+        let visibilitySegments = timelineComposition.items.map { item in
+            BackgroundFramingVisibilitySegment(
+                startSeconds: item.programRange.start.seconds,
+                durationSeconds: item.programRange.duration.seconds,
+                isVisible: item.isClip
+            )
+        }
+        BackgroundFramingVideoComposition.apply(
+            to: composition,
+            geometry: geometry,
+            settings: backgroundFraming,
+            visibilitySegments: visibilitySegments
+        )
         return composition
     }
 }
@@ -193,48 +226,9 @@ private func timelineClipTransform(
     keyframe: CameraKeyframe,
     sourceSize: CGSize
 ) -> CGAffineTransform {
-    cameraTransform(for: keyframe, sourceSize: sourceSize).concatenating(baseTransform)
-}
-
-private func cameraTransform(for keyframe: CameraKeyframe, sourceSize: CGSize) -> CGAffineTransform {
-    let zoom = max(1, keyframe.zoom)
-    let sourceCenter = CGPoint(x: sourceSize.width / 2, y: sourceSize.height / 2)
-    var transform = CGAffineTransform(translationX: sourceCenter.x, y: sourceCenter.y)
-    transform = transform.scaledBy(x: zoom, y: zoom)
-    transform = transform.translatedBy(x: -keyframe.center.x, y: -keyframe.center.y)
-    return transform
-}
-
-private func makeBaseTransform(
-    preferredTransform: CGAffineTransform,
-    naturalSize: CGSize,
-    renderSize: CGSize
-) -> CGAffineTransform {
-    let orientedBounds = transformedBounds(size: naturalSize, transform: preferredTransform)
-    guard orientedBounds.width > 0, orientedBounds.height > 0 else { return preferredTransform }
-
-    let scale = min(renderSize.width / orientedBounds.width, renderSize.height / orientedBounds.height)
-    let scaledSize = CGSize(width: orientedBounds.width * scale, height: orientedBounds.height * scale)
-    let translateX = (renderSize.width - scaledSize.width) / 2
-    let translateY = (renderSize.height - scaledSize.height) / 2
-
-    var transform = preferredTransform
-    transform = transform.translatedBy(x: -orientedBounds.minX, y: -orientedBounds.minY)
-    transform = transform.scaledBy(x: scale, y: scale)
-    transform = transform.translatedBy(x: translateX, y: translateY)
-    return transform
-}
-
-private func transformedBounds(size: CGSize, transform: CGAffineTransform) -> CGRect {
-    let points = [
-        CGPoint(x: 0, y: 0),
-        CGPoint(x: size.width, y: 0),
-        CGPoint(x: 0, y: size.height),
-        CGPoint(x: size.width, y: size.height)
-    ].map { $0.applying(transform) }
-    let minX = points.map(\.x).min() ?? 0
-    let maxX = points.map(\.x).max() ?? 0
-    let minY = points.map(\.y).min() ?? 0
-    let maxY = points.map(\.y).max() ?? 0
-    return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    VideoGeometryTransforms.sourceTransform(
+        baseTransform: baseTransform,
+        keyframe: keyframe,
+        sourceSize: sourceSize
+    )
 }

@@ -2,18 +2,11 @@ import Automation
 import AVFoundation
 import Darwin
 import Foundation
+import Project
 import Rendering
 
 /// Public class exposed by the macOS engine module.
 public final class ExportPipeline {
-    private final class ExportSessionBox: @unchecked Sendable {
-        let session: AVAssetExportSession
-
-        init(_ session: AVAssetExportSession) {
-            self.session = session
-        }
-    }
-
     private let renderer = ExportRenderer()
 
     public enum ExportError: LocalizedError {
@@ -44,7 +37,8 @@ public final class ExportPipeline {
         trimRange: CMTimeRange?,
         outputURL: URL,
         cameraPlan: CameraPlan? = nil,
-        timeline: ExportTimelineDocument? = nil
+        timeline: ExportTimelineDocument? = nil,
+        backgroundFraming: BackgroundFramingSettings = .defaults
     ) async throws -> URL {
         let asset = AVAsset(url: recordingURL)
         return try await export(
@@ -53,7 +47,8 @@ public final class ExportPipeline {
             trimRange: trimRange,
             outputURL: outputURL,
             cameraPlan: cameraPlan,
-            timeline: timeline
+            timeline: timeline,
+            backgroundFraming: backgroundFraming
         )
     }
 
@@ -63,7 +58,8 @@ public final class ExportPipeline {
         trimRange: CMTimeRange?,
         outputURL: URL,
         cameraPlan: CameraPlan? = nil,
-        timeline: ExportTimelineDocument? = nil
+        timeline: ExportTimelineDocument? = nil,
+        backgroundFraming: BackgroundFramingSettings = .defaults
     ) async throws -> URL {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         guard videoTracks.first != nil else {
@@ -88,8 +84,6 @@ public final class ExportPipeline {
         ) else {
             throw ExportError.cannotCreateSession
         }
-        let sessionBox = ExportSessionBox(session)
-
         let replacementDirectoryURL = try makeExportReplacementDirectory(appropriateFor: outputURL)
         defer { try? FileManager.default.removeItem(at: replacementDirectoryURL) }
         let temporaryOutputURL = replacementDirectoryURL
@@ -98,8 +92,6 @@ public final class ExportPipeline {
 
         try rejectSymlinkComponents(in: outputURL)
 
-        session.outputURL = temporaryOutputURL
-        session.outputFileType = preset.fileType
         if let trimRange {
             session.timeRange = trimRange
         }
@@ -110,30 +102,28 @@ public final class ExportPipeline {
                 timelineComposition: timelineComposition,
                 renderSize: renderSize,
                 frameRate: Double(preset.fps),
-                plan: cameraPlan
+                plan: cameraPlan,
+                backgroundFraming: backgroundFraming
             )
         } else if let composition = try await renderer.makeVideoComposition(
             asset: asset,
             renderSize: renderSize,
             frameRate: Double(preset.fps),
-            plan: cameraPlan
+            plan: cameraPlan,
+            backgroundFraming: backgroundFraming
         ) {
             session.videoComposition = composition
         }
 
-        try await withCheckedThrowingContinuation { continuation in
-            sessionBox.session.exportAsynchronously {
-                switch sessionBox.session.status {
-                case .completed:
-                    continuation.resume()
-                case .failed, .cancelled:
-                    continuation.resume(throwing: ExportError.failed(sessionBox.session.error))
-                default:
-                    continuation.resume(throwing: ExportError.failed(sessionBox.session.error))
-                }
-            }
+        do {
+            try await session.export(to: temporaryOutputURL, as: preset.fileType)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ExportError.failed(error)
         }
 
+        try Task.checkCancellation()
         try installExportFileNoSymlink(from: temporaryOutputURL, to: outputURL)
         try rejectSymlinkComponents(in: outputURL)
         return outputURL
@@ -150,13 +140,20 @@ private func makeExportReplacementDirectory(appropriateFor outputURL: URL) throw
 }
 
 private func installExportFileNoSymlink(from sourceURL: URL, to destinationURL: URL) throws {
-    try rejectSymlinkComponents(in: destinationURL)
-    try removeExistingRegularFileNoSymlink(at: destinationURL)
-    try rejectSymlinkComponents(in: destinationURL.deletingLastPathComponent())
-    try copyRegularFileNoFollow(from: sourceURL, to: destinationURL)
+    let parentURL = destinationURL.deletingLastPathComponent()
+    try rejectSymlinkComponents(in: parentURL)
+    try validateReplaceableDestinationNoSymlink(at: destinationURL)
+
+    let installCandidateURL = parentURL.appendingPathComponent(".gg-export-install-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: installCandidateURL) }
+    try copyRegularFileNoFollow(from: sourceURL, to: installCandidateURL)
+    try Task.checkCancellation()
+    try rejectSymlinkComponents(in: parentURL)
+    try validateReplaceableDestinationNoSymlink(at: destinationURL)
+    try atomicRename(from: installCandidateURL, to: destinationURL)
 }
 
-private func removeExistingRegularFileNoSymlink(at destinationURL: URL) throws {
+private func validateReplaceableDestinationNoSymlink(at destinationURL: URL) throws {
     var metadata = stat()
     let status = destinationURL.withUnsafeFileSystemRepresentation { fileSystemPath in
         guard let fileSystemPath else {
@@ -178,8 +175,18 @@ private func removeExistingRegularFileNoSymlink(at destinationURL: URL) throws {
             NSError(domain: "GuerillaglassExport", code: Int(EFTYPE), userInfo: [NSLocalizedDescriptionKey: "Export destination already exists and is not a regular file"])
         )
     }
+}
 
-    try FileManager.default.removeItem(at: destinationURL)
+private func atomicRename(from sourceURL: URL, to destinationURL: URL) throws {
+    let status = sourceURL.withUnsafeFileSystemRepresentation { sourcePath in
+        destinationURL.withUnsafeFileSystemRepresentation { destinationPath in
+            guard let sourcePath, let destinationPath else { return Int32(-1) }
+            return Darwin.rename(sourcePath, destinationPath)
+        }
+    }
+    guard status == 0 else {
+        throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+    }
 }
 
 private func copyRegularFileNoFollow(from sourceURL: URL, to destinationURL: URL) throws {
@@ -198,6 +205,7 @@ private func copyRegularFileNoFollow(from sourceURL: URL, to destinationURL: URL
 
     var buffer = [UInt8](repeating: 0, count: 1024 * 1024)
     while true {
+        try Task.checkCancellation()
         let bytesRead = buffer.withUnsafeMutableBytes { rawBuffer in
             Darwin.read(sourceFd, rawBuffer.baseAddress, rawBuffer.count)
         }
@@ -213,6 +221,7 @@ private func copyRegularFileNoFollow(from sourceURL: URL, to destinationURL: URL
 
         var written = 0
         while written < bytesRead {
+            try Task.checkCancellation()
             let bytesWritten = buffer.withUnsafeBytes { rawBuffer in
                 Darwin.write(
                     destinationFd,

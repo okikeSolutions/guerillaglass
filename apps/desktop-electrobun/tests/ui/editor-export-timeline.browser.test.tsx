@@ -12,6 +12,7 @@ import {
   useStudioController,
   type StudioController,
 } from "../../src/mainview/app/studio/hooks/core/useStudioController";
+import { studioQueryKeys } from "../../src/mainview/app/studio/hooks/core/useStudioDataQueries";
 
 const initialTimeline: TimelineDocument = {
   version: 2,
@@ -39,6 +40,15 @@ function installMockBridge() {
     engineVersion: "0.1.0",
     protocolVersion: "1.0.0",
     platform: "darwin",
+  });
+  bridgeWindow.ggEngineCapabilities = async () => ({
+    protocolVersion: "1.0.0",
+    phase: "native",
+    platform: "macos",
+    capture: { display: true, window: true, systemAudio: true, microphone: true },
+    recording: { inputTracking: true },
+    export: { presets: true, cutPlan: true, backgroundFraming: true },
+    project: { openSave: true },
   });
   bridgeWindow.ggEngineGetPermissions = async () => ({
     screenRecordingGranted: true,
@@ -222,6 +232,54 @@ describe("editor timeline export integration", () => {
     expect(capturedExportParams).toMatchObject({
       backgroundFraming: defaultBackgroundFramingSettings,
     });
+  });
+
+  test("exports complete unsaved background framing settings", async () => {
+    await waitFor(() => expect(latestStudio?.selectedPreset?.id).toBe("h264-1080p-30"));
+    const backgroundFraming = {
+      version: 1 as const,
+      enabled: true,
+      backgroundColor: "#204060",
+      paddingFraction: 0.12,
+      cornerRadiusFraction: 0.05,
+      shadowStrength: 0.7,
+    };
+    await applyStudioAction((studio) => {
+      studio.settingsForm.setFieldValue("backgroundFraming", backgroundFraming);
+    });
+    await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
+
+    expect(capturedExportParams).toMatchObject({ backgroundFraming });
+  });
+
+  test("project switches replace unsaved framing even when persisted values match", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.settingsForm.state.values.backgroundFraming).toEqual(
+        defaultBackgroundFramingSettings,
+      ),
+    );
+    await applyStudioAction((studio) => {
+      studio.settingsForm.setFieldValue("backgroundFraming", {
+        ...defaultBackgroundFramingSettings,
+        enabled: true,
+      });
+    });
+
+    await act(async () => {
+      queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
+        projectPath: "/tmp/project-b.gglassproj",
+        recordingURL: "/tmp/recording.mov",
+        autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+        backgroundFraming: defaultBackgroundFramingSettings,
+        timeline: initialTimeline,
+      });
+    });
+
+    await waitFor(() =>
+      expect(latestStudio?.settingsForm.state.values.backgroundFraming).toEqual(
+        defaultBackgroundFramingSettings,
+      ),
+    );
   });
 
   test("drag-drop non-ripple move splits gaps and synchronizes selection and playhead", async () => {

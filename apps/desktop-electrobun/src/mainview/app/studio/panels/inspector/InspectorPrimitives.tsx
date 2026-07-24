@@ -105,6 +105,7 @@ export function InspectorSliderField({
         </FieldLabel>
         <FieldContent>
           <Slider
+            aria-label={label}
             className={className}
             min={min}
             max={max}
@@ -152,6 +153,36 @@ export function InspectorSelectField({
             </SelectContent>
           </Select>
         </FieldContent>
+      </Field>
+    </InspectorOptionCard>
+  );
+}
+
+export function InspectorColorField({
+  label,
+  value,
+  onValueChange,
+}: {
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <InspectorOptionCard>
+      <Field>
+        <FieldLabel className="flex w-full items-center justify-between gap-3 border-0 px-0 py-0">
+          <span className="gg-copy-strong">{label}</span>
+          <span className="flex items-center gap-2">
+            <span className="gg-copy-meta font-mono">{value}</span>
+            <Input
+              type="color"
+              aria-label={label}
+              value={value}
+              className="h-8 w-10 cursor-pointer p-1"
+              onChange={(event) => onValueChange(event.target.value.toUpperCase())}
+            />
+          </span>
+        </FieldLabel>
       </Field>
     </InspectorOptionCard>
   );
@@ -252,6 +283,7 @@ export function AudioMixerChannel({
       />
       <Progress value={Math.round(level * 100)} />
       <Slider
+        aria-label={label}
         className="gg-inspector-slider"
         min={0}
         max={1}

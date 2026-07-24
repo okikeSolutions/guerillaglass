@@ -717,6 +717,7 @@ mod tests {
         assert_eq!(capabilities["platform"], "linux");
         assert_eq!(capabilities["phase"], "foundation");
         assert_eq!(capabilities["capture"]["display"], true);
+        assert_eq!(capabilities["export"]["backgroundFraming"], false);
         assert_eq!(capabilities["agent"]["localOnly"], true);
     }
 

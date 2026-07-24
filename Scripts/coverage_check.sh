@@ -210,7 +210,13 @@ fi
 
 if needs_scope swift; then
   echo "==> swift coverage report"
-  swift test --enable-code-coverage >/dev/null
+  swift_test_log="$COVERAGE_DIR/swift-test.log"
+  if ! swift test --enable-code-coverage >"$swift_test_log" 2>&1; then
+    echo "Swift coverage test run failed; full test output follows:" >&2
+    cat "$swift_test_log" >&2
+    exit 1
+  fi
+  rm -f "$swift_test_log"
   swift_cov_path="$(swift test --enable-code-coverage --show-codecov-path | tail -n 1)"
   SWIFT_REPORT="$COVERAGE_DIR/swift-summary.json"
   cp "$swift_cov_path" "$SWIFT_REPORT"

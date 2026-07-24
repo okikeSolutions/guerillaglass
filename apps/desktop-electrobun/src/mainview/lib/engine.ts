@@ -12,7 +12,7 @@ import {
   type CaptureFrameRate,
   type SourcesResult,
 } from "@guerillaglass/engine-contract/domains/sources";
-import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
+import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
 import {
   inputEventLogSchema,
   type AutoZoomSettings,
@@ -116,6 +116,10 @@ function isMacOS13WindowPickerUnsupported(error: unknown): boolean {
 export const engineApi = {
   async ping(): Promise<PingResult> {
     return await invokeBridgeContract("ggEnginePing", "engine ping result");
+  },
+
+  async capabilities(): Promise<CapabilitiesResult> {
+    return await invokeBridgeContract("ggEngineCapabilities", "engine capabilities result");
   },
 
   async getPermissions(): Promise<PermissionsResult> {

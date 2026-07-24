@@ -37,7 +37,12 @@ import {
   type CaptureFrameRate,
   type SourcesResult,
 } from "@guerillaglass/engine-contract/domains/sources";
-import { pingResultSchema, type PingResult } from "@guerillaglass/engine-contract/domains/system";
+import {
+  capabilitiesResultSchema,
+  pingResultSchema,
+  type CapabilitiesResult,
+  type PingResult,
+} from "@guerillaglass/engine-contract/domains/system";
 import type {
   AutoZoomSettings,
   TimelineDocument,
@@ -243,6 +248,7 @@ const engineProjectRecentsBridgeParamsSchema = Schema.Struct({
 });
 const engineSuccessSchemas = {
   "system.ping": pingResultSchema,
+  "system.capabilities": capabilitiesResultSchema,
   "permissions.get": permissionsResultSchema,
   "agent.preflight": agentPreflightResultSchema,
   "agent.run": agentRunResultSchema,
@@ -422,6 +428,11 @@ export const bridgeRequestDefinitions = {
     () => undefined,
     undefinedBridgeParamsSchema,
     engineSuccessSchema("system.ping"),
+  ),
+  ggEngineCapabilities: defineValidatedBridgeRequest<undefined, CapabilitiesResult, []>(
+    () => undefined,
+    undefinedBridgeParamsSchema,
+    engineSuccessSchema("system.capabilities"),
   ),
   ggEngineGetPermissions: defineValidatedBridgeRequest<undefined, PermissionsResult, []>(
     () => undefined,

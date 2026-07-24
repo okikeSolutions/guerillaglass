@@ -156,6 +156,7 @@
   "studio_labels_autoZoomIntensity": "Auto-Zoom-Intensität ({value}%)",
   "studio_labels_minimumKeyframeInterval": "Min. Keyframe-Intervall (s)",
   "studio_labels_backgroundFraming": "Hintergrundrahmen",
+  "studio_labels_backgroundColor": "Hintergrundfarbe",
   "studio_labels_backgroundPadding": "Hintergrundabstand",
   "studio_labels_cornerRoundness": "Eckenrundung",
   "studio_labels_shadowStrength": "Schattenstärke",

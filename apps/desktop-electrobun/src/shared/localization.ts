@@ -194,6 +194,7 @@ export function getStudioMessages(locale: string | null | undefined) {
       autoZoomIntensity: (value: number) => m.studio_labels_autoZoomIntensity({ value }, options),
       minimumKeyframeInterval: m.studio_labels_minimumKeyframeInterval(undefined, options),
       backgroundFraming: m.studio_labels_backgroundFraming(undefined, options),
+      backgroundColor: m.studio_labels_backgroundColor(undefined, options),
       backgroundPadding: m.studio_labels_backgroundPadding(undefined, options),
       cornerRoundness: m.studio_labels_cornerRoundness(undefined, options),
       shadowStrength: m.studio_labels_shadowStrength(undefined, options),

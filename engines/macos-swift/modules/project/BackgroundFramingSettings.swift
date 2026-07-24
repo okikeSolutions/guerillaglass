@@ -1,7 +1,7 @@
 import Foundation
 
 /// Versioned project-global background stage and source-card framing settings.
-public struct BackgroundFramingSettings: Codable, Equatable {
+public struct BackgroundFramingSettings: Codable, Equatable, Sendable {
     public enum ValidationError: Error, LocalizedError {
         case unsupportedVersion(Double)
         case invalidBackgroundColor(String)

@@ -124,6 +124,10 @@ export const layerHostBridgeService = Layer.succeed(
             const system = yield* SystemService;
             return yield* system.ping;
           }
+          case "ggEngineCapabilities": {
+            const system = yield* SystemService;
+            return yield* system.capabilities;
+          }
           case "ggEngineGetPermissions": {
             const permissions = yield* PermissionsService;
             return yield* permissions.get;
