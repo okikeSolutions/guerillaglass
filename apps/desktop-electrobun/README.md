@@ -23,7 +23,7 @@ Key points:
 - Electrobun shell resources are scoped behind `DesktopShell`.
 - Bridge handlers delegate to `HostBridgeService` / `ProjectSession`; they do not own business logic.
 - Engine sidecars are spawned with Effect process primitives and connected through authenticated loopback HTTP.
-- Media playback uses tokenized loopback URLs served by Effect HTTP routes and `BunHttpServer.layer`.
+- Media playback uses tokenized loopback URLs served by Effect HTTP routes and `NodeHttpServer.layer` under Electrobun's Bun executable.
 - Localization is generated from root Paraglide/Inlang messages into ignored `src/paraglide` output.
 
 ## Prerequisites

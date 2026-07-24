@@ -40,6 +40,9 @@ jobs:
         env:
           SKIP_DESKTOP_TESTS: "1"
 
+      - name: Desktop Node media server integration
+        run: cd apps/desktop-electrobun && bun run test:vitest:ci -- --run tests/media-server-node-integration.test.ts
+
       - name: Install coverage dependencies
         run: brew install jq
 

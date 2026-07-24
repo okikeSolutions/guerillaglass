@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Layer, Option } from "effect";
 import { HttpServer } from "effect/unstable/http";
@@ -21,7 +21,7 @@ describe("media source service", () => {
       const layer = layerMediaSourceServiceCore.pipe(
         Layer.provideMerge(layerMediaRegistry),
         Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: os.tmpdir() })),
-        Layer.provide(BunFileSystem.layer),
+        Layer.provide(NodeServices.layer),
         Layer.provide(
           Layer.succeed(HttpServer.HttpServer, {
             address: { _tag: "UnixAddress", path: "/tmp/guerillaglass-media.sock" },
@@ -47,7 +47,7 @@ describe("media source service", () => {
     const layer = layerMediaSourceServiceCore.pipe(
       Layer.provideMerge(layerMediaRegistry),
       Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: os.tmpdir() })),
-      Layer.provide(BunFileSystem.layer),
+      Layer.provide(NodeServices.layer),
       Layer.provide(
         Layer.succeed(HttpServer.HttpServer, {
           address: { _tag: "TcpAddress", hostname: "127.0.0.1", port: 43_210 },

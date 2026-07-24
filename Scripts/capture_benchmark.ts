@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import * as BunServices from "../apps/desktop-electrobun/node_modules/@effect/platform-bun/dist/BunServices.js";
+import * as NodeServices from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeServices.js";
 import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
 import * as Exit from "../apps/desktop-electrobun/node_modules/effect/dist/Exit.js";
 import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
@@ -735,7 +735,7 @@ type BenchmarkProcess = {
 };
 
 async function runProcessEffect<A, E, R>(effect: Effect.Effect<A, E, R>) {
-  return await Effect.runPromise(effect.pipe(Effect.provide(BunServices.layer)) as never);
+  return await Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)) as never);
 }
 
 async function spawnBenchmarkProcess(

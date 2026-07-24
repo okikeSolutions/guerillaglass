@@ -54,6 +54,8 @@ Documents named `ENGINE_CONTRACT_V2_*` and `MIGRATION.md` preserve migration his
 8. User-visible strings must use the shared localization source. Do not hand-edit generated `src/paraglide` output.
 9. Cross-platform shells must not claim capabilities that their native implementation does not provide.
 10. Prefer enforcing repeated review feedback with schemas, generators, lint rules, tests, or CI rather than prose alone.
+11. Bun is the only JavaScript package manager. The Electrobun host uses `@effect/platform-node` rather than `@effect/platform-bun` for runtime stability.
+12. Application path, filesystem, and cryptographic operations use Effect's `Path`, `FileSystem`, and `Crypto` services with platform layers at composition roots; do not add direct `node:path`, `node:fs`, or `node:crypto` dependencies to domain/application services.
 
 ## Generated and owned files
 

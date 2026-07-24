@@ -1,6 +1,5 @@
 import path from "node:path";
-import { randomUUID } from "node:crypto";
-import { Context, Effect, FileSystem, Layer, Option, Ref } from "effect";
+import { Context, Crypto, Effect, FileSystem, Layer, Option, Ref } from "effect";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -123,78 +122,77 @@ function normalizeMediaPath(
   });
 }
 
-export const makeMediaRegistryService: Effect.Effect<MediaRegistryService> = Effect.gen(
-  function* () {
-    const tokensRef = yield* Ref.make(new Map<string, TokenEntry>());
+export const makeMediaRegistryService = Effect.gen(function* () {
+  const crypto = yield* Crypto.Crypto;
+  const tokensRef = yield* Ref.make(new Map<string, TokenEntry>());
 
-    const insertToken = (entry: TokenEntry) =>
-      Effect.gen(function* () {
-        const token = randomUUID();
-        const now = Date.now();
-        yield* Ref.update(tokensRef, (tokens) => {
-          const next = pruneTokenMap(tokens, now);
-          next.set(token, entry);
-          return next;
-        });
-        return token;
+  const insertToken = (entry: TokenEntry) =>
+    Effect.gen(function* () {
+      const token = yield* crypto.randomUUIDv4.pipe(Effect.orDie);
+      const now = Date.now();
+      yield* Ref.update(tokensRef, (tokens) => {
+        const next = pruneTokenMap(tokens, now);
+        next.set(token, entry);
+        return next;
       });
-
-    return MediaRegistry.of({
-      registerMediaFile: (filePath) =>
-        normalizeMediaPath(filePath).pipe(
-          Effect.flatMap((normalizedPath) => {
-            const now = Date.now();
-            return insertToken({
-              kind: "file",
-              filePath: normalizedPath,
-              createdAt: now,
-              lastAccessedAt: now,
-            });
-          }),
-        ),
-
-      registerCapturePreview: (loadPreviewFrame) => {
-        const now = Date.now();
-        return insertToken({
-          kind: "capturePreview",
-          createdAt: now,
-          lastAccessedAt: now,
-          loadPreviewFrame,
-          cachedFrameId: null,
-          cachedJPEGBytes: null,
-        });
-      },
-
-      resolveToken: (token) =>
-        Ref.modify(tokensRef, (tokens) => {
-          const now = Date.now();
-          const next = pruneTokenMap(tokens, now);
-          const entry = next.get(token);
-          if (!entry || isTokenExpired(entry, now)) {
-            next.delete(token);
-            return [Option.none<TokenEntry>(), next];
-          }
-          const refreshedEntry = { ...entry, lastAccessedAt: now } as TokenEntry;
-          next.set(token, refreshedEntry);
-          return [Option.some(refreshedEntry), next];
-        }),
-
-      updatePreviewCache: (token, frameId, jpegBytes) =>
-        Ref.update(tokensRef, (tokens) => {
-          const entry = tokens.get(token);
-          if (!entry || entry.kind !== "capturePreview") {
-            return tokens;
-          }
-          const next = new Map(tokens);
-          next.set(token, {
-            ...entry,
-            cachedFrameId: frameId,
-            cachedJPEGBytes: jpegBytes,
-          });
-          return next;
-        }),
+      return token;
     });
-  },
-);
+
+  return MediaRegistry.of({
+    registerMediaFile: (filePath) =>
+      normalizeMediaPath(filePath).pipe(
+        Effect.flatMap((normalizedPath) => {
+          const now = Date.now();
+          return insertToken({
+            kind: "file",
+            filePath: normalizedPath,
+            createdAt: now,
+            lastAccessedAt: now,
+          });
+        }),
+      ),
+
+    registerCapturePreview: (loadPreviewFrame) => {
+      const now = Date.now();
+      return insertToken({
+        kind: "capturePreview",
+        createdAt: now,
+        lastAccessedAt: now,
+        loadPreviewFrame,
+        cachedFrameId: null,
+        cachedJPEGBytes: null,
+      });
+    },
+
+    resolveToken: (token) =>
+      Ref.modify(tokensRef, (tokens) => {
+        const now = Date.now();
+        const next = pruneTokenMap(tokens, now);
+        const entry = next.get(token);
+        if (!entry || isTokenExpired(entry, now)) {
+          next.delete(token);
+          return [Option.none<TokenEntry>(), next];
+        }
+        const refreshedEntry = { ...entry, lastAccessedAt: now } as TokenEntry;
+        next.set(token, refreshedEntry);
+        return [Option.some(refreshedEntry), next];
+      }),
+
+    updatePreviewCache: (token, frameId, jpegBytes) =>
+      Ref.update(tokensRef, (tokens) => {
+        const entry = tokens.get(token);
+        if (!entry || entry.kind !== "capturePreview") {
+          return tokens;
+        }
+        const next = new Map(tokens);
+        next.set(token, {
+          ...entry,
+          cachedFrameId: frameId,
+          cachedJPEGBytes: jpegBytes,
+        });
+        return next;
+      }),
+  });
+});
 
 export const layerMediaRegistry = Layer.effect(MediaRegistry, makeMediaRegistryService);

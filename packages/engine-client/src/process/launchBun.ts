@@ -1,5 +1,15 @@
-import { stat } from "node:fs/promises";
-import { Deferred, Duration, Effect, Metric, Option, Redacted, Scope, Stream } from "effect";
+import {
+  Crypto,
+  Deferred,
+  Duration,
+  Effect,
+  FileSystem,
+  Metric,
+  Option,
+  Redacted,
+  Scope,
+  Stream,
+} from "effect";
 import * as ChildProcess from "effect/unstable/process/ChildProcess";
 import type {
   ChildProcessHandle,
@@ -71,13 +81,13 @@ export type EngineHttpProcess = {
  *
  * @returns A random bearer token wrapped in `Redacted`.
  */
-export function makeEngineBearerToken(): Redacted.Redacted<string> {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
+export const makeEngineBearerToken = Effect.gen(function* () {
+  const crypto = yield* Crypto.Crypto;
+  const bytes = yield* crypto.randomBytes(32);
   return Redacted.make(Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""), {
     label: "engine-http-bearer-token",
   });
-}
+});
 
 /**
  * Resolves the native engine path from explicit options or `GG_ENGINE_PATH`.
@@ -85,7 +95,9 @@ export function makeEngineBearerToken(): Redacted.Redacted<string> {
  * @param enginePath - Explicit engine path supplied by the caller.
  * @returns An effect that succeeds with an executable path.
  */
-export function resolveEnginePath(enginePath?: string): Effect.Effect<string, EngineProcessError> {
+export function resolveEnginePath(
+  enginePath?: string,
+): Effect.Effect<string, EngineProcessError, FileSystem.FileSystem> {
   return Effect.gen(function* () {
     const configuredPath =
       enginePath === undefined
@@ -108,18 +120,18 @@ export function resolveEnginePath(enginePath?: string): Effect.Effect<string, En
       });
     }
     const path = resolved.trim();
-    const fileStat = yield* Effect.tryPromise({
-      try: () => stat(path),
-      catch: (cause) =>
-        cause instanceof EngineProcessError
-          ? cause
-          : new EngineProcessError({
-              code: "ENGINE_PATH_UNAVAILABLE",
-              message: "Unable to resolve engine executable path.",
-              cause,
-            }),
-    });
-    if (!fileStat.isFile()) {
+    const fs = yield* FileSystem.FileSystem;
+    const fileStat = yield* fs.stat(path).pipe(
+      Effect.mapError(
+        (cause) =>
+          new EngineProcessError({
+            code: "ENGINE_PATH_UNAVAILABLE",
+            message: "Unable to resolve engine executable path.",
+            cause,
+          }),
+      ),
+    );
+    if (fileStat.type !== "File") {
       return yield* new EngineProcessError({
         code: "ENGINE_PATH_UNAVAILABLE",
         message: `Engine executable path does not point to a regular file: ${path}`,
@@ -311,7 +323,11 @@ function cleanupStaleEngineProcesses(
  */
 export function makeEngineHttpProcess(
   options: EngineHttpProcessOptions = {},
-): Effect.Effect<EngineHttpProcess, EngineProcessError, ChildProcessSpawner | Scope.Scope> {
+): Effect.Effect<
+  EngineHttpProcess,
+  EngineProcessError,
+  ChildProcessSpawner | Crypto.Crypto | FileSystem.FileSystem | Scope.Scope
+> {
   return Effect.gen(function* () {
     const processConfig = yield* EngineProcessConfig.pipe(
       Effect.mapError(
@@ -336,7 +352,16 @@ export function makeEngineHttpProcess(
       }
     }
     const [command, args] = resolveEngineCommand(enginePath);
-    const bearerToken = makeEngineBearerToken();
+    const bearerToken = yield* makeEngineBearerToken.pipe(
+      Effect.mapError(
+        (cause) =>
+          new EngineProcessError({
+            code: "ENGINE_SPAWN_FAILED",
+            message: "Unable to generate an engine bearer token.",
+            cause,
+          }),
+      ),
+    );
     yield* Effect.logInfo("spawning engine process").pipe(
       Effect.annotateLogs({
         command: commandText(command, args),

@@ -1,7 +1,7 @@
+import { createServer } from "node:http";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
-import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
-import { Context, Effect, FileSystem, Layer } from "effect";
+import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
+import { Context, Crypto, Effect, FileSystem, Layer } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { AppConfig } from "../app/AppConfig";
@@ -44,27 +44,27 @@ export const layerMediaSourceServiceCore = Layer.effect(
   Effect.gen(function* () {
     const registry = yield* MediaRegistry;
     const server = yield* HttpServer.HttpServer;
+    const crypto = yield* Crypto.Crypto;
     const fs = yield* FileSystem.FileSystem;
     const tempDirectory = yield* DesktopTempDirectory;
     const origin = yield* originFromAddress(server.address);
 
     const snapshotMediaFile = (filePath: string) =>
-      Effect.tryPromise({
-        try: () => {
-          const extension = path.extname(filePath).toLowerCase();
-          const destinationPath = path.join(
-            tempDirectory.path,
-            `media-${randomUUID()}${extension}`,
-          );
-          return copySafeFileSnapshot(filePath, destinationPath);
-        },
-        catch: (cause) =>
-          new MediaServerError({
-            code: "MEDIA_FILE_MISSING",
-            description: "Unable to create safe media snapshot.",
-            cause,
-          }),
-      });
+      Effect.gen(function* () {
+        const extension = path.extname(filePath).toLowerCase();
+        const id = yield* crypto.randomUUIDv4;
+        const destinationPath = path.join(tempDirectory.path, `media-${id}${extension}`);
+        return yield* Effect.tryPromise(() => copySafeFileSnapshot(filePath, destinationPath));
+      }).pipe(
+        Effect.mapError(
+          (cause) =>
+            new MediaServerError({
+              code: "MEDIA_FILE_MISSING",
+              description: "Unable to create safe media snapshot.",
+              cause,
+            }),
+        ),
+      );
 
     return MediaSourceService.of({
       resolveMediaSourceURL: (filePath) =>
@@ -86,8 +86,8 @@ export const layerMediaSourceServiceCore = Layer.effect(
   }),
 );
 
-const layerMediaHttpServer = BunHttpServer.layer({
-  hostname: "127.0.0.1",
+const layerMediaHttpServer = NodeHttpServer.layer(createServer, {
+  host: "127.0.0.1",
   port: 0,
   gracefulShutdownTimeout: "2 seconds",
 });
@@ -99,8 +99,11 @@ const layerServedMediaRoutes = HttpRouter.serve(layerMediaHttpRoutes, {
 
 /** Builds the scoped media source layer and owns media HTTP server shutdown. */
 export function makeLayerMediaSourceService() {
+  const mediaInfrastructureLayer = layerMediaRegistry.pipe(
+    Layer.provideMerge(layerMediaHttpServer),
+  );
   return Layer.mergeAll(layerMediaSourceServiceCore, layerServedMediaRoutes).pipe(
-    Layer.provideMerge(Layer.mergeAll(layerMediaRegistry, layerMediaHttpServer)),
+    Layer.provideMerge(mediaInfrastructureLayer),
   ) as Layer.Layer<MediaSourceService, never, AppConfig | DesktopTempDirectory>;
 }
 

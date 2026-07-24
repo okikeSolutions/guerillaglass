@@ -78,6 +78,18 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("workspace Effect runtime versions are not aligned");
   });
 
+  test("rejects platform-bun dependencies and non-Bun lockfiles", () => {
+    writeFixture(
+      "apps/web/package.json",
+      JSON.stringify({ dependencies: { "@effect/platform-bun": "4.0.0-beta.101" } }),
+    );
+    writeFixture("package-lock.json", "{}\n");
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("must use @effect/platform-node");
+    expect(result.stderr).toContain("unsupported package-manager lockfile present");
+  });
+
   test("reports vendor drift when the Effect submodule is initialized", () => {
     writeFixture(
       "vendor/effect/packages/effect/package.json",

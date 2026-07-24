@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "vitest";
 import { Cause, Effect, Layer, Option } from "effect";
 import { HttpPlatform, HttpRouter } from "effect/unstable/http";
@@ -28,8 +28,8 @@ function mediaAppLayer(registry: MediaRegistry["Service"]) {
   return Layer.mergeAll(
     layerMediaHttpRoutes,
     Layer.succeed(MediaRegistry, registry),
-    HttpPlatform.layer.pipe(Layer.provide(BunFileSystem.layer)),
-    BunFileSystem.layer,
+    HttpPlatform.layer.pipe(Layer.provide(NodeServices.layer)),
+    NodeServices.layer,
   );
 }
 
@@ -61,7 +61,7 @@ function firstFailure(cause: Cause.Cause<unknown>): unknown {
 function effectTest(name: string, effect: () => Effect.Effect<void, unknown, unknown>): void {
   it(name, async () => {
     await Effect.runPromise(
-      effect().pipe(Effect.provide(BunFileSystem.layer)) as Effect.Effect<void, unknown, never>,
+      effect().pipe(Effect.provide(NodeServices.layer)) as Effect.Effect<void, unknown, never>,
     );
   });
 }

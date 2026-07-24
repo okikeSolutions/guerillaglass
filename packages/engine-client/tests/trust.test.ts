@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect } from "effect";
 import { validateEngineExecutableTrust } from "../src/process/trust";
 
@@ -15,7 +16,9 @@ async function executableFixture(label: string, contents = "#!/bin/sh\necho ok\n
 }
 
 async function expectTrustRejected(effect: ReturnType<typeof validateEngineExecutableTrust>) {
-  await expect(Effect.runPromise(effect)).rejects.toMatchObject({
+  await expect(
+    Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer))),
+  ).rejects.toMatchObject({
     code: "ENGINE_TRUST_REJECTED",
   });
 }
@@ -23,12 +26,18 @@ async function expectTrustRejected(effect: ReturnType<typeof validateEngineExecu
 describe("engine executable trust validation", () => {
   test("is skipped when trust policy is disabled", async () => {
     await expect(
-      Effect.runPromise(validateEngineExecutableTrust("/path/that/does/not/exist", undefined)),
+      Effect.runPromise(
+        validateEngineExecutableTrust("/path/that/does/not/exist", undefined).pipe(
+          Effect.provide(NodeServices.layer),
+        ),
+      ),
     ).resolves.toBeUndefined();
 
     await expect(
       Effect.runPromise(
-        validateEngineExecutableTrust("/path/that/does/not/exist", { enabled: false }),
+        validateEngineExecutableTrust("/path/that/does/not/exist", { enabled: false }).pipe(
+          Effect.provide(NodeServices.layer),
+        ),
       ),
     ).resolves.toBeUndefined();
   });
@@ -43,7 +52,7 @@ describe("engine executable trust validation", () => {
           enabled: true,
           expectedSha256: `sha256:${digest.toUpperCase()}`,
           requireCurrentUserOwner: true,
-        }),
+        }).pipe(Effect.provide(NodeServices.layer)),
       ),
     ).resolves.toBeUndefined();
   });

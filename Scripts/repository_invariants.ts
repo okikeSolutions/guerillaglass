@@ -31,6 +31,7 @@ for (const guide of requiredGuides) {
 }
 
 checkEffectVersionAlignment();
+checkJavaScriptRuntimePolicy();
 checkGeneratedRustDependencyOwnership();
 checkLocalizationParity();
 checkMarkdownLinks();
@@ -50,6 +51,7 @@ console.log(
     ? "- Effect runtime packages are aligned and match the initialized vendor submodule"
     : "- Effect runtime packages are aligned (vendor comparison skipped; submodule not initialized)",
 );
+console.log("- Bun is the only package manager and Effect uses the Node platform adapter");
 console.log("- generated Rust dependency table matches the generator template");
 console.log("- localization keys and placeholders match across supported locales");
 console.log("- inline local Markdown file links resolve");
@@ -60,7 +62,7 @@ function checkEffectVersionAlignment(): void {
     ...workspaceManifestPaths("apps"),
     ...workspaceManifestPaths("packages"),
   ];
-  const runtimePackageNames = new Set(["effect", "@effect/platform-bun", "@effect/vitest"]);
+  const runtimePackageNames = new Set(["effect", "@effect/platform-node", "@effect/vitest"]);
   const versions = new Map<string, Array<string>>();
 
   for (const manifestPath of manifestPaths) {
@@ -116,6 +118,39 @@ function checkEffectVersionAlignment(): void {
     failures.push(
       `workspace Effect runtime version ${workspaceVersion} does not match vendor/effect ${vendorVersion}`,
     );
+  }
+}
+
+function checkJavaScriptRuntimePolicy(): void {
+  for (const forbiddenLockfile of ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]) {
+    if (existsSync(join(root, forbiddenLockfile))) {
+      failures.push(`unsupported package-manager lockfile present: ${forbiddenLockfile}`);
+    }
+  }
+
+  const manifestPaths = [
+    "package.json",
+    ...workspaceManifestPaths("apps"),
+    ...workspaceManifestPaths("packages"),
+  ];
+  for (const manifestPath of manifestPaths) {
+    const manifest = readJson(join(root, manifestPath));
+    for (const dependencyGroup of [
+      manifest.dependencies,
+      manifest.devDependencies,
+      manifest.peerDependencies,
+      manifest.optionalDependencies,
+    ]) {
+      if (
+        dependencyGroup &&
+        typeof dependencyGroup === "object" &&
+        "@effect/platform-bun" in dependencyGroup
+      ) {
+        failures.push(
+          `${manifestPath} must use @effect/platform-node instead of @effect/platform-bun`,
+        );
+      }
+    }
   }
 }
 

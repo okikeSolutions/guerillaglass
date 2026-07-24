@@ -1,5 +1,5 @@
-import * as BunRuntime from "@effect/platform-bun/BunRuntime";
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Layer, Metric } from "effect";
 import { layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import { layerEngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
@@ -60,8 +60,8 @@ async function bootstrapApp() {
   desktopAppRuntime = await makeDesktopAppRuntime({
     desktopShellLayer: layerDesktopShellFromConfig,
     engineDomainServicesLayer: guardedEngineDomainServicesLayer,
-    desktopTempDirectoryLayer: layerDesktopTempDirectory.pipe(Layer.provide(BunServices.layer)),
-    projectSessionLayer: layerProjectSession.pipe(Layer.provide(BunServices.layer)),
+    desktopTempDirectoryLayer: layerDesktopTempDirectory.pipe(Layer.provide(NodeServices.layer)),
+    projectSessionLayer: layerProjectSession.pipe(Layer.provide(NodeServices.layer)),
   });
 
   try {
@@ -186,7 +186,7 @@ const desktopMainEffect = Effect.scoped(
 ).pipe(
   Effect.ensuring(disposeDesktopAppEffect),
   Metric.enableRuntimeMetrics,
-  Effect.provide(Layer.mergeAll(BunServices.layer, layerAppLogging, layerEffectDevTools)),
+  Effect.provide(Layer.mergeAll(NodeServices.layer, layerAppLogging, layerEffectDevTools)),
 );
 
-BunRuntime.runMain(desktopMainEffect);
+NodeRuntime.runMain(desktopMainEffect);

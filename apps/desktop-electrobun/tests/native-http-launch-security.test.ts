@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Exit, Redacted, Scope, Stream } from "effect";
 import * as ChildProcess from "effect/unstable/process/ChildProcess";
 import type { ChildProcessHandle } from "effect/unstable/process/ChildProcessSpawner";
@@ -65,7 +65,7 @@ async function runCommand(command: string, args: readonly string[], cwd = repoRo
         ]);
         return { exitCode, stderr, stdout };
       }),
-    ).pipe(Effect.provide(BunServices.layer)),
+    ).pipe(Effect.provide(NodeServices.layer)),
   );
 }
 
@@ -91,7 +91,7 @@ async function launchEngine(fixture: EngineFixture): Promise<LaunchedEngine> {
           HOME: tempRoot,
           USERPROFILE: tempRoot,
         },
-      }).pipe(Scope.provide(scope), Effect.provide(BunServices.layer)),
+      }).pipe(Scope.provide(scope), Effect.provide(NodeServices.layer)),
     );
     expect(launched.address.host).toBe("127.0.0.1");
     expect(launched.address.port).toBeGreaterThan(0);

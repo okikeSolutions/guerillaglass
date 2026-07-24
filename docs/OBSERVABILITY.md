@@ -2,17 +2,18 @@
 
 This document summarizes the desktop observability stack implemented for Guerillaglass. It is based on the installed/vendored Effect v4 APIs:
 
-- `effect@4.0.0-beta.78`
-- `@effect/platform-bun@4.0.0-beta.78`
+- `effect@4.0.0-beta.101`
+- `@effect/platform-node@4.0.0-beta.101`
 - `effect/unstable/devtools`
 - `effect/unstable/observability` researched but not currently wired
 
 ## Overview
 
-The desktop Bun host is now Effect/Bun-native at the process edge:
+The desktop host runs in Electrobun's Bun executable while using Effect's Node platform adapter for a more stable process edge:
 
-- `BunRuntime.runMain(...)` owns the root process Effect.
-- `BunServices.layer` provides Bun-backed platform services such as `FileSystem`, `Path`, `Terminal`, and `Stdio`.
+- `NodeRuntime.runMain(...)` owns the root process Effect.
+- `NodeServices.layer` provides platform services such as `FileSystem`, `Path`, `Crypto`, `Terminal`, and `Stdio`.
+- Bun remains the only JavaScript package manager; using the Node platform adapter does not introduce npm, pnpm, or Yarn.
 - `Logger` routes console and file logs.
 - `Metric` records application and runtime metrics.
 - `Effect.withSpan(...)` emits tracing spans for DevTools-compatible consumers.
@@ -22,9 +23,9 @@ The desktop Bun host is now Effect/Bun-native at the process edge:
 
 | Region | Sector | Area | Implemented signals | Files / APIs |
 |---|---|---|---|---|
-| Runtime Foundation | Bun / Effect entrypoint | Process root | App runs through `BunRuntime.runMain`; platform services via `BunServices.layer`; runtime/fiber metrics enabled | `apps/desktop-electrobun/src/bun/app/index.ts`; `BunRuntime.runMain`; `BunServices.layer`; `Metric.enableRuntimeMetrics` |
+| Runtime Foundation | Electrobun Bun executable / Effect Node adapter | Process root | App runs through `NodeRuntime.runMain`; platform services via `NodeServices.layer`; runtime/fiber metrics enabled | `apps/desktop-electrobun/src/bun/app/index.ts`; `NodeRuntime.runMain`; `NodeServices.layer`; `Metric.enableRuntimeMetrics` |
 | Logging | Logger routing | Console logs | Dev uses `Logger.consolePretty()`; production uses `Logger.consoleJson` | `apps/desktop-electrobun/src/bun/app/AppLogging.ts`; `Logger.consolePretty`; `Logger.consoleJson` |
-| Logging | Logger routing | File logs | JSONL file logging via `Logger.formatJson.pipe(Logger.toFile(...))` | `AppLogging.ts`; `Logger.toFile`; `BunServices.layer` |
+| Logging | Logger routing | File logs | JSONL file logging via `Logger.formatJson.pipe(Logger.toFile(...))` | `AppLogging.ts`; `Logger.toFile`; `NodeServices.layer` |
 | Logging | Log destinations | System log | Primary log path: `~/Library/Logs/Guerillaglass/desktop-electrobun.log` | `apps/desktop-electrobun/src/bun/app/AppLogPaths.ts` |
 | Logging | Log destinations | Repo dev log | Dev mirror: `.tmp/desktop-electrobun.log`; disabled in production; override via `GG_DESKTOP_REPO_LOG_PATH`; disable via `GG_DESKTOP_REPO_LOG=0` | `AppLogPaths.ts` |
 | Logging | Log level policy | Minimum log level | Dev / diagnostics: `Debug`; production: `Warn` | `AppLogging.ts`; `References.MinimumLogLevel` |

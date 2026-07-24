@@ -1,3 +1,4 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Exit } from "effect";
 import { describe, expect, test } from "vitest";
 import { desktopCapabilityTokenSchema } from "@shared/bridge/desktopBridgeContract";
@@ -10,7 +11,9 @@ import { makeCapabilityGrantService } from "../src/bun/security/DesktopCapabilit
 
 describe("desktop capability grants", () => {
   test("accepts a valid token for the matching scope and subject", async () => {
-    const service = makeCapabilityGrantService();
+    const service = await Effect.runPromise(
+      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
+    );
     const token = await Effect.runPromise(
       service.mint({ scope: "media:resolve-source", subject: "media:/tmp/recording.mov" }),
     );
@@ -27,7 +30,9 @@ describe("desktop capability grants", () => {
   });
 
   test("rejects missing or unknown tokens", async () => {
-    const service = makeCapabilityGrantService();
+    const service = await Effect.runPromise(
+      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
+    );
 
     await expect(
       Effect.runPromise(
@@ -41,7 +46,9 @@ describe("desktop capability grants", () => {
   });
 
   test("rejects wrong scopes and wrong subjects", async () => {
-    const service = makeCapabilityGrantService();
+    const service = await Effect.runPromise(
+      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
+    );
     const token = await Effect.runPromise(
       service.mint({ scope: "media:resolve-source", subject: "media:/tmp/recording.mov" }),
     );
@@ -68,7 +75,9 @@ describe("desktop capability grants", () => {
   });
 
   test("enforces single-use tokens", async () => {
-    const service = makeCapabilityGrantService();
+    const service = await Effect.runPromise(
+      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
+    );
     const token = await Effect.runPromise(
       service.mint({ scope: "review:mutate", subject: "review:abc", singleUse: true }),
     );
@@ -95,7 +104,9 @@ describe("desktop capability grants", () => {
   });
 
   test("rejects expired tokens", async () => {
-    const service = makeCapabilityGrantService();
+    const service = await Effect.runPromise(
+      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
+    );
     const token = await Effect.runPromise(
       service.mint({ scope: "capture:resolve-preview-url", subject: "capture:abc", ttlMs: 1 }),
     );

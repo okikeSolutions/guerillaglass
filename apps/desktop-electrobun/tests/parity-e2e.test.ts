@@ -1,4 +1,4 @@
-import * as BunServices from "@effect/platform-bun/BunServices";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -61,7 +61,7 @@ async function buildNativeEngine(manifestPath: string): Promise<void> {
         );
         return yield* handle.exitCode.pipe(Effect.map((exitCode) => ({ exitCode, stderr })));
       }),
-    ).pipe(Effect.provide(BunServices.layer)),
+    ).pipe(Effect.provide(NodeServices.layer)),
   );
   if (result.exitCode !== 0) {
     throw new Error(`Failed to build ${manifestPath}\n${result.stderr}`);

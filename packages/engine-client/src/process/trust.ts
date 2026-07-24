@@ -1,6 +1,4 @@
-import { createHash } from "node:crypto";
-import { lstat, readFile, stat } from "node:fs/promises";
-import { Effect } from "effect";
+import { Crypto, Effect, FileSystem, Option } from "effect";
 import { EngineProcessError } from "../errors";
 
 /**
@@ -72,60 +70,63 @@ function timingSafeEqualHex(left: string, right: string): boolean {
 export function validateEngineExecutableTrust(
   enginePath: string,
   policy: EngineExecutableTrustPolicy | undefined,
-): Effect.Effect<void, EngineProcessError> {
+): Effect.Effect<void, EngineProcessError, Crypto.Crypto | FileSystem.FileSystem> {
   if (policy?.enabled !== true) {
     return Effect.void;
   }
 
-  return Effect.tryPromise({
-    try: async () => {
-      const linkStat = await lstat(enginePath);
-      if ((policy.rejectSymlinkExecutable ?? true) && linkStat.isSymbolicLink()) {
-        throw new EngineProcessError({
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const crypto = yield* Crypto.Crypto;
+    const linkTarget = yield* fs.readLink(enginePath).pipe(Effect.option);
+    if ((policy.rejectSymlinkExecutable ?? true) && Option.isSome(linkTarget)) {
+      return yield* new EngineProcessError({
+        code: "ENGINE_TRUST_REJECTED",
+        message: "Engine executable must not be a symbolic link in trusted mode.",
+      });
+    }
+
+    const fileStat = yield* fs.stat(enginePath);
+    if (fileStat.type !== "File") {
+      return yield* new EngineProcessError({
+        code: "ENGINE_TRUST_REJECTED",
+        message: "Engine executable path must point to a regular file.",
+      });
+    }
+
+    if ((policy.rejectWorldWritable ?? true) && (fileStat.mode & 0o022) !== 0) {
+      return yield* new EngineProcessError({
+        code: "ENGINE_TRUST_REJECTED",
+        message: "Engine executable must not be group- or world-writable in trusted mode.",
+      });
+    }
+
+    if (policy.requireCurrentUserOwner === true && typeof process.getuid === "function") {
+      const currentUid = process.getuid();
+      if (!Option.contains(fileStat.uid, currentUid)) {
+        return yield* new EngineProcessError({
           code: "ENGINE_TRUST_REJECTED",
-          message: "Engine executable must not be a symbolic link in trusted mode.",
+          message: "Engine executable must be owned by the current user in trusted mode.",
         });
       }
+    }
 
-      const fileStat = await stat(enginePath);
-      if (!fileStat.isFile()) {
-        throw new EngineProcessError({
+    const expectedSha256 = policy.expectedSha256?.trim();
+    if (expectedSha256) {
+      const bytes = yield* fs.readFile(enginePath);
+      const digest = yield* crypto.digest("SHA-256", bytes);
+      const actualSha256 = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
+        "",
+      );
+      if (!timingSafeEqualHex(actualSha256, expectedSha256)) {
+        return yield* new EngineProcessError({
           code: "ENGINE_TRUST_REJECTED",
-          message: "Engine executable path must point to a regular file.",
+          message: "Engine executable SHA-256 digest does not match the trusted allowlist.",
         });
       }
-
-      if ((policy.rejectWorldWritable ?? true) && (fileStat.mode & 0o022) !== 0) {
-        throw new EngineProcessError({
-          code: "ENGINE_TRUST_REJECTED",
-          message: "Engine executable must not be group- or world-writable in trusted mode.",
-        });
-      }
-
-      if (policy.requireCurrentUserOwner === true && typeof process.getuid === "function") {
-        const currentUid = process.getuid();
-        if (fileStat.uid !== currentUid) {
-          throw new EngineProcessError({
-            code: "ENGINE_TRUST_REJECTED",
-            message: "Engine executable must be owned by the current user in trusted mode.",
-          });
-        }
-      }
-
-      const expectedSha256 = policy.expectedSha256?.trim();
-      if (expectedSha256) {
-        const actualSha256 = createHash("sha256")
-          .update(await readFile(enginePath))
-          .digest("hex");
-        if (!timingSafeEqualHex(actualSha256, expectedSha256)) {
-          throw new EngineProcessError({
-            code: "ENGINE_TRUST_REJECTED",
-            message: "Engine executable SHA-256 digest does not match the trusted allowlist.",
-          });
-        }
-      }
-    },
-    catch: (cause) =>
+    }
+  }).pipe(
+    Effect.mapError((cause) =>
       cause instanceof EngineProcessError
         ? cause
         : new EngineProcessError({
@@ -133,5 +134,6 @@ export function validateEngineExecutableTrust(
             message: "Unable to verify engine executable trust.",
             cause,
           }),
-  });
+    ),
+  );
 }
