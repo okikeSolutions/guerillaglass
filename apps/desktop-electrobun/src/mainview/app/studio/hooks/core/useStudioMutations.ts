@@ -15,6 +15,7 @@ import type {
 import type { PingResult } from "@guerillaglass/engine-contract/domains/system";
 import type {
   AutoZoomSettings,
+  BackgroundFramingSettings,
   TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
 import type { StudioMessages } from "@shared/localization";
@@ -78,6 +79,7 @@ export type SettingsFormApi = {
       micEnabled: boolean;
       trackInputEvents: boolean;
       autoZoom: AutoZoomSettings;
+      backgroundFraming: BackgroundFramingSettings;
     };
   };
   setFieldValue: (...args: unknown[]) => void;
@@ -597,6 +599,7 @@ export function useStudioMutations({
       const nextProject = await engineApi.projectSave({
         projectPath,
         autoZoom: settingsForm.state.values.autoZoom,
+        backgroundFraming: settingsForm.state.values.backgroundFraming,
         timeline: timelineDocument,
       });
       return nextProject;
@@ -658,6 +661,7 @@ export function useStudioMutations({
         trimStartSeconds: trimStart,
         trimEndSeconds: trimEnd,
         timeline: timelineDocument,
+        backgroundFraming: settingsForm.state.values.backgroundFraming,
       });
       return { ...result, outputURL: result.outputURL ?? outputURL };
     },

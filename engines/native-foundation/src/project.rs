@@ -1,4 +1,6 @@
-use crate::params::{ProjectOpenParams, ProjectRecentsParams, ProjectSaveParams};
+use crate::params::{
+    BackgroundFramingParams, ProjectOpenParams, ProjectRecentsParams, ProjectSaveParams,
+};
 use crate::path_security::{
     create_directory_all_no_symlink, reject_final_symlink, write_file_no_symlink,
 };
@@ -6,6 +8,7 @@ use crate::state::{record_recent_project, State};
 use crate::wire::{failure, success, EngineCallId, EngineResponse, ProtocolErrorCode};
 use crate::DEFAULT_RECENTS_LIMIT;
 use serde_json::{json, Value};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 fn validate_project_path(id: &EngineCallId, project_path: &str) -> Result<(), EngineResponse> {
@@ -34,6 +37,26 @@ fn validate_project_path(id: &EngineCallId, project_path: &str) -> Result<(), En
     Ok(())
 }
 
+fn load_background_framing(project_path: &str) -> Result<BackgroundFramingParams, String> {
+    let snapshot_path = Path::new(project_path).join("project.native.json");
+    if !snapshot_path.exists() {
+        return Ok(BackgroundFramingParams::default());
+    }
+    reject_final_symlink(&snapshot_path)
+        .map_err(|error| format!("Project snapshot failed symlink safety validation: {error}"))?;
+    let data = fs::read_to_string(&snapshot_path)
+        .map_err(|error| format!("Unable to read project snapshot: {error}"))?;
+    let snapshot: Value = serde_json::from_str(&data)
+        .map_err(|error| format!("Unable to decode project snapshot: {error}"))?;
+    let Some(value) = snapshot.get("backgroundFraming") else {
+        return Ok(BackgroundFramingParams::default());
+    };
+    serde_json::from_value::<BackgroundFramingParams>(value.clone())
+        .map_err(|error| format!("Invalid backgroundFraming settings: {error}"))?
+        .validated()
+        .map_err(str::to_string)
+}
+
 fn decode_params<T>(params: &Value) -> T
 where
     T: for<'de> serde::Deserialize<'de> + Default,
@@ -60,19 +83,44 @@ pub(crate) fn open(id: &EngineCallId, state: &mut State, params: &Value) -> Engi
     if let Err(response) = validate_project_path(id, &project_path) {
         return response;
     }
+    let background_framing = match load_background_framing(&project_path) {
+        Ok(settings) => settings,
+        Err(error) => return failure(id, ProtocolErrorCode::InvalidParams, error),
+    };
     state.project_path = Some(project_path.clone());
+    state.background_framing = background_framing;
     state.unsaved_changes = false;
     record_recent_project(state, &project_path);
     success(id, state.project_state())
 }
 
 pub(crate) fn save(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
-    let project_params: ProjectSaveParams = decode_params(params);
+    let project_params: ProjectSaveParams = match serde_json::from_value(params.clone()) {
+        Ok(params) => params,
+        Err(error) => {
+            return failure(
+                id,
+                ProtocolErrorCode::InvalidParams,
+                format!("Invalid project save payload: {error}"),
+            )
+        }
+    };
+    let background_framing = match project_params.background_framing {
+        Some(settings) => match settings.validated() {
+            Ok(settings) => Some(settings),
+            Err(error) => return failure(id, ProtocolErrorCode::InvalidParams, error),
+        },
+        None => None,
+    };
     if let Some(project_path) = project_params.project_path {
         if let Err(response) = validate_project_path(id, &project_path) {
             return response;
         }
         state.project_path = Some(project_path);
+    }
+
+    if let Some(background_framing) = background_framing {
+        state.background_framing = background_framing;
     }
 
     if let Some(auto_zoom) = project_params.auto_zoom {

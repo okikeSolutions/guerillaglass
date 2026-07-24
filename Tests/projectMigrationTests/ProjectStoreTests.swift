@@ -23,6 +23,33 @@ final class ProjectStoreTests: XCTestCase {
         XCTAssertEqual(saved.document, loaded.document)
     }
 
+    func testBackgroundFramingSaveOpenRoundTrip() throws {
+        let fileManager = FileManager.default
+        let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let recordingURL = baseURL.appendingPathComponent("source.mov")
+        try Data("recording".utf8).write(to: recordingURL, options: [.atomic])
+        let store = ProjectStore(projectsDirectoryURL: baseURL.appendingPathComponent("Projects", isDirectory: true))
+        let saved = try store.saveNewProject(recordingURL: recordingURL)
+        var document = saved.document
+        document.project.backgroundFraming = try BackgroundFramingSettings(
+            version: 1,
+            enabled: true,
+            backgroundColor: "#a1b2c3",
+            paddingFraction: 0.12,
+            cornerRadiusFraction: 0.05,
+            shadowStrength: 0.7
+        )
+
+        _ = try store.writeProject(document: document, assets: .init(), to: saved.url)
+        let loaded = try store.loadProject(at: saved.url)
+
+        XCTAssertEqual(loaded.document.project.backgroundFraming, document.project.backgroundFraming)
+        XCTAssertEqual(loaded.document.project.backgroundFraming.backgroundColor, "#A1B2C3")
+    }
+
     func testSaveRejectsMissingRecording() throws {
         let fileManager = FileManager.default
         let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)

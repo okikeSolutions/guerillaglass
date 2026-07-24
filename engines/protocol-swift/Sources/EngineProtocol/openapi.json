@@ -3901,6 +3901,65 @@
         ],
         "additionalProperties": false
       },
+      "BackgroundFramingSettings": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "backgroundColor": {
+            "type": "string",
+            "allOf": [
+              {
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              }
+            ]
+          },
+          "paddingFraction": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0,
+                "maximum": 0.25
+              }
+            ]
+          },
+          "cornerRadiusFraction": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0,
+                "maximum": 0.1
+              }
+            ]
+          },
+          "shadowStrength": {
+            "type": "number",
+            "allOf": [
+              {
+                "minimum": 0,
+                "maximum": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "enabled",
+          "backgroundColor",
+          "paddingFraction",
+          "cornerRadiusFraction",
+          "shadowStrength"
+        ],
+        "additionalProperties": false,
+        "description": "Versioned project-global background stage and source-card framing settings."
+      },
       "ExportRunPayload": {
         "type": "object",
         "properties": {
@@ -4048,6 +4107,9 @@
               "items"
             ],
             "additionalProperties": false
+          },
+          "backgroundFraming": {
+            "$ref": "#/components/schemas/BackgroundFramingSettings"
           }
         },
         "required": [
@@ -4265,6 +4327,9 @@
             ],
             "additionalProperties": false
           },
+          "backgroundFraming": {
+            "$ref": "#/components/schemas/BackgroundFramingSettings"
+          },
           "timeline": {
             "type": "object",
             "properties": {
@@ -4477,6 +4542,7 @@
         },
         "required": [
           "autoZoom",
+          "backgroundFraming",
           "timeline"
         ],
         "additionalProperties": false
@@ -4538,6 +4604,9 @@
               "minimumKeyframeInterval"
             ],
             "additionalProperties": false
+          },
+          "backgroundFraming": {
+            "$ref": "#/components/schemas/BackgroundFramingSettings"
           },
           "timeline": {
             "type": "object",

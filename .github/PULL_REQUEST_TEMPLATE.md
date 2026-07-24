@@ -11,7 +11,8 @@
 - [ ] Regenerated derived artifacts and verified determinism when changing contracts, or N/A
 - [ ] Updated roadmap/docs when architecture, workflow, or tracked status changed, or N/A
 - [ ] Added both `en-US` and `de-DE` messages for user-visible UI, or N/A
-- [ ] Ran `bun run desktop:acceptance` and inspected runtime/screenshots for UI-facing changes, or N/A
+- [ ] Ran `bun run desktop:acceptance` for desktop/runtime changes, or N/A
+- [ ] Used Peekaboo against the packaged app to navigate the affected workflow and retained native-window screenshots, or N/A
 - [ ] Included screenshots for material UI changes, or N/A
 - [ ] Addressed every review comment and ran `bun run pr:check-review-threads -- <PR number>` with zero unresolved threads
 

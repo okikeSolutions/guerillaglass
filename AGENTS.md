@@ -115,7 +115,7 @@ Before declaring work complete:
 
 - Run `bun run repo:check` and relevant focused tests.
 - Run `bun run gate` when the platform supports it.
-- For UI-facing work on macOS, build and launch the real application with `bun run desktop:acceptance`; inspect its runtime report and captured browser screenshots, then exercise the affected workflow.
+- On macOS, validate desktop/runtime work in the packaged application with Peekaboo as well as `bun run desktop:acceptance`: verify Peekaboo permissions through its GUI bridge, navigate the affected workflow, and retain native-window screenshots. Static, browser, and runtime-smoke evidence do not replace Peekaboo interaction.
 - Confirm generated files are current and deterministic for contract changes.
 - Confirm preview/export/persistence parity for editor-model changes.
 - Confirm new UI is localized, keyboard accessible, and covered by reduced-motion/focus conventions.

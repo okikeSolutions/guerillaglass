@@ -1,3 +1,4 @@
+use crate::params::BackgroundFramingParams;
 use crate::path_security::{create_directory_all_no_symlink, write_file_no_symlink};
 use crate::wire::{CaptureClock, RunningDuration};
 use serde_json::{json, Value};
@@ -45,6 +46,8 @@ pub(crate) struct State {
     pub(crate) auto_zoom_enabled: bool,
     pub(crate) auto_zoom_intensity: f64,
     pub(crate) auto_zoom_min_keyframe_interval: f64,
+    pub(crate) background_framing: BackgroundFramingParams,
+    pub(crate) latest_export_background_framing: Option<BackgroundFramingParams>,
     pub(crate) capture_metadata: Option<Value>,
     pub(crate) recent_projects: Vec<Value>,
     pub(crate) recents_index_path: PathBuf,
@@ -70,6 +73,8 @@ impl State {
             auto_zoom_enabled: false,
             auto_zoom_intensity: 0.55,
             auto_zoom_min_keyframe_interval: 0.15,
+            background_framing: BackgroundFramingParams::default(),
+            latest_export_background_framing: None,
             capture_metadata: None,
             recent_projects,
             recents_index_path,
@@ -129,6 +134,7 @@ impl State {
                 "intensity": self.auto_zoom_intensity,
                 "minimumKeyframeInterval": self.auto_zoom_min_keyframe_interval,
             },
+            "backgroundFraming": self.background_framing,
             "captureMetadata": self.capture_metadata,
             "timeline": {
                 "version": 2,

@@ -55,7 +55,7 @@ pub(crate) fn handle_method(
         EngineMethod::CaptureStatus => capture::status(id, state),
         EngineMethod::CapturePreviewFrame => capture::preview_frame(id),
         EngineMethod::ExportInfo => export::info(id),
-        EngineMethod::ExportRun => export::run(id, params),
+        EngineMethod::ExportRun => export::run(id, state, params),
         EngineMethod::ExportRunCutPlan => export::run_cut_plan(id, state, params),
         EngineMethod::ProjectCurrent => project::current(id, state),
         EngineMethod::ProjectOpen => project::open(id, state, params),

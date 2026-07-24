@@ -5,7 +5,10 @@ import {
   reviewIdSchema,
   timelineSegmentIdSchema,
 } from "@guerillaglass/engine-contract/schema-primitives";
-import { timelineDocumentSchema } from "@guerillaglass/engine-contract/shared/valueObjects";
+import {
+  defaultBackgroundFramingSettings,
+  timelineDocumentSchema,
+} from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
   desktopApi,
   engineApi,
@@ -187,6 +190,7 @@ describe("renderer engine bridge", () => {
           intensity: 1,
           minimumKeyframeInterval: 1 / 30,
         },
+        backgroundFraming: defaultBackgroundFramingSettings,
         timeline: { version: 2, items: [] },
       }),
       ggEngineStartDisplayCapture: async (
@@ -232,6 +236,7 @@ describe("renderer engine bridge", () => {
           intensity: 1,
           minimumKeyframeInterval: 1 / 30,
         },
+        backgroundFraming: defaultBackgroundFramingSettings,
         timeline: { version: 2, items: [] },
       }),
       ggEngineProjectSave: async () => ({
@@ -242,6 +247,7 @@ describe("renderer engine bridge", () => {
           intensity: 1,
           minimumKeyframeInterval: 1 / 30,
         },
+        backgroundFraming: defaultBackgroundFramingSettings,
         timeline: { version: 2, items: [] },
       }),
       ggEngineProjectRecents: async () => ({
@@ -466,7 +472,7 @@ describe("renderer engine bridge", () => {
     );
   });
 
-  test("preserves export timeline through renderer and Bun bridge validation", async () => {
+  test("preserves export timeline and background framing through renderer and Bun bridge validation", async () => {
     let capturedParams: unknown;
     installWindowBridge({
       ggEngineRunExport: async (params) => {
@@ -501,9 +507,13 @@ describe("renderer engine bridge", () => {
       outputURL: "/tmp/out.mp4",
       presetId: "h264-1080p-30",
       timeline,
+      backgroundFraming: defaultBackgroundFramingSettings,
     });
 
-    expect(capturedParams).toMatchObject({ timeline });
+    expect(capturedParams).toMatchObject({
+      timeline,
+      backgroundFraming: defaultBackgroundFramingSettings,
+    });
   });
 
   test("rejects invalid export timeline payloads at the bridge boundary", async () => {

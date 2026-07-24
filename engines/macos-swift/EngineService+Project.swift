@@ -53,6 +53,15 @@ extension EngineService {
                 minimumKeyframeInterval: autoZoom.minimumKeyframeInterval.value1
             ).clamped()
         }
+        if let backgroundFraming = payload.backgroundFraming {
+            do {
+                currentProjectDocument.project.backgroundFraming = try projectBackgroundFraming(
+                    from: backgroundFraming
+                )
+            } catch {
+                return .badRequest(.init(body: .json(badRequest(.invalid_params, error.localizedDescription))))
+            }
+        }
         guard let currentProjectURL else {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "projectPath is required before saving."))))
         }

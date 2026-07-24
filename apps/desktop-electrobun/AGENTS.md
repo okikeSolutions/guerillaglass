@@ -40,7 +40,9 @@ bun run desktop:test:e2e
 bun run desktop:acceptance
 ```
 
-UI-facing work is not complete from code-level tests alone. On macOS, run the
-packaged Electrobun application through `desktop:acceptance`, inspect its runtime
-report and browser screenshots, and exercise the affected real-app workflow. Use
-`desktop:acceptance:screenshot` when Screen Recording permission is available.
+Desktop work is not complete from code-level tests alone. On macOS, run the
+packaged Electrobun application through `desktop:acceptance`, then use Peekaboo
+through its permissioned GUI bridge to navigate the affected real-app workflow
+and retain native-window screenshots. Browser screenshots and runtime milestones
+do not replace Peekaboo interaction. Use `desktop:acceptance:screenshot` as
+additional evidence when the invoking terminal also has Screen Recording permission.

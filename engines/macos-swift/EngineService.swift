@@ -44,4 +44,5 @@ final class EngineService: APIProtocol {
     var preflightSessions: [String: EngineAgentPreflightSession] = [:]
     var latestExportJobId: String?
     var latestExportOutputURL: URL?
+    var latestExportBackgroundFraming: BackgroundFramingSettings?
 }

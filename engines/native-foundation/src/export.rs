@@ -59,8 +59,24 @@ pub(crate) fn info(id: &EngineCallId) -> EngineResponse {
     )
 }
 
-pub(crate) fn run(id: &EngineCallId, params: &Value) -> EngineResponse {
-    let export_params: ExportRunParams = decode_params(params);
+pub(crate) fn run(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
+    let export_params: ExportRunParams = match serde_json::from_value(params.clone()) {
+        Ok(params) => params,
+        Err(error) => {
+            return failure(
+                id,
+                ProtocolErrorCode::InvalidParams,
+                format!("Invalid export payload: {error}"),
+            )
+        }
+    };
+    let resolved_background_framing = match export_params.background_framing {
+        Some(settings) => match settings.validated() {
+            Ok(settings) => settings,
+            Err(error) => return failure(id, ProtocolErrorCode::InvalidParams, error),
+        },
+        None => state.background_framing.clone(),
+    };
     let output_url = match export_params.output_url {
         Some(value) => value,
         None => {
@@ -84,6 +100,8 @@ pub(crate) fn run(id: &EngineCallId, params: &Value) -> EngineResponse {
             format!("Unable to write export safely: {error}"),
         );
     }
+
+    state.latest_export_background_framing = Some(resolved_background_framing);
 
     success(
         id,

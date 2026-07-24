@@ -8,6 +8,8 @@ import {
 } from "@guerillaglass/engine-contract/domains/sources";
 import {
   type AutoZoomSettings,
+  type BackgroundFramingSettings,
+  defaultBackgroundFramingSettings,
   type TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { getStudioMessages, type StudioMessages } from "@shared/localization";
@@ -77,6 +79,10 @@ export const defaultAutoZoom: AutoZoomSettings = {
   isEnabled: true,
   intensity: 1,
   minimumKeyframeInterval: 1 / 30,
+};
+
+export const defaultBackgroundFraming: BackgroundFramingSettings = {
+  ...defaultBackgroundFramingSettings,
 };
 
 export function formatDuration(seconds: number): string {
@@ -231,6 +237,7 @@ export function useStudioController() {
       trackInputEvents: true,
       singleKeyShortcutsEnabled: true,
       autoZoom: defaultAutoZoom,
+      backgroundFraming: defaultBackgroundFraming,
     },
   });
 
@@ -264,6 +271,7 @@ export function useStudioController() {
   const recentsLimit = studioRecentsLimit;
 
   const lastHydratedProjectAutoZoomSignatureRef = useRef<string | null>(null);
+  const lastHydratedBackgroundFramingSignatureRef = useRef<string | null>(null);
   const diagnosticsRenderSignatureRef = useRef<Record<
     string,
     string | number | boolean | null
@@ -285,6 +293,19 @@ export function useStudioController() {
     lastHydratedProjectAutoZoomSignatureRef.current = nextSignature;
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
   }, [projectQuery.data?.autoZoom, settingsForm]);
+
+  useEffect(() => {
+    const projectBackgroundFraming = projectQuery.data?.backgroundFraming;
+    if (!projectBackgroundFraming) {
+      return;
+    }
+    const nextSignature = JSON.stringify(projectBackgroundFraming);
+    if (nextSignature === lastHydratedBackgroundFramingSignatureRef.current) {
+      return;
+    }
+    lastHydratedBackgroundFramingSignatureRef.current = nextSignature;
+    settingsForm.setFieldValue("backgroundFraming", projectBackgroundFraming);
+  }, [projectQuery.data?.backgroundFraming, settingsForm]);
 
   const baselineTimelineDocument = useMemo<TimelineDocument>(() => {
     const projectTimeline = projectQuery.data?.timeline;
