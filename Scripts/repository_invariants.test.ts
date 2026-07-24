@@ -96,6 +96,10 @@ describe("repository invariants", () => {
       'import path from "node:path";\nexport const value = path.resolve(".");\n',
     );
     writeFixture(
+      "apps/desktop-electrobun/src/bun/media/unsafe-side-effect.ts",
+      'import "node:fs";\nexport const value = true;\n',
+    );
+    writeFixture(
       "apps/desktop-electrobun/src/bun/media/unsafe-require.ts",
       'const fs = require("node:fs");\nexport const value = fs.existsSync(".");\n',
     );
@@ -106,6 +110,7 @@ describe("repository invariants", () => {
     const result = runCheck();
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("unsafe-static.ts must use Effect Path");
+    expect(result.stderr).toContain("unsafe-side-effect.ts must use Effect Path");
     expect(result.stderr).toContain("unsafe-require.ts must use Effect Path");
     expect(result.stderr).toContain("unsafe-dynamic.ts must use Effect Path");
   });
