@@ -71,12 +71,12 @@ let package = Package(
         ),
         .target(
             name: "Rendering",
-            dependencies: ["Automation"],
+            dependencies: ["Automation", "Project"],
             path: "engines/macos-swift/modules/rendering"
         ),
         .target(
             name: "Export",
-            dependencies: ["Automation", "Rendering"],
+            dependencies: ["Automation", "Project", "Rendering"],
             path: "engines/macos-swift/modules/export"
         ),
         .testTarget(
@@ -91,7 +91,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RenderingDeterminismTests",
-            dependencies: ["Rendering"],
+            dependencies: ["Project", "Rendering"],
             path: "Tests/renderingDeterminismTests"
         ),
         .testTarget(
@@ -101,7 +101,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ExportTests",
-            dependencies: ["Export"],
+            dependencies: ["Export", "Project"],
             path: "Tests/exportTests"
         )
     ]

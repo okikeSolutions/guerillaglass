@@ -2759,6 +2759,10 @@ pub struct CapabilitiesResultExport {
     #[serde(rename = "cutPlan")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cut_plan: Option<bool>,
+
+    #[serde(rename = "backgroundFraming")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_framing: Option<bool>,
 }
 
 impl CapabilitiesResultExport {
@@ -2767,6 +2771,7 @@ impl CapabilitiesResultExport {
         CapabilitiesResultExport {
             presets,
             cut_plan: None,
+            background_framing: None,
         }
     }
 }
@@ -2782,6 +2787,13 @@ impl std::fmt::Display for CapabilitiesResultExport {
             self.cut_plan
                 .as_ref()
                 .map(|cut_plan| ["cutPlan".to_string(), cut_plan.to_string()].join(",")),
+            self.background_framing.as_ref().map(|background_framing| {
+                [
+                    "backgroundFraming".to_string(),
+                    background_framing.to_string(),
+                ]
+                .join(",")
+            }),
         ];
 
         write!(
@@ -2805,6 +2817,7 @@ impl std::str::FromStr for CapabilitiesResultExport {
         struct IntermediateRep {
             pub presets: Vec<bool>,
             pub cut_plan: Vec<bool>,
+            pub background_framing: Vec<bool>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -2834,6 +2847,10 @@ impl std::str::FromStr for CapabilitiesResultExport {
                     "cutPlan" => intermediate_rep.cut_plan.push(
                         <bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
+                    #[allow(clippy::redundant_clone)]
+                    "backgroundFraming" => intermediate_rep.background_framing.push(
+                        <bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
                     _ => {
                         return std::result::Result::Err(
                             "Unexpected key while parsing CapabilitiesResultExport".to_string(),
@@ -2854,6 +2871,7 @@ impl std::str::FromStr for CapabilitiesResultExport {
                 .next()
                 .ok_or_else(|| "presets missing in CapabilitiesResultExport".to_string())?,
             cut_plan: intermediate_rep.cut_plan.into_iter().next(),
+            background_framing: intermediate_rep.background_framing.into_iter().next(),
         })
     }
 }

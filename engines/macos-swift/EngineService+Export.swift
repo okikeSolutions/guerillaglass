@@ -42,7 +42,8 @@ extension EngineService {
                 preset: preset,
                 trimRange: trimRange(start: payload.trimStartSeconds?.value1, end: payload.trimEndSeconds?.value1),
                 outputURL: URL(fileURLWithPath: payload.outputURL.value1),
-                timeline: exportTimeline(from: payload.timeline)
+                timeline: exportTimeline(from: payload.timeline),
+                backgroundFraming: resolvedBackgroundFraming
             )
             let jobId = "macos-export-\(UUID().uuidString)"
             latestExportJobId = jobId
@@ -53,6 +54,8 @@ extension EngineService {
                 status: .succeeded,
                 outputURL: .init(value1: exportedURL.path)
             ))))
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let error as BackgroundFramingSettings.ValidationError {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, error.localizedDescription))))
         } catch let error as ExportPipeline.ExportError {
@@ -81,17 +84,21 @@ extension EngineService {
                 recordingURL: recordingURL,
                 preset: preset,
                 trimRange: nil,
-                outputURL: URL(fileURLWithPath: payload.outputURL.value1)
+                outputURL: URL(fileURLWithPath: payload.outputURL.value1),
+                backgroundFraming: currentProjectDocument.project.backgroundFraming
             )
             let jobId = "macos-export-cut-plan-\(UUID().uuidString)"
             latestExportJobId = jobId
             latestExportOutputURL = exportedURL
+            latestExportBackgroundFraming = currentProjectDocument.project.backgroundFraming
             return .ok(.init(body: .json(.init(
                 jobId: .init(value1: jobId),
                 status: .succeeded,
                 outputURL: .init(value1: exportedURL.path),
                 appliedSegments: .init(value1: Double(currentProjectDocument.project.timeline.items.count))
             ))))
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }

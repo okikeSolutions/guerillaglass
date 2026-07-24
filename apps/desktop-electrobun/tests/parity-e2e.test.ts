@@ -93,6 +93,7 @@ describe("engine HTTP parity e2e", () => {
 
             const capabilities = yield* engine.engineCapabilities;
             expect(capabilities.platform).toBe(fixture.expectedPlatform);
+            expect(capabilities.export.backgroundFraming).toBe(false);
 
             const sources = yield* engine.sourcesList;
             expect(sources.displays.length).toBeGreaterThan(0);

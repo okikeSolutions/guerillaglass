@@ -4,6 +4,7 @@ import { buildCaptureTelemetryPresentation } from "../../view-model/captureTelem
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
   AudioMixerChannel,
+  InspectorColorField,
   InspectorDetailRows,
   InspectorNumericField,
   InspectorOptionCard,
@@ -19,6 +20,7 @@ import { ShortcutOverridesSection } from "./ShortcutOverridesSection";
 type InspectorModeStudio = Pick<
   StudioController,
   | "audioMixer"
+  | "backgroundFramingSupported"
   | "captureStatusQuery"
   | "exportForm"
   | "formatAspectRatio"
@@ -137,6 +139,63 @@ function AutoZoomSection({
   );
 }
 
+function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
+  return (
+    <studio.settingsForm.Field name="backgroundFraming">
+      {(field) => (
+        <div className="space-y-2 px-0.5">
+          <p className="gg-utility-label">{studio.ui.labels.backgroundFraming}</p>
+          <InspectorToggleField
+            label={studio.ui.labels.backgroundFraming}
+            checked={field.state.value.enabled}
+            onCheckedChange={(enabled) => field.handleChange({ ...field.state.value, enabled })}
+          />
+          <InspectorColorField
+            label={studio.ui.labels.backgroundColor}
+            value={field.state.value.backgroundColor}
+            onValueChange={(backgroundColor) =>
+              field.handleChange({ ...field.state.value, backgroundColor })
+            }
+          />
+          <InspectorSliderField
+            label={studio.ui.labels.backgroundPadding}
+            value={field.state.value.paddingFraction}
+            displayValue={`${Math.round(field.state.value.paddingFraction * 100)}%`}
+            min={0}
+            max={0.25}
+            step={0.01}
+            onValueChange={(paddingFraction) =>
+              field.handleChange({ ...field.state.value, paddingFraction })
+            }
+          />
+          <InspectorSliderField
+            label={studio.ui.labels.cornerRoundness}
+            value={field.state.value.cornerRadiusFraction}
+            displayValue={`${Math.round(field.state.value.cornerRadiusFraction * 1000) / 10}%`}
+            min={0}
+            max={0.1}
+            step={0.005}
+            onValueChange={(cornerRadiusFraction) =>
+              field.handleChange({ ...field.state.value, cornerRadiusFraction })
+            }
+          />
+          <InspectorSliderField
+            label={studio.ui.labels.shadowStrength}
+            value={field.state.value.shadowStrength}
+            displayValue={`${Math.round(field.state.value.shadowStrength * 100)}%`}
+            min={0}
+            max={1}
+            step={0.05}
+            onValueChange={(shadowStrength) =>
+              field.handleChange({ ...field.state.value, shadowStrength })
+            }
+          />
+        </div>
+      )}
+    </studio.settingsForm.Field>
+  );
+}
+
 export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudio }) {
   const captureSource = studio.settingsForm.state.values.captureSource;
   const telemetry = studio.captureStatusQuery.data?.telemetry;
@@ -248,6 +307,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
           showAudioMixer
           sliderClassName="gg-inspector-slider"
         />
+        {studio.backgroundFramingSupported ? <BackgroundFramingSection studio={studio} /> : null}
       </InspectorSection>
 
       <InspectorSection title={studio.ui.inspectorTabs.advanced.toUpperCase()}>
@@ -284,6 +344,7 @@ export function EditInspectorContent({ studio }: { studio: InspectorModeStudio }
 
       <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
         <AutoZoomSection studio={studio} headingIcon={<Sparkles className="h-3.5 w-3.5" />} />
+        {studio.backgroundFramingSupported ? <BackgroundFramingSection studio={studio} /> : null}
       </InspectorSection>
     </>
   );

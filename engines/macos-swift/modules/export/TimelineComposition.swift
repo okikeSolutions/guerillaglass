@@ -52,6 +52,14 @@ public enum CompiledExportTimelineItem: Equatable, Sendable {
         case let .gap(_, programRange): programRange
         }
     }
+
+    /// Whether the compiled interval contains source media rather than a gap.
+    public var isClip: Bool {
+        if case .clip = self {
+            return true
+        }
+        return false
+    }
 }
 
 public struct ExportTimelineComposition {

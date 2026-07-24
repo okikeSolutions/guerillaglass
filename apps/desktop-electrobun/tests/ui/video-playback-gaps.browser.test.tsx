@@ -48,8 +48,10 @@ function Harness({
   duration?: number;
 }) {
   const mediaRef = useRef<HTMLVideoElement>(null);
+  const sourceCardRef = useRef<HTMLDivElement>(null);
   useVideoPlaybackSync({
     mediaRef,
+    sourceCardRef,
     playbackStore,
     recordingMediaSource: "recording",
     timelineItems: items,
@@ -58,7 +60,11 @@ function Harness({
     setDisplayPlayheadSecondsFromMedia: playbackStore.setDisplayTimeSeconds,
     setPlayheadSecondsFromMedia: playbackStore.seek,
   });
-  return <video ref={mediaRef} />;
+  return (
+    <div ref={sourceCardRef} data-testid="source-card">
+      <video ref={mediaRef} />
+    </div>
+  );
 }
 
 function runFrame(atMs: number) {
@@ -110,6 +116,9 @@ describe("timeline preview across gaps", () => {
     act(() => playbackStore.seek(2));
 
     expect(media.style.visibility).toBe("hidden");
+    expect(
+      document.querySelector<HTMLElement>("[data-testid='source-card']")?.style.visibility,
+    ).toBe("hidden");
     expect(media.currentTime).toBe(0.25);
   });
 
@@ -123,6 +132,9 @@ describe("timeline preview across gaps", () => {
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(0.6);
     expect(media.currentTime).toBeCloseTo(0.1);
     expect(media.style.visibility).toBe("");
+    expect(
+      document.querySelector<HTMLElement>("[data-testid='source-card']")?.style.visibility,
+    ).toBe("");
     expect(media.play).toHaveBeenCalled();
   });
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ScreenShare, ShieldCheck } from "lucide-react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
 import { Button } from "@guerillaglass/ui/components/button";
@@ -18,6 +19,7 @@ import { cn } from "@guerillaglass/ui";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
+import { BackgroundFramingPreview } from "../panels/BackgroundFramingPreview";
 import { useLiveCapturePreview } from "../hooks/useLiveCapturePreview";
 import {
   useRecordingMediaSourceErrorRecovery,
@@ -48,6 +50,10 @@ export function CaptureRoute() {
     recordingMediaSource,
     refreshRecordingMediaSource,
   );
+  const [sourceSize, setSourceSize] = useState({ width: 1920, height: 1080 });
+  const outputSize = studio.selectedPreset
+    ? { width: studio.selectedPreset.width, height: studio.selectedPreset.height }
+    : { width: 1920, height: 1080 };
   const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
   const captureSessionId = isCaptureRunning
     ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
@@ -258,53 +264,98 @@ export function CaptureRoute() {
           <StudioPaneBody className="gg-preview-pane-body">
             <div className="gg-preview-workspace">
               <div className="gg-preview-stage-wrap">
-                <AspectRatio ratio={16 / 9} className="h-auto w-auto">
+                <AspectRatio
+                  ratio={outputSize.width / outputSize.height}
+                  className={cn(
+                    "max-h-full max-w-[1000px]",
+                    outputSize.width >= outputSize.height ? "w-full" : "h-full w-auto",
+                  )}
+                >
                   <div className="gg-preview-stage">
-                    {isCaptureRunning ? (
-                      <div className="relative h-full w-full overflow-hidden rounded-md">
-                        <img
-                          ref={liveCapturePreviewImageRef}
-                          alt={studio.ui.helper.activePreviewTitle}
-                          className={cn(
-                            "h-full w-full object-contain",
-                            liveCapturePreviewHasFrame ? "block" : "hidden",
-                          )}
-                        />
-                        {!liveCapturePreviewHasFrame ? (
-                          <div className="flex h-full w-full items-center justify-center text-center">
-                            <p className="text-sm font-medium">
-                              {studio.ui.helper.activePreviewTitle}
-                            </p>
-                          </div>
-                        ) : null}
+                    <studio.settingsForm.Field name="backgroundFraming">
+                      {(field) => (
+                        <BackgroundFramingPreview
+                          settings={
+                            studio.backgroundFramingSupported
+                              ? field.state.value
+                              : { ...field.state.value, enabled: false }
+                          }
+                          outputSize={outputSize}
+                          sourceSize={sourceSize}
+                        >
+                          {isCaptureRunning ? (
+                            <div className="relative h-full w-full overflow-hidden">
+                              <img
+                                ref={liveCapturePreviewImageRef}
+                                alt={studio.ui.helper.activePreviewTitle}
+                                className={cn(
+                                  "h-full w-full object-contain",
+                                  liveCapturePreviewHasFrame ? "block" : "hidden",
+                                )}
+                                onLoad={(event) => {
+                                  const image = event.currentTarget;
+                                  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                                    setSourceSize((current) =>
+                                      current.width === image.naturalWidth &&
+                                      current.height === image.naturalHeight
+                                        ? current
+                                        : {
+                                            width: image.naturalWidth,
+                                            height: image.naturalHeight,
+                                          },
+                                    );
+                                  }
+                                }}
+                              />
+                              {!liveCapturePreviewHasFrame ? (
+                                <div className="flex h-full w-full items-center justify-center text-center">
+                                  <p className="text-sm font-medium">
+                                    {studio.ui.helper.activePreviewTitle}
+                                  </p>
+                                </div>
+                              ) : null}
 
-                        {studio.captureStatusQuery.data?.isRecording ? (
-                          <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/15 backdrop-blur-sm">
-                            <span className="h-2 w-2 rounded-full bg-red-500" />
-                            {studio.ui.labels.recording}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : recordingMediaSource ? (
-                      <video
-                        key={recordingMediaSource}
-                        src={recordingMediaSource}
-                        className="h-full w-full rounded-md object-contain"
-                        preload="metadata"
-                        controls
-                        playsInline
-                        onError={handleMediaError}
-                      />
-                    ) : (
-                      <Empty className="max-w-lg border-0 bg-transparent p-6">
-                        <EmptyHeader>
-                          <EmptyTitle className="text-sm">
-                            {studio.ui.helper.emptyPreviewTitle}
-                          </EmptyTitle>
-                          <EmptyDescription>{studio.ui.helper.emptyPreviewBody}</EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    )}
+                              {studio.captureStatusQuery.data?.isRecording ? (
+                                <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/15 backdrop-blur-sm">
+                                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                                  {studio.ui.labels.recording}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : recordingMediaSource ? (
+                            <video
+                              key={recordingMediaSource}
+                              src={recordingMediaSource}
+                              className="h-full w-full object-contain"
+                              preload="metadata"
+                              controls
+                              playsInline
+                              onLoadedMetadata={(event) => {
+                                const video = event.currentTarget;
+                                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                                  setSourceSize({
+                                    width: video.videoWidth,
+                                    height: video.videoHeight,
+                                  });
+                                }
+                              }}
+                              onError={handleMediaError}
+                            />
+                          ) : (
+                            <Empty className="h-full border-0 bg-transparent p-6">
+                              <EmptyHeader>
+                                <EmptyTitle className="text-sm">
+                                  {studio.ui.helper.emptyPreviewTitle}
+                                </EmptyTitle>
+                                <EmptyDescription>
+                                  {studio.ui.helper.emptyPreviewBody}
+                                </EmptyDescription>
+                              </EmptyHeader>
+                            </Empty>
+                          )}
+                        </BackgroundFramingPreview>
+                      )}
+                    </studio.settingsForm.Field>
                   </div>
                 </AspectRatio>
               </div>

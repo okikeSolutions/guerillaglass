@@ -39,6 +39,7 @@ export const capabilitiesResultSchema = Schema.Struct({
   export: Schema.Struct({
     presets: Schema.Boolean,
     cutPlan: Schema.optionalKey(Schema.Boolean),
+    backgroundFraming: Schema.optionalKey(Schema.Boolean),
   }),
   project: Schema.Struct({
     openSave: Schema.Boolean,

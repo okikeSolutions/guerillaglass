@@ -3,6 +3,7 @@ import Automation
 import AVFoundation
 import Darwin
 @testable import Export
+import Project
 import XCTest
 
 // swiftlint:disable type_body_length
@@ -49,6 +50,7 @@ final class ExportPipelineTests: XCTestCase {
         let preset = Presets.h2641080p30
 
         let outputURL = baseURL.appendingPathComponent("output.mp4")
+        try Data("existing-export".utf8).write(to: outputURL)
         let pipeline = ExportPipeline()
         do {
             _ = try await pipeline.export(
@@ -65,6 +67,77 @@ final class ExportPipelineTests: XCTestCase {
         }
 
         XCTAssertTrue(fileManager.fileExists(atPath: outputURL.path))
+        XCTAssertNotEqual(try Data(contentsOf: outputURL), Data("existing-export".utf8))
+    }
+
+    func testDisabledFramingPreservesBlackLegacyLetterbox() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("square.mov")
+        try makeVideoFile(
+            at: sourceURL,
+            durationSeconds: 0.5,
+            color: (red: 0, green: 0, blue: 255)
+        )
+        let outputURL = baseURL.appendingPathComponent("legacy.mp4")
+        _ = try await ExportPipeline().export(
+            recordingURL: sourceURL,
+            preset: Presets.h2641080p30,
+            trimRange: nil,
+            outputURL: outputURL,
+            backgroundFraming: .defaults
+        )
+
+        let letterboxColor = try sampleColor(
+            in: AVAsset(url: outputURL),
+            at: 0.25,
+            normalizedPoint: CGPoint(x: 0.02, y: 0.5)
+        )
+        XCTAssertLessThan(letterboxColor.redComponent, 0.05)
+        XCTAssertLessThan(letterboxColor.greenComponent, 0.05)
+        XCTAssertLessThan(letterboxColor.blueComponent, 0.05)
+    }
+
+    func testCancelledExportDoesNotInstallDestination() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(at: sourceURL, durationSeconds: 2)
+        let outputURL = baseURL.appendingPathComponent("cancelled.mp4")
+        try Data("existing-destination".utf8).write(to: outputURL)
+        let exportTask = Task {
+            try await ExportPipeline().export(
+                recordingURL: sourceURL,
+                preset: Presets.h2641080p30,
+                trimRange: nil,
+                outputURL: outputURL,
+                backgroundFraming: BackgroundFramingSettings(
+                    version: 1,
+                    enabled: true,
+                    backgroundColor: "#18181B",
+                    paddingFraction: 0.06,
+                    cornerRadiusFraction: 0.025,
+                    shadowStrength: 0.35
+                )
+            )
+        }
+        exportTask.cancel()
+
+        do {
+            _ = try await exportTask.value
+            XCTFail("Expected export cancellation.")
+        } catch is CancellationError {
+            // Expected: AVAssetExportSession.export(to:as:) cooperates with task cancellation.
+        } catch {
+            XCTAssertTrue(error is CancellationError, "Unexpected cancellation error: \(error)")
+        }
+        XCTAssertEqual(try String(contentsOf: outputURL, encoding: .utf8), "existing-destination")
     }
 
     func testExportRejectsAncestorSymlinkOutputPath() async throws {
@@ -256,6 +329,203 @@ final class ExportPipelineTests: XCTestCase {
         XCTAssertEqual(cameraRed, 0.25, accuracy: 0.1)
         XCTAssertLessThan(cameraColor.greenComponent, 0.08)
         XCTAssertLessThan(cameraColor.blueComponent, 0.08)
+    }
+
+    func testBackgroundFramingRendersStageAndRoundedSourceCard() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(
+            at: sourceURL,
+            durationSeconds: 0.5,
+            color: (red: 0, green: 0, blue: 255)
+        )
+        let outputURL = baseURL.appendingPathComponent("framed.mp4")
+        let settings = try BackgroundFramingSettings(
+            version: 1,
+            enabled: true,
+            backgroundColor: "#204060",
+            paddingFraction: 0.06,
+            cornerRadiusFraction: 0.10,
+            shadowStrength: 0
+        )
+
+        do {
+            _ = try await ExportPipeline().export(
+                recordingURL: sourceURL,
+                preset: Presets.h2641080p30,
+                trimRange: nil,
+                outputURL: outputURL,
+                backgroundFraming: settings
+            )
+        } catch let error as ExportPipeline.ExportError {
+            if case .cannotCreateSession = error {
+                throw XCTSkip("Preset not supported.")
+            }
+            throw error
+        }
+
+        let exportedAsset = AVAsset(url: outputURL)
+        let stageColor = try sampleColor(
+            in: exportedAsset,
+            at: 0.25,
+            normalizedPoint: CGPoint(x: 0.02, y: 0.02)
+        )
+        XCTAssertEqual(stageColor.redComponent, 32 / 255, accuracy: 0.08)
+        XCTAssertEqual(stageColor.greenComponent, 64 / 255, accuracy: 0.08)
+        XCTAssertEqual(stageColor.blueComponent, 96 / 255, accuracy: 0.08)
+
+        let videoTracks = try await exportedAsset.loadTracks(withMediaType: .video)
+        let videoTrack = try XCTUnwrap(videoTracks.first)
+        let formatDescriptions = try await videoTrack.load(.formatDescriptions)
+        let formatDescription = try XCTUnwrap(formatDescriptions.first)
+        let extensions = try XCTUnwrap(
+            CMFormatDescriptionGetExtensions(formatDescription)
+        ) as NSDictionary
+        XCTAssertEqual(
+            extensions[kCMFormatDescriptionExtension_ColorPrimaries] as? String,
+            kCVImageBufferColorPrimaries_ITU_R_709_2 as String
+        )
+
+        let cardCenter = try sampleColor(in: exportedAsset, at: 0.25)
+        XCTAssertLessThan(cardCenter.redComponent, 0.08)
+        XCTAssertGreaterThan(cardCenter.blueComponent, 0.85)
+        XCTAssertGreaterThan(cardCenter.blueComponent, cardCenter.greenComponent * 3)
+
+        let roundedCorner = try sampleColor(
+            in: exportedAsset,
+            at: 0.25,
+            normalizedPoint: CGPoint(x: 0.061, y: 0.061)
+        )
+        XCTAssertEqual(roundedCorner.redComponent, stageColor.redComponent, accuracy: 0.08)
+        XCTAssertEqual(roundedCorner.greenComponent, stageColor.greenComponent, accuracy: 0.08)
+        XCTAssertEqual(roundedCorner.blueComponent, stageColor.blueComponent, accuracy: 0.08)
+    }
+
+    func testBackgroundFramingShadowFallsBelowCard() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("square.mov")
+        try makeVideoFile(at: sourceURL, durationSeconds: 0.5, color: (red: 0, green: 0, blue: 255))
+        let outputURL = baseURL.appendingPathComponent("shadow.mp4")
+        let settings = try BackgroundFramingSettings(
+            version: 1,
+            enabled: true,
+            backgroundColor: "#808080",
+            paddingFraction: 0.10,
+            cornerRadiusFraction: 0.025,
+            shadowStrength: 1
+        )
+        _ = try await ExportPipeline().export(
+            recordingURL: sourceURL,
+            preset: Presets.h2641080p30,
+            trimRange: nil,
+            outputURL: outputURL,
+            backgroundFraming: settings
+        )
+
+        let asset = AVAsset(url: outputURL)
+        let belowCard = try sampleColor(
+            in: asset,
+            at: 0.25,
+            normalizedPoint: CGPoint(x: 0.5, y: 0.925)
+        )
+        let aboveCard = try sampleColor(
+            in: asset,
+            at: 0.25,
+            normalizedPoint: CGPoint(x: 0.5, y: 0.075)
+        )
+        XCTAssertLessThan(luminance(belowCard), luminance(aboveCard) - 0.01)
+    }
+
+    func testEnabledTimelineGapRendersOnlyConfiguredStage() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(at: sourceURL, durationSeconds: 2, color: (red: 0, green: 0, blue: 255))
+        let outputURL = baseURL.appendingPathComponent("framed-gap.mp4")
+        let settings = try BackgroundFramingSettings(
+            version: 1,
+            enabled: true,
+            backgroundColor: "#204060",
+            paddingFraction: 0.06,
+            cornerRadiusFraction: 0.025,
+            shadowStrength: 1
+        )
+
+        do {
+            _ = try await ExportPipeline().export(
+                recordingURL: sourceURL,
+                preset: Presets.h2641080p30,
+                trimRange: nil,
+                outputURL: outputURL,
+                timeline: ExportTimelineDocument(items: [
+                    .clip(ExportTimelineClip(id: "clip-1", sourceStartSeconds: 0, sourceEndSeconds: 0.5)),
+                    .gap(ExportTimelineGap(id: "gap-1", durationSeconds: 0.5)),
+                    .clip(ExportTimelineClip(id: "clip-2", sourceStartSeconds: 0.5, sourceEndSeconds: 1)),
+                ]),
+                backgroundFraming: settings
+            )
+        } catch let error as ExportPipeline.ExportError {
+            if case .cannotCreateSession = error {
+                throw XCTSkip("Preset not supported.")
+            }
+            throw error
+        }
+
+        let gapColor = try sampleColor(in: AVAsset(url: outputURL), at: 0.75)
+        XCTAssertEqual(gapColor.redComponent, 32 / 255, accuracy: 0.08)
+        XCTAssertEqual(gapColor.greenComponent, 64 / 255, accuracy: 0.08)
+        XCTAssertEqual(gapColor.blueComponent, 96 / 255, accuracy: 0.08)
+    }
+
+    func testFramedTimelineTrimBeginningInsideGapKeepsCardHidden() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("source.mov")
+        try makeVideoFile(at: sourceURL, durationSeconds: 2, color: (red: 0, green: 0, blue: 255))
+        let outputURL = baseURL.appendingPathComponent("trimmed-gap.mp4")
+        let settings = try BackgroundFramingSettings(
+            version: 1,
+            enabled: true,
+            backgroundColor: "#204060",
+            paddingFraction: 0.06,
+            cornerRadiusFraction: 0.025,
+            shadowStrength: 1
+        )
+
+        _ = try await ExportPipeline().export(
+            recordingURL: sourceURL,
+            preset: Presets.h2641080p30,
+            trimRange: CMTimeRange(
+                start: CMTime(seconds: 0.6, preferredTimescale: 600),
+                duration: CMTime(seconds: 0.2, preferredTimescale: 600)
+            ),
+            outputURL: outputURL,
+            timeline: ExportTimelineDocument(items: [
+                .clip(ExportTimelineClip(id: "clip-1", sourceStartSeconds: 0, sourceEndSeconds: 0.5)),
+                .gap(ExportTimelineGap(id: "gap-1", durationSeconds: 0.5)),
+                .clip(ExportTimelineClip(id: "clip-2", sourceStartSeconds: 0.5, sourceEndSeconds: 1)),
+            ]),
+            backgroundFraming: settings
+        )
+
+        let gapColor = try sampleColor(in: AVAsset(url: outputURL), at: 0.1)
+        XCTAssertEqual(gapColor.redComponent, 32 / 255, accuracy: 0.08)
+        XCTAssertEqual(gapColor.greenComponent, 64 / 255, accuracy: 0.08)
+        XCTAssertEqual(gapColor.blueComponent, 96 / 255, accuracy: 0.08)
     }
 
     func testTimelineCompositionRejectsInvalidValues() async throws {
@@ -523,7 +793,15 @@ final class ExportPipelineTests: XCTestCase {
         }
     }
 
-    private func sampleColor(in asset: AVAsset, at seconds: Double) throws -> NSColor {
+    private func luminance(_ color: NSColor) -> CGFloat {
+        0.2126 * color.redComponent + 0.7152 * color.greenComponent + 0.0722 * color.blueComponent
+    }
+
+    private func sampleColor(
+        in asset: AVAsset,
+        at seconds: Double,
+        normalizedPoint: CGPoint = CGPoint(x: 0.5, y: 0.5)
+    ) throws -> NSColor {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = .zero
@@ -532,7 +810,15 @@ final class ExportPipelineTests: XCTestCase {
             actualTime: nil
         )
         let bitmap = NSBitmapImageRep(cgImage: image)
-        guard let color = bitmap.colorAt(x: image.width / 2, y: image.height / 2)?.usingColorSpace(.deviceRGB) else {
+        let xCoordinate = min(
+            image.width - 1,
+            max(0, Int(CGFloat(image.width) * normalizedPoint.x))
+        )
+        let yCoordinate = min(
+            image.height - 1,
+            max(0, Int(CGFloat(image.height) * normalizedPoint.y))
+        )
+        guard let color = bitmap.colorAt(x: xCoordinate, y: yCoordinate)?.usingColorSpace(.sRGB) else {
             throw TestError.cannotSampleColor
         }
         return color

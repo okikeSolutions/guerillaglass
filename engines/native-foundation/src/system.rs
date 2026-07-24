@@ -33,6 +33,7 @@ pub(crate) fn capabilities(id: &EngineCallId, platform: &str) -> EngineResponse 
             "export": {
                 "presets": true,
                 "cutPlan": true,
+                "backgroundFraming": false,
             },
             "project": {
                 "openSave": true,

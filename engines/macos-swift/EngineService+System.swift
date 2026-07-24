@@ -22,7 +22,7 @@ extension EngineService {
             phase: .native,
             capture: .init(display: true, window: true, systemAudio: true, microphone: true),
             recording: .init(inputTracking: true),
-            export: .init(presets: true, cutPlan: true),
+            export: .init(presets: true, cutPlan: true, backgroundFraming: true),
             project: .init(openSave: true),
             agent: .init(
                 preflight: true,

@@ -10,6 +10,7 @@ import type { PlaybackTransportStore } from "./timeline/usePlaybackTransport";
 
 type UseVideoPlaybackSyncOptions = {
   mediaRef: RefObject<HTMLVideoElement | null>;
+  sourceCardRef?: RefObject<HTMLDivElement | null>;
   playbackStore: PlaybackTransportStore;
   recordingMediaSource: string | null;
   timelineItems: CompiledTimelineItem[];
@@ -21,6 +22,7 @@ type UseVideoPlaybackSyncOptions = {
 
 export function useVideoPlaybackSync({
   mediaRef,
+  sourceCardRef,
   playbackStore,
   recordingMediaSource,
   timelineItems,
@@ -128,7 +130,7 @@ export function useVideoPlaybackSync({
       const boundedPlayhead = Math.max(0, Math.min(playheadSecondsRef.current, timelineDuration));
       const resolution = resolveTimelinePlaybackAtProgramTime(timelineItems, boundedPlayhead);
       const isGap = resolution.kind === "gap";
-      media.style.visibility = isGap ? "hidden" : "";
+      setSourceVisibility(media, sourceCardRef, !isGap);
       if (resolution.kind !== "clip") {
         return;
       }
@@ -147,7 +149,14 @@ export function useVideoPlaybackSync({
 
     syncPausedSeek();
     return playbackStore.subscribe(syncPausedSeek);
-  }, [mediaRef, playbackStore, recordingMediaSource, timelineDuration, timelineItems]);
+  }, [
+    mediaRef,
+    playbackStore,
+    recordingMediaSource,
+    sourceCardRef,
+    timelineDuration,
+    timelineItems,
+  ]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -167,7 +176,7 @@ export function useVideoPlaybackSync({
         playheadSecondsRef.current,
       );
       const isGap = resolution.kind === "gap";
-      media.style.visibility = isGap ? "hidden" : "";
+      setSourceVisibility(media, sourceCardRef, !isGap);
 
       if (isGap) {
         media.pause();
@@ -207,7 +216,7 @@ export function useVideoPlaybackSync({
         );
         if (boundaryResolution.kind === "gap") {
           media.pause();
-          media.style.visibility = "hidden";
+          setSourceVisibility(media, sourceCardRef, false);
           setPlayheadSecondsFromMedia(boundarySeconds);
           return true;
         }
@@ -294,6 +303,7 @@ export function useVideoPlaybackSync({
     setDisplayPlayheadSecondsFromMedia,
     setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
+    sourceCardRef,
     timelineItems,
   ]);
 
@@ -309,7 +319,7 @@ export function useVideoPlaybackSync({
         playheadSecondsRef.current,
       );
       const isGap = resolution.kind === "gap";
-      media.style.visibility = isGap ? "hidden" : "";
+      setSourceVisibility(media, sourceCardRef, !isGap);
       if (resolution.kind !== "clip") {
         return;
       }
@@ -331,7 +341,7 @@ export function useVideoPlaybackSync({
       );
       if (resolution.kind === "gap") {
         media.pause();
-        media.style.visibility = "hidden";
+        setSourceVisibility(media, sourceCardRef, false);
         return;
       }
       if (resolution.kind === "clip") {
@@ -349,7 +359,7 @@ export function useVideoPlaybackSync({
         );
         if (boundaryResolution.kind === "gap") {
           media.pause();
-          media.style.visibility = "hidden";
+          setSourceVisibility(media, sourceCardRef, false);
           setPlayheadSecondsFromMedia(boundarySeconds);
           return;
         }
@@ -358,7 +368,7 @@ export function useVideoPlaybackSync({
         if (nextClip) {
           try {
             media.currentTime = nextClip.sourceStartSeconds;
-            media.style.visibility = "";
+            setSourceVisibility(media, sourceCardRef, true);
             setPlayheadSecondsFromMedia(nextClip.programStartSeconds);
             void media.play().catch(() => setTimelinePlaybackActive(false));
             return;
@@ -391,5 +401,23 @@ export function useVideoPlaybackSync({
       media.removeEventListener("ended", handleEnded);
       media.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, [mediaRef, setPlayheadSecondsFromMedia, setTimelinePlaybackActive, timelineItems]);
+  }, [
+    mediaRef,
+    setPlayheadSecondsFromMedia,
+    setTimelinePlaybackActive,
+    sourceCardRef,
+    timelineItems,
+  ]);
+}
+
+function setSourceVisibility(
+  media: HTMLVideoElement,
+  sourceCardRef: RefObject<HTMLDivElement | null> | undefined,
+  isVisible: boolean,
+): void {
+  const visibility = isVisible ? "" : "hidden";
+  media.style.visibility = visibility;
+  if (sourceCardRef?.current) {
+    sourceCardRef.current.style.visibility = visibility;
+  }
 }

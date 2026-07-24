@@ -125,6 +125,15 @@ describe("renderer engine bridge", () => {
         protocolVersion: "2",
         platform: "macOS",
       }),
+      ggEngineCapabilities: async () => ({
+        protocolVersion: "2",
+        platform: "macos",
+        phase: "native",
+        capture: { display: true, window: true, systemAudio: true, microphone: true },
+        recording: { inputTracking: true },
+        export: { presets: true, cutPlan: true, backgroundFraming: true },
+        project: { openSave: true },
+      }),
       ggEngineGetPermissions: async () => ({
         screenRecordingGranted: true,
         microphoneGranted: false,
@@ -285,6 +294,7 @@ describe("renderer engine bridge", () => {
     };
 
     const ping = await engineApi.ping();
+    const capabilities = await engineApi.capabilities();
     const permissions = await engineApi.getPermissions();
     const requestedScreenPermission = await engineApi.requestScreenRecordingPermission();
     const requestedMicPermission = await engineApi.requestMicrophonePermission();
@@ -335,6 +345,7 @@ describe("renderer engine bridge", () => {
     const events = parseInputEventLog(eventsRaw);
 
     expect(ping.protocolVersion).toBe("2");
+    expect(capabilities.export.backgroundFraming).toBe(true);
     expect(permissions.inputMonitoring).toBe("granted");
     expect(requestedScreenPermission.success).toBe(true);
     expect(requestedMicPermission.success).toBe(true);

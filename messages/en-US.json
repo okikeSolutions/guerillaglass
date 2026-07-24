@@ -156,6 +156,7 @@
   "studio_labels_autoZoomIntensity": "Auto-zoom intensity ({value}%)",
   "studio_labels_minimumKeyframeInterval": "Min keyframe interval (s)",
   "studio_labels_backgroundFraming": "Background framing",
+  "studio_labels_backgroundColor": "Background color",
   "studio_labels_backgroundPadding": "Background padding",
   "studio_labels_cornerRoundness": "Corner roundness",
   "studio_labels_shadowStrength": "Shadow strength",

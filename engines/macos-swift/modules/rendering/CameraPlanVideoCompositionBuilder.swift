@@ -1,6 +1,7 @@
 import Automation
 import AVFoundation
 import CoreGraphics
+import Project
 
 enum CameraPlanVideoCompositionBuilder {
     static func makeComposition(
@@ -8,7 +9,8 @@ enum CameraPlanVideoCompositionBuilder {
         track: AVAssetTrack,
         renderSize: CGSize,
         frameRate: Double,
-        plan: CameraPlan?
+        plan: CameraPlan?,
+        backgroundFraming: BackgroundFramingSettings = .defaults
     ) async throws -> AVVideoComposition? {
         guard renderSize.width > 0, renderSize.height > 0 else { return nil }
 
@@ -20,14 +22,23 @@ enum CameraPlanVideoCompositionBuilder {
         let requiresTransform = !preferredTransform.isIdentity
         let hasPlan = !(plan?.keyframes.isEmpty ?? true)
 
-        if !hasPlan, !requiresScaling, !requiresTransform {
+        if !hasPlan, !requiresScaling, !requiresTransform, !backgroundFraming.enabled {
             return nil
         }
 
-        let baseTransform = makeBaseTransform(
-            preferredTransform: preferredTransform,
+        let sourceBounds = VideoGeometryTransforms.orientedBounds(
             naturalSize: naturalSize,
-            renderSize: renderSize
+            preferredTransform: preferredTransform
+        )
+        guard let geometry = BackgroundFramingGeometry(
+            renderSize: renderSize,
+            orientedSourceSize: sourceBounds.size,
+            settings: backgroundFraming
+        ) else { return nil }
+        let baseTransform = VideoGeometryTransforms.sourceToCardTransform(
+            naturalSize: naturalSize,
+            preferredTransform: preferredTransform,
+            cardRect: geometry.cardRect
         )
 
         let layerInstruction = makeLayerInstruction(
@@ -41,12 +52,26 @@ enum CameraPlanVideoCompositionBuilder {
         let instruction = AVMutableVideoCompositionInstruction()
         instruction.timeRange = CMTimeRange(start: .zero, duration: duration)
         instruction.layerInstructions = [layerInstruction]
+        instruction.enablePostProcessing = backgroundFraming.enabled
+        instruction.backgroundColor = BackgroundFramingColor(
+            hex: backgroundFraming.enabled ? backgroundFraming.backgroundColor : "#000000"
+        )?.cgColor
 
         let composition = AVMutableVideoComposition()
         composition.renderSize = renderSize
         let timescale = max(1, Int32(frameRate.rounded()))
         composition.frameDuration = CMTime(value: 1, timescale: timescale)
+        if backgroundFraming.enabled {
+            composition.colorPrimaries = AVVideoColorPrimaries_ITU_R_709_2
+            composition.colorTransferFunction = AVVideoTransferFunction_ITU_R_709_2
+            composition.colorYCbCrMatrix = AVVideoYCbCrMatrix_ITU_R_709_2
+        }
         composition.instructions = [instruction]
+        BackgroundFramingVideoComposition.apply(
+            to: composition,
+            geometry: geometry,
+            settings: backgroundFraming
+        )
         return composition
     }
 }
@@ -65,8 +90,10 @@ private func makeLayerInstruction(
     }
 
     let keyframes = plan.keyframes.sorted(by: { $0.time < $1.time })
-    let firstTransform = baseTransform.concatenating(
-        cameraTransform(for: keyframes[0], sourceSize: sourceSize)
+    let firstTransform = VideoGeometryTransforms.sourceTransform(
+        baseTransform: baseTransform,
+        keyframe: keyframes[0],
+        sourceSize: sourceSize
     )
     layerInstruction.setTransform(firstTransform, at: .zero)
 
@@ -79,11 +106,15 @@ private func makeLayerInstruction(
             continue
         }
 
-        let startTransform = baseTransform.concatenating(
-            cameraTransform(for: previous, sourceSize: sourceSize)
+        let startTransform = VideoGeometryTransforms.sourceTransform(
+            baseTransform: baseTransform,
+            keyframe: previous,
+            sourceSize: sourceSize
         )
-        let endTransform = baseTransform.concatenating(
-            cameraTransform(for: keyframe, sourceSize: sourceSize)
+        let endTransform = VideoGeometryTransforms.sourceTransform(
+            baseTransform: baseTransform,
+            keyframe: keyframe,
+            sourceSize: sourceSize
         )
         let timeRange = CMTimeRange(start: startTime, end: endTime)
         layerInstruction.setTransformRamp(
@@ -95,31 +126,6 @@ private func makeLayerInstruction(
     }
 
     return layerInstruction
-}
-
-private func makeBaseTransform(
-    preferredTransform: CGAffineTransform,
-    naturalSize: CGSize,
-    renderSize: CGSize
-) -> CGAffineTransform {
-    let scale = min(renderSize.width / naturalSize.width, renderSize.height / naturalSize.height)
-    let scaledSize = CGSize(width: naturalSize.width * scale, height: naturalSize.height * scale)
-    let translateX = (renderSize.width - scaledSize.width) / 2
-    let translateY = (renderSize.height - scaledSize.height) / 2
-
-    var transform = preferredTransform
-    transform = transform.scaledBy(x: scale, y: scale)
-    transform = transform.translatedBy(x: translateX, y: translateY)
-    return transform
-}
-
-private func cameraTransform(for keyframe: CameraKeyframe, sourceSize: CGSize) -> CGAffineTransform {
-    let zoom = max(1, keyframe.zoom)
-    let sourceCenter = CGPoint(x: sourceSize.width / 2, y: sourceSize.height / 2)
-    var transform = CGAffineTransform(translationX: sourceCenter.x, y: sourceCenter.y)
-    transform = transform.scaledBy(x: zoom, y: zoom)
-    transform = transform.translatedBy(x: -keyframe.center.x, y: -keyframe.center.y)
-    return transform
 }
 
 private func clampTime(_ time: TimeInterval, duration: CMTime) -> CMTime {

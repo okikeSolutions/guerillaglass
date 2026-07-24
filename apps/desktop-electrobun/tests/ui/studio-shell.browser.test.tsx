@@ -2,7 +2,10 @@ import React from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
+import { defaultBackgroundFramingSettings } from "@guerillaglass/engine-contract/shared/valueObjects";
 import App from "../../src/mainview/App";
+
+let backgroundFramingSupported = true;
 
 const captureStatus = {
   isRunning: false,
@@ -20,6 +23,15 @@ function installMockBridge() {
     engineVersion: "0.1.0",
     protocolVersion: "1.0.0",
     platform: "darwin",
+  });
+  windowWithBridge.ggEngineCapabilities = async () => ({
+    protocolVersion: "1.0.0",
+    phase: "native",
+    platform: "macos",
+    capture: { display: true, window: true, systemAudio: true, microphone: true },
+    recording: { inputTracking: true },
+    export: { presets: true, cutPlan: true, backgroundFraming: backgroundFramingSupported },
+    project: { openSave: true },
   });
   windowWithBridge.ggEngineGetPermissions = async () => ({
     screenRecordingGranted: true,
@@ -102,18 +114,24 @@ function installMockBridge() {
   windowWithBridge.ggEngineProjectCurrent = async () => ({
     projectPath: null,
     autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+    backgroundFraming: {
+      ...defaultBackgroundFramingSettings,
+      enabled: !backgroundFramingSupported,
+    },
   });
   windowWithBridge.ggEngineProjectOpen = async ({
     projectPath,
   }: { projectPath?: string } = {}) => ({
     projectPath: projectPath ?? "/tmp/mock.gglassproj",
     autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+    backgroundFraming: defaultBackgroundFramingSettings,
   });
   windowWithBridge.ggEngineProjectSave = async ({
     projectPath,
   }: { projectPath?: string } = {}) => ({
     projectPath: projectPath ?? "/tmp/mock.gglassproj",
     autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+    backgroundFraming: defaultBackgroundFramingSettings,
   });
   windowWithBridge.ggEngineProjectRecents = async () => ({ items: [] });
   windowWithBridge.ggResolveCapturePreviewURL = async () => null;
@@ -129,6 +147,7 @@ function installMockBridge() {
 let root: Root | undefined;
 
 beforeEach(() => {
+  backgroundFramingSupported = true;
   localStorage.clear();
   installMockBridge();
   document.body.innerHTML = '<div id="root"></div>';
@@ -143,6 +162,44 @@ afterEach(() => {
 });
 
 describe("studio shell browser smoke", () => {
+  test("background framing controls update the real preview stage", async () => {
+    await expect.element(page.getByTestId("background-framing-stage")).toBeVisible();
+    await page.getByRole("button", { name: "EFFECTS" }).click();
+    const framingToggle = page.getByRole("checkbox", { name: "Background framing" });
+    await expect.element(framingToggle).toBeVisible();
+    await framingToggle.click();
+
+    await expect
+      .element(page.getByTestId("background-framing-stage"))
+      .toHaveAttribute("data-framing-enabled", "true");
+    await expect.element(page.getByTestId("background-framing-card")).toBeVisible();
+    await expect
+      .element(page.getByRole("slider", { name: "Background padding" }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByRole("slider", { name: "Corner roundness" }))
+      .toBeInTheDocument();
+    await expect.element(page.getByRole("slider", { name: "Shadow strength" })).toBeInTheDocument();
+    await page.screenshot({ path: "../../test-results/screenshots/background-framing.png" });
+  });
+
+  test("unsupported native renderers hide framing controls and keep preview disabled", async () => {
+    root?.unmount();
+    backgroundFramingSupported = false;
+    installMockBridge();
+    root = createRoot(document.getElementById("root")!);
+    root.render(<App />);
+
+    await expect.element(page.getByTestId("background-framing-stage")).toBeVisible();
+    await page.getByRole("button", { name: "EFFECTS" }).click();
+    await expect
+      .element(page.getByTestId("background-framing-stage"))
+      .toHaveAttribute("data-framing-enabled", "false");
+    await expect
+      .element(page.getByRole("checkbox", { name: "Background framing" }))
+      .not.toBeInTheDocument();
+  });
+
   test("renders shell and navigates capture/edit modes", async () => {
     await expect
       .element(page.getByRole("heading", { level: 1, name: "Guerillaglass" }))

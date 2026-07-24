@@ -2742,6 +2742,9 @@
               },
               "cutPlan": {
                 "type": "boolean"
+              },
+              "backgroundFraming": {
+                "type": "boolean"
               }
             },
             "required": [

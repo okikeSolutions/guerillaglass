@@ -251,6 +251,7 @@ export function useStudioController() {
   });
 
   const {
+    capabilitiesQuery,
     captureStatusQuery,
     eventsQuery,
     exportInfoQuery,
@@ -286,26 +287,32 @@ export function useStudioController() {
     if (!projectAutoZoom) {
       return;
     }
-    const nextSignature = JSON.stringify(projectAutoZoom);
+    const nextSignature = JSON.stringify({
+      projectPath: projectQuery.data?.projectPath ?? null,
+      settings: projectAutoZoom,
+    });
     if (nextSignature === lastHydratedProjectAutoZoomSignatureRef.current) {
       return;
     }
     lastHydratedProjectAutoZoomSignatureRef.current = nextSignature;
     settingsForm.setFieldValue("autoZoom", projectAutoZoom);
-  }, [projectQuery.data?.autoZoom, settingsForm]);
+  }, [projectQuery.data?.autoZoom, projectQuery.data?.projectPath, settingsForm]);
 
   useEffect(() => {
     const projectBackgroundFraming = projectQuery.data?.backgroundFraming;
     if (!projectBackgroundFraming) {
       return;
     }
-    const nextSignature = JSON.stringify(projectBackgroundFraming);
+    const nextSignature = JSON.stringify({
+      projectPath: projectQuery.data?.projectPath ?? null,
+      settings: projectBackgroundFraming,
+    });
     if (nextSignature === lastHydratedBackgroundFramingSignatureRef.current) {
       return;
     }
     lastHydratedBackgroundFramingSignatureRef.current = nextSignature;
     settingsForm.setFieldValue("backgroundFraming", projectBackgroundFraming);
-  }, [projectQuery.data?.backgroundFraming, settingsForm]);
+  }, [projectQuery.data?.backgroundFraming, projectQuery.data?.projectPath, settingsForm]);
 
   const baselineTimelineDocument = useMemo<TimelineDocument>(() => {
     const projectTimeline = projectQuery.data?.timeline;
@@ -1073,6 +1080,8 @@ export function useStudioController() {
       : ui.labels.idle;
 
   return {
+    backgroundFramingSupported: capabilitiesQuery.data?.export.backgroundFraming === true,
+    capabilitiesQuery,
     captureStatusLabel,
     captureStatusQuery,
     exportForm,
