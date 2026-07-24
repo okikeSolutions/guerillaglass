@@ -12,7 +12,7 @@
     "gate:rust": "bash ./Scripts/rust_gate.sh",
     "gate:typescript": "bash ./Scripts/typescript_gate.sh",
     "repo:check": "bun ./Scripts/repository_invariants.ts",
-    "repo:test": "bun test Scripts/repository_invariants.test.ts Scripts/check_pr_review_threads.test.ts",
+    "repo:test": "bun test Scripts/repository_invariants.test.ts Scripts/check_pr_review_threads.test.ts Scripts/typescript_source_analysis.test.ts Scripts/lint_no_state_updates_in_effect.test.ts Scripts/prepare_effect_tsgo.test.ts",
     "pr:check-review-threads": "bun ./Scripts/check_pr_review_threads.ts",
     "js:format": "bunx oxfmt --write apps packages Scripts '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
     "js:format:check": "bunx oxfmt --check apps packages Scripts '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
@@ -53,7 +53,7 @@
     "docs:check:native": "bun ./Scripts/docs_gate.mjs --scope=native",
     "coverage": "bash ./Scripts/coverage.sh",
     "coverage:check": "bash ./Scripts/coverage_check.sh",
-    "prepare": "effect-language-service patch"
+    "prepare": "bun ./Scripts/prepare_effect_tsgo.ts"
   },
   "dependencies": {
     "@better-auth/expo": "~1.6.15",
@@ -62,17 +62,17 @@
     "convex": "^1.42.3"
   },
   "devDependencies": {
-    "@effect/language-service": "^0.87.1",
+    "@effect/tsgo": "0.24.3",
     "@inlang/paraglide-js": "^2.22.0",
     "@nkzw/eslint-plugin": "^2.0.0",
     "eslint-plugin-no-only-tests": "^3.4.0",
     "eslint-plugin-perfectionist": "^5.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "oxc-parser": "^0.141.0",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
     "oxlint-tsgolint": "^7.0.2001",
-    "typescript": "^7.0.2",
-    "typescript-eslint": "^8.65.0"
+    "typescript": "7.0.2"
   }
 }

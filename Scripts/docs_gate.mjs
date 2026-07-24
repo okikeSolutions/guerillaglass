@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
+import { analyzeTypeScriptDeclarations } from "./typescript_source_analysis.mjs";
 
 const POLICY_PATH = "docs/doc_coverage_policy.json";
 
@@ -27,7 +27,7 @@ const rawPolicy = fs.readFileSync(POLICY_PATH, "utf8");
 const policy = JSON.parse(rawPolicy);
 
 const languageAnalyzers = {
-  typescript: analyzeTypeScriptFile,
+  typescript: analyzeTypeScriptDeclarations,
   swift: analyzeSwiftFile,
   rust: analyzeRustFile,
 };
@@ -132,68 +132,6 @@ function walkDirectory(directoryPath, extensionSet, result) {
       result.push(fullPath);
     }
   }
-}
-
-function analyzeTypeScriptFile(filePath, sourceText) {
-  const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true);
-  const declarations = [];
-
-  for (const statement of sourceFile.statements) {
-    if (!hasExportModifier(statement) || ts.isExportDeclaration(statement)) {
-      continue;
-    }
-
-    const documented = hasDocCommentAboveTypeScriptNode(sourceText, statement);
-    const line = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile)).line + 1;
-
-    if (ts.isVariableStatement(statement)) {
-      const names = statement.declarationList.declarations
-        .map((declaration) => declaration.name.getText(sourceFile))
-        .join(", ");
-      declarations.push({ filePath, line, name: `export ${names}`, documented });
-      continue;
-    }
-
-    if (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) {
-      const name = statement.name?.text ?? "default";
-      declarations.push({ filePath, line, name: `export ${name}`, documented });
-      continue;
-    }
-
-    if (
-      ts.isInterfaceDeclaration(statement) ||
-      ts.isTypeAliasDeclaration(statement) ||
-      ts.isEnumDeclaration(statement)
-    ) {
-      declarations.push({ filePath, line, name: `export ${statement.name.text}`, documented });
-      continue;
-    }
-  }
-
-  return declarations;
-}
-
-function hasExportModifier(node) {
-  return Boolean(node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword));
-}
-
-function hasDocCommentAboveTypeScriptNode(sourceText, node) {
-  const ranges = ts.getLeadingCommentRanges(sourceText, node.getFullStart()) ?? [];
-  if (ranges.length === 0) {
-    return false;
-  }
-
-  const lastRange = ranges.at(-1);
-  if (!lastRange) {
-    return false;
-  }
-  const between = sourceText.slice(lastRange.end, node.getStart());
-  if (between.trim().length > 0) {
-    return false;
-  }
-
-  const comment = sourceText.slice(lastRange.pos, lastRange.end).trimStart();
-  return comment.startsWith("/**");
 }
 
 function analyzeSwiftFile(filePath, sourceText) {

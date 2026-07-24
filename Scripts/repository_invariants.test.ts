@@ -21,7 +21,14 @@ beforeEach(() => {
   for (const guidePath of guidePaths) {
     writeFixture(guidePath, "# Guide\n");
   }
-  writeFixture("package.json", JSON.stringify({ dependencies: { effect: "4.0.0-beta.101" } }));
+  writeFixture(
+    "package.json",
+    JSON.stringify({
+      scripts: { prepare: "bun ./Scripts/prepare_effect_tsgo.ts" },
+      dependencies: { effect: "4.0.0-beta.101" },
+      devDependencies: { typescript: "7.0.2", "@effect/tsgo": "0.24.3" },
+    }),
+  );
   writeFixture(
     "vendor/effect/packages/effect/package.json",
     JSON.stringify({ version: "4.0.0-beta.101" }),
@@ -88,6 +95,83 @@ describe("repository invariants", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("must use @effect/platform-node");
     expect(result.stderr).toContain("unsupported package-manager lockfile present");
+  });
+
+  test("requires a root TypeScript 7 compiler pin", () => {
+    writeFixture("package.json", JSON.stringify({ dependencies: { effect: "4.0.0-beta.101" } }));
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("root devDependencies must pin the TypeScript 7 compiler");
+  });
+
+  test("rejects unsupported TypeScript compiler majors", () => {
+    for (const typescript of ["6.0.3", "8.0.0"]) {
+      writeFixture(
+        "package.json",
+        JSON.stringify({
+          scripts: { prepare: "bun ./Scripts/prepare_effect_tsgo.ts" },
+          dependencies: { effect: "4.0.0-beta.101" },
+          devDependencies: { typescript, "@effect/tsgo": "0.24.3" },
+        }),
+      );
+      const result = runCheck();
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(
+        `root TypeScript compiler must use the supported major 7, found ${typescript}`,
+      );
+    }
+  });
+
+  test("requires Effect tsgo and rejects compiler API imports with TypeScript 7", () => {
+    writeFixture(
+      "package.json",
+      JSON.stringify({
+        scripts: { prepare: "effect-language-service patch" },
+        dependencies: { effect: "4.0.0-beta.101" },
+        devDependencies: {
+          typescript: "^7.0.2",
+          "@effect/language-service": "^0.87.1",
+        },
+      }),
+    );
+    writeFixture(
+      "apps/web/package.json",
+      JSON.stringify({
+        dependencies: {
+          "@effect/language-service": "^0.87.1",
+          typescript: "7.0.3",
+        },
+      }),
+    );
+    writeFixture("Scripts/legacy-parser.mjs", 'import ts from "typescript";\n');
+    writeFixture("Scripts/legacy-require.cjs", "require(`typescript/lib/typescript.js`);\n");
+    writeFixture("Scripts/legacy-dynamic.mjs", "void import(`typescript`);\n");
+    writeFixture("Scripts/legacy-import-equals.ts", 'import ts = require("typescript");\n');
+
+    let result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("TypeScript 7 requires @effect/tsgo");
+    expect(result.stderr).toContain("exact synchronized versions");
+    expect(result.stderr).toContain("instead of @effect/language-service");
+    expect(result.stderr).toContain("TypeScript version 7.0.3 does not match root");
+    expect(result.stderr).toContain('prepare script "bun ./Scripts/prepare_effect_tsgo.ts"');
+    expect(result.stderr).toContain("imports the removed TypeScript 7 compiler API");
+
+    writeFixture(
+      "package.json",
+      JSON.stringify({
+        scripts: { prepare: "bun ./Scripts/prepare_effect_tsgo.ts" },
+        dependencies: { effect: "4.0.0-beta.101" },
+        devDependencies: { typescript: "7.0.2", "@effect/tsgo": "0.24.3" },
+      }),
+    );
+    writeFixture("apps/web/package.json", JSON.stringify({ dependencies: {} }));
+    writeFixture("Scripts/legacy-parser.mjs", 'import { parseSync } from "oxc-parser";\n');
+    writeFixture("Scripts/legacy-require.cjs", 'require("oxc-parser");\n');
+    writeFixture("Scripts/legacy-dynamic.mjs", 'void import("oxc-parser");\n');
+    writeFixture("Scripts/legacy-import-equals.ts", 'import parser = require("oxc-parser");\n');
+    result = runCheck();
+    expect(result.exitCode).toBe(0);
   });
 
   test("rejects direct Node path, filesystem, and crypto imports in application services", () => {

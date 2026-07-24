@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { parseSync } from "oxc-parser";
 
 type PackageManifest = {
   version?: unknown;
@@ -8,6 +9,7 @@ type PackageManifest = {
   devDependencies?: Record<string, unknown>;
   peerDependencies?: Record<string, unknown>;
   optionalDependencies?: Record<string, unknown>;
+  scripts?: Record<string, unknown>;
 };
 
 const root = resolve(process.env.GG_REPOSITORY_ROOT ?? resolve(import.meta.dir, ".."));
@@ -32,6 +34,7 @@ for (const guide of requiredGuides) {
 
 checkEffectVersionAlignment();
 checkJavaScriptRuntimePolicy();
+checkTypeScriptToolingPolicy();
 checkEffectPlatformServiceBoundaries();
 checkGeneratedRustDependencyOwnership();
 checkLocalizationParity();
@@ -53,6 +56,7 @@ console.log(
     : "- Effect runtime packages are aligned (vendor comparison skipped; submodule not initialized)",
 );
 console.log("- Bun is the only package manager and Effect uses the Node platform adapter");
+console.log("- TypeScript 7 uses @effect/tsgo without legacy compiler-API imports");
 console.log("- application services use Effect Path, FileSystem, and Crypto boundaries");
 console.log("- generated Rust dependency table matches the generator template");
 console.log("- localization keys and placeholders match across supported locales");
@@ -154,6 +158,167 @@ function checkJavaScriptRuntimePolicy(): void {
       }
     }
   }
+}
+
+function checkTypeScriptToolingPolicy(): void {
+  const manifest = readJson(join(root, "package.json"));
+  const typescriptVersion = manifest.devDependencies?.typescript;
+  if (typeof typescriptVersion !== "string") {
+    failures.push("root devDependencies must pin the TypeScript 7 compiler");
+    return;
+  }
+
+  const majorVersion = Number.parseInt(typescriptVersion.match(/\d+/)?.[0] ?? "", 10);
+  if (majorVersion !== 7) {
+    failures.push(
+      `root TypeScript compiler must use the supported major 7, found ${typescriptVersion}`,
+    );
+    return;
+  }
+
+  const tsgoVersion = manifest.devDependencies?.["@effect/tsgo"];
+  if (typeof tsgoVersion !== "string") {
+    failures.push("TypeScript 7 requires @effect/tsgo in root devDependencies");
+  }
+  const exactVersionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+  if (
+    !exactVersionPattern.test(typescriptVersion) ||
+    !exactVersionPattern.test(String(tsgoVersion))
+  ) {
+    failures.push(
+      "TypeScript 7 and @effect/tsgo must use exact synchronized versions so lock refreshes cannot create an incompatible compiler pair",
+    );
+  }
+
+  const manifestPaths = [
+    "package.json",
+    ...workspaceManifestPaths("apps"),
+    ...workspaceManifestPaths("packages"),
+  ];
+  for (const manifestPath of manifestPaths) {
+    const workspaceManifest = readJson(join(root, manifestPath));
+    for (const dependencyGroup of [
+      workspaceManifest.dependencies,
+      workspaceManifest.devDependencies,
+      workspaceManifest.peerDependencies,
+      workspaceManifest.optionalDependencies,
+    ]) {
+      if (!dependencyGroup) {
+        continue;
+      }
+      if ("@effect/language-service" in dependencyGroup) {
+        failures.push(
+          `${manifestPath} must use @effect/tsgo instead of @effect/language-service with TypeScript 7`,
+        );
+      }
+      const workspaceTypeScriptVersion = dependencyGroup.typescript;
+      if (
+        typeof workspaceTypeScriptVersion === "string" &&
+        workspaceTypeScriptVersion !== typescriptVersion
+      ) {
+        failures.push(
+          `${manifestPath} TypeScript version ${workspaceTypeScriptVersion} does not match root ${typescriptVersion}`,
+        );
+      }
+    }
+  }
+
+  if (manifest.scripts?.prepare !== "bun ./Scripts/prepare_effect_tsgo.ts") {
+    failures.push(
+      'TypeScript 7 requires the root prepare script "bun ./Scripts/prepare_effect_tsgo.ts"',
+    );
+  }
+
+  const scriptsRoot = join(root, "Scripts");
+  if (!existsSync(scriptsRoot)) {
+    return;
+  }
+  for (const sourcePath of collectSourceFiles(scriptsRoot)) {
+    const source = readFileSync(sourcePath, "utf8");
+    const { program, errors } = parseSync(sourcePath, source);
+    if (errors.length > 0) {
+      failures.push(
+        `${relative(root, sourcePath)} could not be parsed while checking tooling imports`,
+      );
+      continue;
+    }
+    if (astLoadsTypeScriptCompilerApi(program)) {
+      failures.push(
+        `${relative(root, sourcePath)} imports the removed TypeScript 7 compiler API; use a dedicated parser`,
+      );
+    }
+  }
+}
+
+function isTypeScriptCompilerSpecifier(value: unknown): boolean {
+  return typeof value === "string" && (value === "typescript" || value.startsWith("typescript/"));
+}
+
+function staticModuleSpecifier(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const expression = value as Record<string, unknown>;
+  if (expression.type === "Literal") {
+    return expression.value;
+  }
+  if (
+    expression.type === "TemplateLiteral" &&
+    (expression.expressions as Array<unknown> | undefined)?.length === 0
+  ) {
+    const firstQuasi = (expression.quasis as Array<Record<string, unknown>> | undefined)?.[0];
+    return (firstQuasi?.value as { cooked?: unknown } | undefined)?.cooked;
+  }
+  return undefined;
+}
+
+function astLoadsTypeScriptCompilerApi(rootNode: object): boolean {
+  const pending: Array<unknown> = [rootNode];
+  const seen = new WeakSet<object>();
+
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (!value || typeof value !== "object" || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    const node = value as Record<string, unknown>;
+
+    if (
+      (node.type === "ImportDeclaration" ||
+        node.type === "ExportNamedDeclaration" ||
+        node.type === "ExportAllDeclaration") &&
+      isTypeScriptCompilerSpecifier(staticModuleSpecifier(node.source))
+    ) {
+      return true;
+    }
+    if (
+      node.type === "ImportExpression" &&
+      isTypeScriptCompilerSpecifier(staticModuleSpecifier(node.source))
+    ) {
+      return true;
+    }
+    if (
+      node.type === "CallExpression" &&
+      (node.callee as { type?: unknown; name?: unknown } | null)?.type === "Identifier" &&
+      (node.callee as { name?: unknown }).name === "require" &&
+      isTypeScriptCompilerSpecifier(
+        staticModuleSpecifier((node.arguments as Array<unknown> | undefined)?.[0]),
+      )
+    ) {
+      return true;
+    }
+    if (
+      node.type === "TSExternalModuleReference" &&
+      isTypeScriptCompilerSpecifier(staticModuleSpecifier(node.expression))
+    ) {
+      return true;
+    }
+
+    pending.push(...Object.values(node));
+  }
+
+  return false;
 }
 
 function checkEffectPlatformServiceBoundaries(): void {

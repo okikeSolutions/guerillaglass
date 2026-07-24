@@ -15,6 +15,21 @@ Thanks for your interest in contributing. Guerilla Glass is a cross-platform cre
 - Swift 5.10+ (for macOS engine work)
 - macOS 13.0+ (required for full native macOS capture/export flow and full gate)
 
+## TypeScript tooling
+
+`bun install` patches the TypeScript 7 native compiler with `@effect/tsgo`; `tsc` should report a version ending in `+effect-tsgo.<version>`. Keep the existing `@effect/language-service` plugin entries in `tsconfig` files because that remains the plugin identifier used by `@effect/tsgo`.
+
+For VS Code-compatible editors, configure the workspace to use the patched compiler:
+
+```json
+{
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "./node_modules/typescript/bin",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "js/ts.tsdk.additionalLocations": ["./node_modules/typescript/bin"]
+}
+```
+
 ## Build
 
 ```bash
