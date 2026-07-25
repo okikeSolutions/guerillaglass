@@ -132,7 +132,12 @@ extension EngineService {
                 latestAgentUpdatedAt = nil
             }
             hasUnsavedProjectChanges = false
-            try projectLibraryStore.recordRecentProject(url: projectURL)
+            do {
+                try projectLibraryStore.recordRecentProject(url: projectURL)
+            } catch {
+                // The project save is already committed; a recents-index failure must not
+                // report the save as failed or trigger destructive rollback semantics.
+            }
             return .ok(.init(body: .json(projectState())))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
