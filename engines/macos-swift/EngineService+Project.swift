@@ -14,6 +14,10 @@ extension EngineService {
     ) async throws -> Operations.project_period_projectOpen.Output {
         let payload: Components.Schemas.ProjectOpenPayload = switch input.body { case let .json(body): body }
         let projectURL = URL(fileURLWithPath: payload.projectPath.value1, isDirectory: true)
+        preflightSessions.removeAll()
+        agentRuns.removeAll()
+        latestAgentJobId = nil
+        latestAgentUpdatedAt = nil
         do {
             let openedURL: URL
             let openedDocument: ProjectDocument
@@ -31,6 +35,7 @@ extension EngineService {
             }
             currentProjectURL = openedURL
             currentProjectDocument = openedDocument
+            await restoreAgentRunIfAvailable()
             try projectLibraryStore.recordRecentProject(url: openedURL)
             hasUnsavedProjectChanges = false
             return .ok(.init(body: .json(projectState())))
@@ -50,7 +55,12 @@ extension EngineService {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "projectPath is required before saving."))))
         }
 
+        let isSaveAs = currentProjectURL?.standardizedFileURL != projectURL.standardizedFileURL
         var document = currentProjectDocument
+        if isSaveAs {
+            // Analysis artifacts are project-bound and are not copied by Save As.
+            document.project.agentAnalysis = AgentAnalysisMetadata()
+        }
         if let autoZoom = payload.autoZoom {
             document.project.autoZoom = projectAutoZoom(from: autoZoom)
         }
@@ -61,19 +71,73 @@ extension EngineService {
                 return .badRequest(.init(body: .json(badRequest(.invalid_params, error.localizedDescription))))
             }
         }
-        do {
-            let savedDocument = try projectStore.writeProject(
-                document: document,
-                assets: .init(
-                    recordingURL: captureEngine.recordingURL,
-                    eventsURL: currentEventsURL
-                ),
-                to: projectURL
+        if let timeline = payload.timeline {
+            guard Int(timeline.version) == 2 else {
+                return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unsupported timeline version."))))
+            }
+            document.project.timeline = TimelineDocument(
+                items: timeline.items.compactMap { item in
+                    if let clip = item.value1 {
+                        return .clip(TimelineClip(
+                            id: clip.id.value1,
+                            sourceStartSeconds: clip.sourceStartSeconds.value1,
+                            sourceEndSeconds: clip.sourceEndSeconds.value1
+                        ))
+                    }
+                    if let gap = item.value2 {
+                        return .gap(TimelineGap(
+                            id: gap.id.value1,
+                            durationSeconds: gap.durationSeconds.value1
+                        ))
+                    }
+                    return nil
+                }
             )
+        }
+        do {
+            let quarantinedAnalysis = isSaveAs
+                ? try agentArtifactStore.quarantineLatest(projectURL: projectURL)
+                : nil
+            let savedDocument: ProjectDocument
+            do {
+                savedDocument = try projectStore.writeProject(
+                    document: document,
+                    assets: .init(
+                        recordingURL: captureEngine.recordingURL,
+                        eventsURL: currentEventsURL
+                    ),
+                    to: projectURL
+                )
+            } catch {
+                if let quarantinedAnalysis {
+                    try agentArtifactStore.restoreQuarantined(
+                        quarantinedAnalysis,
+                        projectURL: projectURL
+                    )
+                }
+                throw error
+            }
+            if let quarantinedAnalysis {
+                agentArtifactStore.discardQuarantined(
+                    quarantinedAnalysis,
+                    projectURL: projectURL
+                )
+            }
             currentProjectURL = projectURL
             currentProjectDocument = savedDocument
+            if isSaveAs {
+                agentRuns.removeAll()
+                agentRecoveryFailureJobId = nil
+                latestAgentJobId = nil
+                latestAgentUpdatedAt = nil
+            }
             hasUnsavedProjectChanges = false
-            try projectLibraryStore.recordRecentProject(url: projectURL)
+            do {
+                try projectLibraryStore.recordRecentProject(url: projectURL)
+            } catch {
+                // The project save is already committed; a recents-index failure must not
+                // report the save as failed or trigger destructive rollback semantics.
+            }
             return .ok(.init(body: .json(projectState())))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))

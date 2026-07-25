@@ -24,10 +24,12 @@ public enum AgentArtifactKind: String, Codable, CaseIterable {
 public struct AgentArtifactReference: Codable, Equatable {
     public var kind: AgentArtifactKind
     public var path: String
+    public var sha256: String?
 
-    public init(kind: AgentArtifactKind, path: String) {
+    public init(kind: AgentArtifactKind, path: String, sha256: String? = nil) {
         self.kind = kind
         self.path = path
+        self.sha256 = sha256
     }
 }
 

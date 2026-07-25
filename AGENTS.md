@@ -22,6 +22,8 @@ Normative product requirements live in `docs/SPEC.md`. Execution status and sequ
 | Timeline semantics          | `docs/TIMELINE_EDITING_DESIGN.md`   |
 | Background framing v1       | `docs/BACKGROUND_FRAMING_DESIGN.md` |
 | Accessibility and shortcuts | `docs/DESKTOP_ACCESSIBILITY.md`     |
+| Agent Mode operations       | `docs/AGENT_MODE_RUNBOOK.md`        |
+| Agent discoverability audit | `docs/AGENT_DISCOVERABILITY_AUDIT.md` |
 | Release hardening           | `docs/RELEASE_HARDENING.md`         |
 
 Documents named `ENGINE_CONTRACT_V2_*` and `MIGRATION.md` preserve migration history. They are useful rationale, but are not the active backlog unless `docs/ROADMAP.md` references them.

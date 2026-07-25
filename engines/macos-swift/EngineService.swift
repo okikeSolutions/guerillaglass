@@ -10,18 +10,18 @@ struct EngineAgentPreflightSession {
     let runtimeBudgetMinutes: Int
     let transcriptionProvider: String
     let importedTranscriptPath: String?
-    let projectPath: String?
-    let recordingURL: String?
+    let importedTranscriptData: Data
+    let projectId: UUID
+    let projectPath: String
+    let recordingURL: String
+    let recordingRevision: String
+    let baseTimeline: TimelineDocument
+    let requiresDestructiveConfirmation: Bool
     let createdAt: Date
 }
 
 struct EngineAgentRunRecord {
-    let jobId: String
-    let status: Components.Schemas.AgentRunSummary.statusPayload
-    let runtimeBudgetMinutes: Int
-    let qaReport: Components.Schemas.AgentQAReport
-    let blockingReason: Components.Schemas.AgentRunSummary.blockingReasonPayload?
-    let updatedAt: String
+    var summary: AgentRunSummaryArtifact
 }
 
 @MainActor
@@ -30,6 +30,7 @@ final class EngineService: APIProtocol {
     let exportPipeline = ExportPipeline()
     let projectStore = ProjectStore()
     let projectLibraryStore = ProjectLibraryStore()
+    let agentArtifactStore = AgentArtifactStore()
     let inputPermissionManager = InputPermissionManager()
     let inputSession = InputEventSession()
 
@@ -40,6 +41,7 @@ final class EngineService: APIProtocol {
     var hasUnsavedProjectChanges = false
     var latestAgentJobId: String?
     var latestAgentUpdatedAt: String?
+    var agentRecoveryFailureJobId: String?
     var agentRuns: [String: EngineAgentRunRecord] = [:]
     var preflightSessions: [String: EngineAgentPreflightSession] = [:]
     var latestExportJobId: String?

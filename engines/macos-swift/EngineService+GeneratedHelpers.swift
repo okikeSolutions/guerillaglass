@@ -11,6 +11,24 @@ extension EngineService {
         .init(success: success, message: message)
     }
 
+    func notFound(_ message: String) -> Components.Schemas.EngineNotFoundError {
+        .init(code: .init(value1: .not_found), message: .init(value1: message))
+    }
+
+    func conflict(
+        _ code: Components.Schemas.EngineConflictError.codePayload,
+        _ message: String
+    ) -> Components.Schemas.EngineConflictError {
+        .init(code: code, message: .init(value1: message))
+    }
+
+    func unprocessable(
+        _ code: Components.Schemas.EngineUnprocessableError.codePayload,
+        _ message: String
+    ) -> Components.Schemas.EngineUnprocessableError {
+        .init(code: code, message: .init(value1: message))
+    }
+
     func isoNow() -> String {
         ISO8601DateFormatter().string(from: Date())
     }
@@ -125,12 +143,22 @@ extension EngineService {
     }
 
     func agentAnalysisState() -> Components.Schemas.ProjectAgentAnalysisSummary? {
+        if let failedJobId = agentRecoveryFailureJobId {
+            return .init(
+                latestJobId: .init(value1: failedJobId),
+                latestStatus: .failed,
+                qaPassed: false,
+                updatedAt: .init(value1: latestAgentUpdatedAt ?? isoNow())
+            )
+        }
         guard let jobId = latestAgentJobId, let run = agentRuns[jobId] else { return nil }
         return .init(
             latestJobId: .init(value1: jobId),
-            latestStatus: Components.Schemas.ProjectAgentAnalysisSummary.latestStatusPayload(rawValue: run.status.rawValue),
-            qaPassed: run.qaReport.passed,
-            updatedAt: .init(value1: run.updatedAt)
+            latestStatus: Components.Schemas.ProjectAgentAnalysisSummary.latestStatusPayload(
+                rawValue: run.summary.status.rawValue
+            ),
+            qaPassed: run.summary.qaReport.passed,
+            updatedAt: .init(value1: latestAgentUpdatedAt ?? isoNow())
         )
     }
 

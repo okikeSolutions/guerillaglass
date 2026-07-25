@@ -4,7 +4,8 @@ use crate::wire::{failure, success, EngineCallId, EngineResponse, ProtocolErrorC
 use crate::PREFLIGHT_TOKEN_TTL_SECONDS;
 use serde_json::{json, Value};
 use std::fs;
-use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
+use time::{Duration, OffsetDateTime};
 
 fn decode_params<T>(params: &Value) -> T
 where
@@ -217,38 +218,43 @@ pub(crate) fn agent_preflight(state: &mut State, params: &Value) -> Value {
         None
     };
 
+    let expires_at = token.as_ref().map(|_| {
+        (OffsetDateTime::now_utc() + Duration::seconds(PREFLIGHT_TOKEN_TTL_SECONDS))
+            .format(&Rfc3339)
+            .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+    });
     json!({
         "ready": evaluation.ready,
         "blockingReasons": evaluation.blocking_reasons,
         "canApplyDestructive": state.unsaved_changes,
         "transcriptionProvider": evaluation.provider,
         "preflightToken": token,
+        "preflightTokenExpiresAt": expires_at,
     })
+}
+
+pub(crate) enum PreflightTokenValidationError {
+    Expired,
+    Mismatch,
 }
 
 pub(crate) fn validate_preflight_token(
     state: &mut State,
     token: &str,
     params: &Value,
-) -> Result<(), String> {
+) -> Result<(), PreflightTokenValidationError> {
     if token.is_empty() {
-        return Err(
-            "agent.preflight must be called first. preflightToken is required.".to_string(),
-        );
+        return Err(PreflightTokenValidationError::Expired);
     }
 
     let session = match state.preflight_sessions.get(token) {
         Some(session) => session.clone(),
-        None => {
-            return Err(
-                "preflightToken is missing or expired. Run agent.preflight again.".to_string(),
-            );
-        }
+        None => return Err(PreflightTokenValidationError::Expired),
     };
 
     if now_unix_seconds() - session.created_at_unix_seconds > PREFLIGHT_TOKEN_TTL_SECONDS {
         state.preflight_sessions.remove(token);
-        return Err("preflightToken expired. Run agent.preflight again.".to_string());
+        return Err(PreflightTokenValidationError::Expired);
     }
 
     let evaluation = evaluate_agent_preflight(state, params);
@@ -261,10 +267,7 @@ pub(crate) fn validate_preflight_token(
         && session.recording_url == state.recording_url;
     if !matches {
         state.preflight_sessions.remove(token);
-        return Err(
-            "preflightToken does not match current run parameters. Run agent.preflight again."
-                .to_string(),
-        );
+        return Err(PreflightTokenValidationError::Mismatch);
     }
 
     state.preflight_sessions.remove(token);
@@ -328,8 +331,19 @@ pub(crate) fn build_agent_run(
 pub(crate) fn run(id: &EngineCallId, state: &mut State, params: &Value) -> EngineResponse {
     let agent_params: AgentRunParams = decode_params(params);
     let token = agent_params.preflight_token.as_deref().unwrap_or("");
-    if let Err(message) = validate_preflight_token(state, token, params) {
-        return failure(id, ProtocolErrorCode::InvalidParams, message);
+    if let Err(error) = validate_preflight_token(state, token, params) {
+        return match error {
+            PreflightTokenValidationError::Expired => failure(
+                id,
+                ProtocolErrorCode::PreflightExpired,
+                "preflightToken is missing, expired, or already consumed. Run agent.preflight again.",
+            ),
+            PreflightTokenValidationError::Mismatch => failure(
+                id,
+                ProtocolErrorCode::PreflightMismatch,
+                "preflightToken does not match current run parameters. Run agent.preflight again.",
+            ),
+        };
     }
 
     let runtime_budget_minutes = agent_params.runtime_budget_minutes.unwrap_or(10);
@@ -424,7 +438,7 @@ pub(crate) fn status(id: &EngineCallId, state: &State, params: &Value) -> Engine
         None => {
             return failure(
                 id,
-                ProtocolErrorCode::InvalidParams,
+                ProtocolErrorCode::NotFound,
                 format!("Unknown jobId: {job_id}"),
             )
         }
@@ -454,7 +468,7 @@ pub(crate) fn apply(id: &EngineCallId, state: &mut State, params: &Value) -> Eng
         None => {
             return failure(
                 id,
-                ProtocolErrorCode::InvalidParams,
+                ProtocolErrorCode::NotFound,
                 format!("Unknown jobId: {job_id}"),
             )
         }
@@ -484,7 +498,11 @@ pub(crate) fn apply(id: &EngineCallId, state: &mut State, params: &Value) -> Eng
         id,
         json!({
             "success": true,
-            "message": "Applied cut plan to working timeline.",
+            "message": "Applied foundation-shell Agent state.",
+            "jobId": job_id,
+            "status": "applied",
+            "appliedSegments": 1,
+            "projectHasUnsavedChanges": true,
         }),
     )
 }

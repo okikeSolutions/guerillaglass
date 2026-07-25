@@ -1,4 +1,5 @@
 import type {
+  AgentApplyResult,
   AgentPreflightResult,
   AgentRunResult,
   AgentStatusResult,
@@ -138,7 +139,7 @@ export type EngineClientService = {
   readonly agentApply: (
     jobId: AgentJobId,
     request: AgentApplyRequest,
-  ) => Effect.Effect<ActionResult, EngineClientError>;
+  ) => Effect.Effect<AgentApplyResult, EngineClientError>;
   /**
    * Calls `GET /v1/permissions`.
    */

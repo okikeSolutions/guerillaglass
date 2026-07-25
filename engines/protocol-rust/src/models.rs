@@ -412,6 +412,2034 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentApplyPa
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentApplyResult {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "success")]
+    pub success: bool,
+
+    #[serde(rename = "message")]
+    #[validate(custom(function = "check_xss_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+
+    #[serde(rename = "jobId")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub job_id: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "status")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub status: String,
+
+    #[serde(rename = "appliedSegments")]
+    pub applied_segments: i32,
+
+    #[serde(rename = "projectHasUnsavedChanges")]
+    pub project_has_unsaved_changes: bool,
+}
+
+impl AgentApplyResult {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        success: bool,
+        job_id: String,
+        status: String,
+        applied_segments: i32,
+        project_has_unsaved_changes: bool,
+    ) -> AgentApplyResult {
+        AgentApplyResult {
+            success,
+            message: None,
+            job_id,
+            status,
+            applied_segments,
+            project_has_unsaved_changes,
+        }
+    }
+}
+
+/// Converts the AgentApplyResult value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentApplyResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("success".to_string()),
+            Some(self.success.to_string()),
+            self.message
+                .as_ref()
+                .map(|message| ["message".to_string(), message.to_string()].join(",")),
+            Some("jobId".to_string()),
+            Some(self.job_id.to_string()),
+            Some("status".to_string()),
+            Some(self.status.to_string()),
+            Some("appliedSegments".to_string()),
+            Some(self.applied_segments.to_string()),
+            Some("projectHasUnsavedChanges".to_string()),
+            Some(self.project_has_unsaved_changes.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentApplyResult value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentApplyResult {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub success: Vec<bool>,
+            pub message: Vec<String>,
+            pub job_id: Vec<String>,
+            pub status: Vec<String>,
+            pub applied_segments: Vec<i32>,
+            pub project_has_unsaved_changes: Vec<bool>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentApplyResult".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "success" => intermediate_rep.success.push(
+                        <bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "message" => intermediate_rep.message.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "jobId" => intermediate_rep.job_id.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "status" => intermediate_rep.status.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "appliedSegments" => intermediate_rep.applied_segments.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "projectHasUnsavedChanges" => {
+                        intermediate_rep.project_has_unsaved_changes.push(
+                            <bool as std::str::FromStr>::from_str(val)
+                                .map_err(|x| x.to_string())?,
+                        )
+                    }
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentApplyResult".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentApplyResult {
+            success: intermediate_rep
+                .success
+                .into_iter()
+                .next()
+                .ok_or_else(|| "success missing in AgentApplyResult".to_string())?,
+            message: intermediate_rep.message.into_iter().next(),
+            job_id: intermediate_rep
+                .job_id
+                .into_iter()
+                .next()
+                .ok_or_else(|| "jobId missing in AgentApplyResult".to_string())?,
+            status: intermediate_rep
+                .status
+                .into_iter()
+                .next()
+                .ok_or_else(|| "status missing in AgentApplyResult".to_string())?,
+            applied_segments: intermediate_rep
+                .applied_segments
+                .into_iter()
+                .next()
+                .ok_or_else(|| "appliedSegments missing in AgentApplyResult".to_string())?,
+            project_has_unsaved_changes: intermediate_rep
+                .project_has_unsaved_changes
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "projectHasUnsavedChanges missing in AgentApplyResult".to_string()
+                })?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentApplyResult> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentApplyResult>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentApplyResult>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentApplyResult - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentApplyResult> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentApplyResult as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentApplyResult - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+#[allow(non_camel_case_types, clippy::large_enum_variant)]
+pub enum AgentArtifactReference {
+    AgentArtifactReferenceAnyOf(models::AgentArtifactReferenceAnyOf),
+    AgentArtifactReferenceAnyOf1(models::AgentArtifactReferenceAnyOf1),
+    AgentArtifactReferenceAnyOf2(models::AgentArtifactReferenceAnyOf2),
+    AgentArtifactReferenceAnyOf3(models::AgentArtifactReferenceAnyOf3),
+    AgentArtifactReferenceAnyOf4(models::AgentArtifactReferenceAnyOf4),
+    AgentArtifactReferenceAnyOf5(models::AgentArtifactReferenceAnyOf5),
+}
+
+impl validator::Validate for AgentArtifactReference {
+    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
+        match self {
+            Self::AgentArtifactReferenceAnyOf(v) => v.validate(),
+            Self::AgentArtifactReferenceAnyOf1(v) => v.validate(),
+            Self::AgentArtifactReferenceAnyOf2(v) => v.validate(),
+            Self::AgentArtifactReferenceAnyOf3(v) => v.validate(),
+            Self::AgentArtifactReferenceAnyOf4(v) => v.validate(),
+            Self::AgentArtifactReferenceAnyOf5(v) => v.validate(),
+        }
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReference value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReference {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+impl From<models::AgentArtifactReferenceAnyOf> for AgentArtifactReference {
+    fn from(value: models::AgentArtifactReferenceAnyOf) -> Self {
+        Self::AgentArtifactReferenceAnyOf(value)
+    }
+}
+impl From<models::AgentArtifactReferenceAnyOf1> for AgentArtifactReference {
+    fn from(value: models::AgentArtifactReferenceAnyOf1) -> Self {
+        Self::AgentArtifactReferenceAnyOf1(value)
+    }
+}
+impl From<models::AgentArtifactReferenceAnyOf2> for AgentArtifactReference {
+    fn from(value: models::AgentArtifactReferenceAnyOf2) -> Self {
+        Self::AgentArtifactReferenceAnyOf2(value)
+    }
+}
+impl From<models::AgentArtifactReferenceAnyOf3> for AgentArtifactReference {
+    fn from(value: models::AgentArtifactReferenceAnyOf3) -> Self {
+        Self::AgentArtifactReferenceAnyOf3(value)
+    }
+}
+impl From<models::AgentArtifactReferenceAnyOf4> for AgentArtifactReference {
+    fn from(value: models::AgentArtifactReferenceAnyOf4) -> Self {
+        Self::AgentArtifactReferenceAnyOf4(value)
+    }
+}
+impl From<models::AgentArtifactReferenceAnyOf5> for AgentArtifactReference {
+    fn from(value: models::AgentArtifactReferenceAnyOf5) -> Self {
+        Self::AgentArtifactReferenceAnyOf5(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentArtifactReferenceAnyOf {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "path")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub path: String,
+
+    #[serde(rename = "sha256")]
+    #[validate(custom(function = "check_xss_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+}
+
+impl AgentArtifactReferenceAnyOf {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, path: String) -> AgentArtifactReferenceAnyOf {
+        AgentArtifactReferenceAnyOf {
+            kind,
+            path,
+            sha256: None,
+        }
+    }
+}
+
+/// Converts the AgentArtifactReferenceAnyOf value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentArtifactReferenceAnyOf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+            Some("path".to_string()),
+            Some(self.path.to_string()),
+            self.sha256
+                .as_ref()
+                .map(|sha256| ["sha256".to_string(), sha256.to_string()].join(",")),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReferenceAnyOf value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReferenceAnyOf {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub path: Vec<String>,
+            pub sha256: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentArtifactReferenceAnyOf".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "path" => intermediate_rep.path.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sha256" => intermediate_rep.sha256.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentArtifactReferenceAnyOf".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentArtifactReferenceAnyOf {
+            kind: intermediate_rep
+                .kind
+                .into_iter()
+                .next()
+                .ok_or_else(|| "kind missing in AgentArtifactReferenceAnyOf".to_string())?,
+            path: intermediate_rep
+                .path
+                .into_iter()
+                .next()
+                .ok_or_else(|| "path missing in AgentArtifactReferenceAnyOf".to_string())?,
+            sha256: intermediate_rep.sha256.into_iter().next(),
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentArtifactReferenceAnyOf> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentArtifactReferenceAnyOf>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentArtifactReferenceAnyOf>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentArtifactReferenceAnyOf - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentArtifactReferenceAnyOf> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentArtifactReferenceAnyOf as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentArtifactReferenceAnyOf - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentArtifactReferenceAnyOf1 {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "path")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub path: String,
+
+    #[serde(rename = "sha256")]
+    #[validate(custom(function = "check_xss_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+}
+
+impl AgentArtifactReferenceAnyOf1 {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, path: String) -> AgentArtifactReferenceAnyOf1 {
+        AgentArtifactReferenceAnyOf1 {
+            kind,
+            path,
+            sha256: None,
+        }
+    }
+}
+
+/// Converts the AgentArtifactReferenceAnyOf1 value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentArtifactReferenceAnyOf1 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+            Some("path".to_string()),
+            Some(self.path.to_string()),
+            self.sha256
+                .as_ref()
+                .map(|sha256| ["sha256".to_string(), sha256.to_string()].join(",")),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReferenceAnyOf1 value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReferenceAnyOf1 {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub path: Vec<String>,
+            pub sha256: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentArtifactReferenceAnyOf1".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "path" => intermediate_rep.path.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sha256" => intermediate_rep.sha256.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentArtifactReferenceAnyOf1".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentArtifactReferenceAnyOf1 {
+            kind: intermediate_rep
+                .kind
+                .into_iter()
+                .next()
+                .ok_or_else(|| "kind missing in AgentArtifactReferenceAnyOf1".to_string())?,
+            path: intermediate_rep
+                .path
+                .into_iter()
+                .next()
+                .ok_or_else(|| "path missing in AgentArtifactReferenceAnyOf1".to_string())?,
+            sha256: intermediate_rep.sha256.into_iter().next(),
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentArtifactReferenceAnyOf1> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentArtifactReferenceAnyOf1>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentArtifactReferenceAnyOf1>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentArtifactReferenceAnyOf1 - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentArtifactReferenceAnyOf1> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentArtifactReferenceAnyOf1 as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentArtifactReferenceAnyOf1 - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentArtifactReferenceAnyOf2 {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "path")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub path: String,
+
+    #[serde(rename = "sha256")]
+    #[validate(custom(function = "check_xss_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+}
+
+impl AgentArtifactReferenceAnyOf2 {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, path: String) -> AgentArtifactReferenceAnyOf2 {
+        AgentArtifactReferenceAnyOf2 {
+            kind,
+            path,
+            sha256: None,
+        }
+    }
+}
+
+/// Converts the AgentArtifactReferenceAnyOf2 value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentArtifactReferenceAnyOf2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+            Some("path".to_string()),
+            Some(self.path.to_string()),
+            self.sha256
+                .as_ref()
+                .map(|sha256| ["sha256".to_string(), sha256.to_string()].join(",")),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReferenceAnyOf2 value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReferenceAnyOf2 {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub path: Vec<String>,
+            pub sha256: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentArtifactReferenceAnyOf2".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "path" => intermediate_rep.path.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sha256" => intermediate_rep.sha256.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentArtifactReferenceAnyOf2".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentArtifactReferenceAnyOf2 {
+            kind: intermediate_rep
+                .kind
+                .into_iter()
+                .next()
+                .ok_or_else(|| "kind missing in AgentArtifactReferenceAnyOf2".to_string())?,
+            path: intermediate_rep
+                .path
+                .into_iter()
+                .next()
+                .ok_or_else(|| "path missing in AgentArtifactReferenceAnyOf2".to_string())?,
+            sha256: intermediate_rep.sha256.into_iter().next(),
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentArtifactReferenceAnyOf2> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentArtifactReferenceAnyOf2>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentArtifactReferenceAnyOf2>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentArtifactReferenceAnyOf2 - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentArtifactReferenceAnyOf2> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentArtifactReferenceAnyOf2 as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentArtifactReferenceAnyOf2 - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentArtifactReferenceAnyOf3 {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "path")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub path: String,
+
+    #[serde(rename = "sha256")]
+    #[validate(custom(function = "check_xss_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+}
+
+impl AgentArtifactReferenceAnyOf3 {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, path: String) -> AgentArtifactReferenceAnyOf3 {
+        AgentArtifactReferenceAnyOf3 {
+            kind,
+            path,
+            sha256: None,
+        }
+    }
+}
+
+/// Converts the AgentArtifactReferenceAnyOf3 value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentArtifactReferenceAnyOf3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+            Some("path".to_string()),
+            Some(self.path.to_string()),
+            self.sha256
+                .as_ref()
+                .map(|sha256| ["sha256".to_string(), sha256.to_string()].join(",")),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReferenceAnyOf3 value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReferenceAnyOf3 {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub path: Vec<String>,
+            pub sha256: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentArtifactReferenceAnyOf3".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "path" => intermediate_rep.path.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sha256" => intermediate_rep.sha256.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentArtifactReferenceAnyOf3".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentArtifactReferenceAnyOf3 {
+            kind: intermediate_rep
+                .kind
+                .into_iter()
+                .next()
+                .ok_or_else(|| "kind missing in AgentArtifactReferenceAnyOf3".to_string())?,
+            path: intermediate_rep
+                .path
+                .into_iter()
+                .next()
+                .ok_or_else(|| "path missing in AgentArtifactReferenceAnyOf3".to_string())?,
+            sha256: intermediate_rep.sha256.into_iter().next(),
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentArtifactReferenceAnyOf3> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentArtifactReferenceAnyOf3>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentArtifactReferenceAnyOf3>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentArtifactReferenceAnyOf3 - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentArtifactReferenceAnyOf3> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentArtifactReferenceAnyOf3 as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentArtifactReferenceAnyOf3 - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentArtifactReferenceAnyOf4 {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "path")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub path: String,
+
+    #[serde(rename = "sha256")]
+    #[validate(custom(function = "check_xss_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
+}
+
+impl AgentArtifactReferenceAnyOf4 {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, path: String) -> AgentArtifactReferenceAnyOf4 {
+        AgentArtifactReferenceAnyOf4 {
+            kind,
+            path,
+            sha256: None,
+        }
+    }
+}
+
+/// Converts the AgentArtifactReferenceAnyOf4 value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentArtifactReferenceAnyOf4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+            Some("path".to_string()),
+            Some(self.path.to_string()),
+            self.sha256
+                .as_ref()
+                .map(|sha256| ["sha256".to_string(), sha256.to_string()].join(",")),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReferenceAnyOf4 value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReferenceAnyOf4 {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub path: Vec<String>,
+            pub sha256: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentArtifactReferenceAnyOf4".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "path" => intermediate_rep.path.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sha256" => intermediate_rep.sha256.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentArtifactReferenceAnyOf4".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentArtifactReferenceAnyOf4 {
+            kind: intermediate_rep
+                .kind
+                .into_iter()
+                .next()
+                .ok_or_else(|| "kind missing in AgentArtifactReferenceAnyOf4".to_string())?,
+            path: intermediate_rep
+                .path
+                .into_iter()
+                .next()
+                .ok_or_else(|| "path missing in AgentArtifactReferenceAnyOf4".to_string())?,
+            sha256: intermediate_rep.sha256.into_iter().next(),
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentArtifactReferenceAnyOf4> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentArtifactReferenceAnyOf4>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentArtifactReferenceAnyOf4>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentArtifactReferenceAnyOf4 - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentArtifactReferenceAnyOf4> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentArtifactReferenceAnyOf4 as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentArtifactReferenceAnyOf4 - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentArtifactReferenceAnyOf5 {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "kind")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub kind: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "path")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub path: String,
+}
+
+impl AgentArtifactReferenceAnyOf5 {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(kind: String, path: String) -> AgentArtifactReferenceAnyOf5 {
+        AgentArtifactReferenceAnyOf5 { kind, path }
+    }
+}
+
+/// Converts the AgentArtifactReferenceAnyOf5 value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentArtifactReferenceAnyOf5 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("kind".to_string()),
+            Some(self.kind.to_string()),
+            Some("path".to_string()),
+            Some(self.path.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentArtifactReferenceAnyOf5 value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentArtifactReferenceAnyOf5 {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub kind: Vec<String>,
+            pub path: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentArtifactReferenceAnyOf5".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "kind" => intermediate_rep.kind.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "path" => intermediate_rep.path.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentArtifactReferenceAnyOf5".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentArtifactReferenceAnyOf5 {
+            kind: intermediate_rep
+                .kind
+                .into_iter()
+                .next()
+                .ok_or_else(|| "kind missing in AgentArtifactReferenceAnyOf5".to_string())?,
+            path: intermediate_rep
+                .path
+                .into_iter()
+                .next()
+                .ok_or_else(|| "path missing in AgentArtifactReferenceAnyOf5".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentArtifactReferenceAnyOf5> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentArtifactReferenceAnyOf5>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentArtifactReferenceAnyOf5>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentArtifactReferenceAnyOf5 - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentArtifactReferenceAnyOf5> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentArtifactReferenceAnyOf5 as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentArtifactReferenceAnyOf5 - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentCutPlanSegment {
+    #[serde(rename = "id")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub id: String,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "beat")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub beat: String,
+
+    #[serde(rename = "startFrame")]
+    pub start_frame: i32,
+
+    #[serde(rename = "endFrame")]
+    pub end_frame: i32,
+}
+
+impl AgentCutPlanSegment {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(id: String, beat: String, start_frame: i32, end_frame: i32) -> AgentCutPlanSegment {
+        AgentCutPlanSegment {
+            id,
+            beat,
+            start_frame,
+            end_frame,
+        }
+    }
+}
+
+/// Converts the AgentCutPlanSegment value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentCutPlanSegment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+            Some("beat".to_string()),
+            Some(self.beat.to_string()),
+            Some("startFrame".to_string()),
+            Some(self.start_frame.to_string()),
+            Some("endFrame".to_string()),
+            Some(self.end_frame.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentCutPlanSegment value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentCutPlanSegment {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub id: Vec<String>,
+            pub beat: Vec<String>,
+            pub start_frame: Vec<i32>,
+            pub end_frame: Vec<i32>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentCutPlanSegment".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "id" => intermediate_rep.id.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "beat" => intermediate_rep.beat.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "startFrame" => intermediate_rep.start_frame.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "endFrame" => intermediate_rep.end_frame.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentCutPlanSegment".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentCutPlanSegment {
+            id: intermediate_rep
+                .id
+                .into_iter()
+                .next()
+                .ok_or_else(|| "id missing in AgentCutPlanSegment".to_string())?,
+            beat: intermediate_rep
+                .beat
+                .into_iter()
+                .next()
+                .ok_or_else(|| "beat missing in AgentCutPlanSegment".to_string())?,
+            start_frame: intermediate_rep
+                .start_frame
+                .into_iter()
+                .next()
+                .ok_or_else(|| "startFrame missing in AgentCutPlanSegment".to_string())?,
+            end_frame: intermediate_rep
+                .end_frame
+                .into_iter()
+                .next()
+                .ok_or_else(|| "endFrame missing in AgentCutPlanSegment".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentCutPlanSegment> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentCutPlanSegment>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentCutPlanSegment>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentCutPlanSegment - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentCutPlanSegment> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentCutPlanSegment as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentCutPlanSegment - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentCutPlanSummary {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "version")]
+    pub version: f64,
+
+    #[serde(rename = "sourceFps")]
+    #[validate(nested)]
+    pub source_fps: models::AgentFrameRate,
+
+    #[serde(rename = "sourceFrameCount")]
+    pub source_frame_count: i32,
+
+    #[serde(rename = "segments")]
+    #[validate(nested)]
+    pub segments: Vec<models::AgentCutPlanSegment>,
+}
+
+impl AgentCutPlanSummary {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        version: f64,
+        source_fps: models::AgentFrameRate,
+        source_frame_count: i32,
+        segments: Vec<models::AgentCutPlanSegment>,
+    ) -> AgentCutPlanSummary {
+        AgentCutPlanSummary {
+            version,
+            source_fps,
+            source_frame_count,
+            segments,
+        }
+    }
+}
+
+/// Converts the AgentCutPlanSummary value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentCutPlanSummary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("version".to_string()),
+            Some(self.version.to_string()),
+            // Skipping sourceFps in query parameter serialization
+            Some("sourceFrameCount".to_string()),
+            Some(self.source_frame_count.to_string()),
+            // Skipping segments in query parameter serialization
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentCutPlanSummary value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentCutPlanSummary {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub version: Vec<f64>,
+            pub source_fps: Vec<models::AgentFrameRate>,
+            pub source_frame_count: Vec<i32>,
+            pub segments: Vec<Vec<models::AgentCutPlanSegment>>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentCutPlanSummary".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "version" => intermediate_rep.version.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sourceFps" => intermediate_rep.source_fps.push(
+                        <models::AgentFrameRate as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sourceFrameCount" => intermediate_rep.source_frame_count.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    "segments" => return std::result::Result::Err(
+                        "Parsing a container in this style is not supported in AgentCutPlanSummary"
+                            .to_string(),
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentCutPlanSummary".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentCutPlanSummary {
+            version: intermediate_rep
+                .version
+                .into_iter()
+                .next()
+                .ok_or_else(|| "version missing in AgentCutPlanSummary".to_string())?,
+            source_fps: intermediate_rep
+                .source_fps
+                .into_iter()
+                .next()
+                .ok_or_else(|| "sourceFps missing in AgentCutPlanSummary".to_string())?,
+            source_frame_count: intermediate_rep
+                .source_frame_count
+                .into_iter()
+                .next()
+                .ok_or_else(|| "sourceFrameCount missing in AgentCutPlanSummary".to_string())?,
+            segments: intermediate_rep
+                .segments
+                .into_iter()
+                .next()
+                .ok_or_else(|| "segments missing in AgentCutPlanSummary".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentCutPlanSummary> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentCutPlanSummary>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentCutPlanSummary>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentCutPlanSummary - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentCutPlanSummary> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentCutPlanSummary as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentCutPlanSummary - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentFrameRate {
+    #[serde(rename = "numerator")]
+    pub numerator: i32,
+
+    #[serde(rename = "denominator")]
+    pub denominator: i32,
+}
+
+impl AgentFrameRate {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(numerator: i32, denominator: i32) -> AgentFrameRate {
+        AgentFrameRate {
+            numerator,
+            denominator,
+        }
+    }
+}
+
+/// Converts the AgentFrameRate value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentFrameRate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("numerator".to_string()),
+            Some(self.numerator.to_string()),
+            Some("denominator".to_string()),
+            Some(self.denominator.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentFrameRate value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentFrameRate {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub numerator: Vec<i32>,
+            pub denominator: Vec<i32>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentFrameRate".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "numerator" => intermediate_rep.numerator.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "denominator" => intermediate_rep.denominator.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AgentFrameRate".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentFrameRate {
+            numerator: intermediate_rep
+                .numerator
+                .into_iter()
+                .next()
+                .ok_or_else(|| "numerator missing in AgentFrameRate".to_string())?,
+            denominator: intermediate_rep
+                .denominator
+                .into_iter()
+                .next()
+                .ok_or_else(|| "denominator missing in AgentFrameRate".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentFrameRate> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentFrameRate>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentFrameRate>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentFrameRate - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentFrameRate> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentFrameRate as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentFrameRate - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AgentPreflightBlockedResult {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "ready")]
+    pub ready: bool,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "blockingReasons")]
+    #[validate(length(min = 1), custom(function = "check_xss_vec_string"))]
+    pub blocking_reasons: Vec<String>,
+
+    #[serde(rename = "canApplyDestructive")]
+    pub can_apply_destructive: bool,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "transcriptionProvider")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub transcription_provider: String,
+}
+
+impl AgentPreflightBlockedResult {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        ready: bool,
+        blocking_reasons: Vec<String>,
+        can_apply_destructive: bool,
+        transcription_provider: String,
+    ) -> AgentPreflightBlockedResult {
+        AgentPreflightBlockedResult {
+            ready,
+            blocking_reasons,
+            can_apply_destructive,
+            transcription_provider,
+        }
+    }
+}
+
+/// Converts the AgentPreflightBlockedResult value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AgentPreflightBlockedResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("ready".to_string()),
+            Some(self.ready.to_string()),
+            Some("blockingReasons".to_string()),
+            Some(
+                self.blocking_reasons
+                    .iter()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ),
+            Some("canApplyDestructive".to_string()),
+            Some(self.can_apply_destructive.to_string()),
+            Some("transcriptionProvider".to_string()),
+            Some(self.transcription_provider.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentPreflightBlockedResult value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentPreflightBlockedResult {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub ready: Vec<bool>,
+            pub blocking_reasons: Vec<Vec<String>>,
+            pub can_apply_destructive: Vec<bool>,
+            pub transcription_provider: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AgentPreflightBlockedResult".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "ready" => intermediate_rep.ready.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "blockingReasons" => return std::result::Result::Err("Parsing a container in this style is not supported in AgentPreflightBlockedResult".to_string()),
+                    #[allow(clippy::redundant_clone)]
+                    "canApplyDestructive" => intermediate_rep.can_apply_destructive.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "transcriptionProvider" => intermediate_rep.transcription_provider.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    _ => return std::result::Result::Err("Unexpected key while parsing AgentPreflightBlockedResult".to_string())
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AgentPreflightBlockedResult {
+            ready: intermediate_rep
+                .ready
+                .into_iter()
+                .next()
+                .ok_or_else(|| "ready missing in AgentPreflightBlockedResult".to_string())?,
+            blocking_reasons: intermediate_rep
+                .blocking_reasons
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "blockingReasons missing in AgentPreflightBlockedResult".to_string()
+                })?,
+            can_apply_destructive: intermediate_rep
+                .can_apply_destructive
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "canApplyDestructive missing in AgentPreflightBlockedResult".to_string()
+                })?,
+            transcription_provider: intermediate_rep
+                .transcription_provider
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "transcriptionProvider missing in AgentPreflightBlockedResult".to_string()
+                })?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AgentPreflightBlockedResult> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentPreflightBlockedResult>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AgentPreflightBlockedResult>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AgentPreflightBlockedResult - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentPreflightBlockedResult> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AgentPreflightBlockedResult as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AgentPreflightBlockedResult - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentPreflightPayload {
     #[serde(rename = "runtimeBudgetMinutes")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -595,7 +2623,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentPreflig
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
-pub struct AgentPreflightResult {
+pub struct AgentPreflightReadyResult {
+    /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "ready")]
     pub ready: bool,
 
@@ -614,32 +2643,38 @@ pub struct AgentPreflightResult {
 
     #[serde(rename = "preflightToken")]
     #[validate(custom(function = "check_xss_string"))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub preflight_token: Option<String>,
+    pub preflight_token: String,
+
+    #[serde(rename = "preflightTokenExpiresAt")]
+    #[validate(custom(function = "check_xss_string"))]
+    pub preflight_token_expires_at: String,
 }
 
-impl AgentPreflightResult {
+impl AgentPreflightReadyResult {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
         ready: bool,
         blocking_reasons: Vec<String>,
         can_apply_destructive: bool,
         transcription_provider: String,
-    ) -> AgentPreflightResult {
-        AgentPreflightResult {
+        preflight_token: String,
+        preflight_token_expires_at: String,
+    ) -> AgentPreflightReadyResult {
+        AgentPreflightReadyResult {
             ready,
             blocking_reasons,
             can_apply_destructive,
             transcription_provider,
-            preflight_token: None,
+            preflight_token,
+            preflight_token_expires_at,
         }
     }
 }
 
-/// Converts the AgentPreflightResult value to the Query Parameters representation (style=form, explode=false)
+/// Converts the AgentPreflightReadyResult value to the Query Parameters representation (style=form, explode=false)
 /// specified in https://swagger.io/docs/specification/serialization/
 /// Should be implemented in a serde serializer
-impl std::fmt::Display for AgentPreflightResult {
+impl std::fmt::Display for AgentPreflightReadyResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let params: Vec<Option<String>> = vec![
             Some("ready".to_string()),
@@ -656,9 +2691,10 @@ impl std::fmt::Display for AgentPreflightResult {
             Some(self.can_apply_destructive.to_string()),
             Some("transcriptionProvider".to_string()),
             Some(self.transcription_provider.to_string()),
-            self.preflight_token.as_ref().map(|preflight_token| {
-                ["preflightToken".to_string(), preflight_token.to_string()].join(",")
-            }),
+            Some("preflightToken".to_string()),
+            Some(self.preflight_token.to_string()),
+            Some("preflightTokenExpiresAt".to_string()),
+            Some(self.preflight_token_expires_at.to_string()),
         ];
 
         write!(
@@ -669,10 +2705,10 @@ impl std::fmt::Display for AgentPreflightResult {
     }
 }
 
-/// Converts Query Parameters representation (style=form, explode=false) to a AgentPreflightResult value
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentPreflightReadyResult value
 /// as specified in https://swagger.io/docs/specification/serialization/
 /// Should be implemented in a serde deserializer
-impl std::str::FromStr for AgentPreflightResult {
+impl std::str::FromStr for AgentPreflightReadyResult {
     type Err = String;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -685,6 +2721,7 @@ impl std::str::FromStr for AgentPreflightResult {
             pub can_apply_destructive: Vec<bool>,
             pub transcription_provider: Vec<String>,
             pub preflight_token: Vec<String>,
+            pub preflight_token_expires_at: Vec<String>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -698,7 +2735,7 @@ impl std::str::FromStr for AgentPreflightResult {
                 Some(x) => x,
                 None => {
                     return std::result::Result::Err(
-                        "Missing value while parsing AgentPreflightResult".to_string(),
+                        "Missing value while parsing AgentPreflightReadyResult".to_string(),
                     );
                 }
             };
@@ -708,14 +2745,16 @@ impl std::str::FromStr for AgentPreflightResult {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "ready" => intermediate_rep.ready.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    "blockingReasons" => return std::result::Result::Err("Parsing a container in this style is not supported in AgentPreflightResult".to_string()),
+                    "blockingReasons" => return std::result::Result::Err("Parsing a container in this style is not supported in AgentPreflightReadyResult".to_string()),
                     #[allow(clippy::redundant_clone)]
                     "canApplyDestructive" => intermediate_rep.can_apply_destructive.push(<bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "transcriptionProvider" => intermediate_rep.transcription_provider.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "preflightToken" => intermediate_rep.preflight_token.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    _ => return std::result::Result::Err("Unexpected key while parsing AgentPreflightResult".to_string())
+                    #[allow(clippy::redundant_clone)]
+                    "preflightTokenExpiresAt" => intermediate_rep.preflight_token_expires_at.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    _ => return std::result::Result::Err("Unexpected key while parsing AgentPreflightReadyResult".to_string())
                 }
             }
 
@@ -724,66 +2763,81 @@ impl std::str::FromStr for AgentPreflightResult {
         }
 
         // Use the intermediate representation to return the struct
-        std::result::Result::Ok(AgentPreflightResult {
+        std::result::Result::Ok(AgentPreflightReadyResult {
             ready: intermediate_rep
                 .ready
                 .into_iter()
                 .next()
-                .ok_or_else(|| "ready missing in AgentPreflightResult".to_string())?,
+                .ok_or_else(|| "ready missing in AgentPreflightReadyResult".to_string())?,
             blocking_reasons: intermediate_rep
                 .blocking_reasons
                 .into_iter()
                 .next()
-                .ok_or_else(|| "blockingReasons missing in AgentPreflightResult".to_string())?,
+                .ok_or_else(|| {
+                    "blockingReasons missing in AgentPreflightReadyResult".to_string()
+                })?,
             can_apply_destructive: intermediate_rep
                 .can_apply_destructive
                 .into_iter()
                 .next()
-                .ok_or_else(|| "canApplyDestructive missing in AgentPreflightResult".to_string())?,
+                .ok_or_else(|| {
+                    "canApplyDestructive missing in AgentPreflightReadyResult".to_string()
+                })?,
             transcription_provider: intermediate_rep
                 .transcription_provider
                 .into_iter()
                 .next()
                 .ok_or_else(|| {
-                    "transcriptionProvider missing in AgentPreflightResult".to_string()
+                    "transcriptionProvider missing in AgentPreflightReadyResult".to_string()
                 })?,
-            preflight_token: intermediate_rep.preflight_token.into_iter().next(),
+            preflight_token: intermediate_rep
+                .preflight_token
+                .into_iter()
+                .next()
+                .ok_or_else(|| "preflightToken missing in AgentPreflightReadyResult".to_string())?,
+            preflight_token_expires_at: intermediate_rep
+                .preflight_token_expires_at
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    "preflightTokenExpiresAt missing in AgentPreflightReadyResult".to_string()
+                })?,
         })
     }
 }
 
-// Methods for converting between header::IntoHeaderValue<AgentPreflightResult> and HeaderValue
+// Methods for converting between header::IntoHeaderValue<AgentPreflightReadyResult> and HeaderValue
 
 #[cfg(feature = "server")]
-impl std::convert::TryFrom<header::IntoHeaderValue<AgentPreflightResult>> for HeaderValue {
+impl std::convert::TryFrom<header::IntoHeaderValue<AgentPreflightReadyResult>> for HeaderValue {
     type Error = String;
 
     fn try_from(
-        hdr_value: header::IntoHeaderValue<AgentPreflightResult>,
+        hdr_value: header::IntoHeaderValue<AgentPreflightReadyResult>,
     ) -> std::result::Result<Self, Self::Error> {
         let hdr_value = hdr_value.to_string();
         match HeaderValue::from_str(&hdr_value) {
             std::result::Result::Ok(value) => std::result::Result::Ok(value),
             std::result::Result::Err(e) => std::result::Result::Err(format!(
-                r#"Invalid header value for AgentPreflightResult - value: {hdr_value} is invalid {e}"#
+                r#"Invalid header value for AgentPreflightReadyResult - value: {hdr_value} is invalid {e}"#
             )),
         }
     }
 }
 
 #[cfg(feature = "server")]
-impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentPreflightResult> {
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentPreflightReadyResult> {
     type Error = String;
 
     fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
         match hdr_value.to_str() {
             std::result::Result::Ok(value) => {
-                match <AgentPreflightResult as std::str::FromStr>::from_str(value) {
+                match <AgentPreflightReadyResult as std::str::FromStr>::from_str(value) {
                     std::result::Result::Ok(value) => {
                         std::result::Result::Ok(header::IntoHeaderValue(value))
                     }
                     std::result::Result::Err(err) => std::result::Result::Err(format!(
-                        r#"Unable to convert header value '{value}' into AgentPreflightResult - {err}"#
+                        r#"Unable to convert header value '{value}' into AgentPreflightReadyResult - {err}"#
                     )),
                 }
             }
@@ -794,6 +2848,45 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentPreflig
     }
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+#[allow(non_camel_case_types, clippy::large_enum_variant)]
+pub enum AgentPreflightResult {
+    AgentPreflightReadyResult(models::AgentPreflightReadyResult),
+    AgentPreflightBlockedResult(models::AgentPreflightBlockedResult),
+}
+
+impl validator::Validate for AgentPreflightResult {
+    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
+        match self {
+            Self::AgentPreflightReadyResult(v) => v.validate(),
+            Self::AgentPreflightBlockedResult(v) => v.validate(),
+        }
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AgentPreflightResult value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AgentPreflightResult {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+impl From<models::AgentPreflightReadyResult> for AgentPreflightResult {
+    fn from(value: models::AgentPreflightReadyResult) -> Self {
+        Self::AgentPreflightReadyResult(value)
+    }
+}
+impl From<models::AgentPreflightBlockedResult> for AgentPreflightResult {
+    fn from(value: models::AgentPreflightBlockedResult) -> Self {
+        Self::AgentPreflightBlockedResult(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentQaReport {
@@ -801,8 +2894,7 @@ pub struct AgentQaReport {
     pub passed: bool,
 
     #[serde(rename = "score")]
-    #[validate(nested)]
-    pub score: models::AgentQaReportScore,
+    pub score: f64,
 
     #[serde(rename = "coverage")]
     #[validate(nested)]
@@ -817,11 +2909,7 @@ pub struct AgentQaReport {
 
 impl AgentQaReport {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(
-        passed: bool,
-        score: models::AgentQaReportScore,
-        coverage: models::AgentQaReportCoverage,
-    ) -> AgentQaReport {
+    pub fn new(passed: bool, score: f64, coverage: models::AgentQaReportCoverage) -> AgentQaReport {
         AgentQaReport {
             passed,
             score,
@@ -839,8 +2927,8 @@ impl std::fmt::Display for AgentQaReport {
         let params: Vec<Option<String>> = vec![
             Some("passed".to_string()),
             Some(self.passed.to_string()),
-            // Skipping score in query parameter serialization
-
+            Some("score".to_string()),
+            Some(self.score.to_string()),
             // Skipping coverage in query parameter serialization
             self.missing_beats.as_ref().map(|missing_beats| {
                 [
@@ -875,7 +2963,7 @@ impl std::str::FromStr for AgentQaReport {
         #[allow(dead_code)]
         struct IntermediateRep {
             pub passed: Vec<bool>,
-            pub score: Vec<models::AgentQaReportScore>,
+            pub score: Vec<f64>,
             pub coverage: Vec<models::AgentQaReportCoverage>,
             pub missing_beats: Vec<Vec<String>>,
         }
@@ -905,8 +2993,7 @@ impl std::str::FromStr for AgentQaReport {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "score" => intermediate_rep.score.push(
-                        <models::AgentQaReportScore as std::str::FromStr>::from_str(val)
-                            .map_err(|x| x.to_string())?,
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "coverage" => intermediate_rep.coverage.push(
@@ -1176,83 +3263,6 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentQaRepor
                 r#"Unable to convert header: {hdr_value:?} to string: {e}"#
             )),
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-#[allow(non_camel_case_types, clippy::large_enum_variant)]
-pub enum AgentQaReportScore {
-    AgentQaReportScoreAnyOf(models::AgentQaReportScoreAnyOf),
-    String(String),
-}
-
-impl validator::Validate for AgentQaReportScore {
-    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
-        match self {
-            Self::AgentQaReportScoreAnyOf(v) => v.validate(),
-            Self::String(_) => std::result::Result::Ok(()),
-        }
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a AgentQaReportScore value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for AgentQaReportScore {
-    type Err = serde_json::Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
-impl From<models::AgentQaReportScoreAnyOf> for AgentQaReportScore {
-    fn from(value: models::AgentQaReportScoreAnyOf) -> Self {
-        Self::AgentQaReportScoreAnyOf(value)
-    }
-}
-impl From<String> for AgentQaReportScore {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-#[allow(non_camel_case_types, clippy::large_enum_variant)]
-pub enum AgentQaReportScoreAnyOf {
-    F64(f64),
-    String(String),
-    String1(String),
-    String2(String),
-}
-
-impl validator::Validate for AgentQaReportScoreAnyOf {
-    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
-        match self {
-            Self::F64(_) => std::result::Result::Ok(()),
-            Self::String(_) => std::result::Result::Ok(()),
-            Self::String1(_) => std::result::Result::Ok(()),
-            Self::String2(_) => std::result::Result::Ok(()),
-        }
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a AgentQaReportScoreAnyOf value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for AgentQaReportScoreAnyOf {
-    type Err = serde_json::Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
-impl From<f64> for AgentQaReportScoreAnyOf {
-    fn from(value: f64) -> Self {
-        Self::F64(value)
     }
 }
 
@@ -1648,6 +3658,16 @@ pub struct AgentRunSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub blocking_reason: Option<String>,
 
+    #[serde(rename = "artifacts")]
+    #[validate(nested)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifacts: Option<Vec<models::AgentArtifactReference>>,
+
+    #[serde(rename = "cutPlan")]
+    #[validate(nested)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cut_plan: Option<models::AgentCutPlanSummary>,
+
     #[serde(rename = "updatedAt")]
     #[validate(custom(function = "check_xss_string"))]
     pub updated_at: String,
@@ -1667,6 +3687,8 @@ impl AgentRunSummary {
             runtime_budget_minutes,
             qa_report: None,
             blocking_reason: None,
+            artifacts: None,
+            cut_plan: None,
             updated_at,
         }
     }
@@ -1688,6 +3710,9 @@ impl std::fmt::Display for AgentRunSummary {
             self.blocking_reason.as_ref().map(|blocking_reason| {
                 ["blockingReason".to_string(), blocking_reason.to_string()].join(",")
             }),
+            // Skipping artifacts in query parameter serialization
+
+            // Skipping cutPlan in query parameter serialization
             Some("updatedAt".to_string()),
             Some(self.updated_at.to_string()),
         ];
@@ -1716,6 +3741,8 @@ impl std::str::FromStr for AgentRunSummary {
             pub runtime_budget_minutes: Vec<i32>,
             pub qa_report: Vec<models::AgentQaReport>,
             pub blocking_reason: Vec<String>,
+            pub artifacts: Vec<Vec<models::AgentArtifactReference>>,
+            pub cut_plan: Vec<models::AgentCutPlanSummary>,
             pub updated_at: Vec<String>,
         }
 
@@ -1759,6 +3786,17 @@ impl std::str::FromStr for AgentRunSummary {
                     "blockingReason" => intermediate_rep.blocking_reason.push(
                         <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
+                    "artifacts" => {
+                        return std::result::Result::Err(
+                            "Parsing a container in this style is not supported in AgentRunSummary"
+                                .to_string(),
+                        );
+                    }
+                    #[allow(clippy::redundant_clone)]
+                    "cutPlan" => intermediate_rep.cut_plan.push(
+                        <models::AgentCutPlanSummary as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
                     #[allow(clippy::redundant_clone)]
                     "updatedAt" => intermediate_rep.updated_at.push(
                         <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
@@ -1794,6 +3832,8 @@ impl std::str::FromStr for AgentRunSummary {
                 .ok_or_else(|| "runtimeBudgetMinutes missing in AgentRunSummary".to_string())?,
             qa_report: intermediate_rep.qa_report.into_iter().next(),
             blocking_reason: intermediate_rep.blocking_reason.into_iter().next(),
+            artifacts: intermediate_rep.artifacts.into_iter().next(),
+            cut_plan: intermediate_rep.cut_plan.into_iter().next(),
             updated_at: intermediate_rep
                 .updated_at
                 .into_iter()
@@ -2272,6 +4312,28 @@ pub struct CapabilitiesAgent {
     #[serde(rename = "runtimeBudgetMinutes")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_budget_minutes: Option<i32>,
+
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "supportedTranscriptionProviders")]
+    #[validate(custom(function = "check_xss_vec_string"))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supported_transcription_providers: Option<Vec<String>>,
+
+    #[serde(rename = "maxSourceDurationSeconds")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_source_duration_seconds: Option<i32>,
+
+    #[serde(rename = "preflightTokenTtlSeconds")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preflight_token_ttl_seconds: Option<i32>,
+
+    #[serde(rename = "artifactVersion")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_version: Option<i32>,
+
+    #[serde(rename = "cutPlanVersion")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cut_plan_version: Option<i32>,
 }
 
 impl CapabilitiesAgent {
@@ -2284,6 +4346,11 @@ impl CapabilitiesAgent {
             apply,
             local_only: None,
             runtime_budget_minutes: None,
+            supported_transcription_providers: None,
+            max_source_duration_seconds: None,
+            preflight_token_ttl_seconds: None,
+            artifact_version: None,
+            cut_plan_version: None,
         }
     }
 }
@@ -2314,6 +4381,43 @@ impl std::fmt::Display for CapabilitiesAgent {
                     ]
                     .join(",")
                 }),
+            self.supported_transcription_providers.as_ref().map(
+                |supported_transcription_providers| {
+                    [
+                        "supportedTranscriptionProviders".to_string(),
+                        supported_transcription_providers
+                            .iter()
+                            .map(|x| x.to_string())
+                            .collect::<Vec<_>>()
+                            .join(","),
+                    ]
+                    .join(",")
+                },
+            ),
+            self.max_source_duration_seconds
+                .as_ref()
+                .map(|max_source_duration_seconds| {
+                    [
+                        "maxSourceDurationSeconds".to_string(),
+                        max_source_duration_seconds.to_string(),
+                    ]
+                    .join(",")
+                }),
+            self.preflight_token_ttl_seconds
+                .as_ref()
+                .map(|preflight_token_ttl_seconds| {
+                    [
+                        "preflightTokenTtlSeconds".to_string(),
+                        preflight_token_ttl_seconds.to_string(),
+                    ]
+                    .join(",")
+                }),
+            self.artifact_version.as_ref().map(|artifact_version| {
+                ["artifactVersion".to_string(), artifact_version.to_string()].join(",")
+            }),
+            self.cut_plan_version.as_ref().map(|cut_plan_version| {
+                ["cutPlanVersion".to_string(), cut_plan_version.to_string()].join(",")
+            }),
         ];
 
         write!(
@@ -2341,6 +4445,11 @@ impl std::str::FromStr for CapabilitiesAgent {
             pub apply: Vec<bool>,
             pub local_only: Vec<bool>,
             pub runtime_budget_minutes: Vec<i32>,
+            pub supported_transcription_providers: Vec<Vec<String>>,
+            pub max_source_duration_seconds: Vec<i32>,
+            pub preflight_token_ttl_seconds: Vec<i32>,
+            pub artifact_version: Vec<i32>,
+            pub cut_plan_version: Vec<i32>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -2386,6 +4495,30 @@ impl std::str::FromStr for CapabilitiesAgent {
                     "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
                         <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
+                    "supportedTranscriptionProviders" => return std::result::Result::Err(
+                        "Parsing a container in this style is not supported in CapabilitiesAgent"
+                            .to_string(),
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "maxSourceDurationSeconds" => {
+                        intermediate_rep.max_source_duration_seconds.push(
+                            <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        )
+                    }
+                    #[allow(clippy::redundant_clone)]
+                    "preflightTokenTtlSeconds" => {
+                        intermediate_rep.preflight_token_ttl_seconds.push(
+                            <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        )
+                    }
+                    #[allow(clippy::redundant_clone)]
+                    "artifactVersion" => intermediate_rep.artifact_version.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "cutPlanVersion" => intermediate_rep.cut_plan_version.push(
+                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
                     _ => {
                         return std::result::Result::Err(
                             "Unexpected key while parsing CapabilitiesAgent".to_string(),
@@ -2422,6 +4555,20 @@ impl std::str::FromStr for CapabilitiesAgent {
                 .ok_or_else(|| "apply missing in CapabilitiesAgent".to_string())?,
             local_only: intermediate_rep.local_only.into_iter().next(),
             runtime_budget_minutes: intermediate_rep.runtime_budget_minutes.into_iter().next(),
+            supported_transcription_providers: intermediate_rep
+                .supported_transcription_providers
+                .into_iter()
+                .next(),
+            max_source_duration_seconds: intermediate_rep
+                .max_source_duration_seconds
+                .into_iter()
+                .next(),
+            preflight_token_ttl_seconds: intermediate_rep
+                .preflight_token_ttl_seconds
+                .into_iter()
+                .next(),
+            artifact_version: intermediate_rep.artifact_version.into_iter().next(),
+            cut_plan_version: intermediate_rep.cut_plan_version.into_iter().next(),
         })
     }
 }

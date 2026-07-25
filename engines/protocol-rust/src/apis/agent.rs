@@ -12,8 +12,8 @@ use crate::{models, types::*};
 #[must_use]
 #[allow(clippy::large_enum_variant)]
 pub enum AgentAgentApplyResponse {
-    /// ActionResult
-    Status200_ActionResult(models::ActionResult),
+    /// AgentApplyResult
+    Status200_AgentApplyResult(models::AgentApplyResult),
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
@@ -42,10 +42,6 @@ pub enum AgentAgentPreflightResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
-    /// EngineConflictError response body.
-    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
-    /// EngineUnprocessableError response body.
-    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
@@ -84,6 +80,10 @@ pub enum AgentAgentStatusResponse {
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineNotFoundError response body.
     Status404_EngineNotFoundErrorResponseBody(models::EngineNotFoundError),
+    /// EngineConflictError response body.
+    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
+    /// EngineUnprocessableError response body.
+    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
@@ -94,6 +94,8 @@ pub enum AgentAgentStatusResponse {
 pub trait Agent<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::ErrorHandler<E> {
     type Claims;
 
+    /// Apply a verified Agent Mode cut plan.
+    ///
     /// AgentAgentApply - POST /v1/agent/runs/{jobId}/apply
     async fn agent_agent_apply(
         &self,
@@ -106,6 +108,8 @@ pub trait Agent<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::ErrorHa
         body: &models::AgentApplyPayload,
     ) -> Result<AgentAgentApplyResponse, E>;
 
+    /// Validate Agent Mode prerequisites.
+    ///
     /// AgentAgentPreflight - POST /v1/agent/preflight
     async fn agent_agent_preflight(
         &self,
@@ -117,6 +121,8 @@ pub trait Agent<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::ErrorHa
         body: &models::AgentPreflightPayload,
     ) -> Result<AgentAgentPreflightResponse, E>;
 
+    /// Create a deterministic Agent Mode run.
+    ///
     /// AgentAgentRun - POST /v1/agent/runs
     async fn agent_agent_run(
         &self,
@@ -128,6 +134,8 @@ pub trait Agent<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::ErrorHa
         body: &models::AgentRunPayload,
     ) -> Result<AgentAgentRunResponse, E>;
 
+    /// Inspect Agent Mode run status.
+    ///
     /// AgentAgentStatus - GET /v1/agent/runs/{jobId}
     async fn agent_agent_status(
         &self,

@@ -1,4 +1,4 @@
-import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi";
+import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi";
 import { Schema } from "effect";
 import {
   agentJobIdSchema,
@@ -21,6 +21,7 @@ import {
   timelineDocumentSchema,
 } from "./shared/valueObjects";
 import {
+  agentApplyResultSchema,
   agentPreflightResultSchema,
   agentRunResultSchema,
   agentStatusResultSchema,
@@ -39,9 +40,11 @@ import { capabilitiesResultSchema, pingResultSchema } from "./domains/system";
 import {
   EngineAuthMiddleware,
   EngineCommonErrors,
+  EngineConflictError,
   EngineMutationErrors,
   EngineNotFoundError,
   EngineRuntimeError,
+  EngineUnprocessableError,
 } from "./errors";
 
 export const agentPreflightPayloadSchema = Schema.Struct({
@@ -124,29 +127,61 @@ const SystemGroup = HttpApiGroup.make("system").add(
   }),
 );
 
-const AgentGroup = HttpApiGroup.make("agent").add(
-  HttpApiEndpoint.post("agentPreflight", "/v1/agent/preflight", {
-    payload: agentPreflightPayloadSchema,
-    success: agentPreflightResultSchema,
-    error: EngineMutationErrors,
-  }),
-  HttpApiEndpoint.post("agentRun", "/v1/agent/runs", {
-    payload: agentRunPayloadSchema,
-    success: agentRunResultSchema,
-    error: EngineMutationErrors,
-  }),
-  HttpApiEndpoint.get("agentStatus", "/v1/agent/runs/:jobId", {
-    params: { jobId: agentJobIdSchema },
-    success: agentStatusResultSchema,
-    error: [...EngineCommonErrors, EngineNotFoundError],
-  }),
-  HttpApiEndpoint.post("agentApply", "/v1/agent/runs/:jobId/apply", {
-    params: { jobId: agentJobIdSchema },
-    payload: agentApplyPayloadSchema,
-    success: actionResultSchema,
-    error: [...EngineMutationErrors, EngineNotFoundError],
-  }),
-);
+const AgentGroup = HttpApiGroup.make("agent")
+  .annotate(OpenApi.Description, "Project-scoped local Agent Mode planning and apply workflow.")
+  .add(
+    HttpApiEndpoint.post("agentPreflight", "/v1/agent/preflight", {
+      payload: agentPreflightPayloadSchema,
+      success: agentPreflightResultSchema,
+      error: EngineMutationErrors,
+    })
+      .annotate(OpenApi.Summary, "Validate Agent Mode prerequisites")
+      .annotate(
+        OpenApi.Description,
+        "Checks the active project, recording, transcript provider, and runtime limits before issuing a short-lived token bound to those inputs.",
+      ),
+    HttpApiEndpoint.post("agentRun", "/v1/agent/runs", {
+      payload: agentRunPayloadSchema,
+      success: agentRunResultSchema,
+      error: [...EngineMutationErrors, EngineConflictError, EngineUnprocessableError],
+    })
+      .annotate(OpenApi.Summary, "Create a deterministic Agent Mode run")
+      .annotate(
+        OpenApi.Description,
+        "Consumes a valid preflight token and creates project-bound QA, artifact, and cut-plan state.",
+      ),
+    HttpApiEndpoint.get("agentStatus", "/v1/agent/runs/:jobId", {
+      params: { jobId: agentJobIdSchema },
+      success: agentStatusResultSchema,
+      error: [
+        ...EngineCommonErrors,
+        EngineNotFoundError,
+        EngineConflictError,
+        EngineUnprocessableError,
+      ],
+    })
+      .annotate(OpenApi.Summary, "Inspect Agent Mode run status")
+      .annotate(
+        OpenApi.Description,
+        "Returns terminal status, narrative QA, persisted artifact references, and a reviewable cut-plan summary for one project-bound run.",
+      ),
+    HttpApiEndpoint.post("agentApply", "/v1/agent/runs/:jobId/apply", {
+      params: { jobId: agentJobIdSchema },
+      payload: agentApplyPayloadSchema,
+      success: agentApplyResultSchema,
+      error: [
+        ...EngineMutationErrors,
+        EngineNotFoundError,
+        EngineConflictError,
+        EngineUnprocessableError,
+      ],
+    })
+      .annotate(OpenApi.Summary, "Apply a verified Agent Mode cut plan")
+      .annotate(
+        OpenApi.Description,
+        "Applies the exact persisted cut plan to the working timeline after QA, project binding, and destructive-confirmation checks.",
+      ),
+  );
 
 const PermissionsGroup = HttpApiGroup.make("permissions").add(
   HttpApiEndpoint.get("permissionsGet", "/v1/permissions", {
@@ -245,8 +280,18 @@ const ExportGroup = HttpApiGroup.make("export").add(
   HttpApiEndpoint.post("exportRunCutPlan", "/v1/exports/from-cut-plan", {
     payload: exportRunCutPlanPayloadSchema,
     success: exportRunCutPlanResultSchema,
-    error: EngineMutationErrors,
-  }),
+    error: [
+      ...EngineMutationErrors,
+      EngineNotFoundError,
+      EngineConflictError,
+      EngineUnprocessableError,
+    ],
+  })
+    .annotate(OpenApi.Summary, "Export a verified Agent Mode cut plan")
+    .annotate(
+      OpenApi.Description,
+      "Resolves the supplied Agent Mode job, enforces project binding and narrative QA, and exports the exact persisted frame-based cut plan.",
+    ),
   HttpApiEndpoint.get("exportGet", "/v1/exports/:jobId", {
     params: { jobId: exportJobIdSchema },
     success: exportRunResultSchema,

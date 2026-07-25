@@ -1,9 +1,9 @@
 import type {
+  AgentApplyResult,
   AgentPreflightResult,
   AgentRunResult,
   AgentStatusResult,
 } from "@guerillaglass/engine-contract/domains/agent";
-import type { ActionResult } from "@guerillaglass/engine-contract/domains/permissions";
 import type { AgentJobId } from "@guerillaglass/engine-contract/schema-primitives";
 import { Context, Effect, Layer } from "effect";
 import type { EngineClientError } from "../errors";
@@ -38,7 +38,7 @@ export type AgentServiceShape = {
   readonly apply: (
     jobId: AgentJobId,
     request: AgentApplyRequest,
-  ) => Effect.Effect<ActionResult, EngineClientError>;
+  ) => Effect.Effect<AgentApplyResult, EngineClientError>;
 };
 
 /**
