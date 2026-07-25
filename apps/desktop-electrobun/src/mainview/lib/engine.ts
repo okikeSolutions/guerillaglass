@@ -274,6 +274,7 @@ export const engineApi = {
     trimStartSeconds?: number;
     trimEndSeconds?: number;
     timeline?: TimelineDocument;
+    autoZoom?: AutoZoomSettings;
     backgroundFraming?: BackgroundFramingSettings;
   }) {
     return await invokeBridgeContract("ggEngineRunExport", "export run result", params);

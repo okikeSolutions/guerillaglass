@@ -52,11 +52,7 @@ extension EngineService {
 
         var document = currentProjectDocument
         if let autoZoom = payload.autoZoom {
-            document.project.autoZoom = AutoZoomSettings(
-                isEnabled: autoZoom.isEnabled,
-                intensity: autoZoom.intensity.value1,
-                minimumKeyframeInterval: autoZoom.minimumKeyframeInterval.value1
-            ).clamped()
+            document.project.autoZoom = projectAutoZoom(from: autoZoom)
         }
         if let backgroundFraming = payload.backgroundFraming {
             do {

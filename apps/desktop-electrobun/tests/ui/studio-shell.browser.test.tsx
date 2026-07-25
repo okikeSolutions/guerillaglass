@@ -96,9 +96,15 @@ function installMockBridge() {
         name: "1080p",
         width: 1920,
         height: 1080,
-        frameRate: 60,
-        videoBitRate: 8_000_000,
-        audioBitRate: 192_000,
+        fps: 60,
+        fileType: "mp4",
+      },
+      {
+        id: "preset-vertical",
+        name: "Vertical 1080p",
+        width: 1080,
+        height: 1920,
+        fps: 30,
         fileType: "mp4",
       },
     ],
@@ -149,6 +155,7 @@ let root: Root | undefined;
 beforeEach(() => {
   backgroundFramingSupported = true;
   localStorage.clear();
+  window.history.replaceState({}, "", "/capture");
   installMockBridge();
   document.body.innerHTML = '<div id="root"></div>';
   root = createRoot(document.getElementById("root")!);
@@ -174,6 +181,9 @@ describe("studio shell browser smoke", () => {
       .toHaveAttribute("data-framing-enabled", "true");
     await expect.element(page.getByTestId("background-framing-card")).toBeVisible();
     await expect
+      .element(page.getByTestId("background-framing-card"))
+      .toHaveAttribute("data-camera-reframe", "true");
+    await expect
       .element(page.getByRole("slider", { name: "Background padding" }))
       .toBeInTheDocument();
     await expect
@@ -181,6 +191,26 @@ describe("studio shell browser smoke", () => {
       .toBeInTheDocument();
     await expect.element(page.getByRole("slider", { name: "Shadow strength" })).toBeInTheDocument();
     await page.screenshot({ path: "../../test-results/screenshots/background-framing.png" });
+  });
+
+  test("vertical presets switch the auto-zoom preview to a portrait viewport", async () => {
+    await page.getByRole("link", { name: "Deliver" }).click();
+    await page
+      .getByTestId("editor-center-pane")
+      .getByRole("combobox")
+      .selectOptions("preset-vertical");
+    await page.getByRole("link", { name: "Edit" }).click();
+    await expect.element(page.getByTestId("background-framing-card")).toBeVisible();
+
+    const card = document.querySelector<HTMLElement>("[data-testid='background-framing-card']");
+    expect(card).not.toBeNull();
+    const bounds = card!.getBoundingClientRect();
+    expect(bounds.height).toBeGreaterThan(bounds.width);
+    await expect
+      .element(page.getByTestId("background-framing-card"))
+      .toHaveAttribute("data-camera-reframe", "true");
+    await page.screenshot({ path: "../../test-results/screenshots/vertical-camera-preview.png" });
+    await page.getByRole("link", { name: "Capture" }).click();
   });
 
   test("unsupported native renderers hide framing controls and keep preview disabled", async () => {

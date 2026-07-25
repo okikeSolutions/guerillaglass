@@ -661,6 +661,7 @@ export function useStudioMutations({
         trimStartSeconds: trimStart,
         trimEndSeconds: trimEnd,
         timeline: timelineDocument,
+        autoZoom: settingsForm.state.values.autoZoom,
         backgroundFraming: settingsForm.state.values.backgroundFraming,
       });
       return { ...result, outputURL: result.outputURL ?? outputURL };

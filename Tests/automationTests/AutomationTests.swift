@@ -48,6 +48,49 @@ final class AutomationTests: XCTestCase {
         XCTAssertEqual(clickSample.intensity, constraints.clickIntensity, accuracy: 0.0001)
     }
 
+    func testPlannerReplansCameraViewportForOutputAspectRatio() throws {
+        let sourceSize = CGSize(width: 1920, height: 1080)
+        let event = InputEvent(
+            type: .mouseDown,
+            timestamp: 0,
+            position: CGPoint(x: 1800, y: 540)
+        )
+        let constraints = ZoomConstraints(
+            maxPanSpeed: .greatestFiniteMagnitude,
+            maxPanAcceleration: .greatestFiniteMagnitude,
+            minimumKeyframeInterval: 0
+        )
+        let planner = VirtualCameraPlanner()
+
+        let landscape = planner.plan(
+            events: [event],
+            sourceSize: sourceSize,
+            duration: 1,
+            outputSize: CGSize(width: 1920, height: 1080),
+            constraints: constraints
+        )
+        let portrait = planner.plan(
+            events: [event],
+            sourceSize: sourceSize,
+            duration: 1,
+            outputSize: CGSize(width: 1080, height: 1920),
+            constraints: constraints
+        )
+
+        XCTAssertEqual(try XCTUnwrap(landscape.outputAspectRatio), 16 / 9, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(portrait.outputAspectRatio), 9 / 16, accuracy: 0.0001)
+        XCTAssertGreaterThan(
+            try XCTUnwrap(portrait.keyframes.first).center.x,
+            try XCTUnwrap(landscape.keyframes.first).center.x + 150
+        )
+        let portraitView = try constraints.cameraViewSize(
+            in: sourceSize,
+            zoom: XCTUnwrap(portrait.keyframes.first).zoom,
+            outputAspectRatio: XCTUnwrap(portrait.outputAspectRatio)
+        )
+        XCTAssertEqual(portraitView.width / portraitView.height, 9 / 16, accuracy: 0.0001)
+    }
+
     func testPlannerClampsZoomAndDuration() {
         let planner = VirtualCameraPlanner()
         let constraints = ZoomConstraints(

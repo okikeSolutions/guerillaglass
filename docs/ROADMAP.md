@@ -293,7 +293,13 @@ Progress (current repo)
   - Preview and export share golden geometry vectors for stage padding, aspect-fit card bounds, corner radius, and shadow formulas.
   - Native export uses explicit sRGB stage color, rounded source masking, gap-aware shadow visibility, and cancellation-aware async export.
   - Capability reporting enables framing only on the production macOS renderer; Rust foundation shells explicitly report it unsupported.
-- [ ] Vertical export with re-planned camera
+- [x] Vertical export with re-planned camera
+  - macOS export derives a fresh camera plan for each selected output preset from persisted input events and the explicit export auto-zoom override (falling back to project settings for older clients).
+  - Capture-space event coordinates are normalized through persisted capture metadata before planning against the oriented source dimensions.
+  - Camera viewports use the output aspect ratio, so 9:16 exports crop and pan within a portrait viewport instead of reusing landscape transforms.
+  - Direct and timeline exports share the same aspect-aware viewport transform while preserving clip/gap and program-time trim semantics.
+  - Capture/Edit previews switch between legacy aspect-fit and aspect-aware cover composition with the auto-zoom toggle.
+  - Swift coverage verifies landscape-versus-portrait replanning, deterministic viewport geometry, event-directed raster output, and encoded portrait dimensions.
 - [x] Live preview remains useful during recording
 - [x] Timeline v2 clip/gap data model implemented in contract, renderer, and Swift project state
 - [x] Pure split/delete/lift/move command layer implemented with unit coverage
@@ -313,7 +319,7 @@ Suggested Phase 2 PR slices:
 2. `phase2/timeline-drag-move-gaps` — add drag-to-move, finish gap interaction/readability, and verify preview behavior across gaps.
 3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract per `docs/BACKGROUND_FRAMING_DESIGN.md` (implemented).
 4. `phase2/background-framing-renderer` — implement native export rendering for background stage, padding, rounded screen card, and shadow (implemented).
-5. `phase2/vertical-camera-replan` — make camera planning/export aspect-ratio-aware for 9:16 vertical output.
+5. `phase2/vertical-camera-replan` — make camera planning/export aspect-ratio-aware for 9:16 vertical output (implemented).
 6. `phase2/segment-camera-overrides` — add clip-level camera/keyframe override model and inspector controls.
 7. `phase2/crop-reframe-tool` — add deterministic crop/reframe controls with preview/export wiring.
 8. `phase2/redaction-highlight-tools` — add redaction/highlight overlay models and render hooks.

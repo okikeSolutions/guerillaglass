@@ -455,6 +455,11 @@
     );
   }
 
+  .gg-camera-reframe-card video,
+  .gg-camera-reframe-card img {
+    object-fit: cover;
+  }
+
   .gg-preview-footer {
     @apply shrink-0;
   }

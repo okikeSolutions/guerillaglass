@@ -108,6 +108,62 @@ final class RenderingDeterminismTests: XCTestCase {
         ).concatenating(base))
     }
 
+    func testPortraitCameraViewportCropsAndFillsPortraitCard() {
+        let sourceSize = CGSize(width: 1920, height: 1080)
+        let keyframe = CameraKeyframe(
+            time: 0,
+            center: CGPoint(x: 960, y: 540),
+            zoom: 1
+        )
+        let viewport = VideoGeometryTransforms.cameraViewportRect(
+            sourceSize: sourceSize,
+            keyframe: keyframe,
+            outputAspectRatio: 9 / 16
+        )
+        assertRect(
+            viewport,
+            equals: CGRect(x: 656.25, y: 0, width: 607.5, height: 1080)
+        )
+
+        let card = CGRect(x: 50, y: 100, width: 540, height: 960)
+        let transform = VideoGeometryTransforms.sourceToCameraViewportTransform(
+            naturalSize: sourceSize,
+            preferredTransform: .identity,
+            cardRect: card,
+            keyframe: keyframe,
+            outputAspectRatio: 9 / 16
+        )
+        let topLeft = viewport.origin.applying(transform)
+        let bottomRight = CGPoint(x: viewport.maxX, y: viewport.maxY).applying(transform)
+        XCTAssertEqual(topLeft.x, card.minX, accuracy: 0.0001)
+        XCTAssertEqual(topLeft.y, card.minY, accuracy: 0.0001)
+        XCTAssertEqual(bottomRight.x, card.maxX, accuracy: 0.0001)
+        XCTAssertEqual(bottomRight.y, card.maxY, accuracy: 0.0001)
+    }
+
+    func testPortraitCameraViewportPreservesPreferredSourceOrientation() {
+        let naturalSize = CGSize(width: 1920, height: 1080)
+        let preferredTransform = CGAffineTransform(rotationAngle: .pi / 2)
+            .translatedBy(x: 0, y: -1080)
+        let card = CGRect(x: 50, y: 100, width: 540, height: 960)
+        let transform = VideoGeometryTransforms.sourceToCameraViewportTransform(
+            naturalSize: naturalSize,
+            preferredTransform: preferredTransform,
+            cardRect: card,
+            keyframe: CameraKeyframe(
+                time: 0,
+                center: CGPoint(x: 540, y: 960),
+                zoom: 1
+            ),
+            outputAspectRatio: 9 / 16
+        )
+        let outputBounds = VideoGeometryTransforms.orientedBounds(
+            naturalSize: naturalSize,
+            preferredTransform: transform
+        )
+        assertRect(outputBounds, equals: card)
+    }
+
     func testBackgroundColorUsesExplicitSRGBComponents() throws {
         let color = try XCTUnwrap(BackgroundFramingColor(hex: "#1A2B3C"))
         XCTAssertEqual(color.red, 26 / 255, accuracy: 0.0001)

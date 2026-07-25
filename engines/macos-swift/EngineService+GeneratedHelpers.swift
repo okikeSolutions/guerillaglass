@@ -91,7 +91,17 @@ extension EngineService {
         )
     }
 
-    func autoZoomState() -> Components.Schemas.ProjectState.autoZoomPayload {
+    func projectAutoZoom(
+        from payload: Components.Schemas.AutoZoomSettings
+    ) -> AutoZoomSettings {
+        AutoZoomSettings(
+            isEnabled: payload.isEnabled,
+            intensity: payload.intensity.value1,
+            minimumKeyframeInterval: payload.minimumKeyframeInterval.value1
+        ).clamped()
+    }
+
+    func autoZoomState() -> Components.Schemas.AutoZoomSettings {
         let autoZoom = currentProjectDocument.project.autoZoom
         return .init(
             isEnabled: autoZoom.isEnabled,

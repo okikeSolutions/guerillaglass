@@ -518,11 +518,13 @@ describe("renderer engine bridge", () => {
       outputURL: "/tmp/out.mp4",
       presetId: "h264-1080p-30",
       timeline,
+      autoZoom: { isEnabled: true, intensity: 0.75, minimumKeyframeInterval: 1 / 30 },
       backgroundFraming: defaultBackgroundFramingSettings,
     });
 
     expect(capturedParams).toMatchObject({
       timeline,
+      autoZoom: { isEnabled: true, intensity: 0.75, minimumKeyframeInterval: 1 / 30 },
       backgroundFraming: defaultBackgroundFramingSettings,
     });
   });

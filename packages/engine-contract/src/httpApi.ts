@@ -92,6 +92,7 @@ export const exportRunPayloadSchema = Schema.Struct({
   trimStartSeconds: Schema.optionalKey(NonNegativeNumber),
   trimEndSeconds: Schema.optionalKey(NonNegativeNumber),
   timeline: Schema.optionalKey(timelineDocumentSchema),
+  autoZoom: Schema.optionalKey(autoZoomSettingsSchema),
   backgroundFraming: Schema.optionalKey(backgroundFramingSettingsSchema),
 }).annotate({ identifier: "ExportRunPayload" });
 

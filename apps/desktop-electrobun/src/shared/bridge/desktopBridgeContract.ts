@@ -45,6 +45,7 @@ import {
 } from "@guerillaglass/engine-contract/domains/system";
 import type {
   AutoZoomSettings,
+  BackgroundFramingSettings,
   TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
@@ -627,6 +628,8 @@ export const bridgeRequestDefinitions = {
       trimStartSeconds?: number;
       trimEndSeconds?: number;
       timeline?: TimelineDocument;
+      autoZoom?: AutoZoomSettings;
+      backgroundFraming?: BackgroundFramingSettings;
     },
     ExportRunResult,
     [
@@ -636,6 +639,8 @@ export const bridgeRequestDefinitions = {
         trimStartSeconds?: number;
         trimEndSeconds?: number;
         timeline?: TimelineDocument;
+        autoZoom?: AutoZoomSettings;
+        backgroundFraming?: BackgroundFramingSettings;
       },
     ]
   >(
@@ -680,9 +685,21 @@ export const bridgeRequestDefinitions = {
     engineSuccessSchema("project.open"),
   ),
   ggEngineProjectSave: defineValidatedBridgeRequest<
-    { projectPath?: ProjectPath; autoZoom?: AutoZoomSettings; timeline?: TimelineDocument },
+    {
+      projectPath?: ProjectPath;
+      autoZoom?: AutoZoomSettings;
+      backgroundFraming?: BackgroundFramingSettings;
+      timeline?: TimelineDocument;
+    },
     ProjectState,
-    [params: { projectPath?: string; autoZoom?: AutoZoomSettings; timeline?: TimelineDocument }]
+    [
+      params: {
+        projectPath?: string;
+        autoZoom?: AutoZoomSettings;
+        backgroundFraming?: BackgroundFramingSettings;
+        timeline?: TimelineDocument;
+      },
+    ]
   >(
     (params) => ({
       ...params,

@@ -274,86 +274,91 @@ export function CaptureRoute() {
                   <div className="gg-preview-stage">
                     <studio.settingsForm.Field name="backgroundFraming">
                       {(field) => (
-                        <BackgroundFramingPreview
-                          settings={
-                            studio.backgroundFramingSupported
-                              ? field.state.value
-                              : { ...field.state.value, enabled: false }
-                          }
-                          outputSize={outputSize}
-                          sourceSize={sourceSize}
-                        >
-                          {isCaptureRunning ? (
-                            <div className="relative h-full w-full overflow-hidden">
-                              <img
-                                ref={liveCapturePreviewImageRef}
-                                alt={studio.ui.helper.activePreviewTitle}
-                                className={cn(
-                                  "h-full w-full object-contain",
-                                  liveCapturePreviewHasFrame ? "block" : "hidden",
-                                )}
-                                onLoad={(event) => {
-                                  const image = event.currentTarget;
-                                  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-                                    setSourceSize((current) =>
-                                      current.width === image.naturalWidth &&
-                                      current.height === image.naturalHeight
-                                        ? current
-                                        : {
-                                            width: image.naturalWidth,
-                                            height: image.naturalHeight,
-                                          },
-                                    );
-                                  }
-                                }}
-                              />
-                              {!liveCapturePreviewHasFrame ? (
-                                <div className="flex h-full w-full items-center justify-center text-center">
-                                  <p className="text-sm font-medium">
-                                    {studio.ui.helper.activePreviewTitle}
-                                  </p>
-                                </div>
-                              ) : null}
+                        <studio.settingsForm.Field name="autoZoom">
+                          {(autoZoomField) => (
+                            <BackgroundFramingPreview
+                              settings={
+                                studio.backgroundFramingSupported
+                                  ? field.state.value
+                                  : { ...field.state.value, enabled: false }
+                              }
+                              outputSize={outputSize}
+                              sourceSize={sourceSize}
+                              cameraReframeEnabled={autoZoomField.state.value.isEnabled}
+                            >
+                              {isCaptureRunning ? (
+                                <div className="relative h-full w-full overflow-hidden">
+                                  <img
+                                    ref={liveCapturePreviewImageRef}
+                                    alt={studio.ui.helper.activePreviewTitle}
+                                    className={cn(
+                                      "h-full w-full object-contain",
+                                      liveCapturePreviewHasFrame ? "block" : "hidden",
+                                    )}
+                                    onLoad={(event) => {
+                                      const image = event.currentTarget;
+                                      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                                        setSourceSize((current) =>
+                                          current.width === image.naturalWidth &&
+                                          current.height === image.naturalHeight
+                                            ? current
+                                            : {
+                                                width: image.naturalWidth,
+                                                height: image.naturalHeight,
+                                              },
+                                        );
+                                      }
+                                    }}
+                                  />
+                                  {!liveCapturePreviewHasFrame ? (
+                                    <div className="flex h-full w-full items-center justify-center text-center">
+                                      <p className="text-sm font-medium">
+                                        {studio.ui.helper.activePreviewTitle}
+                                      </p>
+                                    </div>
+                                  ) : null}
 
-                              {studio.captureStatusQuery.data?.isRecording ? (
-                                <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/15 backdrop-blur-sm">
-                                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                                  {studio.ui.labels.recording}
+                                  {studio.captureStatusQuery.data?.isRecording ? (
+                                    <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white shadow-lg ring-1 ring-white/15 backdrop-blur-sm">
+                                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                                      {studio.ui.labels.recording}
+                                    </div>
+                                  ) : null}
                                 </div>
-                              ) : null}
-                            </div>
-                          ) : recordingMediaSource ? (
-                            <video
-                              key={recordingMediaSource}
-                              src={recordingMediaSource}
-                              className="h-full w-full object-contain"
-                              preload="metadata"
-                              controls
-                              playsInline
-                              onLoadedMetadata={(event) => {
-                                const video = event.currentTarget;
-                                if (video.videoWidth > 0 && video.videoHeight > 0) {
-                                  setSourceSize({
-                                    width: video.videoWidth,
-                                    height: video.videoHeight,
-                                  });
-                                }
-                              }}
-                              onError={handleMediaError}
-                            />
-                          ) : (
-                            <Empty className="h-full border-0 bg-transparent p-6">
-                              <EmptyHeader>
-                                <EmptyTitle className="text-sm">
-                                  {studio.ui.helper.emptyPreviewTitle}
-                                </EmptyTitle>
-                                <EmptyDescription>
-                                  {studio.ui.helper.emptyPreviewBody}
-                                </EmptyDescription>
-                              </EmptyHeader>
-                            </Empty>
+                              ) : recordingMediaSource ? (
+                                <video
+                                  key={recordingMediaSource}
+                                  src={recordingMediaSource}
+                                  className="h-full w-full object-contain"
+                                  preload="metadata"
+                                  controls
+                                  playsInline
+                                  onLoadedMetadata={(event) => {
+                                    const video = event.currentTarget;
+                                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                                      setSourceSize({
+                                        width: video.videoWidth,
+                                        height: video.videoHeight,
+                                      });
+                                    }
+                                  }}
+                                  onError={handleMediaError}
+                                />
+                              ) : (
+                                <Empty className="h-full border-0 bg-transparent p-6">
+                                  <EmptyHeader>
+                                    <EmptyTitle className="text-sm">
+                                      {studio.ui.helper.emptyPreviewTitle}
+                                    </EmptyTitle>
+                                    <EmptyDescription>
+                                      {studio.ui.helper.emptyPreviewBody}
+                                    </EmptyDescription>
+                                  </EmptyHeader>
+                                </Empty>
+                              )}
+                            </BackgroundFramingPreview>
                           )}
-                        </BackgroundFramingPreview>
+                        </studio.settingsForm.Field>
                       )}
                     </studio.settingsForm.Field>
                   </div>

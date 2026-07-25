@@ -18,11 +18,19 @@ public struct CameraKeyframe: Equatable {
 /// Public value type exposed by the macOS engine module.
 public struct CameraPlan: Equatable {
     public let sourceSize: CGSize
+    /// Aspect ratio used to derive the camera viewport; `nil` preserves legacy full-source framing.
+    public let outputAspectRatio: CGFloat?
     public let keyframes: [CameraKeyframe]
     public let duration: TimeInterval
 
-    public init(sourceSize: CGSize, keyframes: [CameraKeyframe], duration: TimeInterval) {
+    public init(
+        sourceSize: CGSize,
+        outputAspectRatio: CGFloat? = nil,
+        keyframes: [CameraKeyframe],
+        duration: TimeInterval
+    ) {
         self.sourceSize = sourceSize
+        self.outputAspectRatio = outputAspectRatio
         self.keyframes = keyframes
         self.duration = duration
     }
@@ -40,16 +48,23 @@ public final class VirtualCameraPlanner {
         events: [InputEvent],
         sourceSize: CGSize,
         duration: TimeInterval,
+        outputSize: CGSize? = nil,
         constraints: ZoomConstraints = ZoomConstraints()
     ) -> CameraPlan {
         let sanitizedDuration = max(duration, events.map(\.timestamp).max() ?? 0)
+        let outputAspectRatio = validAspectRatio(for: outputSize)
         let samples = attentionModel.samples(from: events, constraints: constraints)
 
         if samples.isEmpty {
             let center = CGPoint(x: sourceSize.width / 2, y: sourceSize.height / 2)
             let zoom = constraints.clampedZoom(constraints.idleZoom)
             let keyframes = makeIdleKeyframes(center: center, zoom: zoom, duration: sanitizedDuration)
-            return CameraPlan(sourceSize: sourceSize, keyframes: keyframes, duration: sanitizedDuration)
+            return CameraPlan(
+                sourceSize: sourceSize,
+                outputAspectRatio: outputAspectRatio,
+                keyframes: keyframes,
+                duration: sanitizedDuration
+            )
         }
 
         let targets = makeAnchoredTargets(
@@ -64,16 +79,27 @@ public final class VirtualCameraPlanner {
         )
 
         let rawKeyframes = reducedTargets.map { target in
-            makeKeyframe(for: target, sourceSize: sourceSize, constraints: constraints)
+            makeKeyframe(
+                for: target,
+                sourceSize: sourceSize,
+                outputAspectRatio: outputAspectRatio,
+                constraints: constraints
+            )
         }
 
         let constrainedKeyframes = applyPanConstraints(
             to: rawKeyframes,
             sourceSize: sourceSize,
+            outputAspectRatio: outputAspectRatio,
             constraints: constraints
         )
 
-        return CameraPlan(sourceSize: sourceSize, keyframes: constrainedKeyframes, duration: sanitizedDuration)
+        return CameraPlan(
+            sourceSize: sourceSize,
+            outputAspectRatio: outputAspectRatio,
+            keyframes: constrainedKeyframes,
+            duration: sanitizedDuration
+        )
     }
 }
 
@@ -163,9 +189,20 @@ private func makeIdleKeyframes(center: CGPoint, zoom: CGFloat, duration: TimeInt
     return [start, end]
 }
 
+private func validAspectRatio(for outputSize: CGSize?) -> CGFloat? {
+    guard let outputSize,
+          outputSize.width.isFinite,
+          outputSize.height.isFinite,
+          outputSize.width > 0,
+          outputSize.height > 0
+    else { return nil }
+    return outputSize.width / outputSize.height
+}
+
 private func makeKeyframe(
     for target: FocusTarget,
     sourceSize: CGSize,
+    outputAspectRatio: CGFloat?,
     constraints: ZoomConstraints
 ) -> CameraKeyframe {
     let baseZoom = max(1.0, constraints.baseZoom)
@@ -173,13 +210,19 @@ private func makeKeyframe(
     let intensity = CGFloat(min(max(target.intensity, 0), 1))
     let zoom = constraints.clampedZoom(baseZoom + (maxZoom - baseZoom) * intensity)
     let clampedTarget = constraints.clampedTarget(target.position, in: sourceSize)
-    let center = constraints.clampedCenter(for: clampedTarget, in: sourceSize, zoom: zoom)
+    let center = constraints.clampedCenter(
+        for: clampedTarget,
+        in: sourceSize,
+        zoom: zoom,
+        outputAspectRatio: outputAspectRatio
+    )
     return CameraKeyframe(time: target.time, center: center, zoom: zoom)
 }
 
 private func applyPanConstraints(
     to keyframes: [CameraKeyframe],
     sourceSize: CGSize,
+    outputAspectRatio: CGFloat?,
     constraints: ZoomConstraints
 ) -> [CameraKeyframe] {
     guard keyframes.count > 1 else { return keyframes }
@@ -190,7 +233,12 @@ private func applyPanConstraints(
 
     for frame in keyframes {
         guard let last = adjusted.last else {
-            let center = constraints.clampedCenter(frame.center, in: sourceSize, zoom: frame.zoom)
+            let center = constraints.clampedCenter(
+                frame.center,
+                in: sourceSize,
+                zoom: frame.zoom,
+                outputAspectRatio: outputAspectRatio
+            )
             adjusted.append(CameraKeyframe(time: frame.time, center: center, zoom: frame.zoom))
             previousVelocity = .zero
             continue
@@ -215,7 +263,12 @@ private func applyPanConstraints(
             desiredCenter = last.center + velocity * deltaTimeValue
         }
 
-        desiredCenter = constraints.clampedCenter(desiredCenter, in: sourceSize, zoom: frame.zoom)
+        desiredCenter = constraints.clampedCenter(
+            desiredCenter,
+            in: sourceSize,
+            zoom: frame.zoom,
+            outputAspectRatio: outputAspectRatio
+        )
         adjusted.append(CameraKeyframe(time: frame.time, center: desiredCenter, zoom: frame.zoom))
         previousVelocity = velocity
     }

@@ -30,22 +30,23 @@ enum CameraPlanVideoCompositionBuilder {
             naturalSize: naturalSize,
             preferredTransform: preferredTransform
         )
+        let compositionContentSize = plan?.outputAspectRatio.map {
+            CGSize(width: $0, height: 1)
+        } ?? sourceBounds.size
         guard let geometry = BackgroundFramingGeometry(
             renderSize: renderSize,
-            orientedSourceSize: sourceBounds.size,
+            orientedSourceSize: compositionContentSize,
             settings: backgroundFraming
         ) else { return nil }
-        let baseTransform = VideoGeometryTransforms.sourceToCardTransform(
-            naturalSize: naturalSize,
-            preferredTransform: preferredTransform,
-            cardRect: geometry.cardRect
-        )
 
         let layerInstruction = makeLayerInstruction(
             track: track,
-            baseTransform: baseTransform,
-            plan: plan,
-            sourceSize: naturalSize,
+            context: CameraTransformContext(
+                naturalSize: naturalSize,
+                preferredTransform: preferredTransform,
+                cardRect: geometry.cardRect,
+                plan: plan
+            ),
             duration: duration
         )
 
@@ -76,24 +77,36 @@ enum CameraPlanVideoCompositionBuilder {
     }
 }
 
+private struct CameraTransformContext {
+    let naturalSize: CGSize
+    let preferredTransform: CGAffineTransform
+    let cardRect: CGRect
+    let plan: CameraPlan?
+}
+
 private func makeLayerInstruction(
     track: AVAssetTrack,
-    baseTransform: CGAffineTransform,
-    plan: CameraPlan?,
-    sourceSize: CGSize,
+    context: CameraTransformContext,
     duration: CMTime
 ) -> AVMutableVideoCompositionLayerInstruction {
     let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)
-    guard let plan, !plan.keyframes.isEmpty else {
-        layerInstruction.setTransform(baseTransform, at: .zero)
+    guard let plan = context.plan, !plan.keyframes.isEmpty else {
+        layerInstruction.setTransform(
+            VideoGeometryTransforms.sourceToCardTransform(
+                naturalSize: context.naturalSize,
+                preferredTransform: context.preferredTransform,
+                cardRect: context.cardRect
+            ),
+            at: .zero
+        )
         return layerInstruction
     }
 
     let keyframes = plan.keyframes.sorted(by: { $0.time < $1.time })
-    let firstTransform = VideoGeometryTransforms.sourceTransform(
-        baseTransform: baseTransform,
+    let firstTransform = cameraTransform(
+        context: context,
         keyframe: keyframes[0],
-        sourceSize: sourceSize
+        plan: plan
     )
     layerInstruction.setTransform(firstTransform, at: .zero)
 
@@ -106,16 +119,8 @@ private func makeLayerInstruction(
             continue
         }
 
-        let startTransform = VideoGeometryTransforms.sourceTransform(
-            baseTransform: baseTransform,
-            keyframe: previous,
-            sourceSize: sourceSize
-        )
-        let endTransform = VideoGeometryTransforms.sourceTransform(
-            baseTransform: baseTransform,
-            keyframe: keyframe,
-            sourceSize: sourceSize
-        )
+        let startTransform = cameraTransform(context: context, keyframe: previous, plan: plan)
+        let endTransform = cameraTransform(context: context, keyframe: keyframe, plan: plan)
         let timeRange = CMTimeRange(start: startTime, end: endTime)
         layerInstruction.setTransformRamp(
             fromStart: startTransform,
@@ -126,6 +131,32 @@ private func makeLayerInstruction(
     }
 
     return layerInstruction
+}
+
+private func cameraTransform(
+    context: CameraTransformContext,
+    keyframe: CameraKeyframe,
+    plan: CameraPlan
+) -> CGAffineTransform {
+    guard let outputAspectRatio = plan.outputAspectRatio else {
+        let baseTransform = VideoGeometryTransforms.sourceToCardTransform(
+            naturalSize: context.naturalSize,
+            preferredTransform: context.preferredTransform,
+            cardRect: context.cardRect
+        )
+        return VideoGeometryTransforms.sourceTransform(
+            baseTransform: baseTransform,
+            keyframe: keyframe,
+            sourceSize: context.naturalSize
+        )
+    }
+    return VideoGeometryTransforms.sourceToCameraViewportTransform(
+        naturalSize: context.naturalSize,
+        preferredTransform: context.preferredTransform,
+        cardRect: context.cardRect,
+        keyframe: keyframe,
+        outputAspectRatio: outputAspectRatio
+    )
 }
 
 private func clampTime(_ time: TimeInterval, duration: CMTime) -> CMTime {
