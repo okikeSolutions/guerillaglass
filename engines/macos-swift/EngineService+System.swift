@@ -30,7 +30,12 @@ extension EngineService {
                 status: true,
                 apply: true,
                 localOnly: true,
-                runtimeBudgetMinutes: .init(value1: 10)
+                runtimeBudgetMinutes: .init(value1: 10),
+                supportedTranscriptionProviders: [.imported_transcript],
+                maxSourceDurationSeconds: .init(value1: 600),
+                preflightTokenTtlSeconds: .init(value1: 60),
+                artifactVersion: .init(value1: 1),
+                cutPlanVersion: .init(value1: 1)
             )
         ))))
     }

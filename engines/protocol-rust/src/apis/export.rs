@@ -54,10 +54,6 @@ pub enum ExportExportRunResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
-    /// EngineConflictError response body.
-    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
-    /// EngineUnprocessableError response body.
-    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
@@ -74,6 +70,8 @@ pub enum ExportExportRunCutPlanResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
+    /// EngineNotFoundError response body.
+    Status404_EngineNotFoundErrorResponseBody(models::EngineNotFoundError),
     /// EngineConflictError response body.
     Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
     /// EngineUnprocessableError response body.
@@ -120,6 +118,8 @@ pub trait Export<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::ErrorH
         body: &models::ExportRunPayload,
     ) -> Result<ExportExportRunResponse, E>;
 
+    /// Export a verified Agent Mode cut plan.
+    ///
     /// ExportExportRunCutPlan - POST /v1/exports/from-cut-plan
     async fn export_export_run_cut_plan(
         &self,

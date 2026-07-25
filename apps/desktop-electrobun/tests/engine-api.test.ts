@@ -108,6 +108,32 @@ describe("renderer engine bridge", () => {
     }
   });
 
+  test("strips renderer-supplied transcript paths from Agent requests", async () => {
+    let received: unknown;
+    const bindings = installWindowBridge({
+      ggEngineAgentPreflight: async (params) => {
+        received = params;
+        return {
+          ready: false,
+          blockingReasons: ["missing_imported_transcript"],
+          canApplyDestructive: false,
+          transcriptionProvider: "imported_transcript",
+        };
+      },
+    });
+
+    await (bindings.ggEngineAgentPreflight as (params: unknown) => Promise<unknown>)({
+      runtimeBudgetMinutes: 10,
+      transcriptionProvider: "imported_transcript",
+      importedTranscriptPath: "/tmp/untrusted.json",
+    });
+
+    expect(received).toEqual({
+      runtimeBudgetMinutes: 10,
+      transcriptionProvider: "imported_transcript",
+    });
+  });
+
   test("parses parity command payloads", async () => {
     let lastMenuState: unknown;
     let lastStudioDiagnostics: unknown;

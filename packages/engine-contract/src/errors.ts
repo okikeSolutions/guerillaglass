@@ -19,6 +19,9 @@ export const engineErrorCodeSchema = Schema.Literals([
   "qa_failed",
   "missing_local_model",
   "invalid_cut_plan",
+  "preflight_expired",
+  "preflight_mismatch",
+  "project_mismatch",
   "not_found",
   "runtime_error",
 ]);
@@ -42,6 +45,8 @@ export const EngineBadRequestError = makeEngineError("EngineBadRequestError", 40
   "invalid_request",
   "invalid_params",
   "unsupported_method",
+  "preflight_expired",
+  "preflight_mismatch",
 ]);
 
 /**
@@ -68,6 +73,7 @@ export const EngineNotFoundError = makeEngineError("EngineNotFoundError", 404, [
  */
 export const EngineConflictError = makeEngineError("EngineConflictError", 409, [
   "needs_confirmation",
+  "project_mismatch",
 ]);
 
 /**
@@ -101,8 +107,6 @@ export const EngineMutationErrors = [
   EngineBadRequestError,
   EngineUnauthorizedError,
   EngineForbiddenError,
-  EngineConflictError,
-  EngineUnprocessableError,
   EngineRuntimeError,
 ] as const;
 

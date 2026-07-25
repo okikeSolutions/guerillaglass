@@ -198,7 +198,7 @@ where
 
     let resp = match result {
                                             Ok(rsp) => match rsp {
-                                                apis::agent::AgentAgentApplyResponse::Status200_ActionResult
+                                                apis::agent::AgentAgentApplyResponse::Status200_AgentApplyResult
                                                     (body)
                                                 => {
                                                   let mut response = response.status(200);
@@ -476,42 +476,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::agent::AgentAgentPreflightResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::agent::AgentAgentPreflightResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -916,6 +880,42 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
+                                                apis::agent::AgentAgentStatusResponse::Status409_EngineConflictErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(409);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::agent::AgentAgentStatusResponse::Status422_EngineUnprocessableErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(422);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
                                                 apis::agent::AgentAgentStatusResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -1237,42 +1237,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::capture::CaptureCaptureStartCurrentWindowResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::capture::CaptureCaptureStartCurrentWindowResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::capture::CaptureCaptureStartCurrentWindowResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -1440,42 +1404,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::capture::CaptureCaptureStartDisplayResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::capture::CaptureCaptureStartDisplayResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::capture::CaptureCaptureStartDisplayResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -1629,42 +1557,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::capture::CaptureCaptureStartWindowResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::capture::CaptureCaptureStartWindowResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -1971,42 +1863,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::capture::CaptureCaptureStopResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::capture::CaptureCaptureStopResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -2516,42 +2372,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::export::ExportExportRunResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::export::ExportExportRunResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::export::ExportExportRunResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -2705,6 +2525,24 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::export::ExportExportRunCutPlanResponse::Status404_EngineNotFoundErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(404);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -3064,42 +2902,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::permissions::PermissionsPermissionsOpenInputMonitoringSettingsResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::permissions::PermissionsPermissionsOpenInputMonitoringSettingsResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::permissions::PermissionsPermissionsOpenInputMonitoringSettingsResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -3242,42 +3044,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::permissions::PermissionsPermissionsRequestInputMonitoringResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::permissions::PermissionsPermissionsRequestInputMonitoringResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -3448,42 +3214,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::permissions::PermissionsPermissionsRequestMicrophoneResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::permissions::PermissionsPermissionsRequestMicrophoneResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::permissions::PermissionsPermissionsRequestMicrophoneResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -3626,42 +3356,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::permissions::PermissionsPermissionsRequestScreenRecordingResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::permissions::PermissionsPermissionsRequestScreenRecordingResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -3981,42 +3675,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::project::ProjectProjectOpenResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::project::ProjectProjectOpenResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
@@ -4356,42 +4014,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::project::ProjectProjectSaveResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::project::ProjectProjectSaveResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::project::ProjectProjectSaveResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -4559,42 +4181,6 @@ where
                                                       })).await.unwrap()?;
                                                   response.body(Body::from(body_content))
                                                 },
-                                                apis::recording::RecordingRecordingStartResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::recording::RecordingRecordingStartResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
                                                 apis::recording::RecordingRecordingStartResponse::Status500_EngineRuntimeErrorResponseBody
                                                     (body)
                                                 => {
@@ -4734,42 +4320,6 @@ where
                                                     (body)
                                                 => {
                                                   let mut response = response.status(403);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::recording::RecordingRecordingStopResponse::Status409_EngineConflictErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(409);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
-                                                },
-                                                apis::recording::RecordingRecordingStopResponse::Status422_EngineUnprocessableErrorResponseBody
-                                                    (body)
-                                                => {
-                                                  let mut response = response.status(422);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(

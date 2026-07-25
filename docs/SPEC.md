@@ -313,13 +313,13 @@ Hard rules:
 
 - `agent.apply` and `export.runCutPlan` are blocked when narrative QA fails.
 - Destructive apply operations require explicit confirmation (`destructiveIntent=true`) when unsaved project changes are present.
-- `agent.apply` is a strict alias to `export.runCutPlan`; there is one canonical cut-plan execution engine.
+- `agent.apply` and `export.runCutPlan` consume the same canonical persisted frame-based cut plan; apply updates the working timeline, while export renders that plan without requiring prior apply.
 - `run-summary.v1` is the canonical agent manifest; project summary state derives from this artifact.
-- Agent artifacts are written under the project package `analysis/` directory.
-- Cut-plan segments are frame-based (`startFrame`/`endFrame`) with source FPS metadata.
+- Agent artifacts are written atomically under the project package `analysis/` directory; `run-summary.v1.json` is committed last and binds the latest run to the project UUID.
+- Cut-plan segments are frame-based with end-exclusive `startFrame`/`endFrame` bounds and rational source FPS metadata (`numerator`/`denominator`).
 - `force` is debug-only (disabled in production unless `GG_AGENT_ALLOW_FORCE=1`).
 - v1 source target: recordings up to 10 minutes.
-- `agent.status` is intentionally compact: one `status` field plus optional `blockingReason`.
+- `agent.status` is the reviewable run response: lifecycle state plus optional blocking reason, QA report, project-relative artifact references, and cut-plan summary.
 - `agent.run` requires a valid short-lived `preflightToken` from `agent.preflight` (TTL: 60 seconds).
 
 Protocol surface:
@@ -335,7 +335,7 @@ Protocol surface:
 - `ready: boolean`
 - `blockingReasons: AgentBlockingReason[]`
 - `canApplyDestructive: boolean`
-- `preflightToken: string | null` (`null` unless `ready=true`)
+- `preflightToken?: string` and `preflightTokenExpiresAt?: string` (both omitted unless `ready=true`)
 
 `agent.run` request contract additions:
 
@@ -366,7 +366,7 @@ Agent runbook (required order):
 
 1. `agent.preflight`
 2. If `ready=true`, call `agent.run` with returned `preflightToken`.
-3. Poll `agent.status` until terminal (`completed` or `blocked`/`failed`).
+3. Inspect or poll `agent.status` until terminal (`completed`, `blocked`, `failed`, or `cancelled`) using bounded backoff and an overall deadline.
 4. Call `agent.apply` (handle `needs_confirmation` by retrying with `destructiveIntent=true` when intended).
 5. Call `export.runCutPlan` for deterministic export.
 

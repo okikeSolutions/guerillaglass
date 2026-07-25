@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { NonEmptyString, PositiveInt } from "../shared/helpers";
+import { transcriptionProviderSchema } from "./agent";
 
 /**
  * Health-check response containing engine identity and protocol information.
@@ -18,6 +19,11 @@ const capabilitiesAgentSchema = Schema.Struct({
   apply: Schema.Boolean,
   localOnly: Schema.optionalKey(Schema.Boolean),
   runtimeBudgetMinutes: Schema.optionalKey(PositiveInt),
+  supportedTranscriptionProviders: Schema.optionalKey(Schema.Array(transcriptionProviderSchema)),
+  maxSourceDurationSeconds: Schema.optionalKey(PositiveInt),
+  preflightTokenTtlSeconds: Schema.optionalKey(PositiveInt),
+  artifactVersion: Schema.optionalKey(PositiveInt),
+  cutPlanVersion: Schema.optionalKey(PositiveInt),
 }).annotate({ identifier: "CapabilitiesAgent" });
 
 /**

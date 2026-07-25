@@ -2,11 +2,12 @@ import { Schema } from "effect";
 import {
   IsoDateTime,
   NonEmptyString,
+  NonNegativeInt,
   NonNegativeNumber,
   PositiveInt,
   between,
 } from "../shared/helpers";
-import { agentJobIdSchema } from "../schema-primitives";
+import { agentJobIdSchema, agentPreflightTokenSchema } from "../schema-primitives";
 
 /**
  * Lifecycle states for asynchronous Agent Mode jobs.
@@ -24,6 +25,125 @@ export const agentJobStatusSchema = Schema.Literals([
  * Transcript source selected for Agent Mode analysis.
  */
 export const transcriptionProviderSchema = Schema.Literals(["none", "imported_transcript"]);
+
+/**
+ * Versioned Agent Mode artifacts persisted inside the active project package.
+ */
+export const agentArtifactKindSchema = Schema.Literals([
+  "transcript.full.v1",
+  "transcript.words.v1",
+  "beat-map.v1",
+  "qa-report.v1",
+  "cut-plan.v1",
+  "run-summary.v1",
+]);
+
+/**
+ * Canonical narrative beats used by deterministic Agent Mode planning.
+ */
+export const agentNarrativeBeatSchema = Schema.Literals(["hook", "action", "payoff", "takeaway"]);
+
+/**
+ * Project-relative artifact reference with each kind bound to its canonical path.
+ */
+export const agentArtifactReferenceSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("transcript.full.v1"),
+    path: Schema.Literal("analysis/transcript.full.v1.json"),
+    sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("transcript.words.v1"),
+    path: Schema.Literal("analysis/transcript.words.v1.json"),
+    sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("beat-map.v1"),
+    path: Schema.Literal("analysis/beat-map.v1.json"),
+    sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("qa-report.v1"),
+    path: Schema.Literal("analysis/qa-report.v1.json"),
+    sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("cut-plan.v1"),
+    path: Schema.Literal("analysis/cut-plan.v1.json"),
+    sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("run-summary.v1"),
+    path: Schema.Literal("analysis/run-summary.v1.json"),
+  }),
+]).annotate({ identifier: "AgentArtifactReference" });
+
+/**
+ * Rational source frame rate retained without rounding rates such as 30000/1001.
+ */
+export const agentFrameRateSchema = Schema.Struct({
+  numerator: PositiveInt,
+  denominator: PositiveInt,
+}).annotate({ identifier: "AgentFrameRate" });
+
+/**
+ * End-exclusive frame range selected by a deterministic Agent Mode cut plan.
+ */
+const agentCutPlanSegmentWireSchema = Schema.Struct({
+  id: NonEmptyString,
+  beat: agentNarrativeBeatSchema,
+  startFrame: NonNegativeInt,
+  endFrame: PositiveInt,
+});
+export const agentCutPlanSegmentSchema = agentCutPlanSegmentWireSchema
+  .pipe(
+    Schema.decodeTo(
+      agentCutPlanSegmentWireSchema.check(
+        Schema.makeFilter((segment) =>
+          segment.endFrame > segment.startFrame
+            ? undefined
+            : "endFrame must be greater than startFrame",
+        ),
+      ),
+    ),
+  )
+  .annotate({ identifier: "AgentCutPlanSegment" });
+
+/**
+ * Compact, reviewable representation of the cut plan produced by a run.
+ */
+const agentCutPlanSummaryWireSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  sourceFps: agentFrameRateSchema,
+  sourceFrameCount: PositiveInt,
+  segments: Schema.Array(agentCutPlanSegmentSchema),
+});
+const canonicalBeatOrder = ["hook", "action", "payoff", "takeaway"] as const;
+export const agentCutPlanSummarySchema = agentCutPlanSummaryWireSchema
+  .pipe(
+    Schema.decodeTo(
+      agentCutPlanSummaryWireSchema.check(
+        Schema.makeFilter((plan) => {
+          if (
+            plan.segments.length !== canonicalBeatOrder.length ||
+            plan.segments.some((segment, index) => segment.beat !== canonicalBeatOrder[index]) ||
+            new Set(plan.segments.map((segment) => segment.id)).size !== plan.segments.length
+          ) {
+            return "segments must have unique IDs and canonical hook/action/payoff/takeaway order";
+          }
+          let previousEndFrame = 0;
+          for (const segment of plan.segments) {
+            if (segment.startFrame < previousEndFrame || segment.endFrame > plan.sourceFrameCount) {
+              return "segments must be ordered, non-overlapping, and within sourceFrameCount";
+            }
+            previousEndFrame = segment.endFrame;
+          }
+          return undefined;
+        }),
+      ),
+    ),
+  )
+  .annotate({ identifier: "AgentCutPlanSummary" });
 
 /**
  * Reasons that prevent an Agent Mode run from being started.
@@ -64,7 +184,7 @@ export const agentRunBlockingReasonSchema = Schema.Literals([
  */
 export const agentQAReportSchema = Schema.Struct({
   passed: Schema.Boolean,
-  score: Schema.Number.pipe(between(0, 1)),
+  score: Schema.Finite.pipe(between(0, 1)),
   coverage: Schema.Struct({
     hook: Schema.Boolean,
     action: Schema.Boolean,
@@ -85,19 +205,36 @@ export const agentRunSummarySchema = Schema.Struct({
   runtimeBudgetMinutes: PositiveInt,
   qaReport: Schema.optionalKey(agentQAReportSchema),
   blockingReason: Schema.optionalKey(agentRunBlockingReasonSchema),
+  artifacts: Schema.optionalKey(Schema.Array(agentArtifactReferenceSchema)),
+  cutPlan: Schema.optionalKey(agentCutPlanSummarySchema),
   updatedAt: IsoDateTime,
 }).annotate({ identifier: "AgentRunSummary" });
 
 /**
  * Result of validating whether the current project can run Agent Mode.
  */
-export const agentPreflightResultSchema = Schema.Struct({
-  ready: Schema.Boolean,
-  blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema),
+const agentPreflightReadyResultSchema = Schema.Struct({
+  ready: Schema.Literal(true),
+  blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema).check(
+    Schema.isLengthBetween(0, 0),
+  ),
   canApplyDestructive: Schema.Boolean,
   transcriptionProvider: transcriptionProviderSchema,
-  preflightToken: Schema.optionalKey(NonEmptyString),
-}).annotate({ identifier: "AgentPreflightResult" });
+  preflightToken: agentPreflightTokenSchema,
+  preflightTokenExpiresAt: IsoDateTime,
+}).annotate({ identifier: "AgentPreflightReadyResult" });
+
+const agentPreflightBlockedResultSchema = Schema.Struct({
+  ready: Schema.Literal(false),
+  blockingReasons: Schema.NonEmptyArray(agentPreflightBlockingReasonSchema),
+  canApplyDestructive: Schema.Boolean,
+  transcriptionProvider: transcriptionProviderSchema,
+}).annotate({ identifier: "AgentPreflightBlockedResult" });
+
+export const agentPreflightResultSchema = Schema.Union([
+  agentPreflightReadyResultSchema,
+  agentPreflightBlockedResultSchema,
+]).annotate({ identifier: "AgentPreflightResult" });
 
 /**
  * Initial response returned after enqueuing an Agent Mode run.
@@ -111,6 +248,18 @@ export const agentRunResultSchema = Schema.Struct({
  * Polling response for Agent Mode job status.
  */
 export const agentStatusResultSchema = agentRunSummarySchema;
+
+/**
+ * Verifiable result of applying one Agent Mode cut plan to the working timeline.
+ */
+export const agentApplyResultSchema = Schema.Struct({
+  success: Schema.Literal(true),
+  message: Schema.optionalKey(NonEmptyString),
+  jobId: agentJobIdSchema,
+  status: Schema.Literal("applied"),
+  appliedSegments: PositiveInt,
+  projectHasUnsavedChanges: Schema.Boolean,
+}).annotate({ identifier: "AgentApplyResult" });
 
 /**
  * Imported transcript segment with text and time bounds in seconds.
@@ -152,6 +301,11 @@ export type TranscriptionProvider = Schema.Schema.Type<typeof transcriptionProvi
  * Runtime TypeScript type for Agent Mode preflight responses.
  */
 export type AgentPreflightResult = Schema.Schema.Type<typeof agentPreflightResultSchema>;
+
+/**
+ * Runtime TypeScript type for successful Agent Mode apply responses.
+ */
+export type AgentApplyResult = Schema.Schema.Type<typeof agentApplyResultSchema>;
 
 /**
  * Runtime TypeScript type for Agent Mode run enqueue responses.

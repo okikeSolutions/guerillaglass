@@ -96,6 +96,19 @@ shared bridge contract
 
 Do not add application logic directly to bridge handlers. Acquire windows, menus, trays, servers, processes, and subscriptions through scoped services. Test lifecycle cleanup and recoverable host-dialog timeouts. For UI-facing host changes on macOS, run `bun run desktop:acceptance` so the packaged Electrobun host, renderer, and native engine are exercised together.
 
+## Agent Mode operation
+
+```text
+packages/engine-contract/src/domains/agent.ts + src/httpApi.ts
+  -> generated OpenAPI and native bindings
+  -> packages/engine-client AgentService
+  -> native preflight/run/status/apply and artifact storage
+  -> cut-plan export
+  -> desktop bridge/workspace when UI is in scope
+```
+
+Use `docs/AGENT_MODE_RUNBOOK.md` as the operational contract and keep `docs/AGENT_DISCOVERABILITY_AUDIT.md` dispositions current. Capabilities must identify unsupported foundation targets instead of inferring parity from generated endpoints. Verify project/run binding, token expiry, QA failure, persisted artifact recovery, destructive confirmation, exact apply results, and decoded cut-plan export media.
+
 ## Native capture or export behavior
 
 - macOS production behavior belongs under `engines/macos-swift`.

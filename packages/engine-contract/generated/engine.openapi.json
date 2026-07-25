@@ -157,26 +157,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -188,6 +168,8 @@
             }
           }
         },
+        "description": "Checks the active project, recording, transcript provider, and runtime limits before issuing a short-lived token bound to those inputs.",
+        "summary": "Validate Agent Mode prerequisites",
         "requestBody": {
           "content": {
             "application/json": {
@@ -291,6 +273,8 @@
             }
           }
         },
+        "description": "Consumes a valid preflight token and creates project-bound QA, artifact, and cut-plan state.",
+        "summary": "Create a deterministic Agent Mode run",
         "requestBody": {
           "content": {
             "application/json": {
@@ -387,6 +371,26 @@
               }
             }
           },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "EngineUnprocessableError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnprocessableError"
+                }
+              }
+            }
+          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -397,7 +401,9 @@
               }
             }
           }
-        }
+        },
+        "description": "Returns terminal status, narrative QA, persisted artifact references, and a reviewable cut-plan summary for one project-bound run.",
+        "summary": "Inspect Agent Mode run status"
       }
     },
     "/v1/agent/runs/{jobId}/apply": {
@@ -428,11 +434,11 @@
         ],
         "responses": {
           "200": {
-            "description": "ActionResult",
+            "description": "AgentApplyResult",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
+                  "$ref": "#/components/schemas/AgentApplyResult"
                 }
               }
             }
@@ -515,6 +521,8 @@
             }
           }
         },
+        "description": "Applies the exact persisted cut plan to the working timeline after QA, project binding, and destructive-confirmation checks.",
+        "summary": "Apply a verified Agent Mode cut plan",
         "requestBody": {
           "content": {
             "application/json": {
@@ -660,26 +668,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -749,26 +737,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EngineForbiddenError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
                 }
               }
             }
@@ -846,26 +814,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -935,26 +883,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EngineForbiddenError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
                 }
               }
             }
@@ -1105,26 +1033,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -1204,26 +1112,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EngineForbiddenError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
                 }
               }
             }
@@ -1311,26 +1199,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -1410,26 +1278,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EngineForbiddenError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
                 }
               }
             }
@@ -1653,26 +1501,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -1752,26 +1580,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EngineForbiddenError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
                 }
               }
             }
@@ -1922,26 +1730,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -2025,6 +1813,16 @@
               }
             }
           },
+          "404": {
+            "description": "EngineNotFoundError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineNotFoundError"
+                }
+              }
+            }
+          },
           "409": {
             "description": "EngineConflictError response body.",
             "content": {
@@ -2056,6 +1854,8 @@
             }
           }
         },
+        "description": "Resolves the supplied Agent Mode job, enforces project binding and narrative QA, and exports the exact persisted frame-based cut plan.",
+        "summary": "Export a verified Agent Mode cut plan",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2298,26 +2098,6 @@
               }
             }
           },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
-                }
-              }
-            }
-          },
           "500": {
             "description": "EngineRuntimeError response body.",
             "content": {
@@ -2397,26 +2177,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EngineForbiddenError"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "EngineConflictError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineConflictError"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "EngineUnprocessableError response body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EngineUnprocessableError"
                 }
               }
             }
@@ -2661,6 +2421,48 @@
                 "minimum": 1
               }
             ]
+          },
+          "supportedTranscriptionProviders": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "none",
+                "imported_transcript"
+              ]
+            }
+          },
+          "maxSourceDurationSeconds": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "preflightTokenTtlSeconds": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "artifactVersion": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "cutPlanVersion": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
           }
         },
         "required": [
@@ -2789,7 +2591,7 @@
                 "minimum": 1
               },
               {
-                "maximum": 60
+                "maximum": 10
               }
             ]
           },
@@ -2811,14 +2613,107 @@
         },
         "additionalProperties": false
       },
-      "AgentPreflightResult": {
+      "AgentPreflightReadyResult": {
         "type": "object",
         "properties": {
           "ready": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              true
+            ]
           },
           "blockingReasons": {
             "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "missing_project",
+                "missing_recording",
+                "invalid_runtime_budget",
+                "source_too_long",
+                "source_duration_invalid",
+                "missing_local_model",
+                "missing_imported_transcript",
+                "invalid_imported_transcript",
+                "no_audio_track",
+                "silent_audio"
+              ]
+            },
+            "allOf": [
+              {
+                "minItems": 0
+              },
+              {
+                "maxItems": 0
+              }
+            ]
+          },
+          "canApplyDestructive": {
+            "type": "boolean"
+          },
+          "transcriptionProvider": {
+            "type": "string",
+            "enum": [
+              "none",
+              "imported_transcript"
+            ]
+          },
+          "preflightToken": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "preflightTokenExpiresAt": {
+            "type": "string",
+            "allOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ready",
+          "blockingReasons",
+          "canApplyDestructive",
+          "transcriptionProvider",
+          "preflightToken",
+          "preflightTokenExpiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "AgentPreflightBlockedResult": {
+        "type": "object",
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "blockingReasons": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "enum": [
+                  "missing_project",
+                  "missing_recording",
+                  "invalid_runtime_budget",
+                  "source_too_long",
+                  "source_duration_invalid",
+                  "missing_local_model",
+                  "missing_imported_transcript",
+                  "invalid_imported_transcript",
+                  "no_audio_track",
+                  "silent_audio"
+                ]
+              }
+            ],
+            "minItems": 1,
             "items": {
               "type": "string",
               "enum": [
@@ -2844,14 +2739,6 @@
               "none",
               "imported_transcript"
             ]
-          },
-          "preflightToken": {
-            "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
           }
         },
         "required": [
@@ -2862,6 +2749,16 @@
         ],
         "additionalProperties": false
       },
+      "AgentPreflightResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AgentPreflightReadyResult"
+          },
+          {
+            "$ref": "#/components/schemas/AgentPreflightBlockedResult"
+          }
+        ]
+      },
       "EngineBadRequestError": {
         "type": "object",
         "properties": {
@@ -2870,7 +2767,9 @@
             "enum": [
               "invalid_request",
               "invalid_params",
-              "unsupported_method"
+              "unsupported_method",
+              "preflight_expired",
+              "preflight_mismatch"
             ]
           },
           "message": {
@@ -2918,62 +2817,6 @@
         "additionalProperties": false,
         "description": "EngineForbiddenError response body."
       },
-      "EngineConflictError": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "needs_confirmation"
-                ]
-              }
-            ]
-          },
-          "message": {
-            "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "additionalProperties": false,
-        "description": "EngineConflictError response body."
-      },
-      "EngineUnprocessableError": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "enum": [
-              "qa_failed",
-              "missing_local_model",
-              "invalid_cut_plan"
-            ]
-          },
-          "message": {
-            "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
-          }
-        },
-        "required": [
-          "code",
-          "message"
-        ],
-        "additionalProperties": false,
-        "description": "EngineUnprocessableError response body."
-      },
       "AgentRunPayload": {
         "type": "object",
         "properties": {
@@ -2992,7 +2835,7 @@
                 "minimum": 1
               },
               {
-                "maximum": 60
+                "maximum": 10
               }
             ]
           },
@@ -3049,6 +2892,59 @@
         ],
         "additionalProperties": false
       },
+      "EngineConflictError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "needs_confirmation",
+              "project_mismatch"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineConflictError response body."
+      },
+      "EngineUnprocessableError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "qa_failed",
+              "missing_local_model",
+              "invalid_cut_plan"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "description": "EngineUnprocessableError response body."
+      },
       "AgentQAReport": {
         "type": "object",
         "properties": {
@@ -3056,39 +2952,11 @@
             "type": "boolean"
           },
           "score": {
-            "anyOf": [
+            "type": "number",
+            "allOf": [
               {
-                "anyOf": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "string",
-                    "enum": [
-                      "NaN"
-                    ]
-                  },
-                  {
-                    "type": "string",
-                    "enum": [
-                      "Infinity"
-                    ]
-                  },
-                  {
-                    "type": "string",
-                    "enum": [
-                      "-Infinity"
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "Infinity",
-                  "-Infinity",
-                  "NaN"
-                ]
+                "minimum": 0,
+                "maximum": 1
               }
             ]
           },
@@ -3133,6 +3001,288 @@
           "passed",
           "score",
           "coverage"
+        ],
+        "additionalProperties": false
+      },
+      "AgentArtifactReference": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "transcript.full.v1"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "enum": [
+                  "analysis/transcript.full.v1.json"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "transcript.words.v1"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "enum": [
+                  "analysis/transcript.words.v1.json"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "beat-map.v1"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "enum": [
+                  "analysis/beat-map.v1.json"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "qa-report.v1"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "enum": [
+                  "analysis/qa-report.v1.json"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "cut-plan.v1"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "enum": [
+                  "analysis/cut-plan.v1.json"
+                ]
+              },
+              "sha256": {
+                "type": "string",
+                "allOf": [
+                  {
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "run-summary.v1"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "enum": [
+                  "analysis/run-summary.v1.json"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AgentFrameRate": {
+        "type": "object",
+        "properties": {
+          "numerator": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "denominator": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "numerator",
+          "denominator"
+        ],
+        "additionalProperties": false
+      },
+      "AgentCutPlanSegment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "beat": {
+            "type": "string",
+            "enum": [
+              "hook",
+              "action",
+              "payoff",
+              "takeaway"
+            ]
+          },
+          "startFrame": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 0
+              }
+            ]
+          },
+          "endFrame": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "beat",
+          "startFrame",
+          "endFrame"
+        ],
+        "additionalProperties": false
+      },
+      "AgentCutPlanSummary": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "sourceFps": {
+            "$ref": "#/components/schemas/AgentFrameRate"
+          },
+          "sourceFrameCount": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentCutPlanSegment"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "sourceFps",
+          "sourceFrameCount",
+          "segments"
         ],
         "additionalProperties": false
       },
@@ -3185,6 +3335,15 @@
               "empty_transcript",
               "weak_narrative_structure"
             ]
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentArtifactReference"
+            }
+          },
+          "cutPlan": {
+            "$ref": "#/components/schemas/AgentCutPlanSummary"
           },
           "updatedAt": {
             "type": "string",
@@ -3241,18 +3400,55 @@
         },
         "additionalProperties": false
       },
-      "ActionResult": {
+      "AgentApplyResult": {
         "type": "object",
         "properties": {
           "success": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              true
+            ]
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "jobId": {
+            "type": "string",
+            "allOf": [
+              {
+                "minLength": 1
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied"
+            ]
+          },
+          "appliedSegments": {
+            "type": "integer",
+            "allOf": [
+              {
+                "minimum": 1
+              }
+            ]
+          },
+          "projectHasUnsavedChanges": {
+            "type": "boolean"
           }
         },
         "required": [
-          "success"
+          "success",
+          "jobId",
+          "status",
+          "appliedSegments",
+          "projectHasUnsavedChanges"
         ],
         "additionalProperties": false
       },
@@ -3278,6 +3474,21 @@
           "screenRecordingGranted",
           "microphoneGranted",
           "inputMonitoring"
+        ],
+        "additionalProperties": false
+      },
+      "ActionResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success"
         ],
         "additionalProperties": false
       },
@@ -4772,7 +4983,8 @@
       "name": "system"
     },
     {
-      "name": "agent"
+      "name": "agent",
+      "description": "Project-scoped local Agent Mode planning and apply workflow."
     },
     {
       "name": "permissions"

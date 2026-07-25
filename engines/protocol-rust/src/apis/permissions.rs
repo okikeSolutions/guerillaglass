@@ -36,10 +36,6 @@ pub enum PermissionsPermissionsOpenInputMonitoringSettingsResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
-    /// EngineConflictError response body.
-    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
-    /// EngineUnprocessableError response body.
-    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
@@ -56,10 +52,6 @@ pub enum PermissionsPermissionsRequestInputMonitoringResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
-    /// EngineConflictError response body.
-    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
-    /// EngineUnprocessableError response body.
-    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
@@ -76,10 +68,6 @@ pub enum PermissionsPermissionsRequestMicrophoneResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
-    /// EngineConflictError response body.
-    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
-    /// EngineUnprocessableError response body.
-    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
@@ -96,10 +84,6 @@ pub enum PermissionsPermissionsRequestScreenRecordingResponse {
     Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
-    /// EngineConflictError response body.
-    Status409_EngineConflictErrorResponseBody(models::EngineConflictError),
-    /// EngineUnprocessableError response body.
-    Status422_EngineUnprocessableErrorResponseBody(models::EngineUnprocessableError),
     /// EngineRuntimeError response body.
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }

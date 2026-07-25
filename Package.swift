@@ -90,6 +90,11 @@ let package = Package(
             path: "Tests/projectMigrationTests"
         ),
         .testTarget(
+            name: "AgentModeTests",
+            dependencies: ["Project"],
+            path: "Tests/agentModeTests"
+        ),
+        .testTarget(
             name: "RenderingDeterminismTests",
             dependencies: ["Project", "Rendering"],
             path: "Tests/renderingDeterminismTests"
