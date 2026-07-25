@@ -109,18 +109,18 @@ public struct AgentArtifactStore {
         return summary
     }
 
-    /// Removes a destination package's prior canonical generation before Save As.
-    public func removeLatest(projectURL: URL) throws {
+    /// Hides a destination package's prior generation so Save As can restore it on failure.
+    public func quarantineLatest(projectURL: URL) throws -> String? {
         var metadata = stat()
         let status = projectURL.path.withCString { Darwin.lstat($0, &metadata) }
         if status != 0, errno == ENOENT {
-            return
+            return nil
         }
         guard status == 0 else { throw AgentArtifactError.unsafeArtifactPath }
         let projectFD = try openDirectory(path: projectURL.path)
         defer { Darwin.close(projectFD) }
-        guard try directoryExists(at: projectFD, name: ProjectFile.analysisDirectory) else { return }
-        let tombstone = ".agent-analysis-removed-\(UUID().uuidString)"
+        guard try directoryExists(at: projectFD, name: ProjectFile.analysisDirectory) else { return nil }
+        let tombstone = ".agent-analysis-quarantine-\(UUID().uuidString)"
         guard Darwin.renameat(
             projectFD,
             ProjectFile.analysisDirectory,
@@ -131,7 +131,21 @@ public struct AgentArtifactStore {
             _ = Darwin.renameat(projectFD, tombstone, projectFD, ProjectFile.analysisDirectory)
             throw AgentArtifactError.unsafeArtifactPath
         }
-        removeCanonicalGeneration(named: tombstone, projectFD: projectFD)
+        return tombstone
+    }
+
+    public func restoreQuarantined(_ name: String, projectURL: URL) throws {
+        let projectFD = try openDirectory(path: projectURL.path)
+        defer { Darwin.close(projectFD) }
+        guard Darwin.renameat(projectFD, name, projectFD, ProjectFile.analysisDirectory) == 0,
+              Darwin.fsync(projectFD) == 0
+        else { throw AgentArtifactError.unsafeArtifactPath }
+    }
+
+    public func discardQuarantined(_ name: String, projectURL: URL) {
+        guard let projectFD = try? openDirectory(path: projectURL.path) else { return }
+        defer { Darwin.close(projectFD) }
+        removeCanonicalGeneration(named: name, projectFD: projectFD)
     }
 
     public func loadLatest(projectURL: URL, projectId: UUID) throws -> AgentRunSummaryArtifact? {

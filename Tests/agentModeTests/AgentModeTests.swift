@@ -141,6 +141,14 @@ final class AgentModeTests: XCTestCase {
             persisted,
             "a failed replacement must preserve the prior generation"
         )
+        let quarantine = try XCTUnwrap(store.quarantineLatest(projectURL: root))
+        XCTAssertNil(try store.loadLatest(projectURL: root, projectId: projectId))
+        try store.restoreQuarantined(quarantine, projectURL: root)
+        XCTAssertEqual(
+            try store.loadLatest(projectURL: root, projectId: projectId),
+            persisted,
+            "a failed Save As must restore the destination generation"
+        )
         for reference in AgentArtifactStore.references {
             XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(reference.path).path))
         }

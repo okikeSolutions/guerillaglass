@@ -95,17 +95,34 @@ extension EngineService {
             )
         }
         do {
-            if isSaveAs {
-                try agentArtifactStore.removeLatest(projectURL: projectURL)
+            let quarantinedAnalysis = isSaveAs
+                ? try agentArtifactStore.quarantineLatest(projectURL: projectURL)
+                : nil
+            let savedDocument: ProjectDocument
+            do {
+                savedDocument = try projectStore.writeProject(
+                    document: document,
+                    assets: .init(
+                        recordingURL: captureEngine.recordingURL,
+                        eventsURL: currentEventsURL
+                    ),
+                    to: projectURL
+                )
+            } catch {
+                if let quarantinedAnalysis {
+                    try agentArtifactStore.restoreQuarantined(
+                        quarantinedAnalysis,
+                        projectURL: projectURL
+                    )
+                }
+                throw error
             }
-            let savedDocument = try projectStore.writeProject(
-                document: document,
-                assets: .init(
-                    recordingURL: captureEngine.recordingURL,
-                    eventsURL: currentEventsURL
-                ),
-                to: projectURL
-            )
+            if let quarantinedAnalysis {
+                agentArtifactStore.discardQuarantined(
+                    quarantinedAnalysis,
+                    projectURL: projectURL
+                )
+            }
             currentProjectURL = projectURL
             currentProjectDocument = savedDocument
             if isSaveAs {
