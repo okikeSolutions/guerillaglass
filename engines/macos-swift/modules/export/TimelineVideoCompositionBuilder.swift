@@ -21,9 +21,12 @@ public enum TimelineVideoCompositionBuilder {
             naturalSize: sourceNaturalSize,
             preferredTransform: sourcePreferredTransform
         )
+        let compositionContentSize = plan?.outputAspectRatio.map {
+            CGSize(width: $0, height: 1)
+        } ?? sourceBounds.size
         guard let geometry = BackgroundFramingGeometry(
             renderSize: renderSize,
-            orientedSourceSize: sourceBounds.size,
+            orientedSourceSize: compositionContentSize,
             settings: backgroundFraming
         ) else { return nil }
         let baseTransform = VideoGeometryTransforms.sourceToCardTransform(
@@ -32,6 +35,13 @@ public enum TimelineVideoCompositionBuilder {
             cardRect: geometry.cardRect
         )
         let sortedKeyframes = plan?.keyframes.sorted(by: { $0.time < $1.time }) ?? []
+        let cameraContext = TimelineCameraTransformContext(
+            baseTransform: baseTransform,
+            naturalSize: sourceNaturalSize,
+            preferredTransform: sourcePreferredTransform,
+            cardRect: geometry.cardRect,
+            outputAspectRatio: plan?.outputAspectRatio
+        )
 
         let instructions = timelineComposition.items.compactMap { item -> AVMutableVideoCompositionInstruction? in
             let range = item.programRange
@@ -47,8 +57,7 @@ public enum TimelineVideoCompositionBuilder {
                 let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
                 applyTimelineClipTransforms(
                     layerInstruction: layerInstruction,
-                    baseTransform: baseTransform,
-                    sourceSize: sourceNaturalSize,
+                    cameraContext: cameraContext,
                     sourceRange: sourceRange,
                     programRange: programRange,
                     keyframes: sortedKeyframes
@@ -88,14 +97,24 @@ public enum TimelineVideoCompositionBuilder {
     }
 }
 
+private struct TimelineCameraTransformContext {
+    let baseTransform: CGAffineTransform
+    let naturalSize: CGSize
+    let preferredTransform: CGAffineTransform
+    let cardRect: CGRect
+    let outputAspectRatio: CGFloat?
+}
+
 private func applyTimelineClipTransforms(
     layerInstruction: AVMutableVideoCompositionLayerInstruction,
-    baseTransform: CGAffineTransform,
-    sourceSize: CGSize,
+    cameraContext: TimelineCameraTransformContext,
     sourceRange: CMTimeRange,
     programRange: CMTimeRange,
     keyframes: [CameraKeyframe]
 ) {
+    let baseTransform = cameraContext.baseTransform
+    let naturalSize = cameraContext.naturalSize
+
     guard !keyframes.isEmpty else {
         layerInstruction.setTransform(baseTransform, at: programRange.start)
         return
@@ -106,41 +125,35 @@ private func applyTimelineClipTransforms(
     let initialKeyframe = interpolatedKeyframe(
         at: sourceStartSeconds,
         keyframes: keyframes,
-        sourceSize: sourceSize
+        sourceSize: naturalSize
     )
     layerInstruction.setTransform(
-        timelineClipTransform(baseTransform: baseTransform, keyframe: initialKeyframe, sourceSize: sourceSize),
+        timelineClipTransform(cameraContext: cameraContext, keyframe: initialKeyframe),
         at: programRange.start
     )
 
     var previous = initialKeyframe
     for keyframe in keyframes where keyframe.time > sourceStartSeconds && keyframe.time < sourceEndSeconds {
-        let rampStartSourceSeconds = previous.time
-        let rampEndSourceSeconds = keyframe.time
         let startTime = sourceSecondsToProgramTime(
-            rampStartSourceSeconds,
+            previous.time,
             sourceRange: sourceRange,
             programRange: programRange
         )
         let endTime = sourceSecondsToProgramTime(
-            rampEndSourceSeconds,
+            keyframe.time,
             sourceRange: sourceRange,
             programRange: programRange
         )
         if endTime > startTime {
-            let startTransform = timelineClipTransform(
-                baseTransform: baseTransform,
-                keyframe: previous,
-                sourceSize: sourceSize
-            )
-            let endTransform = timelineClipTransform(
-                baseTransform: baseTransform,
-                keyframe: keyframe,
-                sourceSize: sourceSize
-            )
             layerInstruction.setTransformRamp(
-                fromStart: startTransform,
-                toEnd: endTransform,
+                fromStart: timelineClipTransform(
+                    cameraContext: cameraContext,
+                    keyframe: previous
+                ),
+                toEnd: timelineClipTransform(
+                    cameraContext: cameraContext,
+                    keyframe: keyframe
+                ),
                 timeRange: CMTimeRange(start: startTime, end: endTime)
             )
         }
@@ -150,7 +163,7 @@ private func applyTimelineClipTransforms(
     let finalKeyframe = interpolatedKeyframe(
         at: sourceEndSeconds,
         keyframes: keyframes,
-        sourceSize: sourceSize
+        sourceSize: naturalSize
     )
     let finalStartTime = sourceSecondsToProgramTime(
         previous.time,
@@ -158,19 +171,15 @@ private func applyTimelineClipTransforms(
         programRange: programRange
     )
     if programRange.end > finalStartTime {
-        let startTransform = timelineClipTransform(
-            baseTransform: baseTransform,
-            keyframe: previous,
-            sourceSize: sourceSize
-        )
-        let endTransform = timelineClipTransform(
-            baseTransform: baseTransform,
-            keyframe: finalKeyframe,
-            sourceSize: sourceSize
-        )
         layerInstruction.setTransformRamp(
-            fromStart: startTransform,
-            toEnd: endTransform,
+            fromStart: timelineClipTransform(
+                cameraContext: cameraContext,
+                keyframe: previous
+            ),
+            toEnd: timelineClipTransform(
+                cameraContext: cameraContext,
+                keyframe: finalKeyframe
+            ),
             timeRange: CMTimeRange(start: finalStartTime, end: programRange.end)
         )
     }
@@ -222,13 +231,21 @@ private func interpolatedKeyframe(
 }
 
 private func timelineClipTransform(
-    baseTransform: CGAffineTransform,
-    keyframe: CameraKeyframe,
-    sourceSize: CGSize
+    cameraContext: TimelineCameraTransformContext,
+    keyframe: CameraKeyframe
 ) -> CGAffineTransform {
-    VideoGeometryTransforms.sourceTransform(
-        baseTransform: baseTransform,
+    guard let outputAspectRatio = cameraContext.outputAspectRatio else {
+        return VideoGeometryTransforms.sourceTransform(
+            baseTransform: cameraContext.baseTransform,
+            keyframe: keyframe,
+            sourceSize: cameraContext.naturalSize
+        )
+    }
+    return VideoGeometryTransforms.sourceToCameraViewportTransform(
+        naturalSize: cameraContext.naturalSize,
+        preferredTransform: cameraContext.preferredTransform,
+        cardRect: cameraContext.cardRect,
         keyframe: keyframe,
-        sourceSize: sourceSize
+        outputAspectRatio: outputAspectRatio
     )
 }

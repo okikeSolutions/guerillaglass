@@ -1845,6 +1845,179 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentRunSumm
     }
 }
 
+/// User-configurable automatic zoom settings stored with a project or export override.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct AutoZoomSettings {
+    #[serde(rename = "isEnabled")]
+    pub is_enabled: bool,
+
+    #[serde(rename = "intensity")]
+    pub intensity: f64,
+
+    #[serde(rename = "minimumKeyframeInterval")]
+    pub minimum_keyframe_interval: f64,
+}
+
+impl AutoZoomSettings {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        is_enabled: bool,
+        intensity: f64,
+        minimum_keyframe_interval: f64,
+    ) -> AutoZoomSettings {
+        AutoZoomSettings {
+            is_enabled,
+            intensity,
+            minimum_keyframe_interval,
+        }
+    }
+}
+
+/// Converts the AutoZoomSettings value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for AutoZoomSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("isEnabled".to_string()),
+            Some(self.is_enabled.to_string()),
+            Some("intensity".to_string()),
+            Some(self.intensity.to_string()),
+            Some("minimumKeyframeInterval".to_string()),
+            Some(self.minimum_keyframe_interval.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a AutoZoomSettings value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for AutoZoomSettings {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub is_enabled: Vec<bool>,
+            pub intensity: Vec<f64>,
+            pub minimum_keyframe_interval: Vec<f64>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing AutoZoomSettings".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "isEnabled" => intermediate_rep.is_enabled.push(
+                        <bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "intensity" => intermediate_rep.intensity.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "minimumKeyframeInterval" => intermediate_rep.minimum_keyframe_interval.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing AutoZoomSettings".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(AutoZoomSettings {
+            is_enabled: intermediate_rep
+                .is_enabled
+                .into_iter()
+                .next()
+                .ok_or_else(|| "isEnabled missing in AutoZoomSettings".to_string())?,
+            intensity: intermediate_rep
+                .intensity
+                .into_iter()
+                .next()
+                .ok_or_else(|| "intensity missing in AutoZoomSettings".to_string())?,
+            minimum_keyframe_interval: intermediate_rep
+                .minimum_keyframe_interval
+                .into_iter()
+                .next()
+                .ok_or_else(|| "minimumKeyframeInterval missing in AutoZoomSettings".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<AutoZoomSettings> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<AutoZoomSettings>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<AutoZoomSettings>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for AutoZoomSettings - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AutoZoomSettings> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <AutoZoomSettings as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into AutoZoomSettings - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
 /// Versioned project-global background stage and source-card framing settings.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
@@ -7190,6 +7363,11 @@ pub struct ExportRunPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeline: Option<models::ExportRunPayloadTimeline>,
 
+    #[serde(rename = "autoZoom")]
+    #[validate(nested)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_zoom: Option<models::AutoZoomSettings>,
+
     #[serde(rename = "backgroundFraming")]
     #[validate(nested)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -7205,6 +7383,7 @@ impl ExportRunPayload {
             trim_start_seconds: None,
             trim_end_seconds: None,
             timeline: None,
+            auto_zoom: None,
             background_framing: None,
         }
     }
@@ -7231,6 +7410,8 @@ impl std::fmt::Display for ExportRunPayload {
                 ["trimEndSeconds".to_string(), trim_end_seconds.to_string()].join(",")
             }),
             // Skipping timeline in query parameter serialization
+
+            // Skipping autoZoom in query parameter serialization
 
             // Skipping backgroundFraming in query parameter serialization
         ];
@@ -7259,6 +7440,7 @@ impl std::str::FromStr for ExportRunPayload {
             pub trim_start_seconds: Vec<f64>,
             pub trim_end_seconds: Vec<f64>,
             pub timeline: Vec<models::ExportRunPayloadTimeline>,
+            pub auto_zoom: Vec<models::AutoZoomSettings>,
             pub background_framing: Vec<models::BackgroundFramingSettings>,
         }
 
@@ -7303,6 +7485,11 @@ impl std::str::FromStr for ExportRunPayload {
                             .map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
+                    "autoZoom" => intermediate_rep.auto_zoom.push(
+                        <models::AutoZoomSettings as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
                     "backgroundFraming" => intermediate_rep.background_framing.push(
                         <models::BackgroundFramingSettings as std::str::FromStr>::from_str(val)
                             .map_err(|x| x.to_string())?,
@@ -7334,6 +7521,7 @@ impl std::str::FromStr for ExportRunPayload {
             trim_start_seconds: intermediate_rep.trim_start_seconds.into_iter().next(),
             trim_end_seconds: intermediate_rep.trim_end_seconds.into_iter().next(),
             timeline: intermediate_rep.timeline.into_iter().next(),
+            auto_zoom: intermediate_rep.auto_zoom.into_iter().next(),
             background_framing: intermediate_rep.background_framing.into_iter().next(),
         })
     }
@@ -9151,7 +9339,7 @@ pub struct ProjectSavePayload {
     #[serde(rename = "autoZoom")]
     #[validate(nested)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub auto_zoom: Option<models::ProjectStateAutoZoom>,
+    pub auto_zoom: Option<models::AutoZoomSettings>,
 
     #[serde(rename = "backgroundFraming")]
     #[validate(nested)]
@@ -9212,7 +9400,7 @@ impl std::str::FromStr for ProjectSavePayload {
         #[allow(dead_code)]
         struct IntermediateRep {
             pub project_path: Vec<String>,
-            pub auto_zoom: Vec<models::ProjectStateAutoZoom>,
+            pub auto_zoom: Vec<models::AutoZoomSettings>,
             pub background_framing: Vec<models::BackgroundFramingSettings>,
             pub timeline: Vec<models::ExportRunPayloadTimeline>,
         }
@@ -9242,7 +9430,7 @@ impl std::str::FromStr for ProjectSavePayload {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "autoZoom" => intermediate_rep.auto_zoom.push(
-                        <models::ProjectStateAutoZoom as std::str::FromStr>::from_str(val)
+                        <models::AutoZoomSettings as std::str::FromStr>::from_str(val)
                             .map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
@@ -9344,7 +9532,7 @@ pub struct ProjectState {
 
     #[serde(rename = "autoZoom")]
     #[validate(nested)]
-    pub auto_zoom: models::ProjectStateAutoZoom,
+    pub auto_zoom: models::AutoZoomSettings,
 
     #[serde(rename = "backgroundFraming")]
     #[validate(nested)]
@@ -9368,7 +9556,7 @@ pub struct ProjectState {
 impl ProjectState {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
-        auto_zoom: models::ProjectStateAutoZoom,
+        auto_zoom: models::AutoZoomSettings,
         background_framing: models::BackgroundFramingSettings,
         timeline: models::ExportRunPayloadTimeline,
     ) -> ProjectState {
@@ -9437,7 +9625,7 @@ impl std::str::FromStr for ProjectState {
             pub recording_url: Vec<String>,
             pub events_url: Vec<String>,
             pub last_recording_telemetry: Vec<models::CaptureTelemetry>,
-            pub auto_zoom: Vec<models::ProjectStateAutoZoom>,
+            pub auto_zoom: Vec<models::AutoZoomSettings>,
             pub background_framing: Vec<models::BackgroundFramingSettings>,
             pub timeline: Vec<models::ExportRunPayloadTimeline>,
             pub capture_metadata: Vec<models::CaptureStatusResultCaptureMetadata>,
@@ -9472,7 +9660,7 @@ impl std::str::FromStr for ProjectState {
                     #[allow(clippy::redundant_clone)]
                     "lastRecordingTelemetry" => intermediate_rep.last_recording_telemetry.push(<models::CaptureTelemetry as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "autoZoom" => intermediate_rep.auto_zoom.push(<models::ProjectStateAutoZoom as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "autoZoom" => intermediate_rep.auto_zoom.push(<models::AutoZoomSettings as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "backgroundFraming" => intermediate_rep.background_framing.push(<models::BackgroundFramingSettings as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
@@ -9548,180 +9736,6 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ProjectState
                     }
                     std::result::Result::Err(err) => std::result::Result::Err(format!(
                         r#"Unable to convert header value '{value}' into ProjectState - {err}"#
-                    )),
-                }
-            }
-            std::result::Result::Err(e) => std::result::Result::Err(format!(
-                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
-#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
-pub struct ProjectStateAutoZoom {
-    #[serde(rename = "isEnabled")]
-    pub is_enabled: bool,
-
-    #[serde(rename = "intensity")]
-    pub intensity: f64,
-
-    #[serde(rename = "minimumKeyframeInterval")]
-    pub minimum_keyframe_interval: f64,
-}
-
-impl ProjectStateAutoZoom {
-    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(
-        is_enabled: bool,
-        intensity: f64,
-        minimum_keyframe_interval: f64,
-    ) -> ProjectStateAutoZoom {
-        ProjectStateAutoZoom {
-            is_enabled,
-            intensity,
-            minimum_keyframe_interval,
-        }
-    }
-}
-
-/// Converts the ProjectStateAutoZoom value to the Query Parameters representation (style=form, explode=false)
-/// specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde serializer
-impl std::fmt::Display for ProjectStateAutoZoom {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let params: Vec<Option<String>> = vec![
-            Some("isEnabled".to_string()),
-            Some(self.is_enabled.to_string()),
-            Some("intensity".to_string()),
-            Some(self.intensity.to_string()),
-            Some("minimumKeyframeInterval".to_string()),
-            Some(self.minimum_keyframe_interval.to_string()),
-        ];
-
-        write!(
-            f,
-            "{}",
-            params.into_iter().flatten().collect::<Vec<_>>().join(",")
-        )
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a ProjectStateAutoZoom value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for ProjectStateAutoZoom {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        /// An intermediate representation of the struct to use for parsing.
-        #[derive(Default)]
-        #[allow(dead_code)]
-        struct IntermediateRep {
-            pub is_enabled: Vec<bool>,
-            pub intensity: Vec<f64>,
-            pub minimum_keyframe_interval: Vec<f64>,
-        }
-
-        let mut intermediate_rep = IntermediateRep::default();
-
-        // Parse into intermediate representation
-        let mut string_iter = s.split(',');
-        let mut key_result = string_iter.next();
-
-        while key_result.is_some() {
-            let val = match string_iter.next() {
-                Some(x) => x,
-                None => {
-                    return std::result::Result::Err(
-                        "Missing value while parsing ProjectStateAutoZoom".to_string(),
-                    );
-                }
-            };
-
-            if let Some(key) = key_result {
-                #[allow(clippy::match_single_binding)]
-                match key {
-                    #[allow(clippy::redundant_clone)]
-                    "isEnabled" => intermediate_rep.is_enabled.push(
-                        <bool as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
-                    #[allow(clippy::redundant_clone)]
-                    "intensity" => intermediate_rep.intensity.push(
-                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
-                    #[allow(clippy::redundant_clone)]
-                    "minimumKeyframeInterval" => intermediate_rep.minimum_keyframe_interval.push(
-                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
-                    _ => {
-                        return std::result::Result::Err(
-                            "Unexpected key while parsing ProjectStateAutoZoom".to_string(),
-                        );
-                    }
-                }
-            }
-
-            // Get the next key
-            key_result = string_iter.next();
-        }
-
-        // Use the intermediate representation to return the struct
-        std::result::Result::Ok(ProjectStateAutoZoom {
-            is_enabled: intermediate_rep
-                .is_enabled
-                .into_iter()
-                .next()
-                .ok_or_else(|| "isEnabled missing in ProjectStateAutoZoom".to_string())?,
-            intensity: intermediate_rep
-                .intensity
-                .into_iter()
-                .next()
-                .ok_or_else(|| "intensity missing in ProjectStateAutoZoom".to_string())?,
-            minimum_keyframe_interval: intermediate_rep
-                .minimum_keyframe_interval
-                .into_iter()
-                .next()
-                .ok_or_else(|| {
-                    "minimumKeyframeInterval missing in ProjectStateAutoZoom".to_string()
-                })?,
-        })
-    }
-}
-
-// Methods for converting between header::IntoHeaderValue<ProjectStateAutoZoom> and HeaderValue
-
-#[cfg(feature = "server")]
-impl std::convert::TryFrom<header::IntoHeaderValue<ProjectStateAutoZoom>> for HeaderValue {
-    type Error = String;
-
-    fn try_from(
-        hdr_value: header::IntoHeaderValue<ProjectStateAutoZoom>,
-    ) -> std::result::Result<Self, Self::Error> {
-        let hdr_value = hdr_value.to_string();
-        match HeaderValue::from_str(&hdr_value) {
-            std::result::Result::Ok(value) => std::result::Result::Ok(value),
-            std::result::Result::Err(e) => std::result::Result::Err(format!(
-                r#"Invalid header value for ProjectStateAutoZoom - value: {hdr_value} is invalid {e}"#
-            )),
-        }
-    }
-}
-
-#[cfg(feature = "server")]
-impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ProjectStateAutoZoom> {
-    type Error = String;
-
-    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
-        match hdr_value.to_str() {
-            std::result::Result::Ok(value) => {
-                match <ProjectStateAutoZoom as std::str::FromStr>::from_str(value) {
-                    std::result::Result::Ok(value) => {
-                        std::result::Result::Ok(header::IntoHeaderValue(value))
-                    }
-                    std::result::Result::Err(err) => std::result::Result::Err(format!(
-                        r#"Unable to convert header value '{value}' into ProjectStateAutoZoom - {err}"#
                     )),
                 }
             }

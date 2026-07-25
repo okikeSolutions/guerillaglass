@@ -2,6 +2,7 @@ import AVFoundation
 import EngineProtocol
 import Export
 import Foundation
+import InputTracking
 import Project
 
 extension EngineService {
@@ -37,11 +38,16 @@ extension EngineService {
                 exportOverride: backgroundFramingOverride,
                 persisted: currentProjectDocument.project.backgroundFraming
             )
+            let resolvedAutoZoom = payload.autoZoom.map(projectAutoZoom)
+                ?? currentProjectDocument.project.autoZoom
             let exportedURL = try await exportPipeline.export(
                 recordingURL: recordingURL,
                 preset: preset,
                 trimRange: trimRange(start: payload.trimStartSeconds?.value1, end: payload.trimEndSeconds?.value1),
                 outputURL: URL(fileURLWithPath: payload.outputURL.value1),
+                cameraEvents: availableCameraEvents(for: resolvedAutoZoom),
+                autoZoomSettings: resolvedAutoZoom,
+                captureMetadata: currentProjectDocument.project.captureMetadata,
                 timeline: exportTimeline(from: payload.timeline),
                 backgroundFraming: resolvedBackgroundFraming
             )
@@ -85,6 +91,9 @@ extension EngineService {
                 preset: preset,
                 trimRange: nil,
                 outputURL: URL(fileURLWithPath: payload.outputURL.value1),
+                cameraEvents: availableCameraEvents(for: currentProjectDocument.project.autoZoom),
+                autoZoomSettings: currentProjectDocument.project.autoZoom,
+                captureMetadata: currentProjectDocument.project.captureMetadata,
                 backgroundFraming: currentProjectDocument.project.backgroundFraming
             )
             let jobId = "macos-export-cut-plan-\(UUID().uuidString)"
@@ -120,6 +129,14 @@ extension EngineService {
             return projectURL
         }
         return captureEngine.recordingURL
+    }
+
+    private func availableCameraEvents(for autoZoom: AutoZoomSettings) throws -> [InputEvent] {
+        guard autoZoom.requiresInputEvents else { return [] }
+        guard let eventsURL = projectEventsURL() ?? currentEventsURL,
+              FileManager.default.fileExists(atPath: eventsURL.path)
+        else { return [] }
+        return try InputEventLog.load(from: eventsURL).events
     }
 
     private func trimRange(start: Double?, end: Double?) -> CMTimeRange? {

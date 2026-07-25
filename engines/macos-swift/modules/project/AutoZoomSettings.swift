@@ -20,6 +20,12 @@ public struct AutoZoomSettings: Codable, Equatable {
         self.minimumKeyframeInterval = minimumKeyframeInterval
     }
 
+    /// Whether camera planning needs the persisted input-event artifact.
+    public var requiresInputEvents: Bool {
+        let settings = clamped()
+        return settings.isEnabled && settings.intensity > 0
+    }
+
     public func clamped() -> AutoZoomSettings {
         var clamped = self
         let intensity = intensity.isFinite ? intensity : 1.0

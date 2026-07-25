@@ -69,6 +69,10 @@ export const autoZoomSettingsSchema = Schema.Struct({
   isEnabled: Schema.Boolean,
   intensity: NonNegativeNumber,
   minimumKeyframeInterval: NonNegativeNumber,
+}).annotate({
+  identifier: "AutoZoomSettings",
+  description:
+    "User-configurable automatic zoom settings stored with a project or export override.",
 });
 
 /**

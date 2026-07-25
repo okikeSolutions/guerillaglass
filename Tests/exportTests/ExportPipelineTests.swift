@@ -3,6 +3,7 @@ import Automation
 import AVFoundation
 import Darwin
 @testable import Export
+import InputTracking
 import Project
 import XCTest
 
@@ -329,6 +330,83 @@ final class ExportPipelineTests: XCTestCase {
         XCTAssertEqual(cameraRed, 0.25, accuracy: 0.1)
         XCTAssertLessThan(cameraColor.greenComponent, 0.08)
         XCTAssertLessThan(cameraColor.blueComponent, 0.08)
+    }
+
+    func testVerticalExportReplansCameraFromCaptureEvents() async throws {
+        let fileManager = FileManager.default
+        let baseURL = try canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: baseURL) }
+
+        let sourceURL = baseURL.appendingPathComponent("gradient.mov")
+        try makeGradientVideoFile(at: sourceURL, durationSeconds: 1)
+        let leftURL = baseURL.appendingPathComponent("vertical-left.mp4")
+        let rightURL = baseURL.appendingPathComponent("vertical-right.mp4")
+        let preset = ExportPreset(
+            id: "test-vertical",
+            name: "Test vertical",
+            width: 180,
+            height: 320,
+            fps: 30,
+            codec: .h264,
+            fileType: .mp4,
+            exportPresetName: AVAssetExportPresetHighestQuality
+        )
+        let metadata = CaptureMetadata(
+            source: .display,
+            contentRect: CaptureRect(originX: 0, originY: 0, width: 320, height: 180),
+            pixelScale: 1
+        )
+        let settings = AutoZoomSettings(isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30)
+        let framing = try BackgroundFramingSettings(
+            version: 1,
+            enabled: true,
+            backgroundColor: "#204060",
+            paddingFraction: 0.06,
+            cornerRadiusFraction: 0.025,
+            shadowStrength: 0.35
+        )
+
+        _ = try await ExportPipeline().export(
+            recordingURL: sourceURL,
+            preset: preset,
+            trimRange: nil,
+            outputURL: leftURL,
+            cameraEvents: [
+                InputEvent(type: .mouseDown, timestamp: 0, position: CGPoint(x: 40, y: 90))
+            ],
+            autoZoomSettings: settings,
+            captureMetadata: metadata,
+            backgroundFraming: framing
+        )
+        _ = try await ExportPipeline().export(
+            recordingURL: sourceURL,
+            preset: preset,
+            trimRange: nil,
+            outputURL: rightURL,
+            cameraEvents: [
+                InputEvent(type: .mouseDown, timestamp: 0, position: CGPoint(x: 280, y: 90))
+            ],
+            autoZoomSettings: settings,
+            captureMetadata: metadata,
+            backgroundFraming: framing
+        )
+
+        let leftColor = try sampleColor(in: AVAsset(url: leftURL), at: 0.5)
+        let rightColor = try sampleColor(in: AVAsset(url: rightURL), at: 0.5)
+        XCTAssertGreaterThan(rightColor.redComponent - leftColor.redComponent, 0.5)
+        let stageColor = try sampleColor(
+            in: AVAsset(url: rightURL),
+            at: 0.5,
+            normalizedPoint: CGPoint(x: 0.01, y: 0.01)
+        )
+        assertEncodedColor(stageColor, equalsSRGB8: (red: 32, green: 64, blue: 96))
+
+        let outputTracks = try await AVAsset(url: rightURL).loadTracks(withMediaType: .video)
+        let outputTrack = try XCTUnwrap(outputTracks.first)
+        let outputSize = try await outputTrack.load(.naturalSize)
+        XCTAssertEqual(outputSize.width, 180, accuracy: 1)
+        XCTAssertEqual(outputSize.height, 320, accuracy: 1)
     }
 
     func testBackgroundFramingRendersStageAndRoundedSourceCard() async throws {

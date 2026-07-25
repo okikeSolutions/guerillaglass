@@ -57,6 +57,7 @@ type BackgroundFramingPreviewProps = {
   settings: BackgroundFramingSettings;
   outputSize: RenderSize;
   sourceSize: RenderSize;
+  cameraReframeEnabled?: boolean;
   cardRef?: Ref<HTMLDivElement>;
   children: ReactNode;
 };
@@ -65,6 +66,7 @@ export function BackgroundFramingPreview({
   settings,
   outputSize,
   sourceSize,
+  cameraReframeEnabled = false,
   cardRef,
   children,
 }: BackgroundFramingPreviewProps) {
@@ -78,7 +80,8 @@ export function BackgroundFramingPreview({
     (element: HTMLDivElement | null) => sizeStore.setElement(element),
     [sizeStore],
   );
-  const geometry = computeBackgroundFramingGeometry(outputSize, sourceSize, settings);
+  const compositionSourceSize = cameraReframeEnabled ? outputSize : sourceSize;
+  const geometry = computeBackgroundFramingGeometry(outputSize, compositionSourceSize, settings);
   const scale = measuredSize.width > 0 ? measuredSize.width / outputSize.width : 0;
   const card = geometry?.cardRect;
 
@@ -93,8 +96,13 @@ export function BackgroundFramingPreview({
       {card ? (
         <div
           ref={cardRef}
-          className="absolute overflow-hidden"
+          className={
+            cameraReframeEnabled
+              ? "gg-camera-reframe-card absolute overflow-hidden"
+              : "absolute overflow-hidden"
+          }
           data-testid="background-framing-card"
+          data-camera-reframe={cameraReframeEnabled}
           style={{
             left: card.x * scale,
             top: card.y * scale,

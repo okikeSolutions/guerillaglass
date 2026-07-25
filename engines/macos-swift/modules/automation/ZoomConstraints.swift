@@ -72,13 +72,20 @@ public struct ZoomConstraints: Equatable {
         return CGPoint(x: clampedX, y: clampedY)
     }
 
-    public func clampedCenter(_ center: CGPoint, in sourceSize: CGSize, zoom: CGFloat) -> CGPoint {
+    public func clampedCenter(
+        _ center: CGPoint,
+        in sourceSize: CGSize,
+        zoom: CGFloat,
+        outputAspectRatio: CGFloat? = nil
+    ) -> CGPoint {
         guard sourceSize.width > 0, sourceSize.height > 0 else { return center }
-        let zoomed = clampedZoom(zoom)
-        let viewWidth = sourceSize.width / zoomed
-        let viewHeight = sourceSize.height / zoomed
-        let halfWidth = viewWidth / 2
-        let halfHeight = viewHeight / 2
+        let viewSize = cameraViewSize(
+            in: sourceSize,
+            zoom: zoom,
+            outputAspectRatio: outputAspectRatio
+        )
+        let halfWidth = viewSize.width / 2
+        let halfHeight = viewSize.height / 2
         let minX = halfWidth
         let maxX = sourceSize.width - halfWidth
         let minY = halfHeight
@@ -88,13 +95,20 @@ public struct ZoomConstraints: Equatable {
         return CGPoint(x: clampedX, y: clampedY)
     }
 
-    public func clampedCenter(for target: CGPoint, in sourceSize: CGSize, zoom: CGFloat) -> CGPoint {
+    public func clampedCenter(
+        for target: CGPoint,
+        in sourceSize: CGSize,
+        zoom: CGFloat,
+        outputAspectRatio: CGFloat? = nil
+    ) -> CGPoint {
         guard sourceSize.width > 0, sourceSize.height > 0 else { return target }
-        let zoomed = clampedZoom(zoom)
-        let viewWidth = sourceSize.width / zoomed
-        let viewHeight = sourceSize.height / zoomed
-        let halfWidth = viewWidth / 2
-        let halfHeight = viewHeight / 2
+        let viewSize = cameraViewSize(
+            in: sourceSize,
+            zoom: zoom,
+            outputAspectRatio: outputAspectRatio
+        )
+        let halfWidth = viewSize.width / 2
+        let halfHeight = viewSize.height / 2
 
         let minCenterX = halfWidth
         let maxCenterX = sourceSize.width - halfWidth
@@ -102,8 +116,8 @@ public struct ZoomConstraints: Equatable {
         let maxCenterY = sourceSize.height - halfHeight
 
         let margin = max(0, min(safeMarginFraction, 0.25))
-        let marginX = viewWidth * margin
-        let marginY = viewHeight * margin
+        let marginX = viewSize.width * margin
+        let marginY = viewSize.height * margin
         let innerHalfWidth = max(0, halfWidth - marginX)
         let innerHalfHeight = max(0, halfHeight - marginY)
 
@@ -119,5 +133,24 @@ public struct ZoomConstraints: Equatable {
         let clampedX = min(max(target.x, minAllowedX), maxAllowedX)
         let clampedY = min(max(target.y, minAllowedY), maxAllowedY)
         return CGPoint(x: clampedX, y: clampedY)
+    }
+
+    public func cameraViewSize(
+        in sourceSize: CGSize,
+        zoom: CGFloat,
+        outputAspectRatio: CGFloat? = nil
+    ) -> CGSize {
+        let sourceAspectRatio = sourceSize.width / sourceSize.height
+        let aspectRatio = outputAspectRatio.flatMap { ratio in
+            ratio.isFinite && ratio > 0 ? ratio : nil
+        } ?? sourceAspectRatio
+
+        let baseSize = if sourceAspectRatio > aspectRatio {
+            CGSize(width: sourceSize.height * aspectRatio, height: sourceSize.height)
+        } else {
+            CGSize(width: sourceSize.width, height: sourceSize.width / aspectRatio)
+        }
+        let zoomed = clampedZoom(zoom)
+        return CGSize(width: baseSize.width / zoomed, height: baseSize.height / zoomed)
     }
 }

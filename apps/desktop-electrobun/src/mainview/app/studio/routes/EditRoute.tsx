@@ -99,60 +99,67 @@ export function EditRoute() {
                 <div className="gg-preview-stage">
                   <studio.settingsForm.Field name="backgroundFraming">
                     {(field) => (
-                      <BackgroundFramingPreview
-                        settings={
-                          studio.backgroundFramingSupported
-                            ? field.state.value
-                            : { ...field.state.value, enabled: false }
-                        }
-                        outputSize={outputSize}
-                        sourceSize={sourceSize}
-                        cardRef={sourceCardRef}
-                      >
-                        {recordingMediaSource ? (
-                          <video
-                            ref={mediaRef}
-                            key={recordingMediaSource}
-                            src={recordingMediaSource}
-                            className="h-full w-full object-contain"
-                            preload="metadata"
-                            controls
-                            playsInline
-                            onLoadedMetadata={(event) => {
-                              const video = event.currentTarget;
-                              if (video.videoWidth > 0 && video.videoHeight > 0) {
-                                setSourceSize({
-                                  width: video.videoWidth,
-                                  height: video.videoHeight,
-                                });
-                              }
-                            }}
-                            onPlay={() => {
-                              setTimelinePlaybackActive(true);
-                            }}
-                            onPause={() => {
-                              setTimelinePlaybackActive(false);
-                            }}
-                            onError={handleMediaError}
-                          />
-                        ) : captureStatusQuery.data?.isRunning ? (
-                          <div className="flex h-full flex-col items-center justify-center space-y-2 text-center">
-                            <p className="text-sm font-medium">{ui.helper.activePreviewTitle}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {ui.helper.activePreviewBody}
-                            </p>
-                          </div>
-                        ) : (
-                          <Empty className="h-full border-border/70 bg-background/70 p-6">
-                            <EmptyHeader>
-                              <EmptyTitle className="text-sm">
-                                {ui.helper.emptyPreviewTitle}
-                              </EmptyTitle>
-                              <EmptyDescription>{ui.helper.emptyPreviewBody}</EmptyDescription>
-                            </EmptyHeader>
-                          </Empty>
+                      <studio.settingsForm.Field name="autoZoom">
+                        {(autoZoomField) => (
+                          <BackgroundFramingPreview
+                            settings={
+                              studio.backgroundFramingSupported
+                                ? field.state.value
+                                : { ...field.state.value, enabled: false }
+                            }
+                            outputSize={outputSize}
+                            sourceSize={sourceSize}
+                            cameraReframeEnabled={autoZoomField.state.value.isEnabled}
+                            cardRef={sourceCardRef}
+                          >
+                            {recordingMediaSource ? (
+                              <video
+                                ref={mediaRef}
+                                key={recordingMediaSource}
+                                src={recordingMediaSource}
+                                className="h-full w-full object-contain"
+                                preload="metadata"
+                                controls
+                                playsInline
+                                onLoadedMetadata={(event) => {
+                                  const video = event.currentTarget;
+                                  if (video.videoWidth > 0 && video.videoHeight > 0) {
+                                    setSourceSize({
+                                      width: video.videoWidth,
+                                      height: video.videoHeight,
+                                    });
+                                  }
+                                }}
+                                onPlay={() => {
+                                  setTimelinePlaybackActive(true);
+                                }}
+                                onPause={() => {
+                                  setTimelinePlaybackActive(false);
+                                }}
+                                onError={handleMediaError}
+                              />
+                            ) : captureStatusQuery.data?.isRunning ? (
+                              <div className="flex h-full flex-col items-center justify-center space-y-2 text-center">
+                                <p className="text-sm font-medium">
+                                  {ui.helper.activePreviewTitle}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {ui.helper.activePreviewBody}
+                                </p>
+                              </div>
+                            ) : (
+                              <Empty className="h-full border-border/70 bg-background/70 p-6">
+                                <EmptyHeader>
+                                  <EmptyTitle className="text-sm">
+                                    {ui.helper.emptyPreviewTitle}
+                                  </EmptyTitle>
+                                  <EmptyDescription>{ui.helper.emptyPreviewBody}</EmptyDescription>
+                                </EmptyHeader>
+                              </Empty>
+                            )}
+                          </BackgroundFramingPreview>
                         )}
-                      </BackgroundFramingPreview>
+                      </studio.settingsForm.Field>
                     )}
                   </studio.settingsForm.Field>
                 </div>

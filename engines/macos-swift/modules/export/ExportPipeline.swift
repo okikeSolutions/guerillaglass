@@ -2,6 +2,7 @@ import Automation
 import AVFoundation
 import Darwin
 import Foundation
+import InputTracking
 import Project
 import Rendering
 
@@ -37,6 +38,9 @@ public final class ExportPipeline {
         trimRange: CMTimeRange?,
         outputURL: URL,
         cameraPlan: CameraPlan? = nil,
+        cameraEvents: [InputEvent]? = nil,
+        autoZoomSettings: AutoZoomSettings? = nil,
+        captureMetadata: CaptureMetadata? = nil,
         timeline: ExportTimelineDocument? = nil,
         backgroundFraming: BackgroundFramingSettings = .defaults
     ) async throws -> URL {
@@ -47,6 +51,9 @@ public final class ExportPipeline {
             trimRange: trimRange,
             outputURL: outputURL,
             cameraPlan: cameraPlan,
+            cameraEvents: cameraEvents,
+            autoZoomSettings: autoZoomSettings,
+            captureMetadata: captureMetadata,
             timeline: timeline,
             backgroundFraming: backgroundFraming
         )
@@ -58,12 +65,30 @@ public final class ExportPipeline {
         trimRange: CMTimeRange?,
         outputURL: URL,
         cameraPlan: CameraPlan? = nil,
+        cameraEvents: [InputEvent]? = nil,
+        autoZoomSettings: AutoZoomSettings? = nil,
+        captureMetadata: CaptureMetadata? = nil,
         timeline: ExportTimelineDocument? = nil,
         backgroundFraming: BackgroundFramingSettings = .defaults
     ) async throws -> URL {
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
-        guard videoTracks.first != nil else {
+        guard let sourceVideoTrack = videoTracks.first else {
             throw ExportError.missingVideoTrack
+        }
+        let renderSize = CGSize(width: preset.width, height: preset.height)
+        let resolvedCameraPlan: CameraPlan? = if let cameraPlan {
+            cameraPlan
+        } else {
+            try await automaticCameraPlan(
+                asset: asset,
+                input: AutomaticCameraPlanInput(
+                    track: sourceVideoTrack,
+                    renderSize: renderSize,
+                    events: cameraEvents,
+                    settings: autoZoomSettings,
+                    captureMetadata: captureMetadata
+                )
+            )
         }
 
         let timelineComposition: ExportTimelineComposition?
@@ -96,20 +121,19 @@ public final class ExportPipeline {
             session.timeRange = trimRange
         }
 
-        let renderSize = CGSize(width: preset.width, height: preset.height)
         if let timelineComposition {
             session.videoComposition = TimelineVideoCompositionBuilder.makeComposition(
                 timelineComposition: timelineComposition,
                 renderSize: renderSize,
                 frameRate: Double(preset.fps),
-                plan: cameraPlan,
+                plan: resolvedCameraPlan,
                 backgroundFraming: backgroundFraming
             )
         } else if let composition = try await renderer.makeVideoComposition(
             asset: asset,
             renderSize: renderSize,
             frameRate: Double(preset.fps),
-            plan: cameraPlan,
+            plan: resolvedCameraPlan,
             backgroundFraming: backgroundFraming
         ) {
             session.videoComposition = composition
@@ -127,6 +151,76 @@ public final class ExportPipeline {
         try installExportFileNoSymlink(from: temporaryOutputURL, to: outputURL)
         try rejectSymlinkComponents(in: outputURL)
         return outputURL
+    }
+}
+
+private struct AutomaticCameraPlanInput {
+    let track: AVAssetTrack
+    let renderSize: CGSize
+    let events: [InputEvent]?
+    let settings: AutoZoomSettings?
+    let captureMetadata: CaptureMetadata?
+}
+
+private func automaticCameraPlan(
+    asset: AVAsset,
+    input: AutomaticCameraPlanInput
+) async throws -> CameraPlan? {
+    guard let settings = input.settings, settings.isEnabled else { return nil }
+    let clampedSettings = settings.clamped()
+    let naturalSize = try await input.track.load(.naturalSize)
+    let preferredTransform = try await input.track.load(.preferredTransform)
+    let sourceSize = VideoGeometryTransforms.orientedBounds(
+        naturalSize: naturalSize,
+        preferredTransform: preferredTransform
+    ).size
+    guard sourceSize.width > 0, sourceSize.height > 0 else { return nil }
+
+    let duration = try await asset.load(.duration).seconds
+    let intensity = clampedSettings.intensity
+    let mappedEvents = intensity > 0 ? mapCameraEvents(
+        input.events ?? [],
+        captureMetadata: input.captureMetadata,
+        sourceSize: sourceSize
+    ) : []
+    let constraints = ZoomConstraints(
+        idleZoom: CGFloat(1 + 0.05 * intensity),
+        minimumKeyframeInterval: clampedSettings.minimumKeyframeInterval,
+        motionIntensity: 0.25 * intensity,
+        dwellIntensity: 0.7 * intensity,
+        clickIntensity: intensity
+    )
+    return VirtualCameraPlanner().plan(
+        events: mappedEvents,
+        sourceSize: sourceSize,
+        duration: duration.isFinite ? max(0, duration) : 0,
+        outputSize: input.renderSize,
+        constraints: constraints
+    )
+}
+
+private func mapCameraEvents(
+    _ events: [InputEvent],
+    captureMetadata: CaptureMetadata?,
+    sourceSize: CGSize
+) -> [InputEvent] {
+    guard let captureMetadata else { return events }
+    let contentRect = captureMetadata.contentRect.cgRect
+    guard contentRect.width > 0, contentRect.height > 0 else { return events }
+
+    return events.map { event in
+        let position = event.position.cgPoint
+        let normalizedX = min(max((position.x - contentRect.minX) / contentRect.width, 0), 1)
+        let normalizedY = min(max((position.y - contentRect.minY) / contentRect.height, 0), 1)
+        return InputEvent(
+            type: event.type,
+            timestamp: event.timestamp,
+            position: CGPoint(
+                x: normalizedX * sourceSize.width,
+                y: normalizedY * sourceSize.height
+            ),
+            button: event.button
+        )
     }
 }
 

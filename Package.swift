@@ -76,7 +76,7 @@ let package = Package(
         ),
         .target(
             name: "Export",
-            dependencies: ["Automation", "Project", "Rendering"],
+            dependencies: ["Automation", "InputTracking", "Project", "Rendering"],
             path: "engines/macos-swift/modules/export"
         ),
         .testTarget(
@@ -101,7 +101,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ExportTests",
-            dependencies: ["Export", "Project"],
+            dependencies: ["Export", "InputTracking", "Project"],
             path: "Tests/exportTests"
         )
     ]
