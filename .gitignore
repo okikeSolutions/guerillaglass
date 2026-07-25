@@ -31,7 +31,8 @@ playground.xcworkspace
 
 .build/
 .swiftpm/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 guerillaglass.app/
 node_modules/
 .env.local
