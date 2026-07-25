@@ -17,9 +17,15 @@ Thanks for your interest in contributing. Guerilla Glass is a cross-platform cre
 
 ## TypeScript tooling
 
-`bun install` patches the TypeScript 7 native compiler with `@effect/tsgo`; `tsc` should report a version ending in `+effect-tsgo.<version>`. Keep the existing `@effect/language-service` plugin entries in `tsconfig` files because that remains the plugin identifier used by `@effect/tsgo`.
+Follow the official [`@effect/tsgo` setup](https://github.com/Effect-TS/tsgo):
 
-For VS Code-compatible editors, configure the workspace to use the patched compiler:
+```bash
+bunx @effect/tsgo setup
+```
+
+The repository uses Bun's `bunx` equivalent of the documented `npx` command. The setup keeps native TypeScript 7 or newer alongside `@effect/tsgo`, configures the `@effect/language-service` plugin identifier in `tsconfig` files, and installs the official `prepare` command, `effect-tsgo patch`. After `bun install`, `tsc --version` should end in `+effect-tsgo.<version>`.
+
+For VS Code-compatible editors, use the settings recommended by the setup command:
 
 ```json
 {

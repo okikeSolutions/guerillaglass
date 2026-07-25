@@ -24,7 +24,7 @@ beforeEach(() => {
   writeFixture(
     "package.json",
     JSON.stringify({
-      scripts: { prepare: "bun ./Scripts/prepare_effect_tsgo.ts" },
+      scripts: { prepare: "effect-tsgo patch" },
       dependencies: { effect: "4.0.0-beta.101" },
       devDependencies: { typescript: "7.0.2", "@effect/tsgo": "0.24.3" },
     }),
@@ -104,22 +104,20 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("root devDependencies must pin the TypeScript 7 compiler");
   });
 
-  test("rejects unsupported TypeScript compiler majors", () => {
-    for (const typescript of ["6.0.3", "8.0.0"]) {
-      writeFixture(
-        "package.json",
-        JSON.stringify({
-          scripts: { prepare: "bun ./Scripts/prepare_effect_tsgo.ts" },
-          dependencies: { effect: "4.0.0-beta.101" },
-          devDependencies: { typescript, "@effect/tsgo": "0.24.3" },
-        }),
-      );
-      const result = runCheck();
-      expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain(
-        `root TypeScript compiler must use the supported major 7, found ${typescript}`,
-      );
-    }
+  test("rejects TypeScript versions older than the documented native backend", () => {
+    writeFixture(
+      "package.json",
+      JSON.stringify({
+        scripts: { prepare: "effect-tsgo patch" },
+        dependencies: { effect: "4.0.0-beta.101" },
+        devDependencies: { typescript: "6.0.3", "@effect/tsgo": "0.24.3" },
+      }),
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "root TypeScript compiler must be version 7 or newer, found 6.0.3",
+    );
   });
 
   test("requires Effect tsgo and rejects compiler API imports with TypeScript 7", () => {
@@ -154,13 +152,13 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("exact synchronized versions");
     expect(result.stderr).toContain("instead of @effect/language-service");
     expect(result.stderr).toContain("TypeScript version 7.0.3 does not match root");
-    expect(result.stderr).toContain('prepare script "bun ./Scripts/prepare_effect_tsgo.ts"');
+    expect(result.stderr).toContain('official prepare script "effect-tsgo patch"');
     expect(result.stderr).toContain("imports the removed TypeScript 7 compiler API");
 
     writeFixture(
       "package.json",
       JSON.stringify({
-        scripts: { prepare: "bun ./Scripts/prepare_effect_tsgo.ts" },
+        scripts: { prepare: "effect-tsgo patch" },
         dependencies: { effect: "4.0.0-beta.101" },
         devDependencies: { typescript: "7.0.2", "@effect/tsgo": "0.24.3" },
       }),

@@ -12,7 +12,7 @@
     "gate:rust": "bash ./Scripts/rust_gate.sh",
     "gate:typescript": "bash ./Scripts/typescript_gate.sh",
     "repo:check": "bun ./Scripts/repository_invariants.ts",
-    "repo:test": "bun test Scripts/repository_invariants.test.ts Scripts/check_pr_review_threads.test.ts Scripts/typescript_source_analysis.test.ts Scripts/lint_no_state_updates_in_effect.test.ts Scripts/prepare_effect_tsgo.test.ts",
+    "repo:test": "bun test Scripts/repository_invariants.test.ts Scripts/check_pr_review_threads.test.ts Scripts/typescript_source_analysis.test.ts Scripts/lint_no_state_updates_in_effect.test.ts",
     "pr:check-review-threads": "bun ./Scripts/check_pr_review_threads.ts",
     "js:format": "bunx oxfmt --write apps packages Scripts '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
     "js:format:check": "bunx oxfmt --check apps packages Scripts '!apps/*/src/paraglide/**' '!apps/*/build/**' '!apps/*/dist/**' '!packages/engine-contract/generated/**'",
@@ -53,7 +53,7 @@
     "docs:check:native": "bun ./Scripts/docs_gate.mjs --scope=native",
     "coverage": "bash ./Scripts/coverage.sh",
     "coverage:check": "bash ./Scripts/coverage_check.sh",
-    "prepare": "bun ./Scripts/prepare_effect_tsgo.ts"
+    "prepare": "effect-tsgo patch"
   },
   "dependencies": {
     "@better-auth/expo": "~1.6.15",

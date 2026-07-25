@@ -169,9 +169,9 @@ function checkTypeScriptToolingPolicy(): void {
   }
 
   const majorVersion = Number.parseInt(typescriptVersion.match(/\d+/)?.[0] ?? "", 10);
-  if (majorVersion !== 7) {
+  if (!Number.isFinite(majorVersion) || majorVersion < 7) {
     failures.push(
-      `root TypeScript compiler must use the supported major 7, found ${typescriptVersion}`,
+      `root TypeScript compiler must be version 7 or newer, found ${typescriptVersion}`,
     );
     return;
   }
@@ -223,10 +223,8 @@ function checkTypeScriptToolingPolicy(): void {
     }
   }
 
-  if (manifest.scripts?.prepare !== "bun ./Scripts/prepare_effect_tsgo.ts") {
-    failures.push(
-      'TypeScript 7 requires the root prepare script "bun ./Scripts/prepare_effect_tsgo.ts"',
-    );
+  if (manifest.scripts?.prepare !== "effect-tsgo patch") {
+    failures.push('TypeScript 7 requires the official prepare script "effect-tsgo patch"');
   }
 
   const scriptsRoot = join(root, "Scripts");
