@@ -2,6 +2,12 @@
 import XCTest
 
 final class ProjectMigrationTests: XCTestCase {
+    func testAutoZoomRequiresEventsOnlyWhenEnabledWithPositiveIntensity() {
+        XCTAssertFalse(AutoZoomSettings(isEnabled: false, intensity: 1).requiresInputEvents)
+        XCTAssertFalse(AutoZoomSettings(isEnabled: true, intensity: 0).requiresInputEvents)
+        XCTAssertTrue(AutoZoomSettings(isEnabled: true, intensity: 0.5).requiresInputEvents)
+    }
+
     func testMigrationPassesThroughCurrentVersion() throws {
         let encoder = ProjectStore.makeDefaultEncoder()
         let document = ProjectDocument()
