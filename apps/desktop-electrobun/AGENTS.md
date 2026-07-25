@@ -44,5 +44,8 @@ Desktop work is not complete from code-level tests alone. On macOS, run the
 packaged Electrobun application through `desktop:acceptance`, then use Peekaboo
 through its permissioned GUI bridge to navigate the affected real-app workflow
 and retain native-window screenshots. Browser screenshots and runtime milestones
-do not replace Peekaboo interaction. Use `desktop:acceptance:screenshot` as
-additional evidence when the invoking terminal also has Screen Recording permission.
+do not replace Peekaboo interaction. For every PR touching desktop UI, attach a
+rendered screenshot of the affected packaged-app state directly in the PR summary;
+local paths and artifact-only links are not sufficient. Use
+`desktop:acceptance:screenshot` as additional evidence when the invoking terminal
+also has Screen Recording permission.
