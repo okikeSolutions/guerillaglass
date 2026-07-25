@@ -2,6 +2,10 @@
 
 -
 
+## UI screenshots
+
+For every PR touching UI, attach rendered screenshots here (not local file paths or artifact-only links). Include the affected packaged-app state when desktop UI is involved. Write `N/A — no UI files changed` only when the PR does not touch UI.
+
 # Checklist
 
 - [ ] Read and applied `AGENTS.md`, the nearest nested agent guide, and `REVIEW.md`
@@ -13,7 +17,7 @@
 - [ ] Added both `en-US` and `de-DE` messages for user-visible UI, or N/A
 - [ ] Ran `bun run desktop:acceptance` for desktop/runtime changes, or N/A
 - [ ] Used Peekaboo against the packaged app to navigate the affected workflow and retained native-window screenshots, or N/A
-- [ ] Included screenshots for material UI changes, or N/A
+- [ ] Attached rendered screenshots in the PR summary for every UI-touching change, or no UI files changed
 - [ ] Addressed every review comment and ran `bun run pr:check-review-threads -- <PR number>` with zero unresolved threads
 
 # Validation evidence
