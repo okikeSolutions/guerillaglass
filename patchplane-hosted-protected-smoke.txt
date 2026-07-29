@@ -1,1 +1,1 @@
-PatchPlane final hosted protected-execution acceptance probe.
+PatchPlane final hosted protected-execution supported probe.
