@@ -69,7 +69,7 @@
     "eslint-plugin-perfectionist": "^5.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "oxc-parser": "^0.141.0",
+    "oxc-parser": "^0.142.0",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
     "oxlint-tsgolint": "^7.0.2001",
