@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "effect": "4.0.0-beta.101"
+    "effect": "4.0.0-beta.102"
   },
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",
