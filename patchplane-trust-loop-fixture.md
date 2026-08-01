@@ -21,3 +21,5 @@ No-cancel cleanup marker.
 Detailed cleanup marker.
 
 Manual redirect retry marker.
+
+User-agent retry marker.
