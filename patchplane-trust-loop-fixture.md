@@ -19,3 +19,5 @@ Direct cleanup retry marker.
 No-cancel cleanup marker.
 
 Detailed cleanup marker.
+
+Manual redirect retry marker.
