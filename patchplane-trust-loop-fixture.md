@@ -25,3 +25,5 @@ Manual redirect retry marker.
 User-agent retry marker.
 
 Passing command marker.
+
+Report-producing retry marker.
