@@ -41,3 +41,5 @@ Publication status marker.
 Long publication observation marker.
 
 Publication detail marker.
+
+Idempotent publication marker.
