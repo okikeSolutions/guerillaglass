@@ -9,3 +9,5 @@ Revocation retry marker.
 Bounded response retry marker.
 
 Post-deploy observation marker.
+
+Error classification marker.
