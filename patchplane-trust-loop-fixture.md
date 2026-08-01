@@ -5,3 +5,5 @@ This temporary file exercises exact-head candidate capture and protected verific
 Live retry marker.
 
 Revocation retry marker.
+
+Bounded response retry marker.
