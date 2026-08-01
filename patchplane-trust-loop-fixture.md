@@ -43,3 +43,5 @@ Long publication observation marker.
 Publication detail marker.
 
 Idempotent publication marker.
+
+Final publication detail marker.
