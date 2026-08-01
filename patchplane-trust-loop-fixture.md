@@ -35,3 +35,5 @@ Publication debug marker.
 Captured publication marker.
 
 Publication cleanup retry marker.
+
+Publication status marker.
