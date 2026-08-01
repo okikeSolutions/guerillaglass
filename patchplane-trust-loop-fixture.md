@@ -33,3 +33,5 @@ Canonical publication marker.
 Publication debug marker.
 
 Captured publication marker.
+
+Publication cleanup retry marker.
