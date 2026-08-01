@@ -37,3 +37,5 @@ Captured publication marker.
 Publication cleanup retry marker.
 
 Publication status marker.
+
+Long publication observation marker.
