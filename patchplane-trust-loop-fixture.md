@@ -29,3 +29,5 @@ Passing command marker.
 Report-producing retry marker.
 
 Canonical publication marker.
+
+Publication debug marker.
