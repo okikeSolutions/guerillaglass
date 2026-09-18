@@ -4,6 +4,7 @@ import path from "node:path";
 import { analyzeTypeScriptDeclarations } from "./typescript_source_analysis.mjs";
 
 const POLICY_PATH = "docs/doc_coverage_policy.json";
+const IGNORED_DIRECTORY_NAMES = new Set([".build", "build", "dist", "node_modules"]);
 
 const scopeArg = process.argv.find((arg) => arg.startsWith("--scope="));
 const requestedScope = scopeArg ? scopeArg.slice("--scope=".length) : "all";
@@ -122,6 +123,9 @@ function walkDirectory(directoryPath, extensionSet, result) {
   for (const entry of entries) {
     const fullPath = path.join(directoryPath, entry.name);
     if (entry.isDirectory()) {
+      if (IGNORED_DIRECTORY_NAMES.has(entry.name)) {
+        continue;
+      }
       walkDirectory(fullPath, extensionSet, result);
       continue;
     }

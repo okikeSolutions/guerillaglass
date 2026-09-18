@@ -31,9 +31,9 @@ function safeSerialize(value: unknown): string {
 
 const minimumLogLevelLayer = Layer.unwrap(
   Effect.gen(function* () {
-    const nodeEnv = yield* Config.string("NODE_ENV").pipe(Config.withDefault("development"));
-    const ggDebugEnabled = yield* Config.boolean("GG_DEBUG").pipe(Config.withDefault(false));
-    const diagnosticsEnabled = yield* Config.boolean("GG_STUDIO_DIAGNOSTICS").pipe(
+    const nodeEnv = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
+    const ggDebugEnabled = yield* Config.Boolean("GG_DEBUG").pipe(Config.withDefault(false));
+    const diagnosticsEnabled = yield* Config.Boolean("GG_STUDIO_DIAGNOSTICS").pipe(
       Config.withDefault(false),
     );
     if (ggDebugEnabled || diagnosticsEnabled || nodeEnv !== "production") {
@@ -45,8 +45,8 @@ const minimumLogLevelLayer = Layer.unwrap(
 
 const loggerLayer = Layer.unwrap(
   Effect.gen(function* () {
-    const nodeEnv = yield* Config.string("NODE_ENV").pipe(Config.withDefault("development"));
-    const fileLogEnabled = yield* Config.boolean("GG_DESKTOP_FILE_LOG").pipe(
+    const nodeEnv = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
+    const fileLogEnabled = yield* Config.Boolean("GG_DESKTOP_FILE_LOG").pipe(
       Config.withDefault(true),
     );
     const consoleLogger = nodeEnv === "production" ? Logger.consoleJson : Logger.consolePretty();

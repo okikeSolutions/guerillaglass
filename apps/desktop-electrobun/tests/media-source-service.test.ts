@@ -5,6 +5,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Layer, Option } from "effect";
 import { HttpServer } from "effect/unstable/http";
+import { NetAddress } from "effect/unstable/net";
 import { MediaRegistry, layerMediaRegistry } from "../src/bun/media/MediaRegistry";
 import { MediaSourceService, layerMediaSourceServiceCore } from "../src/bun/media/service";
 import { MediaServerError } from "@shared/errors/desktopErrors";
@@ -24,7 +25,7 @@ describe("media source service", () => {
         Layer.provide(NodeServices.layer),
         Layer.provide(
           Layer.succeed(HttpServer.HttpServer, {
-            address: { _tag: "UnixAddress", path: "/tmp/guerillaglass-media.sock" },
+            address: NetAddress.unixPathAddress("/tmp/guerillaglass-media.sock"),
             serve: () => Effect.void,
           }),
         ),
@@ -43,14 +44,17 @@ describe("media source service", () => {
     }),
   );
 
-  it("mints loopback media and preview URLs from the scoped HTTP server address", async () => {
+  it.each([
+    { address: "127.0.0.1:43210", origin: "http://127.0.0.1:43210" },
+    { address: "[::1]:43210", origin: "http://[::1]:43210" },
+  ])("mints loopback media and preview URLs from $address", async ({ address, origin }) => {
     const layer = layerMediaSourceServiceCore.pipe(
       Layer.provideMerge(layerMediaRegistry),
       Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: os.tmpdir() })),
       Layer.provide(NodeServices.layer),
       Layer.provide(
         Layer.succeed(HttpServer.HttpServer, {
-          address: { _tag: "TcpAddress", hostname: "127.0.0.1", port: 43_210 },
+          address: NetAddress.inetAddressFromStringUnsafe(address),
           serve: () => Effect.void,
         }),
       ),
@@ -70,8 +74,8 @@ describe("media source service", () => {
           const mediaURL = yield* mediaSourceService.resolveMediaSourceURL(sourcePath);
           const previewURL = yield* mediaSourceService.resolveCapturePreviewURL(Effect.succeed({}));
 
-          expect(mediaURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
-          expect(previewURL.startsWith("http://127.0.0.1:43210/media/")).toBe(true);
+          expect(mediaURL.startsWith(`${origin}/media/`)).toBe(true);
+          expect(previewURL.startsWith(`${origin}/media/`)).toBe(true);
 
           const previewToken = decodeURIComponent(
             new URL(previewURL).pathname.split("/").pop() ?? "",

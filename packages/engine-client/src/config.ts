@@ -38,9 +38,9 @@ export type EngineClientOptions = Schema.Schema.Type<typeof engineClientOptionsS
  * selection are handled by Effect rather than ad hoc process environment reads.
  */
 export const EngineClientConfig = Config.all({
-  baseUrl: Config.url("ENGINE_BASE_URL"),
-  bearerToken: Config.redacted("ENGINE_BEARER_TOKEN"),
-  requestTimeoutMs: Config.number("ENGINE_REQUEST_TIMEOUT_MS").pipe(Config.withDefault(30_000)),
+  baseUrl: Config.URL("ENGINE_BASE_URL"),
+  bearerToken: Config.Redacted("ENGINE_BEARER_TOKEN"),
+  requestTimeoutMs: Config.Number("ENGINE_REQUEST_TIMEOUT_MS").pipe(Config.withDefault(30_000)),
 });
 
 /**

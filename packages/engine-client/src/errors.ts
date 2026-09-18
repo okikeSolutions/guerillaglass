@@ -30,7 +30,7 @@ export type EngineClientErrorCode = Schema.Schema.Type<typeof engineClientErrorC
 /**
  * Error raised by the v2 engine client shell before concrete HTTP transport wiring exists.
  */
-export class EngineClientNotImplementedError extends Schema.TaggedErrorClass<EngineClientNotImplementedError>()(
+export class EngineClientNotImplementedError extends Schema.TaggedError<EngineClientNotImplementedError>()(
   "EngineClientNotImplementedError",
   {
     /**
@@ -43,7 +43,7 @@ export class EngineClientNotImplementedError extends Schema.TaggedErrorClass<Eng
 /**
  * Error raised when the v2 engine client cannot construct or execute an HTTP request.
  */
-export class EngineClientTransportError extends Schema.TaggedErrorClass<EngineClientTransportError>()(
+export class EngineClientTransportError extends Schema.TaggedError<EngineClientTransportError>()(
   "EngineClientTransportError",
   {
     /**
@@ -60,7 +60,7 @@ export class EngineClientTransportError extends Schema.TaggedErrorClass<EngineCl
 /**
  * Error raised while resolving, verifying, spawning, or waiting for a native engine process.
  */
-export class EngineProcessError extends Schema.TaggedErrorClass<EngineProcessError>()(
+export class EngineProcessError extends Schema.TaggedError<EngineProcessError>()(
   "EngineProcessError",
   {
     /**
@@ -86,7 +86,7 @@ export class EngineProcessError extends Schema.TaggedErrorClass<EngineProcessErr
 ) {}
 
 /** Engine process/client infrastructure failure. */
-export class EngineClientError extends Schema.TaggedErrorClass<EngineClientError>()(
+export class EngineClientError extends Schema.TaggedError<EngineClientError>()(
   "EngineClientError",
   {
     code: engineClientErrorCodeSchema,
@@ -100,7 +100,7 @@ export class EngineClientError extends Schema.TaggedErrorClass<EngineClientError
 }
 
 /** Engine request validation failure. */
-export class EngineRequestValidationError extends Schema.TaggedErrorClass<EngineRequestValidationError>()(
+export class EngineRequestValidationError extends Schema.TaggedError<EngineRequestValidationError>()(
   "EngineRequestValidationError",
   {
     method: Schema.String,
@@ -119,7 +119,7 @@ export class EngineRequestValidationError extends Schema.TaggedErrorClass<Engine
 }
 
 /** Engine operation failure after normalization at the service boundary. */
-export class EngineOperationError extends Schema.TaggedErrorClass<EngineOperationError>()(
+export class EngineOperationError extends Schema.TaggedError<EngineOperationError>()(
   "EngineOperationError",
   {
     operation: Schema.String,
@@ -132,7 +132,7 @@ export class EngineOperationError extends Schema.TaggedErrorClass<EngineOperatio
 }
 
 /** Contract decode failure for desktop/client JSON boundaries. */
-export class ContractDecodeError extends Schema.TaggedErrorClass<ContractDecodeError>()(
+export class ContractDecodeError extends Schema.TaggedError<ContractDecodeError>()(
   "ContractDecodeError",
   {
     contract: Schema.String,
@@ -153,7 +153,7 @@ export class ContractDecodeError extends Schema.TaggedErrorClass<ContractDecodeE
 }
 
 /** Engine-originated operation error response. */
-export class EngineResponseError extends Schema.TaggedErrorClass<EngineResponseError>()(
+export class EngineResponseError extends Schema.TaggedError<EngineResponseError>()(
   "EngineResponseError",
   {
     code: Schema.String,
@@ -166,7 +166,7 @@ export class EngineResponseError extends Schema.TaggedErrorClass<EngineResponseE
 }
 
 /** JSON parsing failure with source context. */
-export class JsonParseError extends Schema.TaggedErrorClass<JsonParseError>()("JsonParseError", {
+export class JsonParseError extends Schema.TaggedError<JsonParseError>()("JsonParseError", {
   source: Schema.String,
   cause: Schema.optionalKey(Schema.Defect()),
 }) {

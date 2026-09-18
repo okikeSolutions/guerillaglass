@@ -17,7 +17,7 @@ pub enum PermissionsPermissionsGetResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineRuntimeError response body.
@@ -33,7 +33,7 @@ pub enum PermissionsPermissionsOpenInputMonitoringSettingsResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineConflictError response body.
@@ -53,7 +53,7 @@ pub enum PermissionsPermissionsRequestInputMonitoringResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineConflictError response body.
@@ -73,7 +73,7 @@ pub enum PermissionsPermissionsRequestMicrophoneResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineConflictError response body.
@@ -93,7 +93,7 @@ pub enum PermissionsPermissionsRequestScreenRecordingResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineConflictError response body.

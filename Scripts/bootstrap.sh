@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 if ! command -v bun >/dev/null 2>&1; then
-  echo "bun not found; install Bun 1.3+ first" >&2
+  echo "bun not found; install Bun 1.4.1 first" >&2
   exit 1
 fi
 

@@ -4,6 +4,7 @@ import { defineConfig } from "vite";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { electrobunViteAliases } from "./.hutch/devkit/api/config/electrobun-vite.ts";
 
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 const devServerPort = Number.parseInt(process.env.PORT ?? "5173", 10);
@@ -51,11 +52,15 @@ export default defineConfig({
     strictPort: true,
   },
   resolve: {
-    alias: {
-      "@": path.resolve(rootDirectory, "src/mainview"),
-      "@lib": path.resolve(rootDirectory, "src/mainview/lib"),
-      "@shared": path.resolve(rootDirectory, "src/shared"),
-      "@studio": path.resolve(rootDirectory, "src/mainview/app/studio"),
-    },
+    alias: [
+      ...electrobunViteAliases(path.resolve(rootDirectory, ".hutch/devkit")),
+      { find: "@", replacement: path.resolve(rootDirectory, "src/mainview") },
+      { find: "@lib", replacement: path.resolve(rootDirectory, "src/mainview/lib") },
+      { find: "@shared", replacement: path.resolve(rootDirectory, "src/shared") },
+      {
+        find: "@studio",
+        replacement: path.resolve(rootDirectory, "src/mainview/app/studio"),
+      },
+    ],
   },
 });

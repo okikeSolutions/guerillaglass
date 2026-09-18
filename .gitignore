@@ -35,6 +35,7 @@ playground.xcworkspace
 !.vscode/settings.json
 guerillaglass.app/
 node_modules/
+.hutch/
 .env.local
 apps/*/.env.local
 apps/*/dist/

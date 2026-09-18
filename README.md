@@ -30,7 +30,7 @@ Important boundaries:
 
 ## Requirements
 
-- Bun 1.3+
+- Bun 1.4.1
 - Rust toolchain for Rust sidecars/protocol crates
 - Swift 5.10+ for macOS native engine work
 - SwiftFormat 0.62.1 and SwiftLint for the full local gate

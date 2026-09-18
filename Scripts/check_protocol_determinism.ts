@@ -33,7 +33,7 @@ function digestGeneratedArtifacts(): string {
   for (const path of generatedPaths.flatMap((path) => collectFiles(resolve(root, path))).sort()) {
     hasher.update(relative(root, path));
     hasher.update("\0");
-    hasher.update(readFileSync(path));
+    hasher.update(new Uint8Array(readFileSync(path)));
     hasher.update("\0");
   }
   return hasher.digest("hex");

@@ -13,7 +13,7 @@ extension EngineService {
         _ input: Operations.project_period_projectOpen.Input
     ) async throws -> Operations.project_period_projectOpen.Output {
         let payload: Components.Schemas.ProjectOpenPayload = switch input.body { case let .json(body): body }
-        let projectURL = URL(fileURLWithPath: payload.projectPath.value1, isDirectory: true)
+        let projectURL = URL(fileURLWithPath: payload.projectPath, isDirectory: true)
         do {
             let openedURL: URL
             let openedDocument: ProjectDocument
@@ -44,7 +44,7 @@ extension EngineService {
     ) async throws -> Operations.project_period_projectSave.Output {
         let payload: Components.Schemas.ProjectSavePayload = switch input.body { case let .json(body): body }
         let projectURL = payload.projectPath.map {
-            URL(fileURLWithPath: $0.value1, isDirectory: true)
+            URL(fileURLWithPath: $0, isDirectory: true)
         } ?? currentProjectURL
         guard let projectURL else {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "projectPath is required before saving."))))
@@ -83,13 +83,13 @@ extension EngineService {
     func project_period_projectRecents(
         _ input: Operations.project_period_projectRecents.Input
     ) async throws -> Operations.project_period_projectRecents.Output {
-        let limit = max(0, min(Int(input.query.limit?.value1 ?? "10") ?? 10, 100))
+        let limit = max(0, min(Int(input.query.limit ?? "10") ?? 10, 100))
         let items = projectLibraryStore.recentProjects(limit: limit).compactMap { item -> Components.Schemas.ProjectRecentItem? in
             guard let url = projectLibraryStore.resolveURL(for: item) else { return nil }
             return Components.Schemas.ProjectRecentItem(
-                projectPath: .init(value1: url.path),
-                displayName: .init(value1: item.displayName),
-                lastOpenedAt: .init(value1: ISO8601DateFormatter().string(from: item.lastOpenedAt))
+                projectPath: url.path,
+                displayName: item.displayName,
+                lastOpenedAt: ISO8601DateFormatter().string(from: item.lastOpenedAt)
             )
         }
         return .ok(.init(body: .json(.init(items: items))))

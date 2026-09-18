@@ -135,14 +135,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -238,14 +231,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -315,11 +301,7 @@
             "in": "path",
             "schema": {
               "type": "string",
-              "allOf": [
-                {
-                  "minLength": 1
-                }
-              ]
+              "minLength": 1
             },
             "required": true
           }
@@ -355,14 +337,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -412,11 +387,7 @@
             "in": "path",
             "schema": {
               "type": "string",
-              "allOf": [
-                {
-                  "minLength": 1
-                }
-              ]
+              "minLength": 1
             },
             "required": true
           }
@@ -452,14 +423,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -565,14 +529,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -638,14 +595,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -731,14 +681,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -824,14 +767,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -917,14 +853,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1010,14 +939,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1083,14 +1005,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1186,14 +1101,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1289,14 +1197,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1392,14 +1293,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1485,14 +1379,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1558,14 +1445,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1631,14 +1511,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1734,14 +1607,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1827,14 +1693,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -1900,14 +1759,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2003,14 +1855,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2080,11 +1925,7 @@
             "in": "path",
             "schema": {
               "type": "string",
-              "allOf": [
-                {
-                  "minLength": 1
-                }
-              ]
+              "minLength": 1
             },
             "required": true
           }
@@ -2120,14 +1961,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2203,14 +2037,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2276,14 +2103,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2379,14 +2199,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2456,11 +2269,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "allOf": [
-                {
-                  "pattern": "^[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
-                }
-              ]
+              "pattern": "^[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
             },
             "required": false
           }
@@ -2496,14 +2305,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    },
-                    {
-                      "$ref": "#/components/schemas/EngineUnauthorizedError"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
                 }
               }
             }
@@ -2539,35 +2341,19 @@
         "properties": {
           "app": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "engineVersion": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "protocolVersion": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "platform": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2593,11 +2379,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2622,11 +2404,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2656,11 +2434,7 @@
           },
           "runtimeBudgetMinutes": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           }
         },
         "required": [
@@ -2676,19 +2450,11 @@
         "properties": {
           "protocolVersion": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "platform": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "phase": {
             "type": "string",
@@ -2784,14 +2550,8 @@
         "properties": {
           "runtimeBudgetMinutes": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              },
-              {
-                "maximum": 60
-              }
-            ]
+            "minimum": 1,
+            "maximum": 60
           },
           "transcriptionProvider": {
             "type": "string",
@@ -2802,11 +2562,7 @@
           },
           "importedTranscriptPath": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -2847,11 +2603,7 @@
           },
           "preflightToken": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2875,11 +2627,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2904,11 +2652,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2933,11 +2677,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2960,11 +2700,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -2979,22 +2715,12 @@
         "properties": {
           "preflightToken": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "runtimeBudgetMinutes": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              },
-              {
-                "maximum": 60
-              }
-            ]
+            "minimum": 1,
+            "maximum": 60
           },
           "transcriptionProvider": {
             "type": "string",
@@ -3005,11 +2731,7 @@
           },
           "importedTranscriptPath": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "force": {
             "type": "boolean"
@@ -3025,11 +2747,7 @@
         "properties": {
           "jobId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "status": {
             "type": "string",
@@ -3058,29 +2776,7 @@
           "score": {
             "anyOf": [
               {
-                "anyOf": [
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "string",
-                    "enum": [
-                      "NaN"
-                    ]
-                  },
-                  {
-                    "type": "string",
-                    "enum": [
-                      "Infinity"
-                    ]
-                  },
-                  {
-                    "type": "string",
-                    "enum": [
-                      "-Infinity"
-                    ]
-                  }
-                ]
+                "type": "number"
               },
               {
                 "type": "string",
@@ -3141,11 +2837,7 @@
         "properties": {
           "jobId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "status": {
             "type": "string",
@@ -3160,11 +2852,7 @@
           },
           "runtimeBudgetMinutes": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           },
           "qaReport": {
             "$ref": "#/components/schemas/AgentQAReport"
@@ -3188,11 +2876,7 @@
           },
           "updatedAt": {
             "type": "string",
-            "allOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
-              }
-            ]
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
           }
         },
         "required": [
@@ -3218,11 +2902,7 @@
           },
           "message": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -3286,54 +2966,30 @@
         "properties": {
           "id": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "displayName": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "isPrimary": {
             "type": "boolean"
           },
           "width": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           },
           "height": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           },
           "pixelScale": {
             "type": "number",
-            "allOf": [
-              {
-                "exclusiveMinimum": 0
-              }
-            ]
+            "exclusiveMinimum": 0
           },
           "refreshHz": {
             "type": "number",
-            "allOf": [
-              {
-                "exclusiveMinimum": 0
-              }
-            ]
+            "exclusiveMinimum": 0
           },
           "supportedCaptureFrameRates": {
             "type": "array",
@@ -3363,11 +3019,7 @@
         "properties": {
           "id": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "title": {
             "type": "string"
@@ -3377,38 +3029,22 @@
           },
           "width": {
             "type": "number",
-            "allOf": [
-              {
-                "exclusiveMinimum": 0
-              }
-            ]
+            "exclusiveMinimum": 0
           },
           "height": {
             "type": "number",
-            "allOf": [
-              {
-                "exclusiveMinimum": 0
-              }
-            ]
+            "exclusiveMinimum": 0
           },
           "isOnScreen": {
             "type": "boolean"
           },
           "pixelScale": {
             "type": "number",
-            "allOf": [
-              {
-                "exclusiveMinimum": 0
-              }
-            ]
+            "exclusiveMinimum": 0
           },
           "refreshHz": {
             "type": "number",
-            "allOf": [
-              {
-                "exclusiveMinimum": 0
-              }
-            ]
+            "exclusiveMinimum": 0
           },
           "supportedCaptureFrameRates": {
             "type": "array",
@@ -3461,11 +3097,7 @@
         "properties": {
           "displayId": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "enableMic": {
             "type": "boolean"
@@ -3490,91 +3122,47 @@
         "properties": {
           "sourceDroppedFrames": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "writerDroppedFrames": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "writerBackpressureDrops": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "achievedFps": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "cpuPercent": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "memoryBytes": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "recordingBitrateMbps": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "captureCallbackMs": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "recordQueueLagMs": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "writerAppendMs": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "previewEncodeMs": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           }
         },
         "additionalProperties": false
@@ -3590,27 +3178,15 @@
           },
           "captureSessionId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "recordingDurationSeconds": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "recordingURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "captureMetadata": {
             "type": "object",
@@ -3620,11 +3196,7 @@
                 "properties": {
                   "id": {
                     "type": "integer",
-                    "allOf": [
-                      {
-                        "minimum": 0
-                      }
-                    ]
+                    "minimum": 0
                   },
                   "title": {
                     "type": "string"
@@ -3658,19 +3230,11 @@
                   },
                   "width": {
                     "type": "number",
-                    "allOf": [
-                      {
-                        "exclusiveMinimum": 0
-                      }
-                    ]
+                    "exclusiveMinimum": 0
                   },
                   "height": {
                     "type": "number",
-                    "allOf": [
-                      {
-                        "exclusiveMinimum": 0
-                      }
-                    ]
+                    "exclusiveMinimum": 0
                   }
                 },
                 "required": [
@@ -3683,19 +3247,11 @@
               },
               "pixelScale": {
                 "type": "number",
-                "allOf": [
-                  {
-                    "exclusiveMinimum": 0
-                  }
-                ]
+                "exclusiveMinimum": 0
               },
               "fps": {
                 "type": "number",
-                "allOf": [
-                  {
-                    "exclusiveMinimum": 0
-                  }
-                ]
+                "exclusiveMinimum": 0
               }
             },
             "required": [
@@ -3710,11 +3266,7 @@
           },
           "eventsURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "lastRecordingTelemetry": {
             "$ref": "#/components/schemas/CaptureTelemetry"
@@ -3757,11 +3309,7 @@
         "properties": {
           "windowId": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "enableMic": {
             "type": "boolean"
@@ -3789,19 +3337,11 @@
         "properties": {
           "frameId": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "bytesBase64": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -3833,43 +3373,23 @@
         "properties": {
           "id": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "name": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "width": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           },
           "height": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           },
           "fps": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 1
-              }
-            ]
+            "minimum": 1
           },
           "fileType": {
             "type": "string",
@@ -3912,19 +3432,11 @@
           },
           "intensity": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "minimumKeyframeInterval": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           }
         },
         "required": [
@@ -3949,38 +3461,22 @@
           },
           "backgroundColor": {
             "type": "string",
-            "allOf": [
-              {
-                "pattern": "^#[0-9a-fA-F]{6}$"
-              }
-            ]
+            "pattern": "^#[0-9a-fA-F]{6}$"
           },
           "paddingFraction": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0,
-                "maximum": 0.25
-              }
-            ]
+            "minimum": 0,
+            "maximum": 0.25
           },
           "cornerRadiusFraction": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0,
-                "maximum": 0.1
-              }
-            ]
+            "minimum": 0,
+            "maximum": 0.1
           },
           "shadowStrength": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0,
-                "maximum": 1
-              }
-            ]
+            "minimum": 0,
+            "maximum": 1
           }
         },
         "required": [
@@ -3999,35 +3495,19 @@
         "properties": {
           "outputURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "presetId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "trimStartSeconds": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "trimEndSeconds": {
             "type": "number",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           },
           "timeline": {
             "type": "object",
@@ -4053,11 +3533,7 @@
                         },
                         "id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "sourceAssetId": {
                           "type": "string",
@@ -4067,19 +3543,11 @@
                         },
                         "sourceStartSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         },
                         "sourceEndSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -4102,19 +3570,11 @@
                         },
                         "id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "durationSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -4129,11 +3589,7 @@
               },
               "updatedAt": {
                 "type": "string",
-                "allOf": [
-                  {
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
-                  }
-                ]
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
               }
             },
             "required": [
@@ -4160,11 +3616,7 @@
         "properties": {
           "jobId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "status": {
             "type": "string",
@@ -4177,11 +3629,7 @@
           },
           "outputURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -4195,27 +3643,15 @@
         "properties": {
           "outputURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "presetId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "jobId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -4230,11 +3666,7 @@
         "properties": {
           "jobId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "status": {
             "type": "string",
@@ -4247,19 +3679,11 @@
           },
           "outputURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "appliedSegments": {
             "type": "integer",
-            "allOf": [
-              {
-                "minimum": 0
-              }
-            ]
+            "minimum": 0
           }
         },
         "required": [
@@ -4273,11 +3697,7 @@
         "properties": {
           "latestJobId": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "latestStatus": {
             "type": "string",
@@ -4295,11 +3715,7 @@
           },
           "updatedAt": {
             "type": "string",
-            "allOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
-              }
-            ]
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
           }
         },
         "additionalProperties": false
@@ -4309,27 +3725,15 @@
         "properties": {
           "projectPath": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "recordingURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "eventsURL": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "lastRecordingTelemetry": {
             "$ref": "#/components/schemas/CaptureTelemetry"
@@ -4364,11 +3768,7 @@
                         },
                         "id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "sourceAssetId": {
                           "type": "string",
@@ -4378,19 +3778,11 @@
                         },
                         "sourceStartSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         },
                         "sourceEndSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -4413,19 +3805,11 @@
                         },
                         "id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "durationSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -4440,11 +3824,7 @@
               },
               "updatedAt": {
                 "type": "string",
-                "allOf": [
-                  {
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
-                  }
-                ]
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
               }
             },
             "required": [
@@ -4461,11 +3841,7 @@
                 "properties": {
                   "id": {
                     "type": "integer",
-                    "allOf": [
-                      {
-                        "minimum": 0
-                      }
-                    ]
+                    "minimum": 0
                   },
                   "title": {
                     "type": "string"
@@ -4499,19 +3875,11 @@
                   },
                   "width": {
                     "type": "number",
-                    "allOf": [
-                      {
-                        "exclusiveMinimum": 0
-                      }
-                    ]
+                    "exclusiveMinimum": 0
                   },
                   "height": {
                     "type": "number",
-                    "allOf": [
-                      {
-                        "exclusiveMinimum": 0
-                      }
-                    ]
+                    "exclusiveMinimum": 0
                   }
                 },
                 "required": [
@@ -4524,19 +3892,11 @@
               },
               "pixelScale": {
                 "type": "number",
-                "allOf": [
-                  {
-                    "exclusiveMinimum": 0
-                  }
-                ]
+                "exclusiveMinimum": 0
               },
               "fps": {
                 "type": "number",
-                "allOf": [
-                  {
-                    "exclusiveMinimum": 0
-                  }
-                ]
+                "exclusiveMinimum": 0
               }
             },
             "required": [
@@ -4562,11 +3922,7 @@
         "properties": {
           "projectPath": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           }
         },
         "required": [
@@ -4579,11 +3935,7 @@
         "properties": {
           "projectPath": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "autoZoom": {
             "$ref": "#/components/schemas/AutoZoomSettings"
@@ -4615,11 +3967,7 @@
                         },
                         "id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "sourceAssetId": {
                           "type": "string",
@@ -4629,19 +3977,11 @@
                         },
                         "sourceStartSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         },
                         "sourceEndSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -4664,19 +4004,11 @@
                         },
                         "id": {
                           "type": "string",
-                          "allOf": [
-                            {
-                              "minLength": 1
-                            }
-                          ]
+                          "minLength": 1
                         },
                         "durationSeconds": {
                           "type": "number",
-                          "allOf": [
-                            {
-                              "minimum": 0
-                            }
-                          ]
+                          "minimum": 0
                         }
                       },
                       "required": [
@@ -4691,11 +4023,7 @@
               },
               "updatedAt": {
                 "type": "string",
-                "allOf": [
-                  {
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
-                  }
-                ]
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
               }
             },
             "required": [
@@ -4712,27 +4040,15 @@
         "properties": {
           "projectPath": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "displayName": {
             "type": "string",
-            "allOf": [
-              {
-                "minLength": 1
-              }
-            ]
+            "minLength": 1
           },
           "lastOpenedAt": {
             "type": "string",
-            "allOf": [
-              {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
-              }
-            ]
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
           }
         },
         "required": [

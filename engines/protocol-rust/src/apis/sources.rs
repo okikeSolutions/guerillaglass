@@ -17,7 +17,7 @@ pub enum SourcesSourcesListResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineRuntimeError response body.

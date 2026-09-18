@@ -11,11 +11,11 @@ extension EngineService {
     ) async throws -> Operations.export_period_exportInfo.Output {
         let presets = Presets.all.map { preset in
             Components.Schemas.ExportPreset(
-                id: .init(value1: preset.id),
-                name: .init(value1: preset.name),
-                width: .init(value1: Double(preset.width)),
-                height: .init(value1: Double(preset.height)),
-                fps: .init(value1: Double(preset.fps)),
+                id: preset.id,
+                name: preset.name,
+                width: preset.width,
+                height: preset.height,
+                fps: preset.fps,
                 fileType: preset.fileType == .mov ? .mov : .mp4
             )
         }
@@ -26,7 +26,7 @@ extension EngineService {
         _ input: Operations.export_period_exportRun.Input
     ) async throws -> Operations.export_period_exportRun.Output {
         let payload: Components.Schemas.ExportRunPayload = switch input.body { case let .json(body): body }
-        guard let preset = Presets.all.first(where: { $0.id == payload.presetId.value1 }) else {
+        guard let preset = Presets.all.first(where: { $0.id == payload.presetId }) else {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }
         guard let recordingURL = availableRecordingURL() else {
@@ -43,8 +43,8 @@ extension EngineService {
             let exportedURL = try await exportPipeline.export(
                 recordingURL: recordingURL,
                 preset: preset,
-                trimRange: trimRange(start: payload.trimStartSeconds?.value1, end: payload.trimEndSeconds?.value1),
-                outputURL: URL(fileURLWithPath: payload.outputURL.value1),
+                trimRange: trimRange(start: payload.trimStartSeconds, end: payload.trimEndSeconds),
+                outputURL: URL(fileURLWithPath: payload.outputURL),
                 cameraEvents: availableCameraEvents(for: resolvedAutoZoom),
                 autoZoomSettings: resolvedAutoZoom,
                 captureMetadata: currentProjectDocument.project.captureMetadata,
@@ -56,9 +56,9 @@ extension EngineService {
             latestExportOutputURL = exportedURL
             latestExportBackgroundFraming = resolvedBackgroundFraming
             return .ok(.init(body: .json(.init(
-                jobId: .init(value1: jobId),
+                jobId: jobId,
                 status: .succeeded,
-                outputURL: .init(value1: exportedURL.path)
+                outputURL: exportedURL.path
             ))))
         } catch is CancellationError {
             throw CancellationError()
@@ -79,7 +79,7 @@ extension EngineService {
         _ input: Operations.export_period_exportRunCutPlan.Input
     ) async throws -> Operations.export_period_exportRunCutPlan.Output {
         let payload: Components.Schemas.ExportRunCutPlanPayload = switch input.body { case let .json(body): body }
-        guard let preset = Presets.all.first(where: { $0.id == payload.presetId.value1 }) else {
+        guard let preset = Presets.all.first(where: { $0.id == payload.presetId }) else {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }
         guard let recordingURL = availableRecordingURL() else {
@@ -90,7 +90,7 @@ extension EngineService {
                 recordingURL: recordingURL,
                 preset: preset,
                 trimRange: nil,
-                outputURL: URL(fileURLWithPath: payload.outputURL.value1),
+                outputURL: URL(fileURLWithPath: payload.outputURL),
                 cameraEvents: availableCameraEvents(for: currentProjectDocument.project.autoZoom),
                 autoZoomSettings: currentProjectDocument.project.autoZoom,
                 captureMetadata: currentProjectDocument.project.captureMetadata,
@@ -101,10 +101,10 @@ extension EngineService {
             latestExportOutputURL = exportedURL
             latestExportBackgroundFraming = currentProjectDocument.project.backgroundFraming
             return .ok(.init(body: .json(.init(
-                jobId: .init(value1: jobId),
+                jobId: jobId,
                 status: .succeeded,
-                outputURL: .init(value1: exportedURL.path),
-                appliedSegments: .init(value1: Double(currentProjectDocument.project.timeline.items.count))
+                outputURL: exportedURL.path,
+                appliedSegments: currentProjectDocument.project.timeline.items.count
             ))))
         } catch is CancellationError {
             throw CancellationError()
@@ -116,11 +116,11 @@ extension EngineService {
     func export_period_exportGet(
         _ input: Operations.export_period_exportGet.Input
     ) async throws -> Operations.export_period_exportGet.Output {
-        let knownJob = input.path.jobId.value1 == latestExportJobId
+        let knownJob = input.path.jobId == latestExportJobId
         return .ok(.init(body: .json(.init(
-            jobId: .init(value1: input.path.jobId.value1),
+            jobId: input.path.jobId,
             status: knownJob ? .succeeded : .failed,
-            outputURL: knownJob ? latestExportOutputURL.map { .init(value1: $0.path) } : nil
+            outputURL: knownJob ? latestExportOutputURL?.path : nil
         ))))
     }
 
@@ -159,15 +159,15 @@ extension EngineService {
         let items = timeline.items.compactMap { item -> ExportTimelineItem? in
             if let clip = item.value1 {
                 return .clip(ExportTimelineClip(
-                    id: clip.id.value1,
-                    sourceStartSeconds: clip.sourceStartSeconds.value1,
-                    sourceEndSeconds: clip.sourceEndSeconds.value1
+                    id: clip.id,
+                    sourceStartSeconds: clip.sourceStartSeconds,
+                    sourceEndSeconds: clip.sourceEndSeconds
                 ))
             }
             if let gap = item.value2 {
                 return .gap(ExportTimelineGap(
-                    id: gap.id.value1,
-                    durationSeconds: gap.durationSeconds.value1
+                    id: gap.id,
+                    durationSeconds: gap.durationSeconds
                 ))
             }
             return nil
