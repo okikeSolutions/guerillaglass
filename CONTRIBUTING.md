@@ -10,7 +10,7 @@ Thanks for your interest in contributing. Guerilla Glass is a cross-platform cre
 
 ## Development
 
-- Bun 1.3+
+- Bun 1.4.1
 - Rust toolchain
 - Swift 5.10+ (for macOS engine work)
 - macOS 13.0+ (required for full native macOS capture/export flow and full gate)

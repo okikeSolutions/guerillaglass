@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import { Context, Crypto, Effect, FileSystem, Layer, Path } from "effect";
 import { HttpRouter, HttpServer } from "effect/unstable/http";
+import { NetAddress } from "effect/unstable/net";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { AppConfig } from "../app/AppConfig";
 import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
@@ -24,8 +25,10 @@ export class MediaSourceService extends Context.Service<
   MediaSourceServiceType
 >()("@guerillaglass/desktop/MediaSourceService") {}
 
-function originFromAddress(address: HttpServer.Address): Effect.Effect<string, MediaServerError> {
-  if (address._tag === "UnixAddress") {
+function originFromAddress(
+  address: NetAddress.SocketAddress,
+): Effect.Effect<string, MediaServerError> {
+  if (address._tag === "UnixPathAddress") {
     return Effect.fail(
       new MediaServerError({
         code: "MEDIA_SERVER_BIND_FAILED",
@@ -33,9 +36,10 @@ function originFromAddress(address: HttpServer.Address): Effect.Effect<string, M
       }),
     );
   }
-  const hostname =
-    address.hostname === "0.0.0.0" || address.hostname === "::" ? "127.0.0.1" : address.hostname;
-  return Effect.succeed(`http://${hostname}:${address.port}`);
+  const boundAddress = NetAddress.formatIp(address.address);
+  const hostname = boundAddress === "0.0.0.0" || boundAddress === "::" ? "127.0.0.1" : boundAddress;
+  const urlHostname = hostname.includes(":") ? `[${hostname}]` : hostname;
+  return Effect.succeed(`http://${urlHostname}:${address.port}`);
 }
 
 export const layerMediaSourceServiceCore = Layer.effect(

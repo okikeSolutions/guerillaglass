@@ -27,9 +27,9 @@ extension EngineService {
     ) async throws -> Operations.agent_period_agentPreflight.Output {
         let payload: Components.Schemas.AgentPreflightPayload = switch input.body { case let .json(body): body }
         let evaluation = evaluateAgentPreflight(
-            runtimeBudgetMinutes: Int(payload.runtimeBudgetMinutes?.value1 ?? 10),
+            runtimeBudgetMinutes: payload.runtimeBudgetMinutes ?? 10,
             transcriptionProvider: payload.transcriptionProvider?.rawValue ?? "none",
-            importedTranscriptPath: payload.importedTranscriptPath?.value1
+            importedTranscriptPath: payload.importedTranscriptPath
         )
         let token: String?
         if evaluation.ready {
@@ -52,7 +52,7 @@ extension EngineService {
             blockingReasons: evaluation.blockingReasons,
             canApplyDestructive: hasUnsavedProjectChanges,
             transcriptionProvider: .init(rawValue: evaluation.transcriptionProvider) ?? .none,
-            preflightToken: token.map { .init(value1: $0) }
+            preflightToken: token
         ))))
     }
 
@@ -60,11 +60,11 @@ extension EngineService {
         _ input: Operations.agent_period_agentRun.Input
     ) async throws -> Operations.agent_period_agentRun.Output {
         let payload: Components.Schemas.AgentRunPayload = switch input.body { case let .json(body): body }
-        let runtimeBudgetMinutes = Int(payload.runtimeBudgetMinutes?.value1 ?? 10)
+        let runtimeBudgetMinutes = payload.runtimeBudgetMinutes ?? 10
         let transcriptionProvider = payload.transcriptionProvider?.rawValue ?? "none"
-        let importedTranscriptPath = payload.importedTranscriptPath?.value1
+        let importedTranscriptPath = payload.importedTranscriptPath
         guard validatePreflightToken(
-            payload.preflightToken.value1,
+            payload.preflightToken,
             runtimeBudgetMinutes: runtimeBudgetMinutes,
             transcriptionProvider: transcriptionProvider,
             importedTranscriptPath: importedTranscriptPath
@@ -103,7 +103,7 @@ extension EngineService {
         )
         hasUnsavedProjectChanges = true
         return .ok(.init(body: .json(.init(
-            jobId: .init(value1: run.jobId),
+            jobId: run.jobId,
             status: Components.Schemas.AgentRunResult.statusPayload(rawValue: run.status.rawValue) ?? .failed
         ))))
     }
@@ -111,8 +111,8 @@ extension EngineService {
     func agent_period_agentStatus(
         _ input: Operations.agent_period_agentStatus.Input
     ) async throws -> Operations.agent_period_agentStatus.Output {
-        guard let run = agentRuns[input.path.jobId.value1] else {
-            return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown jobId: \(input.path.jobId.value1)"))))
+        guard let run = agentRuns[input.path.jobId] else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown jobId: \(input.path.jobId)"))))
         }
         return .ok(.init(body: .json(summary(for: run))))
     }
@@ -121,8 +121,8 @@ extension EngineService {
         _ input: Operations.agent_period_agentApply.Input
     ) async throws -> Operations.agent_period_agentApply.Output {
         let payload: Components.Schemas.AgentApplyPayload = switch input.body { case let .json(body): body }
-        guard let run = agentRuns[input.path.jobId.value1] else {
-            return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown jobId: \(input.path.jobId.value1)"))))
+        guard let run = agentRuns[input.path.jobId] else {
+            return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown jobId: \(input.path.jobId)"))))
         }
         guard run.qaReport.passed else {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "Narrative QA failed. Apply is blocked."))))
@@ -224,7 +224,7 @@ extension EngineService {
         let score = Double(4 - missingBeats.count) / 4
         let report = Components.Schemas.AgentQAReport(
             passed: missingBeats.isEmpty,
-            score: .init(value1: .init(value1: score)),
+            score: .init(value1: score),
             coverage: .init(
                 hook: coverage.hook,
                 action: coverage.action,
@@ -245,12 +245,12 @@ extension EngineService {
 
     private func summary(for run: EngineAgentRunRecord) -> Components.Schemas.AgentRunSummary {
         .init(
-            jobId: .init(value1: run.jobId),
+            jobId: run.jobId,
             status: run.status,
-            runtimeBudgetMinutes: .init(value1: Double(run.runtimeBudgetMinutes)),
+            runtimeBudgetMinutes: run.runtimeBudgetMinutes,
             qaReport: run.qaReport,
             blockingReason: run.blockingReason,
-            updatedAt: .init(value1: run.updatedAt)
+            updatedAt: run.updatedAt
         )
     }
 

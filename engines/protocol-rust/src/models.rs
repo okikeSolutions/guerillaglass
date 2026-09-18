@@ -71,18 +71,21 @@ pub fn check_xss_map<T>(
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentAgentApplyPathParams {
+    #[validate(length(min = 1))]
     pub job_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentAgentStatusPathParams {
+    #[validate(length(min = 1))]
     pub job_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ExportExportGetPathParams {
+    #[validate(length(min = 1))]
     pub job_id: String,
 }
 
@@ -90,8 +93,15 @@ pub struct ExportExportGetPathParams {
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectProjectRecentsQueryParams {
     #[serde(rename = "limit")]
+    #[validate(
+                          regex(path = *RE_PROJECTPROJECTRECENTSQUERYPARAMS_LIMIT),
+              )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<String>,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_PROJECTPROJECTRECENTSQUERYPARAMS_LIMIT: regex::Regex = regex::Regex::new("^[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$").unwrap();
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
@@ -245,34 +255,6 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ActionResult
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-#[allow(non_camel_case_types, clippy::large_enum_variant)]
-pub enum AgentAgentPreflight401Response {
-    EngineUnauthorizedError(models::EngineUnauthorizedError),
-    EngineUnauthorizedError1(models::EngineUnauthorizedError),
-}
-
-impl validator::Validate for AgentAgentPreflight401Response {
-    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
-        match self {
-            Self::EngineUnauthorizedError(v) => v.validate(),
-            Self::EngineUnauthorizedError1(v) => v.validate(),
-        }
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a AgentAgentPreflight401Response value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for AgentAgentPreflight401Response {
-    type Err = serde_json::Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentApplyPayload {
@@ -414,8 +396,9 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentApplyPa
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentPreflightPayload {
     #[serde(rename = "runtimeBudgetMinutes")]
+    #[validate(range(min = 1u8, max = 60u8))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_budget_minutes: Option<i32>,
+    pub runtime_budget_minutes: Option<u8>,
 
     /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "transcriptionProvider")]
@@ -424,7 +407,7 @@ pub struct AgentPreflightPayload {
     pub transcription_provider: Option<String>,
 
     #[serde(rename = "importedTranscriptPath")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub imported_transcript_path: Option<String>,
 }
@@ -494,7 +477,7 @@ impl std::str::FromStr for AgentPreflightPayload {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub runtime_budget_minutes: Vec<i32>,
+            pub runtime_budget_minutes: Vec<u8>,
             pub transcription_provider: Vec<String>,
             pub imported_transcript_path: Vec<String>,
         }
@@ -519,9 +502,9 @@ impl std::str::FromStr for AgentPreflightPayload {
                 #[allow(clippy::match_single_binding)]
                 match key {
                     #[allow(clippy::redundant_clone)]
-                    "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
+                    "runtimeBudgetMinutes" => intermediate_rep
+                        .runtime_budget_minutes
+                        .push(<u8 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "transcriptionProvider" => intermediate_rep.transcription_provider.push(
                         <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
@@ -613,7 +596,7 @@ pub struct AgentPreflightResult {
     pub transcription_provider: String,
 
     #[serde(rename = "preflightToken")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preflight_token: Option<String>,
 }
@@ -1183,14 +1166,14 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentQaRepor
 #[serde(untagged)]
 #[allow(non_camel_case_types, clippy::large_enum_variant)]
 pub enum AgentQaReportScore {
-    AgentQaReportScoreAnyOf(models::AgentQaReportScoreAnyOf),
+    F64(f64),
     String(String),
 }
 
 impl validator::Validate for AgentQaReportScore {
     fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
         match self {
-            Self::AgentQaReportScoreAnyOf(v) => v.validate(),
+            Self::F64(_) => std::result::Result::Ok(()),
             Self::String(_) => std::result::Result::Ok(()),
         }
     }
@@ -1207,9 +1190,9 @@ impl std::str::FromStr for AgentQaReportScore {
     }
 }
 
-impl From<models::AgentQaReportScoreAnyOf> for AgentQaReportScore {
-    fn from(value: models::AgentQaReportScoreAnyOf) -> Self {
-        Self::AgentQaReportScoreAnyOf(value)
+impl From<f64> for AgentQaReportScore {
+    fn from(value: f64) -> Self {
+        Self::F64(value)
     }
 }
 impl From<String> for AgentQaReportScore {
@@ -1218,54 +1201,17 @@ impl From<String> for AgentQaReportScore {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged)]
-#[allow(non_camel_case_types, clippy::large_enum_variant)]
-pub enum AgentQaReportScoreAnyOf {
-    F64(f64),
-    String(String),
-    String1(String),
-    String2(String),
-}
-
-impl validator::Validate for AgentQaReportScoreAnyOf {
-    fn validate(&self) -> std::result::Result<(), validator::ValidationErrors> {
-        match self {
-            Self::F64(_) => std::result::Result::Ok(()),
-            Self::String(_) => std::result::Result::Ok(()),
-            Self::String1(_) => std::result::Result::Ok(()),
-            Self::String2(_) => std::result::Result::Ok(()),
-        }
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a AgentQaReportScoreAnyOf value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for AgentQaReportScoreAnyOf {
-    type Err = serde_json::Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
-}
-
-impl From<f64> for AgentQaReportScoreAnyOf {
-    fn from(value: f64) -> Self {
-        Self::F64(value)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentRunPayload {
     #[serde(rename = "preflightToken")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub preflight_token: String,
 
     #[serde(rename = "runtimeBudgetMinutes")]
+    #[validate(range(min = 1u8, max = 60u8))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_budget_minutes: Option<i32>,
+    pub runtime_budget_minutes: Option<u8>,
 
     /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "transcriptionProvider")]
@@ -1274,7 +1220,7 @@ pub struct AgentRunPayload {
     pub transcription_provider: Option<String>,
 
     #[serde(rename = "importedTranscriptPath")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub imported_transcript_path: Option<String>,
 
@@ -1356,7 +1302,7 @@ impl std::str::FromStr for AgentRunPayload {
         #[allow(dead_code)]
         struct IntermediateRep {
             pub preflight_token: Vec<String>,
-            pub runtime_budget_minutes: Vec<i32>,
+            pub runtime_budget_minutes: Vec<u8>,
             pub transcription_provider: Vec<String>,
             pub imported_transcript_path: Vec<String>,
             pub force: Vec<bool>,
@@ -1386,9 +1332,9 @@ impl std::str::FromStr for AgentRunPayload {
                         <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
-                    "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
+                    "runtimeBudgetMinutes" => intermediate_rep
+                        .runtime_budget_minutes
+                        .push(<u8 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "transcriptionProvider" => intermediate_rep.transcription_provider.push(
                         <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
@@ -1474,7 +1420,7 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentRunPayl
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentRunResult {
     #[serde(rename = "jobId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub job_id: String,
 
     /// Note: inline enums are not fully supported by openapi-generator
@@ -1626,7 +1572,7 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentRunResu
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentRunSummary {
     #[serde(rename = "jobId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub job_id: String,
 
     /// Note: inline enums are not fully supported by openapi-generator
@@ -1635,7 +1581,8 @@ pub struct AgentRunSummary {
     pub status: String,
 
     #[serde(rename = "runtimeBudgetMinutes")]
-    pub runtime_budget_minutes: i32,
+    #[validate(range(min = 1u32))]
+    pub runtime_budget_minutes: u32,
 
     #[serde(rename = "qaReport")]
     #[validate(nested)]
@@ -1649,8 +1596,15 @@ pub struct AgentRunSummary {
     pub blocking_reason: Option<String>,
 
     #[serde(rename = "updatedAt")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(
+            regex(path = *RE_AGENTRUNSUMMARY_UPDATED_AT),
+          custom(function = "check_xss_string"),
+    )]
     pub updated_at: String,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_AGENTRUNSUMMARY_UPDATED_AT: regex::Regex = regex::Regex::new("^\\d{4}-\\d{2}-\\d{2}T").unwrap();
 }
 
 impl AgentRunSummary {
@@ -1658,7 +1612,7 @@ impl AgentRunSummary {
     pub fn new(
         job_id: String,
         status: String,
-        runtime_budget_minutes: i32,
+        runtime_budget_minutes: u32,
         updated_at: String,
     ) -> AgentRunSummary {
         AgentRunSummary {
@@ -1713,7 +1667,7 @@ impl std::str::FromStr for AgentRunSummary {
         struct IntermediateRep {
             pub job_id: Vec<String>,
             pub status: Vec<String>,
-            pub runtime_budget_minutes: Vec<i32>,
+            pub runtime_budget_minutes: Vec<u32>,
             pub qa_report: Vec<models::AgentQaReport>,
             pub blocking_reason: Vec<String>,
             pub updated_at: Vec<String>,
@@ -1748,7 +1702,7 @@ impl std::str::FromStr for AgentRunSummary {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "qaReport" => intermediate_rep.qa_report.push(
@@ -1853,9 +1807,11 @@ pub struct AutoZoomSettings {
     pub is_enabled: bool,
 
     #[serde(rename = "intensity")]
+    #[validate(range(min = 0f64))]
     pub intensity: f64,
 
     #[serde(rename = "minimumKeyframeInterval")]
+    #[validate(range(min = 0f64))]
     pub minimum_keyframe_interval: f64,
 }
 
@@ -2030,17 +1986,27 @@ pub struct BackgroundFramingSettings {
     pub enabled: bool,
 
     #[serde(rename = "backgroundColor")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(
+            regex(path = *RE_BACKGROUNDFRAMINGSETTINGS_BACKGROUND_COLOR),
+          custom(function = "check_xss_string"),
+    )]
     pub background_color: String,
 
     #[serde(rename = "paddingFraction")]
+    #[validate(range(min = 0f64, max = 0.25f64))]
     pub padding_fraction: f64,
 
     #[serde(rename = "cornerRadiusFraction")]
+    #[validate(range(min = 0f64, max = 0.1f64))]
     pub corner_radius_fraction: f64,
 
     #[serde(rename = "shadowStrength")]
+    #[validate(range(min = 0f64, max = 1f64))]
     pub shadow_strength: f64,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_BACKGROUNDFRAMINGSETTINGS_BACKGROUND_COLOR: regex::Regex = regex::Regex::new("^#[0-9a-fA-F]{6}$").unwrap();
 }
 
 impl BackgroundFramingSettings {
@@ -2270,8 +2236,9 @@ pub struct CapabilitiesAgent {
     pub local_only: Option<bool>,
 
     #[serde(rename = "runtimeBudgetMinutes")]
+    #[validate(range(min = 1u32))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_budget_minutes: Option<i32>,
+    pub runtime_budget_minutes: Option<u32>,
 }
 
 impl CapabilitiesAgent {
@@ -2340,7 +2307,7 @@ impl std::str::FromStr for CapabilitiesAgent {
             pub status: Vec<bool>,
             pub apply: Vec<bool>,
             pub local_only: Vec<bool>,
-            pub runtime_budget_minutes: Vec<i32>,
+            pub runtime_budget_minutes: Vec<u32>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -2384,7 +2351,7 @@ impl std::str::FromStr for CapabilitiesAgent {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     _ => {
                         return std::result::Result::Err(
@@ -2472,11 +2439,11 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<Capabilities
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CapabilitiesResult {
     #[serde(rename = "protocolVersion")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub protocol_version: String,
 
     #[serde(rename = "platform")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub platform: String,
 
     /// Note: inline enums are not fully supported by openapi-generator
@@ -3365,16 +3332,17 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<Capabilities
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CapturePreviewFrame {
     #[serde(rename = "frameId")]
-    pub frame_id: i32,
+    #[validate(range(min = 0u32))]
+    pub frame_id: u32,
 
     #[serde(rename = "bytesBase64")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub bytes_base64: String,
 }
 
 impl CapturePreviewFrame {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(frame_id: i32, bytes_base64: String) -> CapturePreviewFrame {
+    pub fn new(frame_id: u32, bytes_base64: String) -> CapturePreviewFrame {
         CapturePreviewFrame {
             frame_id,
             bytes_base64,
@@ -3413,7 +3381,7 @@ impl std::str::FromStr for CapturePreviewFrame {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub frame_id: Vec<i32>,
+            pub frame_id: Vec<u32>,
             pub bytes_base64: Vec<String>,
         }
 
@@ -3438,7 +3406,7 @@ impl std::str::FromStr for CapturePreviewFrame {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "frameId" => intermediate_rep.frame_id.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "bytesBase64" => intermediate_rep.bytes_base64.push(
@@ -3819,8 +3787,9 @@ impl std::convert::TryFrom<HeaderValue>
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureStartDisplayPayload {
     #[serde(rename = "displayId")]
+    #[validate(range(min = 0u32))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_id: Option<i32>,
+    pub display_id: Option<u32>,
 
     #[serde(rename = "enableMic")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3887,7 +3856,7 @@ impl std::str::FromStr for CaptureStartDisplayPayload {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub display_id: Vec<i32>,
+            pub display_id: Vec<u32>,
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
             pub capture_fps: Vec<f64>,
@@ -3914,7 +3883,7 @@ impl std::str::FromStr for CaptureStartDisplayPayload {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "displayId" => intermediate_rep.display_id.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "enableMic" => intermediate_rep.enable_mic.push(
@@ -3996,7 +3965,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStart
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureStartWindowPayload {
     #[serde(rename = "windowId")]
-    pub window_id: i32,
+    #[validate(range(min = 0u32))]
+    pub window_id: u32,
 
     #[serde(rename = "enableMic")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4014,7 +3984,7 @@ pub struct CaptureStartWindowPayload {
 
 impl CaptureStartWindowPayload {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(window_id: i32) -> CaptureStartWindowPayload {
+    pub fn new(window_id: u32) -> CaptureStartWindowPayload {
         CaptureStartWindowPayload {
             window_id,
             enable_mic: None,
@@ -4062,7 +4032,7 @@ impl std::str::FromStr for CaptureStartWindowPayload {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub window_id: Vec<i32>,
+            pub window_id: Vec<u32>,
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
             pub capture_fps: Vec<f64>,
@@ -4089,7 +4059,7 @@ impl std::str::FromStr for CaptureStartWindowPayload {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "windowId" => intermediate_rep.window_id.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "enableMic" => intermediate_rep.enable_mic.push(
@@ -4181,15 +4151,16 @@ pub struct CaptureStatusResult {
     pub is_recording: bool,
 
     #[serde(rename = "captureSessionId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_session_id: Option<String>,
 
     #[serde(rename = "recordingDurationSeconds")]
+    #[validate(range(min = 0f64))]
     pub recording_duration_seconds: f64,
 
     #[serde(rename = "recordingURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recording_url: Option<String>,
 
@@ -4204,7 +4175,7 @@ pub struct CaptureStatusResult {
     pub last_error: Option<models::EngineBadRequestError>,
 
     #[serde(rename = "eventsURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub events_url: Option<String>,
 
@@ -4446,9 +4417,11 @@ pub struct CaptureStatusResultCaptureMetadata {
     pub content_rect: models::CaptureStatusResultCaptureMetadataContentRect,
 
     #[serde(rename = "pixelScale")]
+    #[validate(range(min = 0f64))]
     pub pixel_scale: f64,
 
     #[serde(rename = "fps")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fps: Option<f64>,
 }
@@ -4632,9 +4605,11 @@ pub struct CaptureStatusResultCaptureMetadataContentRect {
     pub y: f64,
 
     #[serde(rename = "width")]
+    #[validate(range(min = 0f64))]
     pub width: f64,
 
     #[serde(rename = "height")]
+    #[validate(range(min = 0f64))]
     pub height: f64,
 }
 
@@ -4801,7 +4776,8 @@ impl std::convert::TryFrom<HeaderValue>
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureStatusResultCaptureMetadataWindow {
     #[serde(rename = "id")]
-    pub id: i32,
+    #[validate(range(min = 0u32))]
+    pub id: u32,
 
     #[serde(rename = "title")]
     #[validate(custom(function = "check_xss_string"))]
@@ -4815,7 +4791,7 @@ pub struct CaptureStatusResultCaptureMetadataWindow {
 impl CaptureStatusResultCaptureMetadataWindow {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
-        id: i32,
+        id: u32,
         title: String,
         app_name: String,
     ) -> CaptureStatusResultCaptureMetadataWindow {
@@ -4860,7 +4836,7 @@ impl std::str::FromStr for CaptureStatusResultCaptureMetadataWindow {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<i32>,
+            pub id: Vec<u32>,
             pub title: Vec<String>,
             pub app_name: Vec<String>,
         }
@@ -4887,7 +4863,7 @@ impl std::str::FromStr for CaptureStatusResultCaptureMetadataWindow {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "title" => intermediate_rep.title.push(
@@ -4981,46 +4957,57 @@ impl std::convert::TryFrom<HeaderValue>
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureTelemetry {
     #[serde(rename = "sourceDroppedFrames")]
+    #[validate(range(min = 0u32))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_dropped_frames: Option<i32>,
+    pub source_dropped_frames: Option<u32>,
 
     #[serde(rename = "writerDroppedFrames")]
+    #[validate(range(min = 0u32))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub writer_dropped_frames: Option<i32>,
+    pub writer_dropped_frames: Option<u32>,
 
     #[serde(rename = "writerBackpressureDrops")]
+    #[validate(range(min = 0u32))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub writer_backpressure_drops: Option<i32>,
+    pub writer_backpressure_drops: Option<u32>,
 
     #[serde(rename = "achievedFps")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub achieved_fps: Option<f64>,
 
     #[serde(rename = "cpuPercent")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_percent: Option<f64>,
 
     #[serde(rename = "memoryBytes")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memory_bytes: Option<f64>,
 
     #[serde(rename = "recordingBitrateMbps")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recording_bitrate_mbps: Option<f64>,
 
     #[serde(rename = "captureCallbackMs")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_callback_ms: Option<f64>,
 
     #[serde(rename = "recordQueueLagMs")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub record_queue_lag_ms: Option<f64>,
 
     #[serde(rename = "writerAppendMs")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub writer_append_ms: Option<f64>,
 
     #[serde(rename = "previewEncodeMs")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview_encode_ms: Option<f64>,
 }
@@ -5140,9 +5127,9 @@ impl std::str::FromStr for CaptureTelemetry {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub source_dropped_frames: Vec<i32>,
-            pub writer_dropped_frames: Vec<i32>,
-            pub writer_backpressure_drops: Vec<i32>,
+            pub source_dropped_frames: Vec<u32>,
+            pub writer_dropped_frames: Vec<u32>,
+            pub writer_backpressure_drops: Vec<u32>,
             pub achieved_fps: Vec<f64>,
             pub cpu_percent: Vec<f64>,
             pub memory_bytes: Vec<f64>,
@@ -5174,15 +5161,15 @@ impl std::str::FromStr for CaptureTelemetry {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "sourceDroppedFrames" => intermediate_rep.source_dropped_frames.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "writerDroppedFrames" => intermediate_rep.writer_dropped_frames.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "writerBackpressureDrops" => intermediate_rep.writer_backpressure_drops.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "achievedFps" => intermediate_rep.achieved_fps.push(
@@ -5294,26 +5281,31 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureTelem
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct DisplaySource {
     #[serde(rename = "id")]
-    pub id: i32,
+    #[validate(range(min = 0u32))]
+    pub id: u32,
 
     #[serde(rename = "displayName")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub display_name: String,
 
     #[serde(rename = "isPrimary")]
     pub is_primary: bool,
 
     #[serde(rename = "width")]
-    pub width: i32,
+    #[validate(range(min = 1u32))]
+    pub width: u32,
 
     #[serde(rename = "height")]
-    pub height: i32,
+    #[validate(range(min = 1u32))]
+    pub height: u32,
 
     #[serde(rename = "pixelScale")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pixel_scale: Option<f64>,
 
     #[serde(rename = "refreshHz")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_hz: Option<f64>,
 
@@ -5325,11 +5317,11 @@ pub struct DisplaySource {
 impl DisplaySource {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
-        id: i32,
+        id: u32,
         display_name: String,
         is_primary: bool,
-        width: i32,
-        height: i32,
+        width: u32,
+        height: u32,
         supported_capture_frame_rates: Vec<f64>,
     ) -> DisplaySource {
         DisplaySource {
@@ -5396,11 +5388,11 @@ impl std::str::FromStr for DisplaySource {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<i32>,
+            pub id: Vec<u32>,
             pub display_name: Vec<String>,
             pub is_primary: Vec<bool>,
-            pub width: Vec<i32>,
-            pub height: Vec<i32>,
+            pub width: Vec<u32>,
+            pub height: Vec<u32>,
             pub pixel_scale: Vec<f64>,
             pub refresh_hz: Vec<f64>,
             pub supported_capture_frame_rates: Vec<Vec<f64>>,
@@ -5427,7 +5419,7 @@ impl std::str::FromStr for DisplaySource {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "displayName" => intermediate_rep.display_name.push(
@@ -5439,11 +5431,11 @@ impl std::str::FromStr for DisplaySource {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "width" => intermediate_rep.width.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "height" => intermediate_rep.height.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "pixelScale" => intermediate_rep.pixel_scale.push(
@@ -5561,7 +5553,7 @@ pub struct EngineBadRequestError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -5714,7 +5706,7 @@ pub struct EngineConflictError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -5867,7 +5859,7 @@ pub struct EngineForbiddenError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -6020,7 +6012,7 @@ pub struct EngineNotFoundError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -6173,7 +6165,7 @@ pub struct EngineRuntimeError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -6326,7 +6318,7 @@ pub struct EngineUnauthorizedError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -6479,7 +6471,7 @@ pub struct EngineUnprocessableError {
     pub code: String,
 
     #[serde(rename = "message")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub message: String,
 }
 
@@ -6761,21 +6753,24 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportInfoRe
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ExportPreset {
     #[serde(rename = "id")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub id: String,
 
     #[serde(rename = "name")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub name: String,
 
     #[serde(rename = "width")]
-    pub width: i32,
+    #[validate(range(min = 1u32))]
+    pub width: u32,
 
     #[serde(rename = "height")]
-    pub height: i32,
+    #[validate(range(min = 1u32))]
+    pub height: u32,
 
     #[serde(rename = "fps")]
-    pub fps: i32,
+    #[validate(range(min = 1u32))]
+    pub fps: u32,
 
     /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "fileType")]
@@ -6788,9 +6783,9 @@ impl ExportPreset {
     pub fn new(
         id: String,
         name: String,
-        width: i32,
-        height: i32,
-        fps: i32,
+        width: u32,
+        height: u32,
+        fps: u32,
         file_type: String,
     ) -> ExportPreset {
         ExportPreset {
@@ -6845,9 +6840,9 @@ impl std::str::FromStr for ExportPreset {
         struct IntermediateRep {
             pub id: Vec<String>,
             pub name: Vec<String>,
-            pub width: Vec<i32>,
-            pub height: Vec<i32>,
-            pub fps: Vec<i32>,
+            pub width: Vec<u32>,
+            pub height: Vec<u32>,
+            pub fps: Vec<u32>,
             pub file_type: Vec<String>,
         }
 
@@ -6880,15 +6875,15 @@ impl std::str::FromStr for ExportPreset {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "width" => intermediate_rep.width.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "height" => intermediate_rep.height.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "fps" => intermediate_rep.fps.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "fileType" => intermediate_rep.file_type.push(
@@ -6988,15 +6983,15 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportPreset
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ExportRunCutPlanPayload {
     #[serde(rename = "outputURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub output_url: String,
 
     #[serde(rename = "presetId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub preset_id: String,
 
     #[serde(rename = "jobId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub job_id: String,
 }
 
@@ -7159,7 +7154,7 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportRunCut
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ExportRunCutPlanResult {
     #[serde(rename = "jobId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub job_id: String,
 
     /// Note: inline enums are not fully supported by openapi-generator
@@ -7168,13 +7163,14 @@ pub struct ExportRunCutPlanResult {
     pub status: String,
 
     #[serde(rename = "outputURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_url: Option<String>,
 
     #[serde(rename = "appliedSegments")]
+    #[validate(range(min = 0u32))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub applied_segments: Option<i32>,
+    pub applied_segments: Option<u32>,
 }
 
 impl ExportRunCutPlanResult {
@@ -7229,7 +7225,7 @@ impl std::str::FromStr for ExportRunCutPlanResult {
             pub job_id: Vec<String>,
             pub status: Vec<String>,
             pub output_url: Vec<String>,
-            pub applied_segments: Vec<i32>,
+            pub applied_segments: Vec<u32>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -7265,7 +7261,7 @@ impl std::str::FromStr for ExportRunCutPlanResult {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "appliedSegments" => intermediate_rep.applied_segments.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     _ => {
                         return std::result::Result::Err(
@@ -7343,18 +7339,20 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ExportRunCut
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ExportRunPayload {
     #[serde(rename = "outputURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub output_url: String,
 
     #[serde(rename = "presetId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub preset_id: String,
 
     #[serde(rename = "trimStartSeconds")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trim_start_seconds: Option<f64>,
 
     #[serde(rename = "trimEndSeconds")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trim_end_seconds: Option<f64>,
 
@@ -7581,9 +7579,16 @@ pub struct ExportRunPayloadTimeline {
     pub items: Vec<models::ExportRunPayloadTimelineItemsInner>,
 
     #[serde(rename = "updatedAt")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(
+            regex(path = *RE_EXPORTRUNPAYLOADTIMELINE_UPDATED_AT),
+          custom(function = "check_xss_string"),
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_EXPORTRUNPAYLOADTIMELINE_UPDATED_AT: regex::Regex = regex::Regex::new("^\\d{4}-\\d{2}-\\d{2}T").unwrap();
 }
 
 impl ExportRunPayloadTimeline {
@@ -7777,7 +7782,7 @@ pub struct ExportRunPayloadTimelineItemsInnerAnyOf {
     pub kind: String,
 
     #[serde(rename = "id")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub id: String,
 
     /// Note: inline enums are not fully supported by openapi-generator
@@ -7786,9 +7791,11 @@ pub struct ExportRunPayloadTimelineItemsInnerAnyOf {
     pub source_asset_id: String,
 
     #[serde(rename = "sourceStartSeconds")]
+    #[validate(range(min = 0f64))]
     pub source_start_seconds: f64,
 
     #[serde(rename = "sourceEndSeconds")]
+    #[validate(range(min = 0f64))]
     pub source_end_seconds: f64,
 }
 
@@ -8000,10 +8007,11 @@ pub struct ExportRunPayloadTimelineItemsInnerAnyOf1 {
     pub kind: String,
 
     #[serde(rename = "id")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub id: String,
 
     #[serde(rename = "durationSeconds")]
+    #[validate(range(min = 0f64))]
     pub duration_seconds: f64,
 }
 
@@ -8177,7 +8185,7 @@ impl std::convert::TryFrom<HeaderValue>
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ExportRunResult {
     #[serde(rename = "jobId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub job_id: String,
 
     /// Note: inline enums are not fully supported by openapi-generator
@@ -8186,7 +8194,7 @@ pub struct ExportRunResult {
     pub status: String,
 
     #[serde(rename = "outputURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_url: Option<String>,
 }
@@ -8521,19 +8529,19 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<PermissionsR
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct PingResult {
     #[serde(rename = "app")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub app: String,
 
     #[serde(rename = "engineVersion")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub engine_version: String,
 
     #[serde(rename = "protocolVersion")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub protocol_version: String,
 
     #[serde(rename = "platform")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub platform: String,
 }
 
@@ -8714,7 +8722,7 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<PingResult> 
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectAgentAnalysisSummary {
     #[serde(rename = "latestJobId")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latest_job_id: Option<String>,
 
@@ -8729,9 +8737,16 @@ pub struct ProjectAgentAnalysisSummary {
     pub qa_passed: Option<bool>,
 
     #[serde(rename = "updatedAt")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(
+            regex(path = *RE_PROJECTAGENTANALYSISSUMMARY_UPDATED_AT),
+          custom(function = "check_xss_string"),
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_PROJECTAGENTANALYSISSUMMARY_UPDATED_AT: regex::Regex = regex::Regex::new("^\\d{4}-\\d{2}-\\d{2}T").unwrap();
 }
 
 impl ProjectAgentAnalysisSummary {
@@ -8894,7 +8909,7 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ProjectAgent
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectOpenPayload {
     #[serde(rename = "projectPath")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub project_path: String,
 }
 
@@ -9029,16 +9044,23 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ProjectOpenP
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectRecentItem {
     #[serde(rename = "projectPath")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub project_path: String,
 
     #[serde(rename = "displayName")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     pub display_name: String,
 
     #[serde(rename = "lastOpenedAt")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(
+            regex(path = *RE_PROJECTRECENTITEM_LAST_OPENED_AT),
+          custom(function = "check_xss_string"),
+    )]
     pub last_opened_at: String,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_PROJECTRECENTITEM_LAST_OPENED_AT: regex::Regex = regex::Regex::new("^\\d{4}-\\d{2}-\\d{2}T").unwrap();
 }
 
 impl ProjectRecentItem {
@@ -9332,7 +9354,7 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ProjectRecen
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectSavePayload {
     #[serde(rename = "projectPath")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_path: Option<String>,
 
@@ -9511,17 +9533,17 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<ProjectSaveP
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectState {
     #[serde(rename = "projectPath")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_path: Option<String>,
 
     #[serde(rename = "recordingURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recording_url: Option<String>,
 
     #[serde(rename = "eventsURL")]
-    #[validate(custom(function = "check_xss_string"))]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub events_url: Option<String>,
 
@@ -10045,7 +10067,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<SourcesResul
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct WindowSource {
     #[serde(rename = "id")]
-    pub id: i32,
+    #[validate(range(min = 0u32))]
+    pub id: u32,
 
     #[serde(rename = "title")]
     #[validate(custom(function = "check_xss_string"))]
@@ -10056,19 +10079,23 @@ pub struct WindowSource {
     pub app_name: String,
 
     #[serde(rename = "width")]
+    #[validate(range(min = 0f64))]
     pub width: f64,
 
     #[serde(rename = "height")]
+    #[validate(range(min = 0f64))]
     pub height: f64,
 
     #[serde(rename = "isOnScreen")]
     pub is_on_screen: bool,
 
     #[serde(rename = "pixelScale")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pixel_scale: Option<f64>,
 
     #[serde(rename = "refreshHz")]
+    #[validate(range(min = 0f64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_hz: Option<f64>,
 
@@ -10080,7 +10107,7 @@ pub struct WindowSource {
 impl WindowSource {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
-        id: i32,
+        id: u32,
         title: String,
         app_name: String,
         width: f64,
@@ -10155,7 +10182,7 @@ impl std::str::FromStr for WindowSource {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<i32>,
+            pub id: Vec<u32>,
             pub title: Vec<String>,
             pub app_name: Vec<String>,
             pub width: Vec<f64>,
@@ -10187,7 +10214,7 @@ impl std::str::FromStr for WindowSource {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(
-                        <i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "title" => intermediate_rep.title.push(

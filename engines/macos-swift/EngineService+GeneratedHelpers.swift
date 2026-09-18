@@ -4,7 +4,7 @@ import Project
 
 extension EngineService {
     func badRequest(_ code: Components.Schemas.EngineBadRequestError.codePayload, _ message: String) -> Components.Schemas.EngineBadRequestError {
-        .init(code: code, message: .init(value1: message))
+        .init(code: code, message: message)
     }
 
     func actionResult(_ success: Bool, message: String? = nil) -> Components.Schemas.ActionResult {
@@ -16,17 +16,17 @@ extension EngineService {
     }
 
     func telemetry() -> Components.Schemas.CaptureTelemetry {
-        .init(achievedFps: .init(value1: 30))
+        .init(achievedFps: 30)
     }
 
     func captureStatus() -> Components.Schemas.CaptureStatusResult {
         .init(
             isRunning: captureEngine.isRunning,
             isRecording: captureEngine.isRecording,
-            captureSessionId: captureEngine.captureSessionID.map { .init(value1: $0) },
-            recordingDurationSeconds: .init(value1: max(0, captureEngine.recordingDuration)),
-            recordingURL: (captureEngine.recordingURL?.path).map { .init(value1: $0) },
-            eventsURL: (currentEventsURL?.path).map { .init(value1: $0) },
+            captureSessionId: captureEngine.captureSessionID,
+            recordingDurationSeconds: max(0, captureEngine.recordingDuration),
+            recordingURL: captureEngine.recordingURL?.path,
+            eventsURL: currentEventsURL?.path,
             telemetry: telemetry()
         )
     }
@@ -42,16 +42,16 @@ extension EngineService {
             case let .clip(clip):
                 ItemPayload(value1: ClipPayload(
                     kind: .clip,
-                    id: .init(value1: clip.id),
+                    id: clip.id,
                     sourceAssetId: .recording,
-                    sourceStartSeconds: .init(value1: clip.sourceStartSeconds),
-                    sourceEndSeconds: .init(value1: clip.sourceEndSeconds)
+                    sourceStartSeconds: clip.sourceStartSeconds,
+                    sourceEndSeconds: clip.sourceEndSeconds
                 ))
             case let .gap(gap):
                 ItemPayload(value2: GapPayload(
                     kind: .gap,
-                    id: .init(value1: gap.id),
-                    durationSeconds: .init(value1: gap.durationSeconds)
+                    id: gap.id,
+                    durationSeconds: gap.durationSeconds
                 ))
             }
         }
@@ -59,7 +59,7 @@ extension EngineService {
         return .init(
             version: Double(currentProjectDocument.project.timeline.version),
             items: items,
-            updatedAt: .init(value1: isoNow())
+            updatedAt: isoNow()
         )
     }
 
@@ -68,10 +68,10 @@ extension EngineService {
         return .init(
             version: Double(settings.version),
             enabled: settings.enabled,
-            backgroundColor: .init(value1: settings.backgroundColor),
-            paddingFraction: .init(value1: settings.paddingFraction),
-            cornerRadiusFraction: .init(value1: settings.cornerRadiusFraction),
-            shadowStrength: .init(value1: settings.shadowStrength)
+            backgroundColor: settings.backgroundColor,
+            paddingFraction: settings.paddingFraction,
+            cornerRadiusFraction: settings.cornerRadiusFraction,
+            shadowStrength: settings.shadowStrength
         )
     }
 
@@ -84,10 +84,10 @@ extension EngineService {
         return try BackgroundFramingSettings(
             version: Int(payload.version),
             enabled: payload.enabled,
-            backgroundColor: payload.backgroundColor.value1,
-            paddingFraction: payload.paddingFraction.value1,
-            cornerRadiusFraction: payload.cornerRadiusFraction.value1,
-            shadowStrength: payload.shadowStrength.value1
+            backgroundColor: payload.backgroundColor,
+            paddingFraction: payload.paddingFraction,
+            cornerRadiusFraction: payload.cornerRadiusFraction,
+            shadowStrength: payload.shadowStrength
         )
     }
 
@@ -96,8 +96,8 @@ extension EngineService {
     ) -> AutoZoomSettings {
         AutoZoomSettings(
             isEnabled: payload.isEnabled,
-            intensity: payload.intensity.value1,
-            minimumKeyframeInterval: payload.minimumKeyframeInterval.value1
+            intensity: payload.intensity,
+            minimumKeyframeInterval: payload.minimumKeyframeInterval
         ).clamped()
     }
 
@@ -105,18 +105,16 @@ extension EngineService {
         let autoZoom = currentProjectDocument.project.autoZoom
         return .init(
             isEnabled: autoZoom.isEnabled,
-            intensity: .init(value1: autoZoom.intensity),
-            minimumKeyframeInterval: .init(value1: autoZoom.minimumKeyframeInterval)
+            intensity: autoZoom.intensity,
+            minimumKeyframeInterval: autoZoom.minimumKeyframeInterval
         )
     }
 
     func projectState() -> Components.Schemas.ProjectState {
         .init(
-            projectPath: currentProjectURL.map { .init(value1: $0.path) },
-            recordingURL: (projectRecordingURL()?.path ?? captureEngine.recordingURL?.path).map {
-                .init(value1: $0)
-            },
-            eventsURL: (projectEventsURL()?.path ?? currentEventsURL?.path).map { .init(value1: $0) },
+            projectPath: currentProjectURL?.path,
+            recordingURL: projectRecordingURL()?.path ?? captureEngine.recordingURL?.path,
+            eventsURL: projectEventsURL()?.path ?? currentEventsURL?.path,
             autoZoom: autoZoomState(),
             backgroundFraming: backgroundFramingState(),
             timeline: timelineState(),
@@ -127,10 +125,10 @@ extension EngineService {
     func agentAnalysisState() -> Components.Schemas.ProjectAgentAnalysisSummary? {
         guard let jobId = latestAgentJobId, let run = agentRuns[jobId] else { return nil }
         return .init(
-            latestJobId: .init(value1: jobId),
+            latestJobId: jobId,
             latestStatus: Components.Schemas.ProjectAgentAnalysisSummary.latestStatusPayload(rawValue: run.status.rawValue),
             qaPassed: run.qaReport.passed,
-            updatedAt: .init(value1: run.updatedAt)
+            updatedAt: run.updatedAt
         )
     }
 
