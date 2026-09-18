@@ -58,7 +58,7 @@
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
-    "@better-auth/expo": "~1.6.33",
+    "@better-auth/expo": "~1.7.5",
     "@convex-dev/better-auth": "^0.12.5",
     "better-auth": "~1.6.33",
     "convex": "^1.46.0"
