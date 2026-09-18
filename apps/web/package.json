@@ -41,7 +41,7 @@
     "motion": "^13.4.0",
     "nitro": "^3.0.260903-beta",
     "radix-ui": "^1.6.7",
-    "react": "~19.2.8",
+    "react": "~19.3.0",
     "react-dom": "~19.2.8",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
