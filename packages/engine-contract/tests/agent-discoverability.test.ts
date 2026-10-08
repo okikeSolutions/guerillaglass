@@ -16,11 +16,13 @@ const qaReport = {
   missingBeats: [],
 };
 
+const responseStatuses = (responses: object | undefined) => Object.keys(responses ?? {}).sort();
+
 describe("Agent Mode discoverability contract", () => {
   it("matches the native runtime budget limit", () => {
-    expect(
-      Schema.decodeSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 10 }),
-    ).toEqual({ runtimeBudgetMinutes: 10 });
+    expect(Schema.decodeSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 10 })).toEqual({
+      runtimeBudgetMinutes: 10,
+    });
     expect(() =>
       Schema.decodeSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 11 }),
     ).toThrow();
@@ -142,12 +144,13 @@ describe("Agent Mode discoverability contract", () => {
   });
 
   it("maps Agent workflow failures to the declared HTTP response statuses", () => {
-    const responseStatuses = (responses: object | undefined) =>
-      Object.keys(responses ?? {}).sort();
-
-    expect(
-      responseStatuses(EngineOpenApi.paths["/v1/agent/preflight"]!.post!.responses),
-    ).toEqual(["200", "400", "401", "403", "500"]);
+    expect(responseStatuses(EngineOpenApi.paths["/v1/agent/preflight"]!.post!.responses)).toEqual([
+      "200",
+      "400",
+      "401",
+      "403",
+      "500",
+    ]);
     expect(responseStatuses(EngineOpenApi.paths["/v1/agent/runs"]!.post!.responses)).toEqual([
       "200",
       "400",
