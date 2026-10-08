@@ -1,218 +1,294 @@
 #!/usr/bin/env bun
 
+import * as NodeRuntime from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeRuntime.js";
+import * as NodeServices from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeServices.js";
+import * as NodeHttpClient from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeHttpClient.js";
 import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  symlinkSync,
-  truncateSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+  Effect,
+  Exit,
+  FileSystem,
+  Path,
+  Schema,
+  Scope,
+  Stream,
+} from "../apps/desktop-electrobun/node_modules/effect/dist/index.js";
+import * as HttpClient from "../apps/desktop-electrobun/node_modules/effect/dist/http/HttpClient.js";
+import * as HttpClientRequest from "../apps/desktop-electrobun/node_modules/effect/dist/http/HttpClientRequest.js";
+import * as ChildProcess from "../apps/desktop-electrobun/node_modules/effect/dist/process/ChildProcess.js";
+import {
+  makeEngineHttpProcess,
+  type EngineHttpProcess,
+} from "../packages/engine-client/src/process/launchBun";
 
-const root = resolve(import.meta.dir, "..");
-const enginePath = join(root, ".build", "debug", "guerillaglass-engine");
-if (process.platform !== "darwin") {
-  throw new Error("Agent Mode smoke requires the production macOS engine.");
-}
-if (!existsSync(enginePath)) {
-  throw new Error(`Missing ${enginePath}; run bun run swift:build first.`);
-}
+class AgentSmokeError extends Schema.TaggedError<AgentSmokeError>()("AgentSmokeError", {
+  message: Schema.String,
+}) {}
 
-const resolvedTemporaryDirectory = tmpdir().startsWith("/var/") ? `/private${tmpdir()}` : tmpdir();
-const temporaryRoot = mkdtempSync(join(resolvedTemporaryDirectory, "guerillaglass-agent-smoke-"));
-const projectPath = join(temporaryRoot, "AgentSmoke.gglassproj");
-const transcriptPath = join(temporaryRoot, "transcript.json");
-const outputPath = join(temporaryRoot, "agent-output.mp4");
-const bearerToken = crypto.randomUUID().replaceAll("-", "");
-mkdirSync(projectPath, { recursive: true });
-await Bun.write(
-  transcriptPath,
-  JSON.stringify(
-    {
+const WireObject = Schema.Record(Schema.String, Schema.Unknown);
+const readObject = Effect.fn("AgentSmoke.readObject")(function* (filePath: string) {
+  const fs = yield* FileSystem.FileSystem;
+  return yield* Schema.decodeEffect(Schema.fromJsonString(WireObject))(
+    yield* fs.readFileString(filePath),
+  );
+});
+const request = Effect.fn("AgentSmoke.request")(function* (
+  engine: EngineHttpProcess,
+  urlPath: string,
+  init: { readonly method?: "POST"; readonly body?: string } = {},
+) {
+  let wire = HttpClientRequest.make(init.method ?? "GET")(
+    new URL(urlPath, engine.baseUrl).toString(),
+  ).pipe(HttpClientRequest.bearerToken(engine.bearerToken));
+  if (init.body !== undefined) {
+    wire = wire.pipe(HttpClientRequest.bodyText(init.body, "application/json"));
+  }
+  const response = yield* HttpClient.execute(wire);
+  const body = yield* Schema.decodeUnknownEffect(WireObject)(yield* response.json);
+  return { response, body };
+}, Effect.timeout("60 seconds"));
+
+const runFixture = Effect.fn("AgentSmoke.runFixture")(
+  function* (root: string, args: readonly string[]) {
+    const child = yield* ChildProcess.make(
+      "swift",
+      ["Scripts/macos_agent_fixture.swift", ...args],
+      {
+        cwd: root,
+        stdin: "ignore",
+        stderr: "inherit",
+      },
+    );
+    const stdout = yield* child.stdout.pipe(
+      Stream.decodeText(),
+      Stream.runFold(
+        () => "",
+        (text, part) => text + part,
+      ),
+    );
+    if ((yield* child.exitCode) !== 0) {
+      return yield* new AgentSmokeError({
+        message: "Unable to create or inspect Agent media fixture.",
+      });
+    }
+    return stdout;
+  },
+  Effect.timeout("60 seconds"),
+  Effect.scoped,
+);
+
+const expectStatus = Effect.fn("AgentSmoke.expectStatus")(function* (
+  actual: number,
+  expected: number,
+  body: unknown,
+) {
+  if (actual !== expected) {
+    return yield* new AgentSmokeError({
+      message: `Expected HTTP ${expected}, received ${actual}: ${JSON.stringify(body)}`,
+    });
+  }
+});
+
+const main = Effect.fn("AgentSmoke.main")(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const root = path.resolve(import.meta.dir, "..");
+  const join = path.join;
+  const enginePath = join(root, ".build", "debug", "guerillaglass-engine");
+  if (process.platform !== "darwin") {
+    return yield* new AgentSmokeError({
+      message: "Agent Mode smoke requires the production macOS engine.",
+    });
+  }
+  if (!(yield* fs.exists(enginePath))) {
+    return yield* new AgentSmokeError({
+      message: `Missing ${enginePath}; run bun run swift:build first.`,
+    });
+  }
+  const temporaryDirectory = yield* fs.makeTempDirectory({ prefix: "guerillaglass-agent-smoke-" });
+  const temporaryRoot = yield* fs.realPath(temporaryDirectory);
+  yield* Effect.addFinalizer(() =>
+    process.argv.includes("--keep")
+      ? Effect.void
+      : fs.remove(temporaryRoot, { recursive: true }).pipe(Effect.orDie),
+  );
+  const projectPath = join(temporaryRoot, "AgentSmoke.gglassproj");
+  const transcriptPath = join(temporaryRoot, "transcript.json");
+  const outputPath = join(temporaryRoot, "agent-output.mp4");
+  yield* fs.makeDirectory(projectPath, { recursive: true });
+  yield* fs.writeFileString(
+    transcriptPath,
+    JSON.stringify({
       segments: [
         { text: "Opening hook", startSeconds: 0.25, endSeconds: 1 },
         { text: "Action steps", startSeconds: 2, endSeconds: 3 },
         { text: "Result payoff", startSeconds: 4, endSeconds: 5 },
         { text: "Conclusion takeaway", startSeconds: 6, endSeconds: 7.25 },
       ],
-    },
-    null,
-    2,
-  ),
-);
-
-const launchEngine = () =>
-  Bun.spawn([enginePath], {
-    cwd: root,
-    env: {
-      ...process.env,
-      GG_ENGINE_TRANSPORT: "http",
-      GG_ENGINE_HTTP_AUTH_TOKEN: bearerToken,
-    },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-let engine = launchEngine();
-
-async function readinessBaseUrl(process: typeof engine): Promise<string> {
-  const reader = process.stdout.getReader();
-  const decoder = new TextDecoder();
-  let buffered = "";
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    const next = await reader.read();
-    if (next.done) {
-      break;
-    }
-    buffered += decoder.decode(next.value, { stream: true });
-    const lines = buffered.split("\n");
-    buffered = lines.pop() ?? "";
-    for (const line of lines) {
-      const value = JSON.parse(line) as { type?: string; host?: string; port?: number };
-      if (value.type === "guerillaglass.engine.http.ready" && value.host && value.port) {
-        return `http://${value.host}:${value.port}`;
-      }
-    }
-  }
-  throw new Error("Engine did not emit its HTTP readiness envelope.");
-}
-
-let baseUrl = await readinessBaseUrl(engine);
-async function request(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${bearerToken}`,
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-      ...init.headers,
-    },
-  });
-  const body = (await response.json()) as Record<string, unknown>;
-  return { response, body };
-}
-
-function expectStatus(actual: number, expected: number, body: unknown) {
-  if (actual !== expected) {
-    throw new Error(`Expected HTTP ${expected}, received ${actual}: ${JSON.stringify(body)}`);
-  }
-}
-
-try {
-  const capabilities = await request("/v1/engine/capabilities");
-  expectStatus(capabilities.response.status, 200, capabilities.body);
-  const agentCapabilities = capabilities.body.agent as Record<string, unknown>;
+    }),
+  );
+  let engineScope = yield* Scope.make();
+  yield* Effect.addFinalizer((exit) => Scope.close(engineScope, exit));
+  let engine = yield* makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 15_000 }).pipe(
+    Scope.provide(engineScope),
+  );
+  const capabilities = yield* request(engine, "/v1/engine/capabilities");
+  yield* expectStatus(capabilities.response.status, 200, capabilities.body);
+  const agentCapabilities = yield* Schema.decodeUnknownEffect(WireObject)(capabilities.body.agent);
   if (
     agentCapabilities.apply !== true ||
     agentCapabilities.preflightTokenTtlSeconds !== 60 ||
     !Array.isArray(agentCapabilities.supportedTranscriptionProviders) ||
     !agentCapabilities.supportedTranscriptionProviders.includes("imported_transcript")
   ) {
-    throw new Error(`Agent capabilities are not truthful: ${JSON.stringify(agentCapabilities)}`);
+    return yield* new AgentSmokeError({
+      message: `Agent capabilities are not truthful: ${JSON.stringify(agentCapabilities)}`,
+    });
   }
 
-  let opened = await request("/v1/project/open", {
+  let opened = yield* request(engine, "/v1/project/open", {
     method: "POST",
     body: JSON.stringify({ projectPath }),
   });
-  expectStatus(opened.response.status, 200, opened.body);
+  yield* expectStatus(opened.response.status, 200, opened.body);
 
-  const fixture = Bun.spawnSync(
-    ["swift", "Scripts/macos_agent_fixture.swift", join(projectPath, "recording.mov")],
-    { cwd: root, stdout: "pipe", stderr: "pipe" },
-  );
-  if (fixture.exitCode !== 0) {
-    throw new Error(`Unable to create Agent fixture: ${fixture.stderr.toString()}`);
-  }
+  yield* runFixture(root, [join(projectPath, "recording.mov")]);
 
-  opened = await request("/v1/project/open", {
+  opened = yield* request(engine, "/v1/project/open", {
     method: "POST",
     body: JSON.stringify({ projectPath }),
   });
-  expectStatus(opened.response.status, 200, opened.body);
+  yield* expectStatus(opened.response.status, 200, opened.body);
 
   const runParameters = {
     runtimeBudgetMinutes: 10,
     transcriptionProvider: "imported_transcript",
     importedTranscriptPath: transcriptPath,
   };
-  const preflight = await request("/v1/agent/preflight", {
+  const preflight = yield* request(engine, "/v1/agent/preflight", {
     method: "POST",
     body: JSON.stringify(runParameters),
   });
-  expectStatus(preflight.response.status, 200, preflight.body);
+  yield* expectStatus(preflight.response.status, 200, preflight.body);
   if (
     preflight.body.ready !== true ||
     typeof preflight.body.preflightToken !== "string" ||
     typeof preflight.body.preflightTokenExpiresAt !== "string"
   ) {
-    throw new Error(`Agent preflight was not ready: ${JSON.stringify(preflight.body)}`);
+    return yield* new AgentSmokeError({
+      message: `Agent preflight was not ready: ${JSON.stringify(preflight.body)}`,
+    });
   }
   const tokenLifetimeSeconds =
     (Date.parse(preflight.body.preflightTokenExpiresAt) - Date.now()) / 1000;
   if (tokenLifetimeSeconds < 50 || tokenLifetimeSeconds > 61) {
-    throw new Error(`Unexpected preflight token lifetime: ${tokenLifetimeSeconds}`);
+    return yield* new AgentSmokeError({
+      message: `Unexpected preflight token lifetime: ${tokenLifetimeSeconds}`,
+    });
   }
 
-  const run = await request("/v1/agent/runs", {
-    method: "POST",
-    body: JSON.stringify({ ...runParameters, preflightToken: preflight.body.preflightToken }),
-  });
-  expectStatus(run.response.status, 200, run.body);
-  const jobId = run.body.jobId;
-  if (run.body.status !== "completed" || typeof jobId !== "string") {
-    throw new Error(`Agent run did not complete: ${JSON.stringify(run.body)}`);
-  }
-  const reusedToken = await request("/v1/agent/runs", {
-    method: "POST",
-    body: JSON.stringify({ ...runParameters, preflightToken: preflight.body.preflightToken }),
-  });
-  expectStatus(reusedToken.response.status, 400, reusedToken.body);
-  if (reusedToken.body.code !== "preflight_expired") {
-    throw new Error(
-      `Reused preflight token was not rejected predictably: ${JSON.stringify(reusedToken.body)}`,
+  const pendingTokens: string[] = [];
+  for (let index = 0; index < 3; index++) {
+    const pending = yield* request(engine, "/v1/agent/preflight", {
+      method: "POST",
+      body: JSON.stringify(runParameters),
+    });
+    yield* expectStatus(pending.response.status, 200, pending.body);
+    pendingTokens.push(
+      yield* Schema.decodeUnknownEffect(Schema.String)(pending.body.preflightToken),
     );
   }
+  const capacity = yield* request(engine, "/v1/agent/preflight", {
+    method: "POST",
+    body: JSON.stringify(runParameters),
+  });
+  yield* expectStatus(capacity.response.status, 200, capacity.body);
+  const capacityReasons = yield* Schema.decodeUnknownEffect(Schema.Array(Schema.String))(
+    capacity.body.blockingReasons,
+  );
+  if (
+    capacity.body.ready !== false ||
+    !capacityReasons.includes("preflight_capacity") ||
+    "preflightToken" in capacity.body
+  ) {
+    return yield* new AgentSmokeError({
+      message: "Excess preflights must be blocked without revoking live tokens.",
+    });
+  }
+  for (const token of pendingTokens) {
+    const consumed = yield* request(engine, "/v1/agent/runs", {
+      method: "POST",
+      body: JSON.stringify({ ...runParameters, preflightToken: token }),
+    });
+    yield* expectStatus(consumed.response.status, 200, consumed.body);
+  }
 
-  const status = await request(`/v1/agent/runs/${encodeURIComponent(jobId)}`);
-  expectStatus(status.response.status, 200, status.body);
-  const cutPlan = status.body.cutPlan as { segments?: unknown[] };
-  const artifacts = status.body.artifacts as Array<{ path: string }>;
+  const run = yield* request(engine, "/v1/agent/runs", {
+    method: "POST",
+    body: JSON.stringify({ ...runParameters, preflightToken: preflight.body.preflightToken }),
+  });
+  yield* expectStatus(run.response.status, 200, run.body);
+  let jobId = yield* Schema.decodeUnknownEffect(Schema.String)(run.body.jobId);
+  if (run.body.status !== "completed" || typeof jobId !== "string") {
+    return yield* new AgentSmokeError({
+      message: `Agent run did not complete: ${JSON.stringify(run.body)}`,
+    });
+  }
+  const reusedToken = yield* request(engine, "/v1/agent/runs", {
+    method: "POST",
+    body: JSON.stringify({ ...runParameters, preflightToken: preflight.body.preflightToken }),
+  });
+  yield* expectStatus(reusedToken.response.status, 400, reusedToken.body);
+  if (reusedToken.body.code !== "preflight_expired") {
+    return yield* new AgentSmokeError({
+      message: `Reused preflight token was not rejected predictably: ${JSON.stringify(reusedToken.body)}`,
+    });
+  }
+
+  const status = yield* request(engine, `/v1/agent/runs/${encodeURIComponent(jobId)}`);
+  yield* expectStatus(status.response.status, 200, status.body);
+  const cutPlan = yield* Schema.decodeUnknownEffect(
+    Schema.Struct({ segments: Schema.Array(Schema.Unknown) }),
+  )(status.body.cutPlan);
+  const artifacts = yield* Schema.decodeUnknownEffect(
+    Schema.Array(Schema.Struct({ path: Schema.String })),
+  )(status.body.artifacts);
   if (
     status.body.status !== "completed" ||
     cutPlan.segments?.length !== 4 ||
     artifacts.length !== 6
   ) {
-    throw new Error(`Agent status is not reviewable: ${JSON.stringify(status.body)}`);
+    return yield* new AgentSmokeError({
+      message: `Agent status is not reviewable: ${JSON.stringify(status.body)}`,
+    });
   }
   for (const artifact of artifacts) {
-    if (artifact.path.startsWith("/") || !existsSync(join(projectPath, artifact.path))) {
-      throw new Error(`Invalid or missing project-relative artifact: ${artifact.path}`);
+    if (artifact.path.startsWith("/") || !(yield* fs.exists(join(projectPath, artifact.path)))) {
+      return yield* new AgentSmokeError({
+        message: `Invalid or missing project-relative artifact: ${artifact.path}`,
+      });
     }
-    JSON.parse(readFileSync(join(projectPath, artifact.path), "utf8"));
+    yield* readObject(join(projectPath, artifact.path));
   }
 
-  const info = await request("/v1/export/info");
-  expectStatus(info.response.status, 200, info.body);
-  const presets = info.body.presets as Array<{ id: string }>;
+  const info = yield* request(engine, "/v1/export/info");
+  yield* expectStatus(info.response.status, 200, info.body);
+  const presets = yield* Schema.decodeUnknownEffect(
+    Schema.Array(Schema.Struct({ id: Schema.String })),
+  )(info.body.presets);
   const presetId = presets.find((preset) => preset.id.includes("1080p-30"))?.id ?? presets[0]?.id;
   if (!presetId) {
-    throw new Error("Engine did not advertise an export preset.");
+    return yield* new AgentSmokeError({ message: "Engine did not advertise an export preset." });
   }
   const independentOutputPath = join(temporaryRoot, "agent-output-before-apply.mp4");
-  const independentExport = await request("/v1/exports/from-cut-plan", {
+  const independentExport = yield* request(engine, "/v1/exports/from-cut-plan", {
     method: "POST",
     body: JSON.stringify({ jobId, presetId, outputURL: independentOutputPath }),
   });
-  expectStatus(independentExport.response.status, 200, independentExport.body);
-  if (independentExport.body.appliedSegments !== 4 || !existsSync(independentOutputPath)) {
-    throw new Error(
-      `Cut-plan export incorrectly depended on prior apply: ${JSON.stringify(independentExport.body)}`,
-    );
+  yield* expectStatus(independentExport.response.status, 200, independentExport.body);
+  if (independentExport.body.appliedSegments !== 4 || !(yield* fs.exists(independentOutputPath))) {
+    return yield* new AgentSmokeError({
+      message: `Cut-plan export incorrectly depended on prior apply: ${JSON.stringify(independentExport.body)}`,
+    });
   }
 
   const changedTimeline = {
@@ -228,43 +304,60 @@ try {
       },
     ],
   };
-  const saved = await request("/v1/project/save", {
+  const saved = yield* request(engine, "/v1/project/save", {
     method: "POST",
     body: JSON.stringify({ timeline: changedTimeline }),
   });
-  expectStatus(saved.response.status, 200, saved.body);
+  yield* expectStatus(saved.response.status, 200, saved.body);
 
-  const confirmation = await request(`/v1/agent/runs/${encodeURIComponent(jobId)}/apply`, {
+  const confirmation = yield* request(engine, `/v1/agent/runs/${encodeURIComponent(jobId)}/apply`, {
     method: "POST",
     body: "{}",
   });
-  expectStatus(confirmation.response.status, 409, confirmation.body);
+  yield* expectStatus(confirmation.response.status, 409, confirmation.body);
   if (confirmation.body.code !== "needs_confirmation") {
-    throw new Error(`Apply confirmation was not typed: ${JSON.stringify(confirmation.body)}`);
+    return yield* new AgentSmokeError({
+      message: `Apply confirmation was not typed: ${JSON.stringify(confirmation.body)}`,
+    });
   }
 
-  const applied = await request(`/v1/agent/runs/${encodeURIComponent(jobId)}/apply`, {
+  const applied = yield* request(engine, `/v1/agent/runs/${encodeURIComponent(jobId)}/apply`, {
     method: "POST",
     body: JSON.stringify({ destructiveIntent: true }),
   });
-  expectStatus(applied.response.status, 200, applied.body);
+  yield* expectStatus(applied.response.status, 200, applied.body);
   if (applied.body.status !== "applied" || applied.body.appliedSegments !== 4) {
-    throw new Error(`Apply result was not verifiable: ${JSON.stringify(applied.body)}`);
+    return yield* new AgentSmokeError({
+      message: `Apply result was not verifiable: ${JSON.stringify(applied.body)}`,
+    });
   }
-  const currentAfterApply = await request("/v1/project/current");
-  expectStatus(currentAfterApply.response.status, 200, currentAfterApply.body);
-  const currentTimeline = currentAfterApply.body.timeline as
-    | { items?: Array<{ kind: string; sourceStartSeconds: number; sourceEndSeconds: number }> }
-    | undefined;
+  const currentAfterApply = yield* request(engine, "/v1/project/current");
+  yield* expectStatus(currentAfterApply.response.status, 200, currentAfterApply.body);
+  const currentTimeline = yield* Schema.decodeUnknownEffect(
+    Schema.Struct({
+      items: Schema.Array(
+        Schema.Struct({
+          kind: Schema.String,
+          sourceStartSeconds: Schema.Finite,
+          sourceEndSeconds: Schema.Finite,
+        }),
+      ),
+    }),
+  )(currentAfterApply.body.timeline);
   const appliedItems = currentTimeline?.items;
-  const reviewPlan = status.body.cutPlan as {
-    sourceFps: { numerator: number; denominator: number };
-    segments: Array<{ startFrame: number; endFrame: number }>;
-  };
+  const reviewPlan = yield* Schema.decodeUnknownEffect(
+    Schema.Struct({
+      sourceFps: Schema.Struct({ numerator: Schema.Finite, denominator: Schema.Finite }),
+      segments: Schema.Array(Schema.Struct({ startFrame: Schema.Finite, endFrame: Schema.Finite })),
+    }),
+  )(status.body.cutPlan);
   if (
     appliedItems?.length !== reviewPlan.segments.length ||
     appliedItems.some((item, index) => {
-      const segment = reviewPlan.segments[index]!;
+      const segment = reviewPlan.segments[index];
+      if (segment === undefined) {
+        return true;
+      }
       const secondsPerFrame = reviewPlan.sourceFps.denominator / reviewPlan.sourceFps.numerator;
       return (
         item.kind !== "clip" ||
@@ -273,23 +366,80 @@ try {
       );
     })
   ) {
-    throw new Error(
-      `Applied working timeline differs from the reviewed frame plan: ${JSON.stringify(currentAfterApply.body.timeline)}`,
-    );
+    return yield* new AgentSmokeError({
+      message: `Applied working timeline differs from the reviewed frame plan: ${JSON.stringify(currentAfterApply.body.timeline)}`,
+    });
   }
 
-  const exported = await request("/v1/exports/from-cut-plan", {
+  const persistedBeforeAnalysis = yield* readObject(join(projectPath, "project.json"));
+  const nextPreflight = yield* request(engine, "/v1/agent/preflight", {
+    method: "POST",
+    body: JSON.stringify(runParameters),
+  });
+  yield* expectStatus(nextPreflight.response.status, 200, nextPreflight.body);
+  const nextRun = yield* request(engine, "/v1/agent/runs", {
+    method: "POST",
+    body: JSON.stringify({ ...runParameters, preflightToken: nextPreflight.body.preflightToken }),
+  });
+  yield* expectStatus(nextRun.response.status, 200, nextRun.body);
+  if (typeof nextRun.body.jobId !== "string") {
+    return yield* new AgentSmokeError({ message: "Second analysis returned no job identity." });
+  }
+  jobId = nextRun.body.jobId;
+  const persistedAfterAnalysis = yield* readObject(join(projectPath, "project.json"));
+  if (JSON.stringify(persistedAfterAnalysis) !== JSON.stringify(persistedBeforeAnalysis)) {
+    return yield* new AgentSmokeError({
+      message: "Analysis persisted the unsaved working timeline before explicit save.",
+    });
+  }
+
+  for (let index = 0; index < 5; index++) {
+    const replacementPreflight = yield* request(engine, "/v1/agent/preflight", {
+      method: "POST",
+      body: JSON.stringify(runParameters),
+    });
+    yield* expectStatus(replacementPreflight.response.status, 200, replacementPreflight.body);
+    const [previousStatus, replacement] = yield* Effect.all(
+      [
+        request(engine, `/v1/agent/runs/${encodeURIComponent(jobId)}`),
+        request(engine, "/v1/agent/runs", {
+          method: "POST",
+          body: JSON.stringify({
+            ...runParameters,
+            preflightToken: replacementPreflight.body.preflightToken,
+          }),
+        }),
+      ],
+      { concurrency: 2 },
+    );
+    if (![200, 404].includes(previousStatus.response.status)) {
+      return yield* new AgentSmokeError({
+        message: "Concurrent status must resolve the still-current run or reject its replacement.",
+      });
+    }
+    yield* expectStatus(replacement.response.status, 200, replacement.body);
+    jobId = yield* Schema.decodeUnknownEffect(Schema.String)(replacement.body.jobId);
+    const current = yield* request(engine, "/v1/project/current");
+    yield* expectStatus(current.response.status, 200, current.body);
+    const summaryState = yield* Schema.decodeUnknownEffect(WireObject)(current.body.agentAnalysis);
+    if (summaryState.latestJobId !== jobId) {
+      return yield* new AgentSmokeError({
+        message: "An obsolete status lookup replaced the latest committed run.",
+      });
+    }
+  }
+
+  const exported = yield* request(engine, "/v1/exports/from-cut-plan", {
     method: "POST",
     body: JSON.stringify({ jobId, presetId, outputURL: outputPath }),
   });
-  expectStatus(exported.response.status, 200, exported.body);
-  if (exported.body.appliedSegments !== 4 || !existsSync(outputPath)) {
-    throw new Error(`Cut-plan export failed verification: ${JSON.stringify(exported.body)}`);
+  yield* expectStatus(exported.response.status, 200, exported.body);
+  if (exported.body.appliedSegments !== 4 || !(yield* fs.exists(outputPath))) {
+    return yield* new AgentSmokeError({
+      message: `Cut-plan export failed verification: ${JSON.stringify(exported.body)}`,
+    });
   }
-  const statusCutPlan = status.body.cutPlan as {
-    sourceFps: { numerator: number; denominator: number };
-    segments: Array<{ startFrame: number; endFrame: number }>;
-  };
+  const statusCutPlan = reviewPlan;
   const secondsPerFrame = statusCutPlan.sourceFps.denominator / statusCutPlan.sourceFps.numerator;
   let outputCursor = 0;
   const outputSampleTimes = statusCutPlan.segments.map((segment) => {
@@ -298,24 +448,15 @@ try {
     outputCursor += duration;
     return sampleTime;
   });
-  const mediaProbe = Bun.spawnSync(
-    [
-      "swift",
-      "Scripts/macos_agent_fixture.swift",
-      "--probe",
-      outputPath,
-      outputSampleTimes.join(","),
-    ],
-    { cwd: root, stdout: "pipe", stderr: "pipe" },
-  );
-  if (mediaProbe.exitCode !== 0) {
-    throw new Error(`Unable to inspect Agent export: ${mediaProbe.stderr.toString()}`);
-  }
-  const media = JSON.parse(mediaProbe.stdout.toString()) as {
-    durationSeconds: number;
-    hasVideo: boolean;
-    sampleColors: Array<[number, number, number]>;
-  };
+  const media = yield* Schema.decodeEffect(
+    Schema.fromJsonString(
+      Schema.Struct({
+        durationSeconds: Schema.Finite,
+        hasVideo: Schema.Boolean,
+        sampleColors: Schema.Array(Schema.Tuple([Schema.Finite, Schema.Finite, Schema.Finite])),
+      }),
+    ),
+  )(yield* runFixture(root, ["--probe", outputPath, outputSampleTimes.join(",")]));
   const expectedDuration =
     statusCutPlan.segments.reduce(
       (duration, segment) => duration + segment.endFrame - segment.startFrame,
@@ -328,62 +469,63 @@ try {
     Math.abs(media.durationSeconds - expectedDuration) > 0.1 ||
     dominantChannels.join(",") !== "2,0,2,0"
   ) {
-    throw new Error(
-      `Decoded Agent export content does not match its ordered frame plan: ${JSON.stringify({ media, expectedDuration, dominantChannels })}`,
-    );
+    return yield* new AgentSmokeError({
+      message: `Decoded Agent export content does not match its ordered frame plan: ${JSON.stringify({ media, expectedDuration, dominantChannels })}`,
+    });
   }
 
-  const summary = JSON.parse(
-    readFileSync(join(projectPath, "analysis", "run-summary.v1.json"), "utf8"),
-  ) as { jobId?: string };
+  const summary = yield* readObject(join(projectPath, "analysis", "run-summary.v1.json"));
   if (summary.jobId !== jobId) {
-    throw new Error(`Run summary did not persist run identity: ${JSON.stringify(summary)}`);
+    return yield* new AgentSmokeError({ message: "Run summary did not persist run identity." });
   }
+  yield* Scope.close(engineScope, Exit.void);
+  engineScope = yield* Scope.make();
+  engine = yield* makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 15_000 }).pipe(
+    Scope.provide(engineScope),
+  );
 
-  engine.kill("SIGTERM");
-  await engine.exited;
-  engine = launchEngine();
-  baseUrl = await readinessBaseUrl(engine);
-  const reopened = await request("/v1/project/open", {
+  const reopened = yield* request(engine, "/v1/project/open", {
     method: "POST",
     body: JSON.stringify({ projectPath }),
   });
-  expectStatus(reopened.response.status, 200, reopened.body);
-  const recovered = await request(`/v1/agent/runs/${encodeURIComponent(jobId)}`);
-  expectStatus(recovered.response.status, 200, recovered.body);
+  yield* expectStatus(reopened.response.status, 200, reopened.body);
+  const recovered = yield* request(engine, `/v1/agent/runs/${encodeURIComponent(jobId)}`);
+  yield* expectStatus(recovered.response.status, 200, recovered.body);
   if (recovered.body.status !== "completed" || recovered.body.cutPlan == null) {
-    throw new Error(`Agent run did not recover after restart: ${JSON.stringify(recovered.body)}`);
+    return yield* new AgentSmokeError({
+      message: `Agent run did not recover after restart: ${JSON.stringify(recovered.body)}`,
+    });
   }
   const recoveredOutputPath = join(temporaryRoot, "agent-output-after-restart.mp4");
-  const recoveredExport = await request("/v1/exports/from-cut-plan", {
+  const recoveredExport = yield* request(engine, "/v1/exports/from-cut-plan", {
     method: "POST",
     body: JSON.stringify({ jobId, presetId, outputURL: recoveredOutputPath }),
   });
-  expectStatus(recoveredExport.response.status, 200, recoveredExport.body);
-  if (recoveredExport.body.appliedSegments !== 4 || !existsSync(recoveredOutputPath)) {
-    throw new Error(
-      `Recovered run was not exportable after restart: ${JSON.stringify(recoveredExport.body)}`,
-    );
+  yield* expectStatus(recoveredExport.response.status, 200, recoveredExport.body);
+  if (recoveredExport.body.appliedSegments !== 4 || !(yield* fs.exists(recoveredOutputPath))) {
+    return yield* new AgentSmokeError({
+      message: `Recovered run was not exportable after restart: ${JSON.stringify(recoveredExport.body)}`,
+    });
   }
 
   const recordingPath = join(projectPath, "recording.mov");
-  const originalRecordingSize = statSync(recordingPath).size;
-  appendFileSync(recordingPath, new Uint8Array([0]));
-  const staleRecordingExport = await request("/v1/exports/from-cut-plan", {
+  const originalRecordingSize = Number((yield* fs.stat(recordingPath)).size);
+  yield* fs.writeFile(recordingPath, new Uint8Array([0]), { flag: "a" });
+  const staleRecordingExport = yield* request(engine, "/v1/exports/from-cut-plan", {
     method: "POST",
     body: JSON.stringify({ jobId, presetId, outputURL: join(temporaryRoot, "stale.mp4") }),
   });
-  expectStatus(staleRecordingExport.response.status, 409, staleRecordingExport.body);
+  yield* expectStatus(staleRecordingExport.response.status, 409, staleRecordingExport.body);
   if (staleRecordingExport.body.code !== "project_mismatch") {
-    throw new Error(
-      `Changed recording was not rejected predictably: ${JSON.stringify(staleRecordingExport.body)}`,
-    );
+    return yield* new AgentSmokeError({
+      message: `Changed recording was not rejected predictably: ${JSON.stringify(staleRecordingExport.body)}`,
+    });
   }
-  truncateSync(recordingPath, originalRecordingSize);
+  yield* fs.truncate(recordingPath, originalRecordingSize);
 
   const transcriptAliasDirectory = join(temporaryRoot, "transcript-alias");
-  symlinkSync(temporaryRoot, transcriptAliasDirectory, "dir");
-  const symlinkedTranscriptPreflight = await request("/v1/agent/preflight", {
+  yield* fs.symlink(temporaryRoot, transcriptAliasDirectory);
+  const symlinkedTranscriptPreflight = yield* request(engine, "/v1/agent/preflight", {
     method: "POST",
     body: JSON.stringify({
       runtimeBudgetMinutes: 10,
@@ -391,26 +533,26 @@ try {
       importedTranscriptPath: join(transcriptAliasDirectory, "transcript.json"),
     }),
   });
-  expectStatus(
+  yield* expectStatus(
     symlinkedTranscriptPreflight.response.status,
     200,
     symlinkedTranscriptPreflight.body,
   );
-  const symlinkedTranscriptBlockers = symlinkedTranscriptPreflight.body.blockingReasons as
-    | unknown[]
-    | undefined;
+  const symlinkedTranscriptBlockers = yield* Schema.decodeUnknownEffect(
+    Schema.Array(Schema.String),
+  )(symlinkedTranscriptPreflight.body.blockingReasons);
   if (
     symlinkedTranscriptPreflight.body.ready !== false ||
     !symlinkedTranscriptBlockers?.includes("invalid_imported_transcript")
   ) {
-    throw new Error(
-      `A transcript below a symlinked ancestor was not rejected: ${JSON.stringify(symlinkedTranscriptPreflight.body)}`,
-    );
+    return yield* new AgentSmokeError({
+      message: `A transcript below a symlinked ancestor was not rejected: ${JSON.stringify(symlinkedTranscriptPreflight.body)}`,
+    });
   }
 
   const malformedTranscriptPath = join(temporaryRoot, "malformed-transcript.json");
-  await Bun.write(malformedTranscriptPath, "not-json");
-  const malformedPreflight = await request("/v1/agent/preflight", {
+  yield* fs.writeFileString(malformedTranscriptPath, "not-json");
+  const malformedPreflight = yield* request(engine, "/v1/agent/preflight", {
     method: "POST",
     body: JSON.stringify({
       runtimeBudgetMinutes: 10,
@@ -418,21 +560,21 @@ try {
       importedTranscriptPath: malformedTranscriptPath,
     }),
   });
-  expectStatus(malformedPreflight.response.status, 200, malformedPreflight.body);
-  const malformedTranscriptBlockers = malformedPreflight.body.blockingReasons as
-    | unknown[]
-    | undefined;
+  yield* expectStatus(malformedPreflight.response.status, 200, malformedPreflight.body);
+  const malformedTranscriptBlockers = yield* Schema.decodeUnknownEffect(
+    Schema.Array(Schema.String),
+  )(malformedPreflight.body.blockingReasons);
   if (
     malformedPreflight.body.ready !== false ||
     !malformedTranscriptBlockers?.includes("invalid_imported_transcript")
   ) {
-    throw new Error(
-      `Malformed transcript did not produce a typed blocker: ${JSON.stringify(malformedPreflight.body)}`,
-    );
+    return yield* new AgentSmokeError({
+      message: `Malformed transcript did not produce a typed blocker: ${JSON.stringify(malformedPreflight.body)}`,
+    });
   }
 
   const blockedTranscriptPath = join(temporaryRoot, "blocked-transcript.json");
-  await Bun.write(
+  yield* fs.writeFileString(
     blockedTranscriptPath,
     JSON.stringify({
       segments: [{ text: "Opening hook only", startSeconds: 0.25, endSeconds: 1 }],
@@ -443,47 +585,56 @@ try {
     transcriptionProvider: "imported_transcript",
     importedTranscriptPath: blockedTranscriptPath,
   };
-  const blockedPreflight = await request("/v1/agent/preflight", {
+  const blockedPreflight = yield* request(engine, "/v1/agent/preflight", {
     method: "POST",
     body: JSON.stringify(blockedParameters),
   });
-  expectStatus(blockedPreflight.response.status, 200, blockedPreflight.body);
-  const blockedRun = await request("/v1/agent/runs", {
+  yield* expectStatus(blockedPreflight.response.status, 200, blockedPreflight.body);
+  const blockedRun = yield* request(engine, "/v1/agent/runs", {
     method: "POST",
     body: JSON.stringify({
       ...blockedParameters,
       preflightToken: blockedPreflight.body.preflightToken,
     }),
   });
-  expectStatus(blockedRun.response.status, 200, blockedRun.body);
+  yield* expectStatus(blockedRun.response.status, 200, blockedRun.body);
   if (blockedRun.body.status !== "blocked" || typeof blockedRun.body.jobId !== "string") {
-    throw new Error(`Weak narrative was not blocked: ${JSON.stringify(blockedRun.body)}`);
+    return yield* new AgentSmokeError({
+      message: `Weak narrative was not blocked: ${JSON.stringify(blockedRun.body)}`,
+    });
   }
-  const blockedApply = await request(
+  const blockedApply = yield* request(
+    engine,
     `/v1/agent/runs/${encodeURIComponent(blockedRun.body.jobId)}/apply`,
     { method: "POST", body: JSON.stringify({ destructiveIntent: true }) },
   );
-  expectStatus(blockedApply.response.status, 422, blockedApply.body);
+  yield* expectStatus(blockedApply.response.status, 422, blockedApply.body);
   if (blockedApply.body.code !== "qa_failed") {
-    throw new Error(`QA failure was not typed: ${JSON.stringify(blockedApply.body)}`);
+    return yield* new AgentSmokeError({
+      message: `QA failure was not typed: ${JSON.stringify(blockedApply.body)}`,
+    });
   }
 
   const otherProjectPath = join(temporaryRoot, "Other.gglassproj");
-  mkdirSync(otherProjectPath, { recursive: true });
-  await Bun.write(join(otherProjectPath, "recording.mov"), readFileSync(recordingPath));
-  const switched = await request("/v1/project/open", {
+  yield* fs.makeDirectory(otherProjectPath, { recursive: true });
+  yield* fs.copyFile(recordingPath, join(otherProjectPath, "recording.mov"));
+  const switched = yield* request(engine, "/v1/project/open", {
     method: "POST",
     body: JSON.stringify({ projectPath: otherProjectPath }),
   });
-  expectStatus(switched.response.status, 200, switched.body);
-  const crossProject = await request(`/v1/agent/runs/${encodeURIComponent(blockedRun.body.jobId)}`);
-  expectStatus(crossProject.response.status, 404, crossProject.body);
-  const crossProjectApply = await request(
+  yield* expectStatus(switched.response.status, 200, switched.body);
+  const crossProject = yield* request(
+    engine,
+    `/v1/agent/runs/${encodeURIComponent(blockedRun.body.jobId)}`,
+  );
+  yield* expectStatus(crossProject.response.status, 404, crossProject.body);
+  const crossProjectApply = yield* request(
+    engine,
     `/v1/agent/runs/${encodeURIComponent(blockedRun.body.jobId)}/apply`,
     { method: "POST", body: JSON.stringify({ destructiveIntent: true }) },
   );
-  expectStatus(crossProjectApply.response.status, 404, crossProjectApply.body);
-  const crossProjectExport = await request("/v1/exports/from-cut-plan", {
+  yield* expectStatus(crossProjectApply.response.status, 404, crossProjectApply.body);
+  const crossProjectExport = yield* request(engine, "/v1/exports/from-cut-plan", {
     method: "POST",
     body: JSON.stringify({
       jobId: blockedRun.body.jobId,
@@ -491,7 +642,33 @@ try {
       outputURL: join(temporaryRoot, "cross-project.mp4"),
     }),
   });
-  expectStatus(crossProjectExport.response.status, 404, crossProjectExport.body);
+  yield* expectStatus(crossProjectExport.response.status, 404, crossProjectExport.body);
+
+  for (let index = 0; index < 5; index++) {
+    yield* Effect.all(
+      [projectPath, otherProjectPath].map((path) =>
+        request(engine, "/v1/project/open", {
+          method: "POST",
+          body: JSON.stringify({ projectPath: path }),
+        }),
+      ),
+      { concurrency: 2 },
+    );
+    const active = yield* request(engine, "/v1/project/current");
+    yield* expectStatus(active.response.status, 200, active.body);
+    const analysis = yield* Schema.decodeUnknownEffect(
+      Schema.UndefinedOr(Schema.NullOr(WireObject)),
+    )(active.body.agentAnalysis);
+    if (
+      active.body.projectPath === otherProjectPath &&
+      analysis?.latestJobId !== undefined &&
+      analysis?.latestJobId !== null
+    ) {
+      return yield* new AgentSmokeError({
+        message: "Delayed recovery attached a previous project's run to the active project.",
+      });
+    }
+  }
 
   console.log(
     JSON.stringify(
@@ -506,10 +683,8 @@ try {
       2,
     ),
   );
-} finally {
-  engine.kill("SIGTERM");
-  await Promise.race([engine.exited, Bun.sleep(5000)]);
-  if (!process.argv.includes("--keep")) {
-    rmSync(temporaryRoot, { recursive: true, force: true });
-  }
-}
+}, Effect.scoped);
+
+NodeRuntime.runMain(
+  main().pipe(Effect.provide(NodeHttpClient.layerNodeHttp), Effect.provide(NodeServices.layer)),
+);

@@ -38,6 +38,8 @@ export function getStudioMessages(locale: string | null | undefined) {
       captureStopped: m.studio_notices_captureStopped(undefined, options),
       recordingStarted: m.studio_notices_recordingStarted(undefined, options),
       recordingFinished: m.studio_notices_recordingFinished(undefined, options),
+      capturePermissionRequired: m.studio_notices_capturePermissionRequired(undefined, options),
+      windowSelectionFailed: m.studio_notices_windowSelectionFailed(undefined, options),
       recordingStartNotReady: m.studio_notices_recordingStartNotReady(undefined, options),
       exportMissingRecording: m.studio_notices_exportMissingRecording(undefined, options),
       exportMissingPreset: m.studio_notices_exportMissingPreset(undefined, options),

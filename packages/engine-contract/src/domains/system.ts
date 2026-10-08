@@ -56,9 +56,13 @@ export const capabilitiesResultSchema = Schema.Struct({
 /**
  * Runtime TypeScript type for engine health-check responses.
  */
-export type PingResult = Schema.Schema.Type<typeof pingResultSchema>;
+export const PingResult = pingResultSchema;
+/** Validated PingResult record. */
+export interface PingResult extends Schema.Schema.Type<typeof PingResult> {}
 
 /**
  * Runtime TypeScript type for engine capability responses.
  */
-export type CapabilitiesResult = Schema.Schema.Type<typeof capabilitiesResultSchema>;
+export const CapabilitiesResult = capabilitiesResultSchema;
+/** Validated CapabilitiesResult record. */
+export interface CapabilitiesResult extends Schema.Schema.Type<typeof CapabilitiesResult> {}

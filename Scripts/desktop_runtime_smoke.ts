@@ -1,13 +1,15 @@
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import * as NodeServices from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeServices.js";
+import {
+  Effect,
+  Exit,
+  FileSystem,
+  Path,
+  Scope,
+} from "../apps/desktop-electrobun/node_modules/effect/dist/index.js";
+import type { ChildProcessSpawner } from "../apps/desktop-electrobun/node_modules/effect/dist/process/ChildProcessSpawner.js";
+import { launchMacosApp } from "../apps/desktop-electrobun/scripts/macosApp";
 
 const repoRoot = path.resolve(import.meta.dir, "..");
 const outputDirectory = path.join(repoRoot, ".tmp", "runtime-acceptance", "latest");
@@ -70,13 +72,9 @@ function flagValue(name: string, fallback: number): number {
   return parsed;
 }
 
-async function run(
-  command: readonly string[],
-  environment?: Record<string, string>,
-): Promise<void> {
+async function run(command: readonly string[]): Promise<void> {
   const subprocess = Bun.spawn([...command], {
     cwd: repoRoot,
-    env: { ...process.env, ...environment },
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",
@@ -153,36 +151,6 @@ async function captureWindow(window: WindowRecord | null): Promise<"captured" | 
   return (await subprocess.exited) === 0 && existsSync(screenshotPath) ? "captured" : "unavailable";
 }
 
-function stopProcessGroup(processId: number): Promise<boolean> {
-  try {
-    process.kill(-processId, "SIGTERM");
-  } catch {
-    try {
-      process.kill(processId, "SIGTERM");
-    } catch {
-      return Promise.resolve(true);
-    }
-  }
-
-  return (async () => {
-    const deadline = Date.now() + 10_000;
-    while (Date.now() < deadline) {
-      try {
-        process.kill(-processId, 0);
-      } catch {
-        return true;
-      }
-      await Bun.sleep(100);
-    }
-    try {
-      process.kill(-processId, "SIGKILL");
-    } catch {
-      // The process group exited between the final poll and forced cleanup.
-    }
-    return false;
-  })();
-}
-
 function renderMarkdown(report: RuntimeSmokeReport): string {
   const checks = [
     ...Object.entries(report.milestones).map(
@@ -219,7 +187,7 @@ async function main(): Promise<void> {
   mkdirSync(outputDirectory, { recursive: true });
 
   if (!skipBuild) {
-    await run(["swift", "build", "--product", "guerillaglass-engine"]);
+    await run(["swift", "build", "-j", "2", "--product", "guerillaglass-engine"]);
     await run(["bun", "run", "desktop:build"]);
   }
   for (const requiredPath of [launcherPath, enginePath]) {
@@ -228,40 +196,64 @@ async function main(): Promise<void> {
     }
   }
 
-  const consoleFile = openSync(consoleLogPath, "w");
-  const subprocess = Bun.spawn([launcherPath], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      GG_DEBUG: "1",
-      GG_ENGINE_PATH: enginePath,
-      GG_DESKTOP_DIAGNOSTICS_LOG: diagnosticsLogPath,
-    },
-    detached: true,
-    stdin: "ignore",
-    stdout: consoleFile,
-    stderr: consoleFile,
-  });
-
+  const launchScope = await Effect.runPromise(Scope.make());
+  const runtime = <A, E>(
+    effect: Effect.Effect<
+      A,
+      E,
+      Scope.Scope | FileSystem.FileSystem | Path.Path | ChildProcessSpawner
+    >,
+  ) =>
+    Effect.runPromise(effect.pipe(Scope.provide(launchScope), Effect.provide(NodeServices.layer)));
+  let temporaryConsolePath: string | undefined;
   let window: WindowRecord | null = null;
   let screenshotStatus: "captured" | "unavailable" = "unavailable";
   let milestones = Object.fromEntries(
     startupMilestones.map((milestone) => [milestone, false]),
   ) as Record<(typeof startupMilestones)[number], boolean>;
   const errors: string[] = [];
+  let cleanupPassed = false;
 
   try {
-    milestones = await waitForStartup(subprocess.pid, timeoutMs);
+    const logs = await runtime(
+      Effect.flatMap(FileSystem.FileSystem, (fs) =>
+        fs.makeTempDirectoryScoped({ prefix: "guerillaglass-acceptance-" }),
+      ),
+    );
+    temporaryConsolePath = path.join(logs, "console.log");
+    const app = await runtime(
+      launchMacosApp({
+        bundlePath: appBundle,
+        consolePath: temporaryConsolePath,
+        env: {
+          GG_DEBUG: "1",
+          GG_ENGINE_PATH: enginePath,
+          GG_DESKTOP_DIAGNOSTICS_LOG: diagnosticsLogPath,
+        },
+      }),
+    );
+    milestones = await waitForStartup(app.pid, timeoutMs);
     window = await probeWindow();
     screenshotStatus = await captureWindow(window);
     await Bun.sleep(500);
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
+  } finally {
+    try {
+      if (temporaryConsolePath) {
+        writeFileSync(consoleLogPath, readText(temporaryConsolePath));
+      }
+    } finally {
+      try {
+        await Effect.runPromise(
+          Scope.close(launchScope, Exit.void).pipe(Effect.provide(NodeServices.layer)),
+        );
+        cleanupPassed = true;
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
   }
-
-  const cleanupPassed = await stopProcessGroup(subprocess.pid);
-  await subprocess.exited;
-  closeSync(consoleFile);
 
   const combinedLogs = `${readText(consoleLogPath)}\n${readText(diagnosticsLogPath)}`;
   const fatalMatches = fatalPatterns
@@ -276,7 +268,7 @@ async function main(): Promise<void> {
     errors.push("No visible Guerillaglass desktop window was found.");
   }
   if (!cleanupPassed) {
-    errors.push("Desktop process group did not stop within 10 seconds.");
+    errors.push("The selected desktop app instance did not stop within 10 seconds.");
   }
   if (fatalMatches.length > 0) {
     errors.push(`Fatal runtime log patterns found: ${fatalMatches.join(", ")}`);

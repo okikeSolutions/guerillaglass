@@ -97,14 +97,19 @@ function selectedIndexRuns(
   let index = 0;
 
   while (index < items.length) {
-    if (!selectedItemIds.has(items[index]!.id)) {
+    const item = items[index];
+    if (!item || !selectedItemIds.has(item.id)) {
       index += 1;
       continue;
     }
 
     const runStart = index;
     let runEnd = index;
-    while (runEnd + 1 < items.length && selectedItemIds.has(items[runEnd + 1]!.id)) {
+    while (runEnd + 1 < items.length) {
+      const nextItem = items[runEnd + 1];
+      if (!nextItem || !selectedItemIds.has(nextItem.id)) {
+        break;
+      }
       runEnd += 1;
     }
     runs.push([runStart, runEnd]);
@@ -192,8 +197,7 @@ export function liftTimelineItems(
   }
 
   let nextItems = [...timeline.items];
-  for (let runIndex = runs.length - 1; runIndex >= 0; runIndex -= 1) {
-    const [startIndex, endIndex] = runs[runIndex]!;
+  for (const [startIndex, endIndex] of [...runs].reverse()) {
     const runItems = nextItems.slice(startIndex, endIndex + 1);
     const durationSeconds = runItems.reduce(
       (sum, item) => sum + timelineItemDurationSeconds(item),

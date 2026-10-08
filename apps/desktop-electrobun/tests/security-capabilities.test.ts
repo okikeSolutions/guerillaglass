@@ -1,6 +1,9 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Effect, Exit } from "effect";
-import { describe, expect, test } from "vitest";
+import { Effect } from "effect";
+import { expect, it } from "@effect/vitest";
+import { TestClock } from "effect/testing";
+import { Layer } from "effect";
+import { describe, test } from "vitest";
 import { desktopCapabilityTokenSchema } from "@shared/bridge/desktopBridgeContract";
 import { CapabilityTokenError } from "@shared/errors/desktopErrors";
 import {
@@ -9,86 +12,81 @@ import {
 } from "@shared/errors/desktopErrorSerialization";
 import { makeCapabilityGrantService } from "../src/bun/security/DesktopCapabilities";
 
-describe("desktop capability grants", () => {
-  test("accepts a valid token for the matching scope and subject", async () => {
-    const service = await Effect.runPromise(
-      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
-    );
-    const token = await Effect.runPromise(
-      service.mint({ scope: "media:resolve-source", subject: "media:/tmp/recording.mov" }),
-    );
+const testServices = Layer.mergeAll(NodeServices.layer, TestClock.layer());
 
-    const exit = await Effect.runPromiseExit(
-      service.consume({
+describe("desktop capability grants", () => {
+  it.effect("accepts a valid token for the matching scope and subject", () =>
+    Effect.gen(function* () {
+      const service = yield* makeCapabilityGrantService();
+      const token = yield* service.mint({
+        scope: "media:resolve-source",
+        subject: "media:/tmp/recording.mov",
+      });
+      yield* service.consume({
         token,
         scope: "media:resolve-source",
         subject: "media:/tmp/recording.mov",
-      }),
-    );
+      });
+    }).pipe(Effect.provide(testServices)),
+  );
 
-    expect(Exit.isSuccess(exit)).toBe(true);
-  });
-
-  test("rejects missing or unknown tokens", async () => {
-    const service = await Effect.runPromise(
-      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
-    );
-
-    await expect(
-      Effect.runPromise(
+  it.effect("rejects missing or unknown tokens", () =>
+    Effect.gen(function* () {
+      const service = yield* makeCapabilityGrantService();
+      const error = yield* Effect.flip(
         service.consume({
           token: desktopCapabilityTokenSchema.make("missing"),
           scope: "review:mutate",
           subject: "review:abc",
         }),
-      ),
-    ).rejects.toBeInstanceOf(CapabilityTokenError);
-  });
+      );
+      expect(error).toBeInstanceOf(CapabilityTokenError);
+      expect(error.code).toBe("CAPABILITY_TOKEN_INVALID");
+    }).pipe(Effect.provide(testServices)),
+  );
 
-  test("rejects wrong scopes and wrong subjects", async () => {
-    const service = await Effect.runPromise(
-      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
-    );
-    const token = await Effect.runPromise(
-      service.mint({ scope: "media:resolve-source", subject: "media:/tmp/recording.mov" }),
-    );
-
-    await expect(
-      Effect.runPromise(
+  it.effect("rejects wrong scopes and wrong subjects", () =>
+    Effect.gen(function* () {
+      const service = yield* makeCapabilityGrantService();
+      const token = yield* service.mint({
+        scope: "media:resolve-source",
+        subject: "media:/tmp/recording.mov",
+      });
+      const scopeError = yield* Effect.flip(
         service.consume({
           token,
           scope: "capture:resolve-preview-url",
           subject: "media:/tmp/recording.mov",
         }),
-      ),
-    ).rejects.toBeInstanceOf(CapabilityTokenError);
-
-    await expect(
-      Effect.runPromise(
+      );
+      const subjectError = yield* Effect.flip(
         service.consume({
           token,
           scope: "media:resolve-source",
           subject: "media:/tmp/other.mov",
         }),
-      ),
-    ).rejects.toBeInstanceOf(CapabilityTokenError);
-  });
+      );
+      expect(scopeError).toBeInstanceOf(CapabilityTokenError);
+      expect(subjectError).toBeInstanceOf(CapabilityTokenError);
+    }).pipe(Effect.provide(testServices)),
+  );
 
-  test("enforces single-use tokens", async () => {
-    const service = await Effect.runPromise(
-      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
-    );
-    const token = await Effect.runPromise(
-      service.mint({ scope: "review:mutate", subject: "review:abc", singleUse: true }),
-    );
-
-    await Effect.runPromise(
-      service.consume({ token, scope: "review:mutate", subject: "review:abc" }),
-    );
-    await expect(
-      Effect.runPromise(service.consume({ token, scope: "review:mutate", subject: "review:abc" })),
-    ).rejects.toBeInstanceOf(CapabilityTokenError);
-  });
+  it.effect("enforces single-use tokens", () =>
+    Effect.gen(function* () {
+      const service = yield* makeCapabilityGrantService();
+      const token = yield* service.mint({
+        scope: "review:mutate",
+        subject: "review:abc",
+        singleUse: true,
+      });
+      yield* service.consume({ token, scope: "review:mutate", subject: "review:abc" });
+      const error = yield* Effect.flip(
+        service.consume({ token, scope: "review:mutate", subject: "review:abc" }),
+      );
+      expect(error).toBeInstanceOf(CapabilityTokenError);
+      expect(error.code).toBe("CAPABILITY_TOKEN_INVALID");
+    }).pipe(Effect.provide(testServices)),
+  );
 
   test("round-trips capability errors through bridge serialization", () => {
     const error = new CapabilityTokenError({
@@ -99,27 +97,30 @@ describe("desktop capability grants", () => {
     const restored = deserializeBridgeError(serializeBridgeError(error));
 
     expect(restored).toBeInstanceOf(CapabilityTokenError);
-    expect((restored as CapabilityTokenError).code).toBe("CAPABILITY_TOKEN_INVALID");
+    if (!(restored instanceof CapabilityTokenError)) {
+      throw new Error("Wrong reconstructed error");
+    }
+    expect(restored.code).toBe("CAPABILITY_TOKEN_INVALID");
     expect(restored.message).toBe("Capability token scope mismatch.");
   });
 
-  test("rejects expired tokens", async () => {
-    const service = await Effect.runPromise(
-      makeCapabilityGrantService().pipe(Effect.provide(NodeServices.layer)),
-    );
-    const token = await Effect.runPromise(
-      service.mint({ scope: "capture:resolve-preview-url", subject: "capture:abc", ttlMs: 1 }),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 5));
-
-    await expect(
-      Effect.runPromise(
+  it.effect("rejects expired tokens", () =>
+    Effect.gen(function* () {
+      const service = yield* makeCapabilityGrantService();
+      const token = yield* service.mint({
+        scope: "capture:resolve-preview-url",
+        subject: "capture:abc",
+        ttlMs: 1,
+      });
+      yield* TestClock.adjust("5 millis");
+      const error = yield* Effect.flip(
         service.consume({
           token,
           scope: "capture:resolve-preview-url",
           subject: "capture:abc",
         }),
-      ),
-    ).rejects.toBeInstanceOf(CapabilityTokenError);
-  });
+      );
+      expect(error).toBeInstanceOf(CapabilityTokenError);
+    }).pipe(Effect.provide(testServices)),
+  );
 });

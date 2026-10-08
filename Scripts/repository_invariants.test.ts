@@ -22,6 +22,10 @@ beforeEach(() => {
     writeFixture(guidePath, "# Guide\n");
   }
   writeFixture(
+    "docs/CHANGE_MAP.md",
+    "# Change map\n\n### Local check selection\n\n| Area | Local checks |\n| --- | --- |\n| Guidance | `bun run prepare` |\n\n### Focused tests\n",
+  );
+  writeFixture(
     "package.json",
     JSON.stringify({
       scripts: { prepare: "effect-tsgo patch" },
@@ -102,6 +106,23 @@ describe("repository invariants", () => {
     const result = runCheck();
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("root devDependencies must pin the TypeScript 7 compiler");
+  });
+
+  test("requires the canonical protocol generator to use Bun for JavaScript tools", () => {
+    writeFixture(
+      "Scripts/generate_engine_protocol_v2.sh",
+      "#!/bin/bash\nnpx --yes @openapitools/openapi-generator-cli generate\n",
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "generate_engine_protocol_v2.sh must invoke JavaScript tools through Bun",
+    );
+    writeFixture(
+      "Scripts/generate_engine_protocol_v2.sh",
+      "#!/bin/bash\nbunx @openapitools/openapi-generator-cli generate\n",
+    );
+    expect(runCheck().exitCode).toBe(0);
   });
 
   test("rejects TypeScript versions older than the documented native backend", () => {
@@ -233,6 +254,81 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("[dependencies] does not match");
   });
 
+  test("rejects Effect casts, hidden dependencies, and cause-level recovery", () => {
+    writeFixture(
+      "packages/example/src/service.ts",
+      `
+      import { Context, Data, Effect, Schema } from "effect";
+      const service = Context.Reference("hidden", { defaultValue: () => null });
+      const failure = Data.TaggedError("Failure");
+      const record = Schema.Class("Record")({});
+      const effect = Effect.succeed(1) as Effect.Effect<string, never, never>;
+      const input = process.env.TOKEN!;
+      const recovered = effect.pipe(Effect.catchCause(() => Effect.succeed(null)));
+    `,
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("must preserve Effect success, error, and service types");
+    expect(result.stderr).toContain("must expose application dependencies through Context.Service");
+    expect(result.stderr).toContain(
+      "must use Schema.Struct records and Schema.TaggedError failures",
+    );
+    expect(result.stderr).toContain("must recover typed failures");
+    expect(result.stderr).toContain("must read application settings through Config");
+  });
+
+  test("rejects function wrappers around lazy zero-argument Effect service operations", () => {
+    writeFixture(
+      "packages/example/src/service.ts",
+      `
+      import { Context, Effect } from "effect";
+      class Example extends Context.Service<Example, { readonly read: Effect.Effect<number> }>()("example/Example") {}
+      export const layer = Example.of({
+        read: Effect.fn("Example.read")(() => Effect.succeed(1)),
+      });
+    `,
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "must expose zero-argument service operations as lazy Effects instead of functions returning Effects",
+    );
+
+    writeFixture(
+      "packages/example/src/service.ts",
+      `
+      import { Context, Effect } from "effect";
+      class Example extends Context.Service<Example, { readonly read: Effect.Effect<number> }>()("example/Example") {}
+      export const layer = Example.of({ read: Effect.succeed(1) });
+    `,
+    );
+    expect(runCheck().exitCode).toBe(0);
+  });
+
+  test("fails when source cannot be parsed for Effect inspection", () => {
+    writeFixture(
+      "packages/example/src/service.ts",
+      'import { Effect } from "effect"; export const =',
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("cannot inspect Effect practices because parsing failed");
+  });
+
+  test("ignores comments and strings that describe forbidden Effect practices", () => {
+    writeFixture(
+      "packages/example/src/service.ts",
+      `
+      import { Effect } from "effect";
+      // Effect.catchCause and process.env are prohibited in application services.
+      export const description = "as Effect.Effect<string, never, never>";
+      export const operation = Effect.fn("Example.operation")(() => Effect.succeed(1));
+    `,
+    );
+    expect(runCheck()).toMatchObject({ exitCode: 0 });
+  });
+
   test("reports localization key and placeholder drift", () => {
     writeFixture(
       "messages/de-DE.json",
@@ -250,6 +346,26 @@ describe("repository invariants", () => {
     const result = runCheck();
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("broken local Markdown link in AGENTS.md");
+  });
+
+  test("reports stale commands in the local verification table", () => {
+    writeFixture(
+      "docs/CHANGE_MAP.md",
+      "### Local check selection\n\n| Area | Checks |\n| --- | --- |\n| Rust | `bun run missing:fast <crate>` |\n\n### Other examples\n\n`bun run unrelated:example`\n",
+    );
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "verification table references missing root package script: missing:fast",
+    );
+    expect(result.stderr).not.toContain("unrelated:example");
+  });
+
+  test("reports a missing verification selection table", () => {
+    writeFixture("docs/CHANGE_MAP.md", "# Change map\n");
+    const result = runCheck();
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("must contain a Local check selection table with Bun commands");
   });
 });
 

@@ -1,11 +1,6 @@
 import { Buffer } from "node:buffer";
-import { Effect, FileSystem, Layer, Option, Path } from "effect";
-import {
-  HttpPlatform,
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "effect/unstable/http";
+import { Effect, FileSystem, Layer, Option, Path, Schema } from "effect";
+import { HttpPlatform, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -19,10 +14,8 @@ const mediaRoutePrefix = "/media/";
 const livePreviewMimeType = "image/jpeg";
 const tokenPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type ByteRange = {
-  start: number;
-  end: number;
-};
+const ByteRange = Schema.Struct({ start: Schema.Finite, end: Schema.Finite });
+interface ByteRange extends Schema.Schema.Type<typeof ByteRange> {}
 
 function parseByteRange(rangeHeader: string, size: number): ByteRange | null {
   const trimmedRangeHeader = rangeHeader.trim();
@@ -103,23 +96,27 @@ function decodePreviewFrame(frame: NonNullable<CapturePreviewFrameResult["frame"
   return Uint8Array.from(Buffer.from(frame.bytesBase64, "base64"));
 }
 
-function logDebugEffect(message: string): Effect.Effect<void> {
+const logDebugEffect = Effect.fn("MediaHttpRoutes.logDebugEffect")(function (
+  message: string,
+): Effect.Effect<void> {
   return Effect.gen(function* () {
     const config = yield* Effect.serviceOption(AppConfig);
     if (Option.isSome(config) && config.value.mediaServerDebugLoggingEnabled) {
       yield* Effect.logInfo(message);
     }
   });
-}
+});
 
-function logDebugWarningEffect(message: string): Effect.Effect<void> {
+const logDebugWarningEffect = Effect.fn("MediaHttpRoutes.logDebugWarningEffect")(function (
+  message: string,
+): Effect.Effect<void> {
   return Effect.gen(function* () {
     const config = yield* Effect.serviceOption(AppConfig);
     if (Option.isSome(config) && config.value.mediaServerDebugLoggingEnabled) {
       yield* Effect.logWarning(message);
     }
   });
-}
+});
 
 function validateToken(rawToken: string): string | null {
   if (rawToken.length === 0 || rawToken.length > maxTokenPathSegmentLength) {
@@ -134,13 +131,13 @@ function validateToken(rawToken: string): string | null {
   return tokenPattern.test(token) ? token : null;
 }
 
-function handlePreviewRequest(
+const handlePreviewRequest = Effect.fn("MediaHttpRoutes.handlePreviewRequest")(function (
   token: string,
   entry: PreviewTokenEntry,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, MediaServerError, MediaRegistry> {
   return Effect.gen(function* () {
     const registry = yield* MediaRegistry;
-    const frame = yield* entry.loadPreviewFrame.pipe(
+    const frame = yield* entry.loadPreviewFrame().pipe(
       Effect.mapError(
         (cause) =>
           new MediaServerError({
@@ -178,9 +175,9 @@ function handlePreviewRequest(
       headers: previewHeaders(jpegBytes.byteLength),
     });
   });
-}
+});
 
-function handleFileRequest(
+const handleFileRequest = Effect.fn("MediaHttpRoutes.handleFileRequest")(function (
   request: HttpServerRequest.HttpServerRequest,
   token: string,
   entry: MediaTokenEntry,
@@ -267,7 +264,7 @@ function handleFileRequest(
       ),
     );
   });
-}
+});
 
 function statusForMediaError(error: MediaServerError): number {
   switch (error.code) {
@@ -279,6 +276,7 @@ function statusForMediaError(error: MediaServerError): number {
       return 400;
     case "MEDIA_SERVER_BIND_FAILED":
     case "MEDIA_SERVER_PORT_RESERVATION_FAILED":
+    case "MEDIA_TOKEN_GENERATION_FAILED":
       return 500;
   }
 }

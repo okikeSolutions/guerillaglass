@@ -1,10 +1,10 @@
 import { createServer } from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import { Context, Crypto, Effect, FileSystem, Layer, Path } from "effect";
-import { HttpRouter, HttpServer } from "effect/unstable/http";
-import { NetAddress } from "effect/unstable/net";
+import { HttpRouter, HttpServer } from "effect/http";
+import { NetAddress } from "effect/net";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
-import { AppConfig } from "../app/AppConfig";
+import { NoFollowFileIO } from "../security/NoFollowFileIO";
 import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { copySafeFileSnapshot } from "../security/fileAccess";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -15,7 +15,7 @@ import { MediaRegistry, layerMediaRegistry } from "./MediaRegistry";
 export type MediaSourceServiceType = {
   resolveMediaSourceURL: (filePath: string) => Effect.Effect<string, MediaServerError>;
   resolveCapturePreviewURL: (
-    loadPreviewFrame: Effect.Effect<CapturePreviewFrameResult, unknown>,
+    loadPreviewFrame: () => Effect.Effect<CapturePreviewFrameResult, unknown>,
   ) => Effect.Effect<string, MediaServerError>;
 };
 
@@ -25,7 +25,7 @@ export class MediaSourceService extends Context.Service<
   MediaSourceServiceType
 >()("@guerillaglass/desktop/MediaSourceService") {}
 
-function originFromAddress(
+const originFromAddress = Effect.fn("service.originFromAddress")(function (
   address: NetAddress.SocketAddress,
 ): Effect.Effect<string, MediaServerError> {
   if (address._tag === "UnixPathAddress") {
@@ -40,7 +40,7 @@ function originFromAddress(
   const hostname = boundAddress === "0.0.0.0" || boundAddress === "::" ? "127.0.0.1" : boundAddress;
   const urlHostname = hostname.includes(":") ? `[${hostname}]` : hostname;
   return Effect.succeed(`http://${urlHostname}:${address.port}`);
-}
+});
 
 export const layerMediaSourceServiceCore = Layer.effect(
   MediaSourceService,
@@ -49,16 +49,21 @@ export const layerMediaSourceServiceCore = Layer.effect(
     const server = yield* HttpServer.HttpServer;
     const crypto = yield* Crypto.Crypto;
     const fs = yield* FileSystem.FileSystem;
+    const io = yield* NoFollowFileIO;
     const path = yield* Path.Path;
     const tempDirectory = yield* DesktopTempDirectory;
     const origin = yield* originFromAddress(server.address);
 
-    const snapshotMediaFile = (filePath: string) =>
+    const snapshotMediaFile = Effect.fn("service.snapshotMediaFile")((filePath: string) =>
       Effect.gen(function* () {
         const extension = path.extname(filePath).toLowerCase();
         const id = yield* crypto.randomUUIDv4;
         const destinationPath = path.join(tempDirectory.path, `media-${id}${extension}`);
-        return yield* Effect.tryPromise(() => copySafeFileSnapshot(filePath, destinationPath));
+        return yield* copySafeFileSnapshot(filePath, destinationPath).pipe(
+          Effect.provideService(FileSystem.FileSystem, fs),
+          Effect.provideService(Path.Path, path),
+          Effect.provideService(NoFollowFileIO, io),
+        );
       }).pipe(
         Effect.mapError(
           (cause) =>
@@ -68,24 +73,33 @@ export const layerMediaSourceServiceCore = Layer.effect(
               cause,
             }),
         ),
-      );
+      ),
+    );
 
     return MediaSourceService.of({
-      resolveMediaSourceURL: (filePath) =>
-        snapshotMediaFile(filePath).pipe(
-          Effect.flatMap((snapshotPath) => registry.registerMediaFile(snapshotPath)),
-          Effect.provideService(FileSystem.FileSystem, fs),
-          Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
-        ),
-      resolveCapturePreviewURL: (loadPreviewFrame) =>
-        registry.registerCapturePreview(loadPreviewFrame).pipe(
-          Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
-          Effect.tap((previewURL) =>
-            Effect.logInfo("capture preview media URL registered").pipe(
-              Effect.annotateLogs({ component: "media-source", previewURL }),
+      resolveMediaSourceURL: Effect.fn("MediaSourceService.resolveMediaSourceURL")(
+        (filePath: Parameters<(typeof MediaSourceService.Service)["resolveMediaSourceURL"]>[0]) =>
+          snapshotMediaFile(filePath).pipe(
+            Effect.flatMap((snapshotPath) => registry.registerMediaFile(snapshotPath)),
+            Effect.provideService(FileSystem.FileSystem, fs),
+            Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
+          ),
+      ),
+      resolveCapturePreviewURL: Effect.fn("MediaSourceService.resolveCapturePreviewURL")(
+        (
+          loadPreviewFrame: Parameters<
+            (typeof MediaSourceService.Service)["resolveCapturePreviewURL"]
+          >[0],
+        ) =>
+          registry.registerCapturePreview(loadPreviewFrame).pipe(
+            Effect.map((token) => `${origin}/media/${encodeURIComponent(token)}`),
+            Effect.tap((previewURL) =>
+              Effect.logInfo("capture preview media URL registered").pipe(
+                Effect.annotateLogs({ component: "media-source", previewURL }),
+              ),
             ),
           ),
-        ),
+      ),
     });
   }),
 );
@@ -101,15 +115,10 @@ const layerServedMediaRoutes = HttpRouter.serve(layerMediaHttpRoutes, {
   disableListenLog: true,
 });
 
-/** Builds the scoped media source layer and owns media HTTP server shutdown. */
-export function makeLayerMediaSourceService() {
-  const mediaInfrastructureLayer = layerMediaRegistry.pipe(
-    Layer.provideMerge(layerMediaHttpServer),
-  );
-  return Layer.mergeAll(layerMediaSourceServiceCore, layerServedMediaRoutes).pipe(
-    Layer.provideMerge(mediaInfrastructureLayer),
-  ) as Layer.Layer<MediaSourceService, never, AppConfig | DesktopTempDirectory>;
-}
+const mediaInfrastructureLayer = layerMediaRegistry.pipe(Layer.provideMerge(layerMediaHttpServer));
 
-/** Default media source layer used by the desktop app runtime. */
-export const layerMediaSourceService = makeLayerMediaSourceService();
+/** Scoped media source layer. It owns media HTTP server shutdown. */
+export const layerMediaSourceService = Layer.mergeAll(
+  layerMediaSourceServiceCore,
+  layerServedMediaRoutes,
+).pipe(Layer.provide(mediaInfrastructureLayer));

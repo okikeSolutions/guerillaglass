@@ -9,7 +9,7 @@ const basePayload = {
 
 describe("vertical camera export contract", () => {
   it("accepts an optional per-export auto-zoom override", () => {
-    const decoded = Schema.decodeUnknownSync(exportRunPayloadSchema)({
+    const decoded = Schema.decodeSync(exportRunPayloadSchema)({
       ...basePayload,
       autoZoom: {
         isEnabled: true,
@@ -26,6 +26,6 @@ describe("vertical camera export contract", () => {
   });
 
   it("keeps the override optional for older clients", () => {
-    expect(Schema.decodeUnknownSync(exportRunPayloadSchema)(basePayload).autoZoom).toBeUndefined();
+    expect(Schema.decodeSync(exportRunPayloadSchema)(basePayload).autoZoom).toBeUndefined();
   });
 });

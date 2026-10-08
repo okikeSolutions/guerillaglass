@@ -1,10 +1,5 @@
 import { Schema } from "effect";
-import {
-  HttpApiMiddleware,
-  HttpApiSchema,
-  HttpApiSecurity,
-  OpenApi,
-} from "effect/unstable/httpapi";
+import { HttpApiMiddleware, HttpApiSchema, HttpApiSecurity, OpenApi } from "effect/http-api";
 import { NonEmptyString } from "./shared/helpers";
 
 /**
@@ -137,3 +132,21 @@ export class EngineAuthMiddleware extends HttpApiMiddleware.Service<EngineAuthMi
  * Runtime TypeScript union of stable engine error codes.
  */
 export type EngineErrorCode = Schema.Schema.Type<typeof engineErrorCodeSchema>;
+
+export interface EngineBadRequestError extends Schema.Schema.Type<typeof EngineBadRequestError> {}
+
+export interface EngineUnauthorizedError extends Schema.Schema.Type<
+  typeof EngineUnauthorizedError
+> {}
+
+export interface EngineForbiddenError extends Schema.Schema.Type<typeof EngineForbiddenError> {}
+
+export interface EngineNotFoundError extends Schema.Schema.Type<typeof EngineNotFoundError> {}
+
+export interface EngineConflictError extends Schema.Schema.Type<typeof EngineConflictError> {}
+
+export interface EngineUnprocessableError extends Schema.Schema.Type<
+  typeof EngineUnprocessableError
+> {}
+
+export interface EngineRuntimeError extends Schema.Schema.Type<typeof EngineRuntimeError> {}

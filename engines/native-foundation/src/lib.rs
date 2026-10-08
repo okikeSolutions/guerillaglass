@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-mod agent;
 mod capture;
 mod export;
 mod handlers;
@@ -25,7 +24,6 @@ pub const ENGINE_VERSION: &str = "0.4.0-native-foundation";
 /// Native foundation phase reported in capability responses.
 pub const ENGINE_PHASE: &str = "foundation";
 pub(crate) const DEFAULT_RECENTS_LIMIT: usize = 10;
-pub(crate) const PREFLIGHT_TOKEN_TTL_SECONDS: i64 = 60;
 pub(crate) const DEFAULT_CAPTURE_FRAME_RATES: [u64; 3] = [24, 30, 60];
 
 /// Runtime configuration for the native foundation engine loop.
@@ -86,80 +84,6 @@ mod tests {
         }
     }
 
-    fn with_force_override<T>(callback: impl FnOnce() -> T) -> T {
-        let key = "GG_AGENT_ALLOW_FORCE";
-        let previous = std::env::var_os(key);
-        // SAFETY: test-only scoped environment override for deterministic fixtures.
-        unsafe { std::env::set_var(key, "1") };
-        let result = callback();
-        match previous {
-            Some(value) => {
-                // SAFETY: restoring prior process env state after test callback.
-                unsafe { std::env::set_var(key, value) };
-            }
-            None => {
-                // SAFETY: restoring prior process env state after test callback.
-                unsafe { std::env::remove_var(key) };
-            }
-        }
-        result
-    }
-
-    fn write_imported_transcript(root: &Path) -> String {
-        let transcript_path = root.join("analysis").join("imported-transcript.json");
-        fs::create_dir_all(
-            transcript_path
-                .parent()
-                .expect("imported transcript parent directory"),
-        )
-        .expect("create transcript directory");
-        fs::write(
-            &transcript_path,
-            json!({
-                "segments": [
-                    { "startSeconds": 0.0, "endSeconds": 2.0, "text": "Hook action payoff takeaway" }
-                ],
-                "words": [
-                    { "word": "Hook", "startSeconds": 0.0, "endSeconds": 0.5 },
-                    { "word": "action", "startSeconds": 0.5, "endSeconds": 1.0 },
-                    { "word": "payoff", "startSeconds": 1.0, "endSeconds": 1.5 },
-                    { "word": "takeaway", "startSeconds": 1.5, "endSeconds": 2.0 }
-                ]
-            })
-            .to_string(),
-        )
-        .expect("write imported transcript");
-        transcript_path.to_string_lossy().to_string()
-    }
-
-    fn write_hook_only_transcript(root: &Path) -> String {
-        let transcript_path = root
-            .join("analysis")
-            .join("imported-transcript-hook-only.json");
-        fs::create_dir_all(
-            transcript_path
-                .parent()
-                .expect("imported transcript parent directory"),
-        )
-        .expect("create transcript directory");
-        fs::write(
-            &transcript_path,
-            json!({
-                "segments": [
-                    { "startSeconds": 0.0, "endSeconds": 1.0, "text": "Hook intro opening" }
-                ],
-                "words": [
-                    { "word": "Hook", "startSeconds": 0.0, "endSeconds": 0.3 },
-                    { "word": "intro", "startSeconds": 0.3, "endSeconds": 0.6 },
-                    { "word": "opening", "startSeconds": 0.6, "endSeconds": 1.0 }
-                ]
-            })
-            .to_string(),
-        )
-        .expect("write imported transcript");
-        transcript_path.to_string_lossy().to_string()
-    }
-
     fn expect_success(response: EngineResponse) -> Value {
         match response {
             EngineResponse::Success { result, .. } => result,
@@ -180,20 +104,6 @@ mod tests {
                 error.message
             }
         }
-    }
-
-    fn ready_preflight_token(state: &mut State, params: Value) -> String {
-        let response = handle_request(
-            "linux",
-            state,
-            &request("pf", EngineMethod::AgentPreflight, params),
-        );
-        let result = expect_success(response);
-        result
-            .get("preflightToken")
-            .and_then(Value::as_str)
-            .map(String::from)
-            .expect("expected ready preflight token")
     }
 
     #[test]
@@ -349,15 +259,70 @@ mod tests {
     }
 
     #[test]
-    fn export_run_requires_output_url() {
-        with_state("export-run-missing-output", |state, _| {
-            let response = handle_request(
-                "linux",
-                state,
-                &request("r9", EngineMethod::ExportRun, json!({})),
-            );
-            let message = expect_error(response, ProtocolErrorCode::InvalidParams);
-            assert_eq!(message, "outputURL is required");
+    fn export_run_rejects_invalid_requests_without_mutating_output_or_state() {
+        with_state("export-run-invalid-request", |state, root| {
+            let output_path = root.join("existing.mp4");
+            let unsupported_path = root.join("existing.txt");
+            let directory_path = root.join("directory.mp4");
+            fs::write(&output_path, b"previous export").expect("write existing export");
+            fs::write(&unsupported_path, b"unrelated file").expect("write unrelated file");
+            fs::create_dir(&directory_path).expect("create invalid directory target");
+            let previous_settings = BackgroundFramingParams {
+                enabled: true,
+                ..BackgroundFramingParams::default()
+            };
+            state.latest_export_background_framing = Some(previous_settings.clone());
+            let cases = [
+                (json!({}), ProtocolErrorCode::InvalidParams),
+                (json!({ "outputURL": 42 }), ProtocolErrorCode::InvalidParams),
+                (
+                    json!({ "outputURL": "relative.mp4" }),
+                    ProtocolErrorCode::InvalidParams,
+                ),
+                (
+                    json!({ "outputURL": unsupported_path.to_string_lossy() }),
+                    ProtocolErrorCode::InvalidParams,
+                ),
+                (
+                    json!({
+                        "outputURL": output_path.to_string_lossy(),
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#112233",
+                            "paddingFraction": 0.26,
+                            "cornerRadiusFraction": 0.04,
+                            "shadowStrength": 0.5
+                        }
+                    }),
+                    ProtocolErrorCode::InvalidParams,
+                ),
+                (
+                    json!({ "outputURL": directory_path.to_string_lossy() }),
+                    ProtocolErrorCode::PermissionDenied,
+                ),
+            ];
+            for (params, code) in cases {
+                let response = handle_request(
+                    "linux",
+                    state,
+                    &request("invalid-export", EngineMethod::ExportRun, params),
+                );
+                expect_error(response, code);
+                assert_eq!(
+                    fs::read(&output_path).expect("read previous export"),
+                    b"previous export"
+                );
+                assert_eq!(
+                    fs::read(&unsupported_path).expect("read unrelated file"),
+                    b"unrelated file"
+                );
+                assert!(directory_path.is_dir());
+                assert_eq!(
+                    state.latest_export_background_framing,
+                    Some(previous_settings.clone())
+                );
+            }
         });
     }
 
@@ -480,225 +445,6 @@ mod tests {
             let message = expect_error(response, ProtocolErrorCode::PermissionDenied);
             assert!(message.contains("symlink"));
             assert_eq!(fs::read(&target_path).expect("read target"), b"outside");
-        });
-    }
-
-    #[test]
-    fn agent_run_requires_project_and_recording() {
-        with_state("agent-run-requires-project-recording", |state, _| {
-            let response = handle_request(
-                "linux",
-                state,
-                &request("r13", EngineMethod::AgentRun, json!({})),
-            );
-            let message = expect_error(response, ProtocolErrorCode::PreflightExpired);
-            assert!(message.contains("preflightToken"));
-        });
-    }
-
-    #[test]
-    fn agent_apply_enforces_confirmation_and_qa_gate() {
-        with_force_override(|| {
-            with_state("agent-apply-gates", |state, root| {
-                state.project_path = Some(root.join("project").to_string_lossy().to_string());
-                state.recording_url = Some("native://recordings/session.mp4".to_string());
-                let imported_transcript_path = write_imported_transcript(root);
-                let blocked_transcript_path = write_hook_only_transcript(root);
-                let successful_preflight_token = ready_preflight_token(
-                    state,
-                    json!({
-                        "transcriptionProvider": "imported_transcript",
-                        "importedTranscriptPath": imported_transcript_path,
-                    }),
-                );
-
-                let successful_run = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r14",
-                        EngineMethod::AgentRun,
-                        json!({
-                            "preflightToken": successful_preflight_token,
-                            "transcriptionProvider": "imported_transcript",
-                            "importedTranscriptPath": imported_transcript_path,
-                        }),
-                    ),
-                );
-                let successful_result = expect_success(successful_run);
-                let successful_job_id = successful_result["jobId"]
-                    .as_str()
-                    .expect("successful run jobId");
-
-                let confirmation_required = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r15",
-                        EngineMethod::AgentApply,
-                        json!({ "jobId": successful_job_id }),
-                    ),
-                );
-                let confirmation_message =
-                    expect_error(confirmation_required, ProtocolErrorCode::NeedsConfirmation);
-                assert!(confirmation_message.contains("Unsaved project changes"));
-
-                let apply_success = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r16",
-                        EngineMethod::AgentApply,
-                        json!({ "jobId": successful_job_id, "destructiveIntent": true }),
-                    ),
-                );
-                let apply_success_result = expect_success(apply_success);
-                assert_eq!(apply_success_result["success"], json!(true));
-
-                let blocked_preflight_token = ready_preflight_token(
-                    state,
-                    json!({
-                        "transcriptionProvider": "imported_transcript",
-                        "importedTranscriptPath": blocked_transcript_path,
-                    }),
-                );
-                let blocked_run = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r17",
-                        EngineMethod::AgentRun,
-                        json!({
-                            "preflightToken": blocked_preflight_token,
-                            "transcriptionProvider": "imported_transcript",
-                            "importedTranscriptPath": blocked_transcript_path,
-                        }),
-                    ),
-                );
-                let blocked_result = expect_success(blocked_run);
-                let blocked_job_id = blocked_result["jobId"].as_str().expect("blocked run jobId");
-                let blocked_status = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r17_status",
-                        EngineMethod::AgentStatus,
-                        json!({ "jobId": blocked_job_id }),
-                    ),
-                );
-                let blocked_status_result = expect_success(blocked_status);
-                assert_eq!(
-                    blocked_status_result["blockingReason"],
-                    json!("weak_narrative_structure")
-                );
-                let blocked_apply = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r18",
-                        EngineMethod::AgentApply,
-                        json!({ "jobId": blocked_job_id, "destructiveIntent": true }),
-                    ),
-                );
-                let blocked_message = expect_error(blocked_apply, ProtocolErrorCode::QaFailed);
-                assert!(blocked_message.contains("Narrative QA failed"));
-            })
-        });
-    }
-
-    #[test]
-    fn export_run_cut_plan_requires_passing_qa() {
-        with_force_override(|| {
-            with_state("export-run-cut-plan", |state, root| {
-                state.project_path = Some(root.join("project").to_string_lossy().to_string());
-                state.recording_url = Some("native://recordings/session.mp4".to_string());
-                let imported_transcript_path = write_imported_transcript(root);
-                let blocked_transcript_path = write_hook_only_transcript(root);
-                let successful_preflight_token = ready_preflight_token(
-                    state,
-                    json!({
-                        "transcriptionProvider": "imported_transcript",
-                        "importedTranscriptPath": imported_transcript_path,
-                    }),
-                );
-
-                let successful_run = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r19",
-                        EngineMethod::AgentRun,
-                        json!({
-                            "preflightToken": successful_preflight_token,
-                            "transcriptionProvider": "imported_transcript",
-                            "importedTranscriptPath": imported_transcript_path,
-                        }),
-                    ),
-                );
-                let successful_result = expect_success(successful_run);
-                let successful_job_id = successful_result["jobId"]
-                    .as_str()
-                    .expect("successful run jobId");
-
-                let output_url = root.join("exports").join("cut-plan.mp4");
-                let export_response = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r20",
-                        EngineMethod::ExportRunCutPlan,
-                        json!({
-                            "jobId": successful_job_id,
-                            "presetId": "h264-1080p-30",
-                            "outputURL": output_url.to_string_lossy(),
-                        }),
-                    ),
-                );
-                let export_result = expect_success(export_response);
-                assert_eq!(export_result["appliedSegments"], json!(4));
-                assert!(
-                    output_url.exists(),
-                    "expected cut-plan output file to be written"
-                );
-
-                let blocked_preflight_token = ready_preflight_token(
-                    state,
-                    json!({
-                        "transcriptionProvider": "imported_transcript",
-                        "importedTranscriptPath": blocked_transcript_path,
-                    }),
-                );
-                let blocked_run = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r21",
-                        EngineMethod::AgentRun,
-                        json!({
-                            "preflightToken": blocked_preflight_token,
-                            "transcriptionProvider": "imported_transcript",
-                            "importedTranscriptPath": blocked_transcript_path,
-                        }),
-                    ),
-                );
-                let blocked_result = expect_success(blocked_run);
-                let blocked_job_id = blocked_result["jobId"].as_str().expect("blocked run jobId");
-                let blocked_export = handle_request(
-                    "linux",
-                    state,
-                    &request(
-                        "r22",
-                        EngineMethod::ExportRunCutPlan,
-                        json!({
-                            "jobId": blocked_job_id,
-                            "presetId": "h264-1080p-30",
-                            "outputURL": output_url.to_string_lossy(),
-                        }),
-                    ),
-                );
-                let blocked_message = expect_error(blocked_export, ProtocolErrorCode::QaFailed);
-                assert!(blocked_message.contains("Narrative QA failed"));
-            })
         });
     }
 

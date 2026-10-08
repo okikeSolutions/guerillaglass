@@ -31,14 +31,9 @@ The renderer talks through typed bridge/query boundaries. Do not import Bun or n
 
 Use unit tests for pure commands and model parsing, component tests for view dispatch/state, Vitest Browser for pointer/keyboard/media interactions, and parity tests for real engine-client behavior.
 
-```bash
-bun run i18n:compile
-bun run desktop:typecheck
-bun run desktop:test
-bun run desktop:test:ui
-bun run desktop:test:e2e
-bun run desktop:acceptance
-```
+Before choosing commands, use [Verification selection](../../docs/CHANGE_MAP.md#verification-selection) for focused unit/browser tests, localization setup, native parity checks, and packaged acceptance. Select every affected subsystem.
+
+For Peekaboo permission checks, the GUI bridge socket, and acceptance artifact locations, read [Test & Coverage](README.md#test--coverage) before packaged-app verification.
 
 Desktop work is not complete from code-level tests alone. On macOS, run the
 packaged Electrobun application through `desktop:acceptance`, then use Peekaboo

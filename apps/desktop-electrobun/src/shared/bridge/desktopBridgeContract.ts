@@ -83,7 +83,7 @@ import {
   reviewIdSchema,
   windowIdSchema,
 } from "@guerillaglass/engine-contract/schema-primitives";
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 import {
   captureStartCurrentWindowPayloadSchema,
   captureStartDisplayPayloadSchema,
@@ -96,8 +96,7 @@ import {
 } from "@guerillaglass/engine-contract/httpApi";
 import type { RPCSchema } from "electrobun/bun";
 import type { SerializedBridgeError } from "../errors/desktopErrors";
-import { studioShortcutOverridesSchema, type StudioShortcutOverrides } from "../shortcuts";
-import type { StudioDiagnosticsValue } from "../studioDiagnostics";
+import { studioShortcutOverridesSchema } from "../shortcuts";
 
 function greaterThanOrEqualTo(minimum: number) {
   return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
@@ -105,7 +104,7 @@ function greaterThanOrEqualTo(minimum: number) {
 }
 
 const nonNegativeIntSchema = Schema.Int.pipe(greaterThanOrEqualTo(0));
-const nonNegativeNumberSchema = Schema.Number.pipe(greaterThanOrEqualTo(0));
+const nonNegativeNumberSchema = Schema.Finite.pipe(greaterThanOrEqualTo(0));
 
 export const hostMenuCommands = {
   appRefresh: "app.refresh",
@@ -134,19 +133,7 @@ export const hostBridgeEventNames = {
 } as const;
 
 export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCommands];
-export const hostMenuCommandList = Object.values(hostMenuCommands) as HostMenuCommand[];
-
-export type HostMenuState = {
-  canSave: boolean;
-  canExport: boolean;
-  canTrimTimeline: boolean;
-  canToggleTimeline: boolean;
-  isRecording: boolean;
-  recordingURL?: string | null;
-  locale?: string;
-  densityMode?: "comfortable" | "compact";
-  shortcutOverrides?: StudioShortcutOverrides;
-};
+export const hostMenuCommandList = Object.values(hostMenuCommands);
 
 export const hostMenuStateSchema = Schema.Struct({
   canSave: Schema.Boolean,
@@ -160,22 +147,14 @@ export const hostMenuStateSchema = Schema.Struct({
   shortcutOverrides: Schema.optional(studioShortcutOverridesSchema),
 });
 
-export type DesktopRuntimeFlags = {
-  captureBenchmarkEnabled: boolean;
-  studioDiagnosticsEnabled: boolean;
-};
+export const DesktopRuntimeFlags = Schema.Struct({
+  captureBenchmarkEnabled: Schema.Boolean,
+  studioDiagnosticsEnabled: Schema.Boolean,
+});
+export interface DesktopRuntimeFlags extends Schema.Schema.Type<typeof DesktopRuntimeFlags> {}
 
 /** Host path-picker modes used by renderer workflows. */
 export type HostPathPickerMode = "openProject" | "saveProjectAs" | "export";
-
-export type StudioDiagnosticsEntry = {
-  source: "renderer";
-  level: string;
-  message: string;
-  timestamp: string;
-  annotations?: Record<string, StudioDiagnosticsValue>;
-  spans?: Record<string, number>;
-};
 
 export const hostPathPickerModeSchema = Schema.Literals(["openProject", "saveProjectAs", "export"]);
 export const pickPathRequestSchema = Schema.Struct({
@@ -210,7 +189,7 @@ export const hostReviewEventMessageSchema = Schema.Struct({
 });
 const studioDiagnosticsValueSchema = Schema.Union([
   Schema.String.check(Schema.isMaxLength(2048)),
-  Schema.Number,
+  Schema.Finite,
   Schema.Boolean,
   Schema.Null,
 ]);
@@ -225,12 +204,12 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
     ),
   ),
   spans: Schema.optional(
-    Schema.Record(Schema.String.check(Schema.isMaxLength(128)), Schema.Number).check(
+    Schema.Record(Schema.String.check(Schema.isMaxLength(128)), Schema.Finite).check(
       Schema.isMaxProperties(64),
     ),
   ),
 });
-const undefinedBridgeParamsSchema = Schema.Void;
+const undefinedBridgeParamsSchema = Schema.Undefined;
 // Renderer callers cannot supply local transcript paths. A future UI must use a host-minted grant.
 const engineAgentPreflightBridgeParamsSchema = Schema.Struct({
   runtimeBudgetMinutes: Schema.optionalKey(RuntimeBudgetMinutesSchema),
@@ -286,9 +265,11 @@ const engineSuccessSchemas = {
   "project.open": projectStateSchema,
   "project.save": projectStateSchema,
   "project.recents": projectRecentsResultSchema,
-} as const satisfies Record<string, Schema.Top>;
+} as const satisfies Record<string, Schema.ConstraintCodec<unknown, unknown>>;
 
-function engineSuccessSchema(method: keyof typeof engineSuccessSchemas): Schema.Top {
+function engineSuccessSchema<K extends keyof typeof engineSuccessSchemas>(
+  method: K,
+): (typeof engineSuccessSchemas)[K] {
   return engineSuccessSchemas[method];
 }
 const reviewSessionSnapshotBridgeParamsSchema = Schema.Struct({
@@ -390,9 +371,8 @@ function makeWindowId(value: number): WindowId {
 
 type BridgeRequestDefinition<Params, Response, Args extends readonly unknown[]> = {
   toParams: (...args: Args) => Params;
-  responseType: Response;
-  paramsSchema?: Schema.Top;
-  responseSchema?: Schema.Top;
+  paramsSchema: Schema.ConstraintCodec<Params, unknown>;
+  responseSchema: Schema.ConstraintCodec<Response, unknown>;
 };
 
 type ReviewBridgeRequestWithAuth<TRequest> = TRequest & {
@@ -403,30 +383,12 @@ type ReviewBridgeMutationRequestWithAuth<TRequest> = ReviewBridgeRequestWithAuth
   capabilityToken: DesktopCapabilityToken;
 };
 
-function defineBridgeRequest<Params, Response, Args extends readonly unknown[]>(
-  toParams: (...args: Args) => Params,
-  options?: {
-    paramsSchema?: Schema.Top;
-    responseSchema?: Schema.Top;
-  },
-): BridgeRequestDefinition<Params, Response, Args> {
-  return {
-    toParams,
-    responseType: undefined as Response,
-    paramsSchema: options?.paramsSchema,
-    responseSchema: options?.responseSchema,
-  };
-}
-
 function defineValidatedBridgeRequest<Params, Response, Args extends readonly unknown[]>(
   toParams: (...args: Args) => Params,
-  paramsSchema: Schema.Top,
-  responseSchema: Schema.Top,
+  paramsSchema: Schema.ConstraintCodec<Params, unknown>,
+  responseSchema: Schema.ConstraintCodec<Response, unknown>,
 ): BridgeRequestDefinition<Params, Response, Args> {
-  return defineBridgeRequest(toParams, {
-    paramsSchema,
-    responseSchema,
-  });
+  return { toParams, paramsSchema, responseSchema };
 }
 
 /**
@@ -546,9 +508,9 @@ export const bridgeRequestDefinitions = {
   ggEngineStartDisplayCapture: defineValidatedBridgeRequest<
     {
       displayId?: DisplayId;
-      enableMic: boolean;
+      enableMic?: boolean;
       enablePreview?: boolean;
-      captureFps: CaptureFrameRate;
+      captureFps?: CaptureFrameRate;
     },
     CaptureStatusResult,
     [enableMic: boolean, captureFps: CaptureFrameRate, displayId?: number, enablePreview?: boolean]
@@ -563,7 +525,7 @@ export const bridgeRequestDefinitions = {
     engineSuccessSchema("capture.startDisplay"),
   ),
   ggEngineStartCurrentWindowCapture: defineValidatedBridgeRequest<
-    { enableMic: boolean; enablePreview?: boolean; captureFps: CaptureFrameRate },
+    { enableMic?: boolean; enablePreview?: boolean; captureFps?: CaptureFrameRate },
     CaptureStatusResult,
     [enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
   >(
@@ -574,9 +536,9 @@ export const bridgeRequestDefinitions = {
   ggEngineStartWindowCapture: defineValidatedBridgeRequest<
     {
       windowId: WindowId;
-      enableMic: boolean;
+      enableMic?: boolean;
       enablePreview?: boolean;
-      captureFps: CaptureFrameRate;
+      captureFps?: CaptureFrameRate;
     },
     CaptureStatusResult,
     [windowId: number, enableMic: boolean, captureFps: CaptureFrameRate, enablePreview?: boolean]
@@ -596,7 +558,7 @@ export const bridgeRequestDefinitions = {
     engineSuccessSchema("capture.stop"),
   ),
   ggEngineStartRecording: defineValidatedBridgeRequest<
-    { trackInputEvents: boolean },
+    { trackInputEvents?: boolean },
     CaptureStatusResult,
     [trackInputEvents: boolean]
   >(
@@ -861,7 +823,7 @@ type BridgeRequestArgs<TDefinition> =
     : never;
 
 export type BridgeRequestName = keyof BridgeRequestDefinitions;
-export const bridgeRequestNameList = Object.keys(bridgeRequestDefinitions) as BridgeRequestName[];
+export const bridgeRequestNameList = Struct.keys(bridgeRequestDefinitions);
 
 export type BridgeRequests = {
   [K in BridgeRequestName]: {
@@ -869,6 +831,20 @@ export type BridgeRequests = {
     response: BridgeRequestResponse<BridgeRequestDefinitions[K]>;
   };
 };
+
+/** Positional renderer arguments for each typed request definition. */
+export type BridgeRequestArguments = {
+  [K in BridgeRequestName]: BridgeRequestArgs<BridgeRequestDefinitions[K]>;
+};
+
+/** Typed definition view preserving each request's params, response, and arguments. */
+export const bridgeDefinitionsByName: {
+  [K in BridgeRequestName]: BridgeRequestDefinition<
+    BridgeRequests[K]["params"],
+    BridgeRequests[K]["response"],
+    BridgeRequestArguments[K]
+  >;
+} = bridgeRequestDefinitions;
 
 export type BridgeResponseEnvelope<T> =
   | {
@@ -931,3 +907,9 @@ export type DesktopBridgeRPC = {
     };
   }>;
 };
+
+export const HostMenuState = hostMenuStateSchema;
+export interface HostMenuState extends Schema.Schema.Type<typeof HostMenuState> {}
+
+export const StudioDiagnosticsEntry = studioDiagnosticsEntrySchema;
+export interface StudioDiagnosticsEntry extends Schema.Schema.Type<typeof StudioDiagnosticsEntry> {}

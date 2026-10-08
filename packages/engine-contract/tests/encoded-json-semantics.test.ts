@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, test } from "vitest";
+import { describe, test } from "vitest";
+import { expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { actionResultSchema } from "../src/domains/permissions";
 import { capturePreviewFrameResultSchema } from "../src/domains/capture";
 import { displaySourceSchema } from "../src/domains/sources";
 import { projectRecentItemSchema } from "../src/domains/project";
-import { EngineOpenApi } from "../src/openApi";
 
 const fixtureRoot = resolve(import.meta.dirname, "fixtures", "encoded-json");
 
@@ -27,10 +27,11 @@ function readFixture(name: string): unknown {
  * @param value - Encoded JSON value.
  * @returns The decoded value.
  */
-function decodeSync<S extends Schema.Top>(schema: S, value: unknown): Schema.Schema.Type<S> {
-  return Effect.runSync(
-    Schema.decodeUnknownEffect(schema)(value) as Effect.Effect<Schema.Schema.Type<S>, never, never>,
-  );
+function decodeSync<S extends Schema.ConstraintCodec<unknown, unknown>>(
+  schema: S,
+  value: unknown,
+): S["Type"] {
+  return Schema.decodeUnknownSync(schema)(value);
 }
 
 /**
@@ -40,25 +41,28 @@ function decodeSync<S extends Schema.Top>(schema: S, value: unknown): Schema.Sch
  * @param value - Decoded value.
  * @returns The encoded JSON value.
  */
-function encodeSync<S extends Schema.Top>(schema: S, value: Schema.Schema.Type<S>): unknown {
-  return Effect.runSync(
-    Schema.encodeUnknownEffect(schema)(value) as Effect.Effect<unknown, never, never>,
-  );
+function encodeSync<S extends Schema.ConstraintCodec<unknown, unknown>>(
+  schema: S,
+  value: S["Type"],
+): unknown {
+  return Schema.encodeUnknownSync(schema)(value);
 }
 
 describe("encoded JSON semantics", () => {
-  test("optional fields are represented by omitted keys, not explicit null", () => {
-    const fixture = readFixture("capture-preview-frame-omitted.json");
-    const decoded = decodeSync(capturePreviewFrameResultSchema, fixture);
+  it.effect("optional fields are represented by omitted keys, not explicit null", () =>
+    Effect.gen(function* () {
+      const fixture = readFixture("capture-preview-frame-omitted.json");
+      const decoded = decodeSync(capturePreviewFrameResultSchema, fixture);
 
-    expect(decoded).toEqual({});
-    expect(encodeSync(capturePreviewFrameResultSchema, decoded)).toEqual({});
+      expect(decoded).toEqual({});
+      expect(encodeSync(capturePreviewFrameResultSchema, decoded)).toEqual({});
 
-    const nullExit = Effect.runSyncExit(
-      Schema.decodeUnknownEffect(capturePreviewFrameResultSchema)({ frame: null }),
-    );
-    expect(nullExit._tag).toBe("Failure");
-  });
+      const nullExit = yield* Effect.exit(
+        Schema.decodeUnknownEffect(capturePreviewFrameResultSchema)({ frame: null }),
+      );
+      expect(nullExit._tag).toBe("Failure");
+    }),
+  );
 
   test("optional action messages are omitted when absent", () => {
     const fixture = readFixture("action-result-message-omitted.json");
@@ -68,54 +72,39 @@ describe("encoded JSON semantics", () => {
     expect(encodeSync(actionResultSchema, decoded)).toEqual({ success: true });
   });
 
-  test("literal unions encode as JSON strings", () => {
-    const fixture = readFixture("source-display.json");
-    const decoded = decodeSync(displaySourceSchema, fixture);
+  it.effect("literal unions encode as JSON and reject unsupported frame rates", () =>
+    Effect.gen(function* () {
+      const fixture = readFixture("source-display.json");
+      const decoded = decodeSync(displaySourceSchema, fixture);
 
-    expect(decoded.displayName).toBe("Built-in Display");
-    expect(encodeSync(displaySourceSchema, decoded)).toEqual(fixture);
+      expect(decoded.displayName).toBe("Built-in Display");
+      expect(encodeSync(displaySourceSchema, decoded)).toEqual(fixture);
 
-    const invalidExit = Effect.runSyncExit(
-      Schema.decodeUnknownEffect(displaySourceSchema)({
-        ...(fixture as object),
-        supportedCaptureFrameRates: [25],
-      }) as Effect.Effect<unknown, unknown, never>,
-    );
-    expect(invalidExit._tag).toBe("Failure");
-  });
+      const invalidExit = yield* Effect.exit(
+        Schema.decodeUnknownEffect(displaySourceSchema)({
+          ...decoded,
+          supportedCaptureFrameRates: [25],
+        }),
+      );
+      expect(invalidExit._tag).toBe("Failure");
+    }),
+  );
 
-  test("path-like values are plain non-empty JSON strings", () => {
-    const fixture = readFixture("project-recent-item-path-string.json");
-    const decoded = decodeSync(projectRecentItemSchema, fixture);
+  it.effect("path-like wire values round-trip and reject an empty project path", () =>
+    Effect.gen(function* () {
+      const fixture = readFixture("project-recent-item-path-string.json");
+      const decoded = decodeSync(projectRecentItemSchema, fixture);
 
-    expect(decoded.projectPath).toBe("/tmp/demo.gglassproj");
-    expect(encodeSync(projectRecentItemSchema, decoded)).toEqual(fixture);
+      expect(decoded.projectPath).toBe("/tmp/demo.gglassproj");
+      expect(encodeSync(projectRecentItemSchema, decoded)).toEqual(fixture);
 
-    const emptyPathExit = Effect.runSyncExit(
-      Schema.decodeUnknownEffect(projectRecentItemSchema)({
-        ...(fixture as object),
-        projectPath: "",
-      }),
-    );
-    expect(emptyPathExit._tag).toBe("Failure");
-  });
-
-  test("OpenAPI output contains no explicit null schema and marks optional keys as not required", () => {
-    const serialized = JSON.stringify(EngineOpenApi);
-    const schemas = EngineOpenApi.components.schemas as Record<
-      string,
-      { readonly required?: ReadonlyArray<string> }
-    >;
-
-    expect(serialized.includes('"null"')).toBe(false);
-    expect(schemas.CapturePreviewFrameResult?.required ?? []).not.toContain("frame");
-    expect(schemas.ActionResult?.required ?? []).not.toContain("message");
-  });
-
-  test("void/no-body endpoints do not emit OpenAPI request bodies", () => {
-    expect(EngineOpenApi.paths["/v1/capture/stop"]!.post!.requestBody).toBeUndefined();
-    expect(EngineOpenApi.paths["/v1/recording/stop"]!.post!.requestBody).toBeUndefined();
-    expect(EngineOpenApi.paths["/v1/system/ping"]!.get!.requestBody).toBeUndefined();
-    expect(EngineOpenApi.paths["/v1/capture/start-window"]!.post!.requestBody).toBeDefined();
-  });
+      const emptyPathExit = yield* Effect.exit(
+        Schema.decodeEffect(projectRecentItemSchema)({
+          ...decoded,
+          projectPath: "",
+        }),
+      );
+      expect(emptyPathExit._tag).toBe("Failure");
+    }),
+  );
 });

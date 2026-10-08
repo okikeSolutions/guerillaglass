@@ -21,9 +21,13 @@ export const actionResultSchema = Schema.Struct({
 /**
  * Runtime TypeScript type for permission snapshots.
  */
-export type PermissionsResult = Schema.Schema.Type<typeof permissionsResultSchema>;
+export const PermissionsResult = permissionsResultSchema;
+/** Validated PermissionsResult record. */
+export interface PermissionsResult extends Schema.Schema.Type<typeof PermissionsResult> {}
 
 /**
  * Runtime TypeScript type for command-style action results.
  */
-export type ActionResult = Schema.Schema.Type<typeof actionResultSchema>;
+export const ActionResult = actionResultSchema;
+/** Validated ActionResult record. */
+export interface ActionResult extends Schema.Schema.Type<typeof ActionResult> {}

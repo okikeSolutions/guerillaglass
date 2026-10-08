@@ -15,9 +15,4 @@ The web app is the hosted review/auth shell, not the local media plane. TanStack
 
 ## Checks
 
-```bash
-bun run i18n:compile:web
-bun run web:typecheck
-bun run web:build
-cd apps/web && bun run test:ci -- --passWithNoTests
-```
+Use [Verification selection](../../docs/CHANGE_MAP.md#verification-selection) for local localization, typechecking, and focused tests. Include review-protocol consumers for shared DTO changes and a production build when route/build configuration changes.

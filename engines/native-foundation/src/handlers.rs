@@ -1,6 +1,5 @@
-use crate::agent::agent_preflight;
 use crate::state::State;
-use crate::wire::{success, EngineMethod, EngineResponse};
+use crate::wire::{EngineMethod, EngineResponse};
 use crate::{capture, export, permissions, project, sources, system};
 
 #[cfg(test)]
@@ -16,10 +15,6 @@ pub(crate) fn handle_request(
     match request.method {
         EngineMethod::SystemPing => system::ping(id, platform),
         EngineMethod::EngineCapabilities => system::capabilities(id, platform),
-        EngineMethod::AgentPreflight => success(id, agent_preflight(state, &request.params)),
-        EngineMethod::AgentRun => crate::agent::run(id, state, &request.params),
-        EngineMethod::AgentStatus => crate::agent::status(id, state, &request.params),
-        EngineMethod::AgentApply => crate::agent::apply(id, state, &request.params),
         _ => handle_method(platform, state, request.method, &request.params),
     }
 }
@@ -34,10 +29,6 @@ pub(crate) fn handle_method(
     match method {
         EngineMethod::SystemPing => system::ping(id, platform),
         EngineMethod::EngineCapabilities => system::capabilities(id, platform),
-        EngineMethod::AgentPreflight => success(id, agent_preflight(state, params)),
-        EngineMethod::AgentRun => crate::agent::run(id, state, params),
-        EngineMethod::AgentStatus => crate::agent::status(id, state, params),
-        EngineMethod::AgentApply => crate::agent::apply(id, state, params),
         EngineMethod::PermissionsGet => permissions::get(id),
         EngineMethod::PermissionsRequestScreenRecording
         | EngineMethod::PermissionsRequestMicrophone
@@ -56,7 +47,6 @@ pub(crate) fn handle_method(
         EngineMethod::CapturePreviewFrame => capture::preview_frame(id),
         EngineMethod::ExportInfo => export::info(id),
         EngineMethod::ExportRun => export::run(id, state, params),
-        EngineMethod::ExportRunCutPlan => export::run_cut_plan(id, state, params),
         EngineMethod::ProjectCurrent => project::current(id, state),
         EngineMethod::ProjectOpen => project::open(id, state, params),
         EngineMethod::ProjectSave => project::save(id, state, params),

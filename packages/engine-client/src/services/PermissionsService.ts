@@ -3,7 +3,7 @@ import type {
   PermissionsResult,
 } from "@guerillaglass/engine-contract/domains/permissions";
 import { Context, Effect, Layer } from "effect";
-import type { EngineClientError } from "../errors";
+import type { EngineClientFailure } from "../errors";
 import { EngineClient } from "../service";
 
 /**
@@ -13,23 +13,23 @@ export type PermissionsServiceShape = {
   /**
    * Reads the current platform permission snapshot.
    */
-  readonly get: Effect.Effect<PermissionsResult, EngineClientError>;
+  readonly get: Effect.Effect<PermissionsResult, EngineClientFailure>;
   /**
    * Requests Screen Recording permission.
    */
-  readonly requestScreenRecording: Effect.Effect<ActionResult, EngineClientError>;
+  readonly requestScreenRecording: Effect.Effect<ActionResult, EngineClientFailure>;
   /**
    * Requests Microphone permission.
    */
-  readonly requestMicrophone: Effect.Effect<ActionResult, EngineClientError>;
+  readonly requestMicrophone: Effect.Effect<ActionResult, EngineClientFailure>;
   /**
    * Requests Input Monitoring permission.
    */
-  readonly requestInputMonitoring: Effect.Effect<ActionResult, EngineClientError>;
+  readonly requestInputMonitoring: Effect.Effect<ActionResult, EngineClientFailure>;
   /**
    * Opens the Input Monitoring settings pane.
    */
-  readonly openInputMonitoringSettings: Effect.Effect<ActionResult, EngineClientError>;
+  readonly openInputMonitoringSettings: Effect.Effect<ActionResult, EngineClientFailure>;
 };
 
 /**
@@ -46,13 +46,14 @@ export class PermissionsService extends Context.Service<
 export const layerPermissionsService: Layer.Layer<PermissionsService, never, EngineClient> =
   Layer.effect(
     PermissionsService,
-    Effect.map(EngineClient, (client) =>
-      PermissionsService.of({
+    Effect.gen(function* () {
+      const client = yield* EngineClient;
+      return PermissionsService.of({
         get: client.permissionsGet,
         requestScreenRecording: client.permissionsRequestScreenRecording,
         requestMicrophone: client.permissionsRequestMicrophone,
         requestInputMonitoring: client.permissionsRequestInputMonitoring,
         openInputMonitoringSettings: client.permissionsOpenInputMonitoringSettings,
-      }),
-    ),
+      });
+    }),
   );

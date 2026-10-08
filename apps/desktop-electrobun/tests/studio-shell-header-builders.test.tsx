@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ShortcutDisplayPlatform } from "@shared/shortcuts";
+import { enUS } from "@shared/localization";
 import {
   buildModeItems,
   buildUtilityActions,
@@ -11,64 +12,26 @@ type HeaderStudio = Parameters<typeof buildModeItems>[0];
 function createStudioStub(): HeaderStudio {
   return {
     ui: {
-      modes: {
-        capture: "Capture",
-        edit: "Edit",
-        deliver: "Deliver",
-      },
-      labels: {
-        status: "Status",
-        duration: "Duration",
-      },
-      values: {},
-      helper: {},
-      actions: {
-        refresh: "Refresh",
-        saveProject: "Save",
-        exportNow: "Export",
-        toggleLeftPane: "Toggle Left",
-        toggleRightPane: "Toggle Right",
-        toggleTimeline: "Toggle Timeline",
-        resetLayout: "Reset Layout",
-      },
+      modes: enUS.modes,
+      actions: enUS.actions,
     },
-    captureStatusQuery: {
-      data: {
-        recordingDurationSeconds: 19,
-        telemetry: {
-          achievedFps: 30,
-          sourceDroppedFrames: 2,
-          writerDroppedFrames: 1,
-          writerBackpressureDrops: 0,
-          cpuPercent: null,
-          memoryBytes: null,
-          recordingBitrateMbps: null,
-          captureCallbackMs: 0.3,
-          recordQueueLagMs: 0.2,
-          writerAppendMs: 1.4,
-        },
-      },
-    },
-    captureStatusLabel: "Ready",
-    formatInteger: (value: number) => String(Math.round(value)),
-    formatDecimal: (value: number) => value.toFixed(2),
-    formatDuration: (seconds: number) => `00:00:${String(seconds).padStart(2, "0")}`,
     isRunningAction: false,
     isRefreshing: false,
     recordingURL: null,
     recordingRequiredNotice: "Recording required",
-    refreshAll: () => Promise.resolve(),
+    refreshAll: async () => undefined,
     saveProjectMutation: {
-      mutateAsync: () => Promise.resolve(),
+      mutateAsync: async () => undefined,
     },
     exportMutation: {
-      mutateAsync: () => Promise.resolve(),
+      mutateAsync: async () => undefined,
     },
+    shortcutOverrides: {},
     toggleLeftPaneCollapsed: () => void 0,
     toggleRightPaneCollapsed: () => void 0,
     toggleTimelineCollapsed: () => void 0,
     resetLayout: () => void 0,
-  } as unknown as HeaderStudio;
+  };
 }
 
 describe("studio shell header builders", () => {

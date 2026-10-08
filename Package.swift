@@ -100,6 +100,11 @@ let package = Package(
             path: "Tests/renderingDeterminismTests"
         ),
         .testTarget(
+            name: "MacosEngineTests",
+            dependencies: ["guerillaglass-engine", "EngineProtocol"],
+            path: "Tests/macosEngineTests"
+        ),
+        .testTarget(
             name: "CaptureTests",
             dependencies: ["Capture", "InputTracking"],
             path: "Tests/captureTests"

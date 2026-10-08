@@ -16,7 +16,10 @@ const enabledSettings: BackgroundFramingSettings = {
 function geometry(outputSize: RenderSize, sourceSize: RenderSize = { width: 1920, height: 1080 }) {
   const result = computeBackgroundFramingGeometry(outputSize, sourceSize, enabledSettings);
   expect(result).not.toBeNull();
-  return result!;
+  if (!result) {
+    throw new Error("Expected background framing geometry for valid dimensions");
+  }
+  return result;
 }
 
 describe("background framing geometry", () => {

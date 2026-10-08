@@ -1,6 +1,6 @@
 import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
 import { Context, Effect, Layer } from "effect";
-import type { EngineClientError } from "../errors";
+import type { EngineClientFailure } from "../errors";
 import { EngineClient } from "../service";
 
 /**
@@ -10,11 +10,11 @@ export type SystemServiceShape = {
   /**
    * Reads current engine health and protocol identity.
    */
-  readonly ping: Effect.Effect<PingResult, EngineClientError>;
+  readonly ping: Effect.Effect<PingResult, EngineClientFailure>;
   /**
    * Reads the engine feature matrix.
    */
-  readonly capabilities: Effect.Effect<CapabilitiesResult, EngineClientError>;
+  readonly capabilities: Effect.Effect<CapabilitiesResult, EngineClientFailure>;
 };
 
 /**
@@ -29,10 +29,11 @@ export class SystemService extends Context.Service<SystemService, SystemServiceS
  */
 export const layerSystemService: Layer.Layer<SystemService, never, EngineClient> = Layer.effect(
   SystemService,
-  Effect.map(EngineClient, (client) =>
-    SystemService.of({
+  Effect.gen(function* () {
+    const client = yield* EngineClient;
+    return SystemService.of({
       ping: client.systemPing,
       capabilities: client.engineCapabilities,
-    }),
-  ),
+    });
+  }),
 );

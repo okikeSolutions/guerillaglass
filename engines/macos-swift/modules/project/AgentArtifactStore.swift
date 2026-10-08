@@ -160,6 +160,10 @@ public struct AgentArtifactStore {
         let summary = try decoder.decode(AgentRunSummaryArtifact.self, from: summaryData)
         guard summary.version == 1, summary.projectId == projectId, !summary.jobId.isEmpty,
               summary.recordingFileName == ProjectFile.recordingMov,
+              !summary.recordingRevision.isEmpty,
+              (1 ... 10).contains(summary.runtimeBudgetMinutes),
+              summary.status == (summary.qaReport.passed ? .completed : .blocked),
+              summary.updatedAt >= summary.createdAt,
               summary.artifacts.count == Self.references.count,
               zip(summary.artifacts, Self.references).allSatisfy({ actual, expected in
                   actual.kind == expected.kind && actual.path == expected.path
@@ -187,7 +191,22 @@ public struct AgentArtifactStore {
         let beatMap = try decode(AgentBeatMapArtifact.self, named: ProjectFile.beatMapV1JSON)
         let qaReport = try decode(AgentQAReport.self, named: ProjectFile.qaReportV1JSON)
         let cutPlan = try decode(AgentCutPlanArtifact.self, named: ProjectFile.cutPlanV1JSON)
-        guard transcriptFull == transcriptWords,
+        let coveredBeats: [AgentNarrativeBeat] = [
+            .hook, .action, .payoff, .takeaway
+        ].enumerated().compactMap { index, beat in
+            [qaReport.coverage.hook, qaReport.coverage.action,
+             qaReport.coverage.payoff, qaReport.coverage.takeaway][index] ? beat : nil
+        }
+        let missingBeats = AgentNarrativeBeat.allCases.filter { !coveredBeats.contains($0) }.map(\.rawValue)
+        guard transcriptFull.version == 1, transcriptWords.version == 1, beatMap.version == 1,
+              cutPlan.version == 1, cutPlan.sourceFps.numerator > 0, cutPlan.sourceFps.denominator > 0,
+              cutPlan.sourceFrameCount > 0,
+              qaReport.passed == missingBeats.isEmpty,
+              qaReport.missingBeats == missingBeats,
+              qaReport.score.isFinite,
+              qaReport.score == Double(coveredBeats.count) / Double(AgentNarrativeBeat.allCases.count),
+              beatMap.anchors.map(\.beat) == coveredBeats,
+              transcriptFull == transcriptWords,
               qaReport == summary.qaReport,
               cutPlan == summary.cutPlan
         else { throw AgentArtifactError.invalidRunSummary }

@@ -14,6 +14,8 @@ extension EngineService {
     ) async throws -> Operations.project_period_projectOpen.Output {
         let payload: Components.Schemas.ProjectOpenPayload = switch input.body { case let .json(body): body }
         let projectURL = URL(fileURLWithPath: payload.projectPath, isDirectory: true)
+        let sessionID = UUID()
+        projectSessionID = sessionID
         preflightSessions.removeAll()
         agentRuns.removeAll()
         latestAgentJobId = nil
@@ -35,9 +37,17 @@ extension EngineService {
             }
             currentProjectURL = openedURL
             currentProjectDocument = openedDocument
-            await restoreAgentRunIfAvailable()
-            try projectLibraryStore.recordRecentProject(url: openedURL)
             hasUnsavedProjectChanges = false
+            await restoreAgentRunIfAvailable()
+            guard projectSessionID == sessionID,
+                  currentProjectURL == openedURL,
+                  currentProjectDocument.project.id == openedDocument.project.id
+            else {
+                return .badRequest(.init(body: .json(badRequest(
+                    .invalid_request, "Another project replaced this open request."
+                ))))
+            }
+            try projectLibraryStore.recordRecentProject(url: openedURL)
             return .ok(.init(body: .json(projectState())))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
@@ -126,6 +136,8 @@ extension EngineService {
             currentProjectURL = projectURL
             currentProjectDocument = savedDocument
             if isSaveAs {
+                projectSessionID = UUID()
+                preflightSessions.removeAll()
                 agentRuns.removeAll()
                 agentRecoveryFailureJobId = nil
                 latestAgentJobId = nil

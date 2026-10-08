@@ -7,52 +7,37 @@ import {
   Metric,
   Option,
   Redacted,
+  Schema,
   Scope,
   Stream,
 } from "effect";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
-import type {
-  ChildProcessHandle,
-  ChildProcessSpawner,
-} from "effect/unstable/process/ChildProcessSpawner";
+import * as ChildProcess from "effect/process/ChildProcess";
+import type { ChildProcessHandle, ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { EngineProcessError } from "../errors";
 import { engineLaunchDuration, engineLaunchFailuresTotal } from "../metrics";
 import { EnginePathConfig, EngineProcessConfig } from "./config";
 import { engineHttpBaseUrl, parseEngineHttpReadyLine, type EngineHttpAddress } from "./readiness";
-import { validateEngineExecutableTrust, type EngineExecutableTrustPolicy } from "./trust";
+import { validateEngineExecutableTrust, EngineExecutableTrustPolicy } from "./trust";
 
 /**
  * Options for launching a native engine process that exposes the v2 HTTP API.
  */
-export type EngineHttpProcessOptions = {
-  /**
-   * Absolute path to the native engine executable.
-   */
-  readonly enginePath?: string;
-  /**
-   * Optional production trust policy applied before spawning the native engine executable.
-   */
-  readonly trustPolicy?: EngineExecutableTrustPolicy;
-  /**
-   * Maximum duration to wait for the readiness envelope.
-   *
-   * @defaultValue 10000
-   */
-  readonly readinessTimeoutMs?: number;
-  /**
-   * Extra environment variables for the engine subprocess.
-   *
-   * @remarks Values override inherited `process.env` entries.
-   */
-  readonly env?: NodeJS.ProcessEnv;
-  /**
-   * Terminates stale engine processes launched from the same executable path before spawning.
-   *
-   * @remarks Useful for desktop app relaunches after an ungraceful shutdown left an orphaned
-   * ScreenCaptureKit process active.
-   */
-  readonly cleanupStaleProcesses?: boolean;
-};
+export const EngineHttpProcessOptions = Schema.Struct({
+  /** Absolute path to the native engine executable. */
+  enginePath: Schema.optional(Schema.String),
+  /** Production trust policy checked before spawning. */
+  trustPolicy: Schema.optional(EngineExecutableTrustPolicy),
+  /** Readiness timeout in milliseconds; defaults to 10000. */
+  readinessTimeoutMs: Schema.optional(Schema.Finite),
+  /** Overrides inherited process.env entries for the child process. */
+  env: Schema.optional(Schema.Record(Schema.String, Schema.UndefinedOr(Schema.String))),
+  /** Clean up stale processes launched from the same executable path. */
+  cleanupStaleProcesses: Schema.optional(Schema.Boolean),
+});
+/** Native HTTP engine launch options. */
+export interface EngineHttpProcessOptions extends Schema.Schema.Type<
+  typeof EngineHttpProcessOptions
+> {}
 
 /**
  * Scoped native process and connection details for a ready v2 HTTP engine.
@@ -95,7 +80,7 @@ export const makeEngineBearerToken = Effect.gen(function* () {
  * @param enginePath - Explicit engine path supplied by the caller.
  * @returns An effect that succeeds with an executable path.
  */
-export function resolveEnginePath(
+export const resolveEnginePath = Effect.fn("launchBun.resolveEnginePath")(function (
   enginePath?: string,
 ): Effect.Effect<string, EngineProcessError, FileSystem.FileSystem> {
   return Effect.gen(function* () {
@@ -139,7 +124,7 @@ export function resolveEnginePath(
     }
     return path;
   });
-}
+});
 
 /**
  * Resolves the command and arguments needed to launch an engine path.
@@ -162,18 +147,20 @@ function writeEngineStderrLine(line: string): void {
   }
 }
 
-function drainStderr(handle: ChildProcessHandle): Effect.Effect<void, never, Scope.Scope> {
+const drainStderr = Effect.fn("launchBun.drainStderr")(function (
+  handle: ChildProcessHandle,
+): Effect.Effect<void, never, Scope.Scope> {
   return handle.stderr.pipe(
     Stream.decodeText(),
     Stream.splitLines,
     Stream.runForEach((line) => Effect.sync(() => writeEngineStderrLine(line))),
-    Effect.catch(() => Effect.void),
+    Effect.ignore,
     Effect.forkScoped,
     Effect.asVoid,
   );
-}
+});
 
-function waitForReady(
+const waitForReady = Effect.fn("launchBun.waitForReady")(function (
   handle: ChildProcessHandle,
   timeoutMs: number,
 ): Effect.Effect<EngineHttpAddress, EngineProcessError, Scope.Scope> {
@@ -244,7 +231,7 @@ function waitForReady(
       }),
     );
   });
-}
+});
 
 function parsePsPids(output: string, enginePath: string): number[] {
   const pids: number[] = [];
@@ -263,7 +250,7 @@ function parsePsPids(output: string, enginePath: string): number[] {
   return pids;
 }
 
-function cleanupStaleEngineProcesses(
+const cleanupStaleEngineProcesses = Effect.fn("launchBun.cleanupStaleEngineProcesses")(function (
   enginePath: string,
 ): Effect.Effect<number[], EngineProcessError, ChildProcessSpawner | Scope.Scope> {
   if (process.platform === "win32") {
@@ -313,7 +300,7 @@ function cleanupStaleEngineProcesses(
         }),
     ),
   );
-}
+});
 
 /**
  * Launches a scoped v2 HTTP native engine process and waits for readiness.
@@ -321,7 +308,7 @@ function cleanupStaleEngineProcesses(
  * @param options - Process launch options.
  * @returns A scoped effect containing process and HTTP connection details.
  */
-export function makeEngineHttpProcess(
+export const makeEngineHttpProcess = Effect.fn("launchBun.makeEngineHttpProcess")(function (
   options: EngineHttpProcessOptions = {},
 ): Effect.Effect<
   EngineHttpProcess,
@@ -413,4 +400,4 @@ export function makeEngineHttpProcess(
     Effect.withLogSpan("engine-launch"),
     Effect.withSpan("engine-launch", { attributes: { "engine.transport": "http" } }),
   );
-}
+});

@@ -116,6 +116,10 @@ export function mapStudioActionErrorMessage(ui: StudioMessages, error: unknown):
     switch (error.reason) {
       case "screen_permission_required":
         return ui.notices.screenPermissionRequired;
+      case "capture_permission_required":
+        return ui.notices.capturePermissionRequired;
+      case "window_selection_failed":
+        return ui.notices.windowSelectionFailed;
       case "window_selection_required":
         return ui.notices.selectWindowFirst;
       case "export_missing_recording":
@@ -249,6 +253,23 @@ export function useStudioController() {
       trimEndSeconds: 0,
     },
   });
+
+  const settingsFormApi = useMemo<SettingsFormApi>(
+    () => ({
+      getValues: () => settingsForm.state.values,
+      setSelectedDisplayId: (value) => settingsForm.setFieldValue("selectedDisplayId", value),
+      setSelectedWindowId: (value) => settingsForm.setFieldValue("selectedWindowId", value),
+    }),
+    [settingsForm],
+  );
+  const exportFormApi = useMemo<ExportFormApi>(
+    () => ({
+      getValues: () => exportForm.state.values,
+      setTrimStartSeconds: (value) => exportForm.setFieldValue("trimStartSeconds", value),
+      setTrimEndSeconds: (value) => exportForm.setFieldValue("trimEndSeconds", value),
+    }),
+    [exportForm],
+  );
 
   const {
     capabilitiesQuery,
@@ -815,8 +836,8 @@ export function useStudioController() {
     timelineDocument,
     selectedPreset,
     recentsLimit,
-    settingsForm: settingsForm as unknown as SettingsFormApi,
-    exportForm: exportForm as unknown as ExportFormApi,
+    settingsForm: settingsFormApi,
+    exportForm: exportFormApi,
     pingQuery,
     permissionsQuery,
     sourcesQuery,

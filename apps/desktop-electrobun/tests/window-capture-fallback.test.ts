@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
+import type { ProjectState } from "@guerillaglass/engine-contract/domains/project";
 import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import {
   isSelectedWindowUnavailableError,
@@ -26,62 +28,52 @@ describe("window capture fallback", () => {
   });
 
   test("prefers durable project telemetry when stop status summary is empty", () => {
-    expect(
-      resolveCompletedRecordingTelemetry(
-        { lastRecordingTelemetry: null } as never,
-        {
-          lastRecordingTelemetry: {
-            sourceDroppedFrames: 1,
-            writerDroppedFrames: 0,
-            writerBackpressureDrops: 0,
-            achievedFps: 28.9,
-            cpuPercent: 12.3,
-            memoryBytes: 100,
-            recordingBitrateMbps: 8.2,
-            captureCallbackMs: 0.4,
-            recordQueueLagMs: 0.2,
-            writerAppendMs: 0.8,
-            previewEncodeMs: 0.1,
-          },
-        } as never,
-      )?.achievedFps,
-    ).toBe(28.9);
+    const status = { lastRecordingTelemetry: undefined } satisfies Pick<
+      CaptureStatusResult,
+      "lastRecordingTelemetry"
+    >;
+    const project = {
+      lastRecordingTelemetry: {
+        sourceDroppedFrames: 1,
+        writerDroppedFrames: 0,
+        writerBackpressureDrops: 0,
+        achievedFps: 28.9,
+        cpuPercent: 12.3,
+        memoryBytes: 100,
+        recordingBitrateMbps: 8.2,
+        captureCallbackMs: 0.4,
+        recordQueueLagMs: 0.2,
+        writerAppendMs: 0.8,
+        previewEncodeMs: 0.1,
+      },
+    } satisfies Pick<ProjectState, "lastRecordingTelemetry">;
+
+    expect(resolveCompletedRecordingTelemetry(status, project)?.achievedFps).toBe(28.9);
   });
 
   test("preserves finished recording telemetry when stopCapture drops it", () => {
-    const merged = mergeFinishedCaptureStatus(
-      {
-        isRunning: false,
-        isRecording: false,
-        recordingDurationSeconds: 25,
-        recordingURL: "/tmp/out.mov",
-        telemetry: {
-          sourceDroppedFrames: 0,
-          writerDroppedFrames: 0,
-          writerBackpressureDrops: 0,
-          achievedFps: 0,
-          captureCallbackMs: 0,
-          recordQueueLagMs: 0,
-          writerAppendMs: 0,
-          previewEncodeMs: 0,
-        },
-      } as never,
-      {
-        lastRecordingTelemetry: {
-          sourceDroppedFrames: 1,
-          writerDroppedFrames: 0,
-          writerBackpressureDrops: 0,
-          achievedFps: 28.9,
-          cpuPercent: 12.3,
-          memoryBytes: 100,
-          recordingBitrateMbps: 8.2,
-          captureCallbackMs: 0.4,
-          recordQueueLagMs: 0.2,
-          writerAppendMs: 0.8,
-          previewEncodeMs: 0.1,
-        },
-      } as never,
-    );
+    const stoppedStatus = {
+      isRunning: false,
+      isRecording: false,
+      recordingDurationSeconds: 25,
+      telemetry: {},
+    } satisfies CaptureStatusResult;
+    const recordingStopStatus = {
+      lastRecordingTelemetry: {
+        sourceDroppedFrames: 1,
+        writerDroppedFrames: 0,
+        writerBackpressureDrops: 0,
+        achievedFps: 28.9,
+        cpuPercent: 12.3,
+        memoryBytes: 100,
+        recordingBitrateMbps: 8.2,
+        captureCallbackMs: 0.4,
+        recordQueueLagMs: 0.2,
+        writerAppendMs: 0.8,
+        previewEncodeMs: 0.1,
+      },
+    } satisfies Pick<CaptureStatusResult, "lastRecordingTelemetry">;
+    const merged = mergeFinishedCaptureStatus(stoppedStatus, recordingStopStatus);
 
     expect(merged.lastRecordingTelemetry?.achievedFps).toBe(28.9);
   });

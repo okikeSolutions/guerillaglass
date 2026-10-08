@@ -3,6 +3,7 @@ import {
   defaultStudioLocale,
   normalizeStudioLocale,
   type StudioLocale,
+  studioLocales,
 } from "@shared/localization";
 import { ContractDecodeError, JsonParseError } from "@guerillaglass/engine-client/errors";
 import { decodeJsonStringWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
@@ -57,32 +58,38 @@ const localizedRouteTargetByRoute: Record<StudioLayoutRoute, StudioLocalizedRout
 };
 
 const studioLayoutStorageCandidateSchema = Schema.Struct({
-  leftPaneWidthPx: Schema.optional(Schema.Number),
-  rightPaneWidthPx: Schema.optional(Schema.Number),
+  leftPaneWidthPx: Schema.optional(Schema.Finite),
+  rightPaneWidthPx: Schema.optional(Schema.Finite),
   leftCollapsed: Schema.optional(Schema.Boolean),
   rightCollapsed: Schema.optional(Schema.Boolean),
-  timelineHeightPx: Schema.optional(Schema.Number),
+  timelineHeightPx: Schema.optional(Schema.Finite),
   timelineCollapsed: Schema.optional(Schema.Boolean),
   lastRoute: Schema.optional(Schema.String),
   locale: Schema.optional(Schema.String),
   densityMode: Schema.optional(Schema.String),
   presetRoutesApplied: Schema.optional(Schema.Array(Schema.String)),
-  presetVersionByRoute: Schema.optional(Schema.Record(Schema.String, Schema.Number)),
+  presetVersionByRoute: Schema.optional(Schema.Record(Schema.String, Schema.Finite)),
 });
+type StudioLayoutStateCandidate = Schema.Schema.Type<typeof studioLayoutStorageCandidateSchema>;
 
-export type StudioLayoutState = {
-  leftPaneWidthPx: number;
-  rightPaneWidthPx: number;
-  leftCollapsed: boolean;
-  rightCollapsed: boolean;
-  timelineHeightPx: number;
-  timelineCollapsed: boolean;
-  lastRoute: StudioLayoutRoute;
-  locale: StudioLocale;
-  densityMode: StudioDensityMode;
-  presetRoutesApplied: StudioLayoutRoute[];
-  presetVersionByRoute: Partial<Record<StudioLayoutRoute, number>>;
-};
+export const StudioLayoutState = Schema.Struct({
+  leftPaneWidthPx: Schema.Finite,
+  rightPaneWidthPx: Schema.Finite,
+  leftCollapsed: Schema.Boolean,
+  rightCollapsed: Schema.Boolean,
+  timelineHeightPx: Schema.Finite,
+  timelineCollapsed: Schema.Boolean,
+  lastRoute: Schema.Literals(studioLayoutRoutes),
+  locale: Schema.Literals(studioLocales),
+  densityMode: Schema.Literals(studioDensityModes),
+  presetRoutesApplied: Schema.Array(Schema.Literals(studioLayoutRoutes)),
+  presetVersionByRoute: Schema.Struct({
+    "/capture": Schema.optionalKey(Schema.Finite),
+    "/edit": Schema.optionalKey(Schema.Finite),
+    "/deliver": Schema.optionalKey(Schema.Finite),
+  }),
+});
+export interface StudioLayoutState extends Schema.Schema.Type<typeof StudioLayoutState> {}
 
 type StudioLayoutPreset = Pick<
   StudioLayoutState,
@@ -177,10 +184,7 @@ function asStudioDensityMode(value: unknown): StudioDensityMode | null {
   if (typeof value !== "string") {
     return null;
   }
-  if (studioDensityModes.includes(value as StudioDensityMode)) {
-    return value as StudioDensityMode;
-  }
-  return null;
+  return studioDensityModes.find((mode) => mode === value) ?? null;
 }
 
 function asPresetRoutesApplied(value: unknown): StudioLayoutRoute[] | null {
@@ -274,7 +278,7 @@ export function resolveStudioLocation(pathname: string | null | undefined): {
 }
 
 export function sanitizeStudioLayoutState(
-  candidate: Partial<StudioLayoutState> | null | undefined,
+  candidate: StudioLayoutStateCandidate | null | undefined,
 ): StudioLayoutState {
   const leftPaneWidthPx =
     asFiniteNumber(candidate?.leftPaneWidthPx) ?? defaultStudioLayoutState.leftPaneWidthPx;
@@ -462,7 +466,7 @@ export function parseStudioLayoutState(raw: string | null | undefined): StudioLa
       raw,
       "studio layout state",
     );
-    return sanitizeStudioLayoutState(parsedCandidate as Partial<StudioLayoutState>);
+    return sanitizeStudioLayoutState(parsedCandidate);
   } catch (error) {
     if (error instanceof JsonParseError || error instanceof ContractDecodeError) {
       return defaultStudioLayoutState;

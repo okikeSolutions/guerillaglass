@@ -80,6 +80,24 @@ extension EngineService {
             }
             return .ok(.init(body: .json(captureStatus())))
         } catch {
+            if windowId == 0 {
+                if let captureError = error as? CaptureError {
+                    switch captureError {
+                    case .screenRecordingDenied:
+                        return .forbidden(.init(body: .json(.init(code: .init(value1: .permission_denied), message: error.localizedDescription))))
+                    case .pickerCancelled, .pickerTimedOut, .pickerAlreadyActive:
+                        return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+                    case .unsupportedCaptureFrameRate:
+                        return .badRequest(.init(body: .json(badRequest(.invalid_params, error.localizedDescription))))
+                    default:
+                        break
+                    }
+                }
+                if error is AudioCaptureError {
+                    return .forbidden(.init(body: .json(.init(code: .init(value1: .permission_denied), message: error.localizedDescription))))
+                }
+                return .internalServerError(.init(body: .json(.init(code: .init(value1: .runtime_error), message: error.localizedDescription))))
+            }
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }
     }

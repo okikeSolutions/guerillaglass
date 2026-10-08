@@ -85,6 +85,7 @@ function TimelinePlayheadReadout({ label, className }: { label: string; classNam
 export function TimelineDock() {
   const studio = useStudio();
   const playbackRate = useStudioPlaybackValue((snapshot) => snapshot.playbackRate);
+  const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
   useStudioRenderDiagnostics("TimelineDock");
   const trimEnabled = studio.activeMode === "deliver";
   const recordingActionDisabledReason = studio.recordingURL
@@ -245,6 +246,7 @@ export function TimelineDock() {
           <div className="min-h-0 flex-1 overflow-hidden">
             <TimelineSurface
               durationSeconds={studio.timelineDuration}
+              playheadSeconds={playheadSeconds}
               trimEnabled={trimEnabled}
               trimStartSeconds={
                 trimEnabled ? studio.exportForm.state.values.trimStartSeconds : undefined

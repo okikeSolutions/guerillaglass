@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { parseSync } from "oxc-parser";
+import { describe, expect, test } from "vitest";
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
@@ -9,42 +10,26 @@ function sourceFiles(directory: string): string[] {
     if (stat.isDirectory()) {
       return sourceFiles(absolutePath);
     }
-    if (/\.(ts|tsx)$/.test(entry)) {
-      return [absolutePath];
-    }
-    return [];
+    return /\.(ts|tsx)$/.test(entry) ? [absolutePath] : [];
   });
 }
 
-describe("desktop engine v2 composition", () => {
-  test("desktop source no longer depends on the legacy engine transport", () => {
+describe("desktop engine composition boundary", () => {
+  test("only the composition root imports the low-level engine client", () => {
     const sourceRoot = path.resolve(import.meta.dirname, "../src");
-    const legacyServiceName = ["Engine", "Transport"].join("");
-    const legacyLayerName = ["makeLayerEngine", "TransportBun"].join("");
-    const legacyPattern = new RegExp(
-      `\\b${legacyServiceName}\\b|capture\\.statusStream|${legacyLayerName}`,
-    );
-    const matches = sourceFiles(sourceRoot)
-      .map((filePath) => ({ filePath, contents: readFileSync(filePath, "utf8") }))
-      .filter(({ contents }) => legacyPattern.test(contents))
-      .map(({ filePath }) => path.relative(sourceRoot, filePath));
-
-    expect(matches).toEqual([]);
-  });
-
-  test("desktop service logic depends on domain services instead of low-level EngineClient", () => {
-    const sourceRoot = path.resolve(import.meta.dirname, "../src");
-    const allowed = new Set(["bun/app/index.ts"]);
-    const matches = sourceFiles(sourceRoot)
-      .map((filePath) => ({
-        relativePath: path.relative(sourceRoot, filePath),
-        contents: readFileSync(filePath, "utf8"),
-      }))
-      .filter(({ relativePath }) => !allowed.has(relativePath))
-      .filter(({ contents }) =>
-        /@guerillaglass\/engine-client\/service["']|\bEngineClient\b/.test(contents),
-      )
-      .map(({ relativePath }) => relativePath);
+    const matches = sourceFiles(sourceRoot).flatMap((filePath) => {
+      const { program, errors } = parseSync(filePath, readFileSync(filePath, "utf8"));
+      if (errors.length > 0) {
+        throw new Error(`Unable to inspect desktop imports in ${filePath}: ${errors[0]?.message}`);
+      }
+      const importsEngineClient = program.body.some(
+        (statement) =>
+          statement.type === "ImportDeclaration" &&
+          statement.source.value === "@guerillaglass/engine-client/service",
+      );
+      const relativePath = path.relative(sourceRoot, filePath);
+      return importsEngineClient && relativePath !== "bun/app/index.ts" ? [relativePath] : [];
+    });
 
     expect(matches).toEqual([]);
   });

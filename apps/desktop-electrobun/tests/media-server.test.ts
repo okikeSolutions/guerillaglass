@@ -2,9 +2,10 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { describe, expect, it } from "vitest";
-import { Cause, Effect, Layer, Option } from "effect";
-import { HttpPlatform, HttpRouter } from "effect/unstable/http";
+import { it } from "@effect/vitest";
+import { describe, expect } from "vitest";
+import { Cause, Crypto, Effect, FileSystem, Layer, Option, Path, PlatformError } from "effect";
+import { HttpPlatform, HttpRouter } from "effect/http";
 import { MediaRegistry, makeMediaRegistryService } from "../src/bun/media/MediaRegistry";
 import { layerMediaHttpRoutes } from "../src/bun/media/MediaHttpRoutes";
 import { MediaServerError } from "@shared/errors/desktopErrors";
@@ -43,14 +44,14 @@ function mediaURL(token: string): string {
   return `http://127.0.0.1/media/${encodeURIComponent(token)}`;
 }
 
-type WebHandler = (request: Request, context: never) => Promise<Response>;
+type WebHandler = (request: Request) => Promise<Response>;
 
 function dispatch(
   handler: WebHandler,
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  return handler(new Request(input, init), undefined as never);
+  return handler(new Request(input, init));
 }
 
 function firstFailure(cause: Cause.Cause<unknown>): unknown {
@@ -58,16 +59,15 @@ function firstFailure(cause: Cause.Cause<unknown>): unknown {
   return Option.isSome(error) ? error.value : Cause.squash(cause);
 }
 
-function effectTest(name: string, effect: () => Effect.Effect<void, unknown, unknown>): void {
-  it(name, async () => {
-    await Effect.runPromise(
-      effect().pipe(Effect.provide(NodeServices.layer)) as Effect.Effect<void, unknown, never>,
-    );
-  });
+function livePlatformTest(
+  name: string,
+  effect: () => Effect.Effect<void, unknown, FileSystem.FileSystem | Path.Path | Crypto.Crypto>,
+): void {
+  it.live(name, () => effect().pipe(Effect.provide(NodeServices.layer)));
 }
 
 describe("media HTTP routes", () => {
-  effectTest("serves whole-file and range responses for local media paths", () =>
+  livePlatformTest("serves whole-file and range responses for local media paths", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("capture.mov", "0123456789"));
       try {
@@ -80,7 +80,7 @@ describe("media HTTP routes", () => {
         expect(fullResponse.headers.get("accept-ranges")).toBe("bytes");
         expect(fullResponse.headers.get("content-type")).toBe("video/quicktime");
         expect(fullResponse.headers.get("x-content-type-options")).toBe("nosniff");
-        expect(fullResponse.headers.get("cache-control")).toContain("no-store");
+        expect(fullResponse.headers.get("cache-control")).toBe("no-store, max-age=0");
         expect(yield* Effect.promise(() => fullResponse.text())).toBe("0123456789");
 
         const rangeResponse = yield* Effect.promise(() =>
@@ -95,7 +95,7 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  effectTest("supports HEAD, serves first segment for multi-range, and returns 416", () =>
+  livePlatformTest("supports HEAD, serves first segment for multi-range, and returns 416", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("head.mov", "0123456789"));
       try {
@@ -128,7 +128,7 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  effectTest("rejects unsupported and missing media paths before minting tokens", () =>
+  livePlatformTest("rejects unsupported and missing media paths before minting tokens", () =>
     Effect.gen(function* () {
       const { registry } = yield* makeHarness;
       const unsupported = yield* Effect.exit(
@@ -138,7 +138,10 @@ describe("media HTTP routes", () => {
       if (unsupported._tag === "Failure") {
         const error = firstFailure(unsupported.cause);
         expect(error).toBeInstanceOf(MediaServerError);
-        expect((error as MediaServerError).code).toBe("MEDIA_TYPE_UNSUPPORTED");
+        if (!(error instanceof MediaServerError)) {
+          throw error;
+        }
+        expect(error.code).toBe("MEDIA_TYPE_UNSUPPORTED");
       }
 
       const missing = yield* Effect.exit(
@@ -148,12 +151,42 @@ describe("media HTTP routes", () => {
       if (missing._tag === "Failure") {
         const error = firstFailure(missing.cause);
         expect(error).toBeInstanceOf(MediaServerError);
-        expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
+        if (!(error instanceof MediaServerError)) {
+          throw error;
+        }
+        expect(error.code).toBe("MEDIA_FILE_MISSING");
       }
     }),
   );
 
-  effectTest("returns 404 when a media file is deleted after token minting", () =>
+  it.live("preserves token-generation failures as typed media errors", () =>
+    Effect.gen(function* () {
+      const crypto = yield* Crypto.Crypto;
+      const pathService = yield* Path.Path;
+      const failingCrypto = {
+        ...crypto,
+        randomUUIDv4: Effect.fail(
+          PlatformError.systemError({
+            _tag: "PermissionDenied",
+            module: "Crypto",
+            method: "randomUUIDv4",
+          }),
+        ),
+      };
+      const registry = yield* makeMediaRegistryService.pipe(
+        Effect.provideService(Crypto.Crypto, failingCrypto),
+        Effect.provideService(Path.Path, pathService),
+      );
+      const error = yield* Effect.flip(registry.registerCapturePreview(() => Effect.succeed({})));
+      expect(error).toBeInstanceOf(MediaServerError);
+      if (!(error instanceof MediaServerError)) {
+        throw error;
+      }
+      expect(error.code).toBe("MEDIA_TOKEN_GENERATION_FAILED");
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+  livePlatformTest("returns 404 when a media file is deleted after token minting", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("deleted.mov", "gone"));
       try {
@@ -170,7 +203,7 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  effectTest("returns 404 for unknown, invalid, expired, and non-loopback tokens", () =>
+  livePlatformTest("returns 404 for unknown, invalid, expired, and non-loopback tokens", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("secure.mp4", "secure"));
       try {
@@ -197,11 +230,11 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  effectTest("serves live preview frames and cached fallback frames", () =>
+  livePlatformTest("serves live preview frames and cached fallback frames", () =>
     Effect.gen(function* () {
       const { registry, handler } = yield* makeHarness;
       let calls = 0;
-      const token = yield* registry.registerCapturePreview(
+      const token = yield* registry.registerCapturePreview(() =>
         Effect.sync(() => {
           calls += 1;
           return calls === 1 ? { frame: { frameId: 1, bytesBase64: livePreviewBase64 } } : {};
@@ -226,16 +259,16 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  effectTest("returns 404 when live preview has no frame and no cache", () =>
+  livePlatformTest("returns 404 when live preview has no frame and no cache", () =>
     Effect.gen(function* () {
       const { registry, handler } = yield* makeHarness;
-      const token = yield* registry.registerCapturePreview(Effect.succeed({}));
+      const token = yield* registry.registerCapturePreview(() => Effect.succeed({}));
       const response = yield* Effect.promise(() => dispatch(handler, mediaURL(token)));
       expect(response.status).toBe(404);
     }),
   );
 
-  effectTest("returns health response", () =>
+  livePlatformTest("returns health response", () =>
     Effect.gen(function* () {
       const { handler } = yield* makeHarness;
       const response = yield* Effect.promise(() => dispatch(handler, "http://127.0.0.1/health"));

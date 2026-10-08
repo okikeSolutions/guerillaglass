@@ -2,9 +2,6 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import type { TimelineLane } from "../../src/mainview/app/studio/domain/timelineDomainModel";
-import { createPlaybackTransportStore } from "../../src/mainview/app/studio/hooks/timeline/usePlaybackTransport";
-import type { StudioController } from "../../src/mainview/app/studio/hooks/core/useStudioController";
-import { StudioProvider } from "../../src/mainview/app/studio/state/StudioProvider";
 import { TimelineSurface } from "../../src/mainview/app/studio/panels/TimelineSurface";
 
 type MoveDropParams = Parameters<
@@ -102,38 +99,35 @@ function renderSurface(
     onSelectClip?: () => void;
   },
 ) {
-  const playbackStore = createPlaybackTransportStore({ durationSeconds: 3, frameRate: 30 });
-  const studio = { playbackStore } as unknown as StudioController;
   act(() => {
     root?.render(
-      <StudioProvider value={studio}>
-        <TimelineSurface
-          durationSeconds={3}
-          zoomPercent={100}
-          timelineTool={options?.timelineTool ?? "select"}
-          timelineSnapEnabled={true}
-          timelineRippleEnabled={timelineRippleEnabled}
-          lanes={options?.lanes ?? makeLanes()}
-          laneControls={{
-            video: { locked: options?.laneLocked ?? false, muted: false, solo: false },
-            audio: { locked: false, muted: false, solo: false },
-          }}
-          labels={labels}
-          onSetPlayheadSeconds={() => {}}
-          onNudgePlayheadSeconds={() => {}}
-          onToggleLaneLocked={() => {}}
-          onToggleLaneMuted={() => {}}
-          onToggleLaneSolo={() => {}}
-          onClearSelection={options?.onClearSelection ?? (() => {})}
-          onMoveClipDrop={(params) => {
-            receivedDrop = params;
-          }}
-          selectedClip={null}
-          selectedMarkerId={null}
-          onSelectClip={options?.onSelectClip ?? (() => {})}
-          onSelectMarker={() => {}}
-        />
-      </StudioProvider>,
+      <TimelineSurface
+        durationSeconds={3}
+        playheadSeconds={0}
+        zoomPercent={100}
+        timelineTool={options?.timelineTool ?? "select"}
+        timelineSnapEnabled={true}
+        timelineRippleEnabled={timelineRippleEnabled}
+        lanes={options?.lanes ?? makeLanes()}
+        laneControls={{
+          video: { locked: options?.laneLocked ?? false, muted: false, solo: false },
+          audio: { locked: false, muted: false, solo: false },
+        }}
+        labels={labels}
+        onSetPlayheadSeconds={() => {}}
+        onNudgePlayheadSeconds={() => {}}
+        onToggleLaneLocked={() => {}}
+        onToggleLaneMuted={() => {}}
+        onToggleLaneSolo={() => {}}
+        onClearSelection={options?.onClearSelection ?? (() => {})}
+        onMoveClipDrop={(params) => {
+          receivedDrop = params;
+        }}
+        selectedClip={null}
+        selectedMarkerId={null}
+        onSelectClip={options?.onSelectClip ?? (() => {})}
+        onSelectMarker={() => {}}
+      />,
     );
   });
 }

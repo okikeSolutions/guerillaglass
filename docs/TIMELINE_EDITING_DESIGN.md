@@ -513,7 +513,7 @@ Add tests for:
 
 Suggested location:
 
-- `apps/desktop-electrobun/src/mainview/app/studio/domain/__tests__/timelineCommands.test.ts`
+- `apps/desktop-electrobun/tests/timeline-commands.test.ts`, within the configured Vitest test discovery path.
 
 ### 15.2) Protocol and migration tests
 

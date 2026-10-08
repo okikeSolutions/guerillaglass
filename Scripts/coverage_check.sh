@@ -211,18 +211,44 @@ fi
 if needs_scope swift; then
   echo "==> swift coverage report"
   swift_test_log="$COVERAGE_DIR/swift-test.log"
-  if ! swift test --enable-code-coverage >"$swift_test_log" 2>&1; then
+  if ! swift test --build-system native --enable-code-coverage -j "${GG_GATE_JOBS:-2}" --no-parallel >"$swift_test_log" 2>&1; then
     echo "Swift coverage test run failed; full test output follows:" >&2
     cat "$swift_test_log" >&2
     exit 1
   fi
   rm -f "$swift_test_log"
-  swift_cov_path="$(swift test --enable-code-coverage --show-codecov-path | tail -n 1)"
+  swift_cov_path="$(swift test --build-system native --enable-code-coverage --show-codecov-path -j "${GG_GATE_JOBS:-2}" | tail -n 1)"
   SWIFT_REPORT="$COVERAGE_DIR/swift-summary.json"
   cp "$swift_cov_path" "$SWIFT_REPORT"
 
-  swift_total_lines="$(jq -r '.data[0].totals.lines.percent' "$SWIFT_REPORT")"
-  swift_total_functions="$(jq -r '.data[0].totals.functions.percent' "$SWIFT_REPORT")"
+  # Keep the historical repository metric, including owned tests, comparable when
+  # linking the engine adds generated bindings and third-party packages. Product-only
+  # totals are reported separately; critical production files retain their gates.
+  SWIFT_OWNED_REPORT="$COVERAGE_DIR/swift-owned-summary.json"
+  jq --arg root "$REPO_ROOT" '
+    def coverage:
+      . as $files |
+      reduce $files[].summary as $summary
+        ({files: ($files | length), lines: {count: 0, covered: 0}, functions: {count: 0, covered: 0}};
+         .lines.count += $summary.lines.count |
+         .lines.covered += $summary.lines.covered |
+         .functions.count += $summary.functions.count |
+         .functions.covered += $summary.functions.covered) |
+      if .files == 0 or .lines.count == 0 or .functions.count == 0 then
+        error("Owned Swift coverage is missing")
+      else
+        .lines.percent = (100 * .lines.covered / .lines.count) |
+        .functions.percent = (100 * .functions.covered / .functions.count)
+      end;
+    [.data[0].files[] |
+      select(.filename | startswith($root + "/engines/") or startswith($root + "/Tests/")) |
+      select(.filename | contains("/.build/") | not)] as $owned |
+    {repository: ($owned | coverage),
+     product: ([$owned[] | select(.filename | startswith($root + "/engines/"))] | coverage)}
+  ' "$SWIFT_REPORT" > "$SWIFT_OWNED_REPORT"
+  swift_total_lines="$(jq -r '.repository.lines.percent' "$SWIFT_OWNED_REPORT")"
+  swift_total_functions="$(jq -r '.repository.functions.percent' "$SWIFT_OWNED_REPORT")"
+  echo "INFO: Swift product-only lines/functions $(jq -r '[.product.lines.percent, .product.functions.percent] | join(" / ")' "$SWIFT_OWNED_REPORT")% (reported separately)"
 
   swift_file_lines() {
     local relative_path="$1"
@@ -240,8 +266,8 @@ if needs_scope swift; then
   swift_asset_writer_lifecycle_lines="$(swift_file_lines "engines/macos-swift/modules/export/AssetWriter+Lifecycle.swift")"
 
   echo "==> swift coverage thresholds"
-  check_min "Swift total lines" "$swift_total_lines" "$SWIFT_LINES_MIN"
-  check_min "Swift total functions" "$swift_total_functions" "$SWIFT_FUNCTIONS_MIN"
+  check_min "Swift repository lines" "$swift_total_lines" "$SWIFT_LINES_MIN"
+  check_min "Swift repository functions" "$swift_total_functions" "$SWIFT_FUNCTIONS_MIN"
   check_min "Swift CaptureEngine+Recording lines" "$swift_capture_recording_lines" "$SWIFT_CAPTURE_RECORDING_LINES_MIN"
   check_nonzero "Swift CaptureEngine+Sources lines" "$swift_capture_sources_lines"
   check_min "Swift CaptureFrameRate lines" "$swift_capture_framerate_lines" "$SWIFT_CAPTURE_FRAMERATE_LINES_MIN"

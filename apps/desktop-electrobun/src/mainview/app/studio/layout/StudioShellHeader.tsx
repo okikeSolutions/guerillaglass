@@ -36,6 +36,7 @@ import {
 import {
   detectStudioShortcutPlatform,
   type ShortcutDisplayPlatform,
+  type StudioShortcutOverrides,
   studioShortcutDisplayTokens,
 } from "@shared/shortcuts";
 import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
@@ -63,6 +64,22 @@ type HeaderIconButtonModel = {
   srLabel: string;
   tooltip: ReactNode;
   icon: ReactNode;
+};
+
+type HeaderStudio = {
+  readonly ui: Pick<ReturnType<typeof useStudio>["ui"], "modes" | "actions">;
+  readonly recordingURL: string | null;
+  readonly recordingRequiredNotice: string;
+  readonly isRunningAction: boolean;
+  readonly isRefreshing: boolean;
+  readonly refreshAll: () => Promise<unknown>;
+  readonly saveProjectMutation: { readonly mutateAsync: (saveAs: boolean) => Promise<unknown> };
+  readonly exportMutation: { readonly mutateAsync: () => Promise<unknown> };
+  readonly shortcutOverrides: StudioShortcutOverrides;
+  readonly toggleLeftPaneCollapsed: () => void;
+  readonly toggleRightPaneCollapsed: () => void;
+  readonly toggleTimelineCollapsed: () => void;
+  readonly resetLayout: () => void;
 };
 
 function modeIconClass(isActive: boolean): string {
@@ -115,10 +132,7 @@ function HeaderIconButton({
   );
 }
 
-export function buildModeItems(
-  studio: ReturnType<typeof useStudio>,
-  activeRoute: StudioLayoutRoute,
-): ModeItem[] {
+export function buildModeItems(studio: HeaderStudio, activeRoute: StudioLayoutRoute): ModeItem[] {
   return [
     {
       route: "/capture",
@@ -145,7 +159,7 @@ export function buildModeItems(
 }
 
 export function buildUtilityActions(
-  studio: ReturnType<typeof useStudio>,
+  studio: HeaderStudio,
   shortcutPlatform: ShortcutDisplayPlatform | undefined,
   activeRoute: StudioLayoutRoute,
 ): HeaderIconButtonModel[] {
@@ -271,21 +285,21 @@ export function StudioShellHeader({
       ? studio.ui.labels.display
       : studio.ui.labels.window;
   const startConfiguredRecording = () => {
-    void studio.toggleRecordingMutation.mutateAsync(
+    studio.toggleRecordingMutation.mutate(
       resolveConfiguredRecordingOptions(studio.settingsForm.state.values.captureSource),
     );
   };
 
   const startDisplayRecording = () => {
     studio.settingsForm.setFieldValue("captureSource", "display");
-    void studio.toggleRecordingMutation.mutateAsync({
+    studio.toggleRecordingMutation.mutate({
       captureSourceOverride: "display",
     });
   };
 
   const startCurrentWindowRecording = () => {
     studio.settingsForm.setFieldValue("captureSource", "window");
-    void studio.toggleRecordingMutation.mutateAsync({
+    studio.toggleRecordingMutation.mutate({
       captureSourceOverride: "window",
       preferCurrentWindow: true,
     });
@@ -293,7 +307,7 @@ export function StudioShellHeader({
 
   const startRecordingWithWindowPicker = () => {
     studio.settingsForm.setFieldValue("captureSource", "window");
-    void studio.toggleRecordingMutation.mutateAsync({
+    studio.toggleRecordingMutation.mutate({
       captureSourceOverride: "window",
       preferWindowPicker: true,
     });
@@ -371,7 +385,7 @@ export function StudioShellHeader({
                         size="icon-sm"
                         variant="outline"
                         className={studioButtonToneClass("record")}
-                        onClick={() => void studio.toggleRecordingMutation.mutateAsync(undefined)}
+                        onClick={() => studio.toggleRecordingMutation.mutate(undefined)}
                         disabled={isCaptureActionDisabled}
                       />
                     }

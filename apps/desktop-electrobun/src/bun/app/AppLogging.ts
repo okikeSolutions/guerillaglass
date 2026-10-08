@@ -1,6 +1,16 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Config, Duration, Effect, Layer, Logger, Metric, References } from "effect";
-import { DevTools } from "effect/unstable/devtools";
+import {
+  Config,
+  Duration,
+  Effect,
+  Layer,
+  Logger,
+  Metric,
+  Option,
+  References,
+  Schedule,
+} from "effect";
+import { DevTools } from "effect/devtools";
 import { platform, release } from "node:os";
 import { resolveDesktopDiagnosticsLogPaths } from "./AppLogPaths";
 import {
@@ -60,9 +70,9 @@ const loggerLayer = Layer.unwrap(
           flag: "a",
           batchWindow: Duration.millis(100),
         }),
-        Effect.catchCause((cause) =>
+        Effect.catch((error) =>
           Effect.logWarning("Desktop file logger unavailable; continuing with console logging", {
-            cause,
+            error,
             logPath,
           }).pipe(Effect.as(Logger.consoleJson)),
         ),
@@ -76,10 +86,17 @@ const loggerLayer = Layer.unwrap(
 /** Desktop backend logging policy: structured JSON in production, verbose diagnostics in dev. */
 export const layerAppLogging = Layer.mergeAll(loggerLayer, minimumLogLevelLayer);
 
-export const layerEffectDevTools =
-  process.env.GG_EFFECT_DEVTOOLS === "1"
-    ? DevTools.layer(process.env.GG_EFFECT_DEVTOOLS_URL?.trim() || undefined)
-    : Layer.empty;
+/** Enables Effect DevTools when the runtime configuration requests it. */
+export const layerEffectDevTools = Layer.unwrap(
+  Effect.gen(function* () {
+    const enabled = yield* Config.String("GG_EFFECT_DEVTOOLS").pipe(Config.withDefault(""));
+    if (enabled !== "1") {
+      return Layer.empty;
+    }
+    const url = Option.getOrNull(yield* Config.option(Config.String("GG_EFFECT_DEVTOOLS_URL")));
+    return DevTools.layer(url?.trim() || undefined);
+  }),
+);
 
 /** Process diagnostics installed inside the Effect/Bun runtime and backed by app loggers. */
 export const layerDesktopProcessDiagnostics = Layer.effectDiscard(
@@ -143,45 +160,51 @@ export const layerDesktopProcessDiagnostics = Layer.effectDiscard(
     process.on("beforeExit", onBeforeExit);
     process.on("exit", onExit);
 
-    const heartbeat = setInterval(() => {
+    const heartbeat = Effect.fn("DesktopDiagnostics.heartbeat")(function* () {
       const memoryUsage = process.memoryUsage();
-      runDiagnosticLog(
-        Effect.all(
-          [
-            Metric.update(desktopProcessMemoryRssBytes, memoryUsage.rss),
-            Metric.update(desktopProcessHeapUsedBytes, memoryUsage.heapUsed),
-            Metric.update(desktopProcessHeapTotalBytes, memoryUsage.heapTotal),
-            Metric.update(desktopProcessExternalBytes, memoryUsage.external),
-            Effect.logDebug("desktop process heartbeat").pipe(
-              Effect.annotateLogs({
-                component: "desktop-process",
-                memoryUsage,
-                resourceUsage:
-                  typeof process.resourceUsage === "function" ? process.resourceUsage() : undefined,
-                uptimeSeconds: process.uptime(),
-              }),
-            ),
-          ],
-          { discard: true },
-        ),
+      yield* Effect.all(
+        [
+          Metric.update(desktopProcessMemoryRssBytes, memoryUsage.rss),
+          Metric.update(desktopProcessHeapUsedBytes, memoryUsage.heapUsed),
+          Metric.update(desktopProcessHeapTotalBytes, memoryUsage.heapTotal),
+          Metric.update(desktopProcessExternalBytes, memoryUsage.external),
+          Effect.logDebug("desktop process heartbeat").pipe(
+            Effect.annotateLogs({
+              component: "desktop-process",
+              memoryUsage,
+              resourceUsage:
+                typeof process.resourceUsage === "function" ? process.resourceUsage() : undefined,
+              uptimeSeconds: process.uptime(),
+            }),
+          ),
+        ],
+        { discard: true },
       );
-    }, 60_000);
-    heartbeat.unref?.();
+    });
+    yield* heartbeat().pipe(
+      Effect.repeat(Schedule.spaced("60 seconds")),
+      Effect.delay("60 seconds"),
+      Effect.forkScoped,
+    );
 
     yield* Effect.logInfo("desktop process diagnostics installed").pipe(
       Effect.annotateLogs({
         argv: process.argv,
         component: "desktop-process",
         cwd: process.cwd(),
-        electrobunBuild: process.env.ELECTROBUN_BUILD ?? null,
+        electrobunBuild: Option.getOrNull(yield* Config.option(Config.String("ELECTROBUN_BUILD"))),
         execPath: process.execPath,
-        ggDebug: process.env.GG_DEBUG ?? null,
-        ggEnginePath: process.env.GG_ENGINE_PATH ?? null,
-        ggMediaServerDebug: process.env.GG_MEDIA_SERVER_DEBUG ?? null,
-        ggStudioDiagnostics: process.env.GG_STUDIO_DIAGNOSTICS ?? null,
+        ggDebug: Option.getOrNull(yield* Config.option(Config.String("GG_DEBUG"))),
+        ggEnginePath: Option.getOrNull(yield* Config.option(Config.String("GG_ENGINE_PATH"))),
+        ggMediaServerDebug: Option.getOrNull(
+          yield* Config.option(Config.String("GG_MEDIA_SERVER_DEBUG")),
+        ),
+        ggStudioDiagnostics: Option.getOrNull(
+          yield* Config.option(Config.String("GG_STUDIO_DIAGNOSTICS")),
+        ),
         logPath: logPaths[0] ?? null,
         logPaths,
-        nodeEnv: process.env.NODE_ENV ?? null,
+        nodeEnv: Option.getOrNull(yield* Config.option(Config.String("NODE_ENV"))),
         osRelease: release(),
         platform: platform(),
       }),
@@ -189,7 +212,6 @@ export const layerDesktopProcessDiagnostics = Layer.effectDiscard(
 
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
-        clearInterval(heartbeat);
         process.removeListener("uncaughtExceptionMonitor", onUncaughtExceptionMonitor);
         process.removeListener("unhandledRejection", onUnhandledRejection);
         process.removeListener("rejectionHandled", onRejectionHandled);

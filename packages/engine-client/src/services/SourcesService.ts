@@ -1,6 +1,6 @@
 import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sources";
 import { Context, Effect, Layer } from "effect";
-import type { EngineClientError } from "../errors";
+import type { EngineClientFailure } from "../errors";
 import { EngineClient } from "../service";
 
 /**
@@ -10,7 +10,7 @@ export type SourcesServiceShape = {
   /**
    * Lists capturable displays and windows.
    */
-  readonly list: Effect.Effect<SourcesResult, EngineClientError>;
+  readonly list: Effect.Effect<SourcesResult, EngineClientFailure>;
 };
 
 /**
@@ -25,5 +25,8 @@ export class SourcesService extends Context.Service<SourcesService, SourcesServi
  */
 export const layerSourcesService: Layer.Layer<SourcesService, never, EngineClient> = Layer.effect(
   SourcesService,
-  Effect.map(EngineClient, (client) => SourcesService.of({ list: client.sourcesList })),
+  Effect.gen(function* () {
+    const client = yield* EngineClient;
+    return SourcesService.of({ list: client.sourcesList });
+  }),
 );

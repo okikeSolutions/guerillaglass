@@ -47,12 +47,11 @@ bun run swift:build
 From the repository root:
 
 ```bash
-# Builds the native macOS engine, packages the desktop bundle, launches Electrobun,
-# and enables Electrobun's app-bundle watch mode.
+# Builds the native macOS engine and desktop bundle, launches through LaunchServices,
+# and rebuilds sequentially when host, renderer, config, or native source changes.
 bun run desktop:dev
 
-# Runs Vite for renderer HMR and launches the Electrobun dev shell without
-# the duplicate Electrobun build pass.
+# Runs Vite for renderer HMR and builds/launches the packaged desktop once.
 bun run desktop:dev:hmr
 ```
 
@@ -69,6 +68,18 @@ By default the desktop dev scripts launch the SwiftPM-built macOS engine at `.bu
 GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev
 GG_ENGINE_PATH=/absolute/path/to/guerillaglass-engine bun run desktop:dev:hmr
 ```
+
+The macOS runner uses `/usr/bin/open` so macOS attributes Screen Recording access
+to Guerillaglass. Directly executing `Contents/MacOS/launcher`, including through
+Electrobun 2.0.1's CLI `run`/`dev`, can attribute the engine to the invoking terminal
+instead. The runner passes `GG_ENGINE_PATH` explicitly to LaunchServices without
+changing global `launchctl` environment settings. Custom engines skip the default
+Swift build. Default native builds use two jobs.
+
+The runner prints a temporary console-log path outside the repository volume.
+Close an existing packaged app before starting another runner. Ctrl+C stops the
+selected Bun host and its engine; the launcher-to-host registration change is
+handled before recording the process identity.
 
 Focused Rust native parity builds can be launched the same way:
 
@@ -93,6 +104,9 @@ startup smoke on macOS. The runtime smoke launches the Electrobun app and Swift
 engine, waits for host/renderer/engine milestones, verifies a visible window,
 scans logs for fatal startup failures, verifies process cleanup, and writes its
 report under `.tmp/runtime-acceptance/latest/`.
+The runtime smoke uses the same LaunchServices adapter as development. Its
+shutdown checks the bundle URL, PID, and launch time before signaling the app,
+then waits for that app instance to exit.
 
 For every desktop/runtime change, also validate the packaged app with Peekaboo through
 the permissioned GUI bridge at

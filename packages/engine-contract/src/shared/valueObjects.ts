@@ -135,7 +135,9 @@ export const timelineDocumentSchema = Schema.Struct({
 /**
  * Static or last-known metadata about a captured source.
  */
-export type CaptureMetadata = Schema.Schema.Type<typeof captureMetadataSchema>;
+export const CaptureMetadata = captureMetadataSchema;
+/** Validated CaptureMetadata record. */
+export interface CaptureMetadata extends Schema.Schema.Type<typeof CaptureMetadata> {}
 
 /**
  * Runtime TypeScript type for input-monitoring permission state.
@@ -145,32 +147,46 @@ export type InputMonitoringStatus = Schema.Schema.Type<typeof inputMonitoringSta
 /**
  * Runtime TypeScript type for background framing settings.
  */
-export type BackgroundFramingSettings = Schema.Schema.Type<typeof backgroundFramingSettingsSchema>;
+export const BackgroundFramingSettings = backgroundFramingSettingsSchema;
+/** Validated BackgroundFramingSettings record. */
+export interface BackgroundFramingSettings extends Schema.Schema.Type<
+  typeof BackgroundFramingSettings
+> {}
 
 /**
  * Runtime TypeScript type for auto-zoom project settings.
  */
-export type AutoZoomSettings = Schema.Schema.Type<typeof autoZoomSettingsSchema>;
+export const AutoZoomSettings = autoZoomSettingsSchema;
+/** Validated AutoZoomSettings record. */
+export interface AutoZoomSettings extends Schema.Schema.Type<typeof AutoZoomSettings> {}
 
 /**
  * Runtime TypeScript type for an input event.
  */
-export type InputEvent = Schema.Schema.Type<typeof inputEventSchema>;
+export const InputEvent = inputEventSchema;
+/** Validated InputEvent record. */
+export interface InputEvent extends Schema.Schema.Type<typeof InputEvent> {}
 
 /**
  * Runtime TypeScript type for an input event log.
  */
-export type InputEventLog = Schema.Schema.Type<typeof inputEventLogSchema>;
+export const InputEventLog = inputEventLogSchema;
+/** Validated InputEventLog record. */
+export interface InputEventLog extends Schema.Schema.Type<typeof InputEventLog> {}
 
 /**
  * Runtime TypeScript type for a timeline clip item.
  */
-export type TimelineClipItem = Schema.Schema.Type<typeof timelineClipItemSchema>;
+export const TimelineClipItem = timelineClipItemSchema;
+/** Validated TimelineClipItem record. */
+export interface TimelineClipItem extends Schema.Schema.Type<typeof TimelineClipItem> {}
 
 /**
  * Runtime TypeScript type for a timeline gap item.
  */
-export type TimelineGapItem = Schema.Schema.Type<typeof timelineGapItemSchema>;
+export const TimelineGapItem = timelineGapItemSchema;
+/** Validated TimelineGapItem record. */
+export interface TimelineGapItem extends Schema.Schema.Type<typeof TimelineGapItem> {}
 
 /**
  * Runtime TypeScript type for a timeline item.
@@ -185,4 +201,6 @@ export type TimelineSegment = Schema.Schema.Type<typeof timelineSegmentSchema>;
 /**
  * Runtime TypeScript type for a versioned timeline document.
  */
-export type TimelineDocument = Schema.Schema.Type<typeof timelineDocumentSchema>;
+export const TimelineDocument = timelineDocumentSchema;
+/** Validated TimelineDocument record. */
+export interface TimelineDocument extends Schema.Schema.Type<typeof TimelineDocument> {}

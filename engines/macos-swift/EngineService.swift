@@ -12,6 +12,7 @@ struct EngineAgentPreflightSession {
     let importedTranscriptPath: String?
     let importedTranscriptData: Data
     let projectId: UUID
+    let projectSessionID: UUID
     let projectPath: String
     let recordingURL: String
     let recordingRevision: String
@@ -35,6 +36,7 @@ final class EngineService: APIProtocol {
     let inputSession = InputEventSession()
 
     var trackInputEventsWhileRecording = false
+    var projectSessionID = UUID()
     var currentProjectURL: URL?
     var currentProjectDocument = ProjectDocument()
     var currentEventsURL: URL?

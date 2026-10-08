@@ -29,9 +29,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "effect": "4.0.0-rc.115"
+    "effect": "4.0.2"
   },
   "devDependencies": {
+    "@effect/vitest": "4.0.2",
     "@guerillaglass/typescript-config": "workspace:*",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.1",

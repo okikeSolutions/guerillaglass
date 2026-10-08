@@ -21,12 +21,4 @@ Read the root `AGENTS.md` and `docs/CHANGE_MAP.md` first.
 
 ## Checks
 
-```bash
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --all-targets
-swiftformat --lint .
-swiftlint --quiet
-swift test
-bun run protocol:generate-bindings
-```
+Before running checks, use [Verification selection](../docs/CHANGE_MAP.md#verification-selection) for Rust/Swift target discovery, fast compile commands, focused tests, and generated-consumer coverage. Select both native consumers for protocol changes. CI runs the full native suites; the full local gate is explicitly requested.

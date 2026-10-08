@@ -22,13 +22,15 @@ export const engineClientOptionsSchema = Schema.Struct({
    *
    * @defaultValue 30000
    */
-  requestTimeoutMs: Schema.optionalKey(Schema.Number),
+  requestTimeoutMs: Schema.optionalKey(Schema.Finite),
 }).annotate({ identifier: "EngineClientOptions" });
 
 /**
  * Explicit options for constructing an engine client without reading from the environment.
  */
-export type EngineClientOptions = Schema.Schema.Type<typeof engineClientOptionsSchema>;
+export const EngineClientOptions = engineClientOptionsSchema;
+/** Validated EngineClientOptions record. */
+export interface EngineClientOptions extends Schema.Schema.Type<typeof EngineClientOptions> {}
 
 /**
  * Effect configuration recipe for loading engine client options from a `ConfigProvider`.

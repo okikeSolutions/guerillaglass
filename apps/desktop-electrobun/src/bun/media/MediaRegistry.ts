@@ -1,4 +1,15 @@
-import { Context, Crypto, Effect, FileSystem, Layer, Option, Path, Ref } from "effect";
+import {
+  Clock,
+  Context,
+  Crypto,
+  Effect,
+  FileSystem,
+  Layer,
+  Option,
+  Path,
+  Ref,
+  Schema,
+} from "effect";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -8,18 +19,21 @@ export const mediaTokenAbsoluteTtlMs = 5 * 60 * 1000;
 export const mediaTokenIdleTtlMs = 60 * 1000;
 export const maxMediaTokens = 512;
 
-export type MediaTokenEntry = {
-  readonly kind: "file";
-  readonly filePath: string;
-  readonly createdAt: number;
-  readonly lastAccessedAt: number;
-};
+/** File snapshot authorized for tokenized loopback playback. */
+export const MediaTokenEntry = Schema.Struct({
+  kind: Schema.Literal("file"),
+  filePath: Schema.String,
+  createdAt: Schema.Finite,
+  lastAccessedAt: Schema.Finite,
+});
+/** Validated file-token state. */
+export interface MediaTokenEntry extends Schema.Schema.Type<typeof MediaTokenEntry> {}
 
 export type PreviewTokenEntry = {
   readonly kind: "capturePreview";
   readonly createdAt: number;
   readonly lastAccessedAt: number;
-  readonly loadPreviewFrame: Effect.Effect<CapturePreviewFrameResult, unknown>;
+  readonly loadPreviewFrame: () => Effect.Effect<CapturePreviewFrameResult, unknown>;
   readonly cachedFrameId: number | null;
   readonly cachedJPEGBytes: Uint8Array | null;
 };
@@ -31,8 +45,8 @@ type MediaRegistryService = {
     filePath: string,
   ) => Effect.Effect<string, MediaServerError, FileSystem.FileSystem>;
   readonly registerCapturePreview: (
-    loadPreviewFrame: Effect.Effect<CapturePreviewFrameResult, unknown>,
-  ) => Effect.Effect<string>;
+    loadPreviewFrame: () => Effect.Effect<CapturePreviewFrameResult, unknown>,
+  ) => Effect.Effect<string, MediaServerError>;
   readonly resolveToken: (token: string) => Effect.Effect<Option.Option<TokenEntry>>;
   readonly updatePreviewCache: (
     token: string,
@@ -72,7 +86,7 @@ function pruneTokenMap(tokens: Map<string, TokenEntry>, now: number): Map<string
   return next;
 }
 
-function normalizeMediaPath(
+const normalizeMediaPath = Effect.fn("MediaRegistry.normalizeMediaPath")(function (
   path: Path.Path,
   filePath: string,
 ): Effect.Effect<string, MediaServerError, FileSystem.FileSystem> {
@@ -120,42 +134,51 @@ function normalizeMediaPath(
 
     return normalizedPath;
   });
-}
+});
 
 export const makeMediaRegistryService = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
   const path = yield* Path.Path;
   const tokensRef = yield* Ref.make(new Map<string, TokenEntry>());
 
-  const insertToken = (entry: TokenEntry) =>
-    Effect.gen(function* () {
-      const token = yield* crypto.randomUUIDv4.pipe(Effect.orDie);
-      const now = Date.now();
-      yield* Ref.update(tokensRef, (tokens) => {
-        const next = pruneTokenMap(tokens, now);
-        next.set(token, entry);
-        return next;
-      });
-      return token;
+  // This map is the authority for issued media leases. Missing tokens cannot be loaded,
+  // and successful reads renew idle expiry without changing absolute expiry.
+  const insertToken = Effect.fn("MediaRegistry.insertToken")(function* (entry: TokenEntry) {
+    const token = yield* crypto.randomUUIDv4.pipe(
+      Effect.mapError(
+        (cause) =>
+          new MediaServerError({
+            code: "MEDIA_TOKEN_GENERATION_FAILED",
+            description: messageFromUnknownError(cause, "Could not create a media access token."),
+            cause,
+          }),
+      ),
+    );
+    const now = yield* Clock.currentTimeMillis;
+    yield* Ref.update(tokensRef, (tokens) => {
+      const next = pruneTokenMap(tokens, now);
+      next.set(token, entry);
+      return next;
     });
+    return token;
+  });
 
   return MediaRegistry.of({
-    registerMediaFile: (filePath) =>
-      normalizeMediaPath(path, filePath).pipe(
-        Effect.flatMap((normalizedPath) => {
-          const now = Date.now();
-          return insertToken({
-            kind: "file",
-            filePath: normalizedPath,
-            createdAt: now,
-            lastAccessedAt: now,
-          });
-        }),
-      ),
-
-    registerCapturePreview: (loadPreviewFrame) => {
-      const now = Date.now();
-      return insertToken({
+    registerMediaFile: Effect.fn("MediaRegistry.registerMediaFile")(function* (filePath: string) {
+      const normalizedPath = yield* normalizeMediaPath(path, filePath);
+      const now = yield* Clock.currentTimeMillis;
+      return yield* insertToken({
+        kind: "file",
+        filePath: normalizedPath,
+        createdAt: now,
+        lastAccessedAt: now,
+      });
+    }),
+    registerCapturePreview: Effect.fn("MediaRegistry.registerCapturePreview")(function* (
+      loadPreviewFrame: () => Effect.Effect<CapturePreviewFrameResult, unknown>,
+    ) {
+      const now = yield* Clock.currentTimeMillis;
+      return yield* insertToken({
         kind: "capturePreview",
         createdAt: now,
         lastAccessedAt: now,
@@ -163,36 +186,33 @@ export const makeMediaRegistryService = Effect.gen(function* () {
         cachedFrameId: null,
         cachedJPEGBytes: null,
       });
-    },
-
-    resolveToken: (token) =>
-      Ref.modify(tokensRef, (tokens) => {
-        const now = Date.now();
+    }),
+    resolveToken: Effect.fn("MediaRegistry.resolveToken")(function* (token: string) {
+      const now = yield* Clock.currentTimeMillis;
+      return yield* Ref.modify(tokensRef, (tokens) => {
         const next = pruneTokenMap(tokens, now);
         const entry = next.get(token);
         if (!entry || isTokenExpired(entry, now)) {
           next.delete(token);
           return [Option.none<TokenEntry>(), next];
         }
-        const refreshedEntry = { ...entry, lastAccessedAt: now } as TokenEntry;
+        const refreshedEntry: TokenEntry = { ...entry, lastAccessedAt: now };
         next.set(token, refreshedEntry);
         return [Option.some(refreshedEntry), next];
-      }),
-
-    updatePreviewCache: (token, frameId, jpegBytes) =>
-      Ref.update(tokensRef, (tokens) => {
-        const entry = tokens.get(token);
-        if (!entry || entry.kind !== "capturePreview") {
-          return tokens;
-        }
-        const next = new Map(tokens);
-        next.set(token, {
-          ...entry,
-          cachedFrameId: frameId,
-          cachedJPEGBytes: jpegBytes,
-        });
-        return next;
-      }),
+      });
+    }),
+    updatePreviewCache: Effect.fn("MediaRegistry.updatePreviewCache")(
+      (token: string, frameId: number, jpegBytes: Uint8Array) =>
+        Ref.update(tokensRef, (tokens) => {
+          const entry = tokens.get(token);
+          if (!entry || entry.kind !== "capturePreview") {
+            return tokens;
+          }
+          const next = new Map(tokens);
+          next.set(token, { ...entry, cachedFrameId: frameId, cachedJPEGBytes: jpegBytes });
+          return next;
+        }),
+    ),
   });
 });
 

@@ -4,6 +4,8 @@
   "studio_app_subtitle": "Desktop Editor Shell",
   "studio_app_shellState": "Spec-aligned capture and editing workflow",
   "studio_notices_refreshFailed": "Failed to refresh app state.",
+  "studio_notices_capturePermissionRequired": "Capture permission is missing. Enable Screen Recording, and Microphone when recording audio, for Guerillaglass in System Settings > Privacy & Security, then try again.",
+  "studio_notices_windowSelectionFailed": "Window selection did not complete. Choose a window and try again.",
   "studio_notices_actionFailed": "Action failed.",
   "studio_notices_rpcTimedOut": "RPC request timed out. Try again or close open file dialogs first.",
   "studio_notices_directoryPickerTimedOut": "Directory picker timed out before completing. Reopen the action when ready.",

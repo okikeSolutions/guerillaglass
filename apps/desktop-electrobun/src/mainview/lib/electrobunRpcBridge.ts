@@ -84,17 +84,17 @@ export function initializeElectrobunRpcBridge(): void {
   });
   new Electroview({ rpc });
 
+  const requests: {
+    [K in BridgeRequestName]: (
+      params: BridgeRequests[K]["params"],
+    ) => Promise<BridgeResponseEnvelope<BridgeRequests[K]["response"]>>;
+  } = rpc.request;
+
   const invoke: BridgeRequestInvoker = <K extends BridgeRequestName>(
     name: K,
     params: BridgeRequests[K]["params"],
   ) => {
-    const requestProxy = rpc.request as unknown as Record<
-      string,
-      (value: unknown) => Promise<unknown>
-    >;
-    return requestProxy[name](params) as Promise<
-      BridgeResponseEnvelope<BridgeRequests[K]["response"]>
-    >;
+    return requests[name](params);
   };
 
   const bindings: WindowBridgeBindings = createWindowBridgeBindings(

@@ -1,5 +1,5 @@
-import { createAuth } from "../auth";
+import { betterAuth } from "better-auth/minimal";
+import { authOptions } from "../auth";
 
-// Export a static instance for Better Auth schema generation
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const auth = createAuth({} as any);
+// Schema generation needs auth plugins and options without a live Convex database context.
+export const auth = betterAuth(authOptions);

@@ -6,7 +6,12 @@ import { initializeElectrobunRpcBridge } from "./lib/electrobunRpcBridge";
 
 initializeElectrobunRpcBridge();
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Desktop renderer root element is missing.");
+}
+
+createRoot(rootElement).render(
   <StrictMode>
     <App />
   </StrictMode>,

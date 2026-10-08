@@ -1,12 +1,21 @@
 import { describe, expect, test } from "vitest";
-import { Effect, Fiber, Layer, Schema } from "effect";
+import { it } from "@effect/vitest";
+import { EngineClientError } from "@guerillaglass/engine-client/errors";
+import { Deferred, Effect, Layer, Queue, Schema } from "effect";
+import { TestClock } from "effect/testing";
 import { captureSessionIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   captureStatusResultSchema,
   type CaptureStatusResult,
 } from "@guerillaglass/engine-contract/domains/capture";
 import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
-import type { EngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
+import { AgentService } from "@guerillaglass/engine-client/services/AgentService";
+import { ExportService } from "@guerillaglass/engine-client/services/ExportService";
+import { PermissionsService } from "@guerillaglass/engine-client/services/PermissionsService";
+import { ProjectService } from "@guerillaglass/engine-client/services/ProjectService";
+import { RecordingService } from "@guerillaglass/engine-client/services/RecordingService";
+import { SourcesService } from "@guerillaglass/engine-client/services/SourcesService";
+import { SystemService } from "@guerillaglass/engine-client/services/SystemService";
 import { MediaSourceService } from "../src/bun/media/service";
 import { ReviewGateway } from "../src/bun/review/service";
 import { makeCaptureStatusPollingEffect } from "../src/bun/app/AppLayer";
@@ -35,72 +44,79 @@ function makeCaptureStatus(overrides: Partial<CaptureStatusResult> = {}): Captur
   });
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 describe("desktop app runtime capture status polling", () => {
-  test("forwards capture status polling results", async () => {
-    const delivered: CaptureStatusResult[] = [];
-    const first = makeCaptureStatus({ isRunning: true, isRecording: true });
-    const statusCodec = Schema.toCodecJson(captureStatusResultSchema);
-    const decodeStatus = Schema.decodeUnknownSync(statusCodec);
-    const encodeStatus = Schema.encodeUnknownSync(statusCodec);
+  it.effect("forwards capture status polling results", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const delivered = yield* Deferred.make<CaptureStatusResult>();
+        const first = makeCaptureStatus({ isRunning: true, isRecording: true });
+        const statusCodec = Schema.toCodecJson(captureStatusResultSchema);
+        const decodedFirst = yield* Schema.decodeEffect(statusCodec)(first);
+        const encodedFirst = yield* Schema.encodeUnknownEffect(statusCodec)(decodedFirst);
 
-    const fiber = Effect.runFork(
-      makeCaptureStatusPollingEffect(0, 50).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            Layer.succeed(CaptureService, {
-              status: Effect.succeed(decodeStatus(first)),
-            } as never),
-            Layer.succeed(DesktopShell, {
-              start: () => Effect.void,
-              publishCaptureStatus: (status: CaptureStatusResult) =>
-                Effect.sync(() => {
-                  delivered.push(status);
-                }),
-              publishReviewEvent: () => Effect.void,
-              dispose: Effect.void,
-            }),
+        yield* makeCaptureStatusPollingEffect(0, 50).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.mock(CaptureService, {
+                status: Effect.succeed(decodedFirst),
+              }),
+              Layer.succeed(DesktopShell, {
+                start: () => Effect.void,
+                publishCaptureStatus: (status: CaptureStatusResult) =>
+                  Deferred.succeed(delivered, status).pipe(Effect.asVoid),
+                publishReviewEvent: () => Effect.void,
+                dispose: Effect.void,
+              }),
+            ),
           ),
-        ),
-      ) as Effect.Effect<void, never, never>,
-    );
+          Effect.forkScoped,
+        );
 
-    await sleep(20);
-    await Effect.runPromise(Fiber.interrupt(fiber));
+        expect(yield* Deferred.await(delivered)).toEqual(encodedFirst);
+      }),
+    ),
+  );
 
-    expect(delivered[0]).toEqual(encodeStatus(decodeStatus(first)));
-  });
+  it.effect("continues when capture status polling fails", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const attempts = yield* Queue.unbounded<void>();
+        const delivered = yield* Queue.unbounded<CaptureStatusResult>();
 
-  test("continues when capture status polling fails", async () => {
-    const delivered: CaptureStatusResult[] = [];
-
-    const fiber = Effect.runFork(
-      makeCaptureStatusPollingEffect(0, 50).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            Layer.succeed(CaptureService, {
-              status: Effect.fail("status probe failed"),
-            } as never),
-            Layer.succeed(DesktopShell, {
-              start: () => Effect.void,
-              publishCaptureStatus: (status: CaptureStatusResult) =>
-                Effect.sync(() => {
-                  delivered.push(status);
-                }),
-              publishReviewEvent: () => Effect.void,
-              dispose: Effect.void,
-            }),
+        yield* makeCaptureStatusPollingEffect(0, 50).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.mock(CaptureService, {
+                status: Queue.offer(attempts, undefined).pipe(
+                  Effect.andThen(
+                    Effect.fail(
+                      new EngineClientError({
+                        code: "ENGINE_HTTP_REQUEST_FAILED",
+                        description: "status probe failed",
+                      }),
+                    ),
+                  ),
+                ),
+              }),
+              Layer.succeed(DesktopShell, {
+                start: () => Effect.void,
+                publishCaptureStatus: (status: CaptureStatusResult) =>
+                  Queue.offer(delivered, status).pipe(Effect.asVoid),
+                publishReviewEvent: () => Effect.void,
+                dispose: Effect.void,
+              }),
+            ),
           ),
-        ),
-      ) as Effect.Effect<void, never, never>,
-    );
+          Effect.forkScoped,
+        );
 
-    await sleep(20);
-    await Effect.runPromise(Fiber.interrupt(fiber));
-
-    expect(delivered).toEqual([]);
-  });
+        yield* Queue.take(attempts);
+        yield* TestClock.adjust("50 millis");
+        yield* Queue.take(attempts);
+        expect(yield* Queue.size(delivered)).toBe(0);
+      }),
+    ),
+  );
 
   test("shares one engine domain service acquisition with the capture status worker", async () => {
     let acquisitions = 0;
@@ -113,25 +129,41 @@ describe("desktop app runtime capture status polling", () => {
         publishReviewEvent: () => Effect.void,
         dispose: Effect.void,
       }),
-      projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
+      projectSessionLayer: Layer.mock(ProjectSession, {}),
       desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
-      engineDomainServicesLayer: Layer.effect(
-        CaptureService,
-        Effect.acquireRelease(
-          Effect.suspend(() => {
-            acquisitions += 1;
-            return Effect.succeed({
-              status: Effect.never,
-            } as never);
-          }),
-          () =>
-            Effect.sync(() => {
-              releases += 1;
+      engineDomainServicesLayer: Layer.mergeAll(
+        Layer.mock(AgentService, {}),
+        Layer.mock(ExportService, {}),
+        Layer.mock(PermissionsService, {}),
+        Layer.mock(ProjectService, {}),
+        Layer.mock(RecordingService, {}),
+        Layer.mock(SourcesService, {}),
+        Layer.mock(SystemService, {}),
+        Layer.effect(
+          CaptureService,
+          Effect.acquireRelease(
+            Effect.suspend(() => {
+              acquisitions += 1;
+              return Effect.succeed(
+                CaptureService.of({
+                  status: Effect.never,
+                  stop: Effect.die("unused"),
+                  previewFrame: Effect.die("unused"),
+                  startDisplay: () => Effect.die("unused"),
+                  startCurrentWindow: () => Effect.die("unused"),
+                  startWindow: () => Effect.die("unused"),
+                }),
+              );
             }),
+            () =>
+              Effect.sync(() => {
+                releases += 1;
+              }),
+          ),
         ),
-      ) as Layer.Layer<EngineDomainServices>,
-      reviewGatewayLayer: Layer.succeed(ReviewGateway, {} as never),
-      mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
+      ),
+      reviewGatewayLayer: Layer.mock(ReviewGateway, {}),
+      mediaSourceServiceLayer: Layer.mock(MediaSourceService, {}),
     });
 
     expect(acquisitions).toBe(1);

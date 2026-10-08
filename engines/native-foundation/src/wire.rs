@@ -83,15 +83,10 @@ pub(crate) struct EngineRequest {
     pub(crate) params: Value,
 }
 
-#[allow(dead_code)] // Legacy internal dispatcher remains testable while unsupported HTTP methods fail truthfully.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EngineMethod {
     SystemPing,
     EngineCapabilities,
-    AgentPreflight,
-    AgentRun,
-    AgentStatus,
-    AgentApply,
     PermissionsGet,
     PermissionsRequestScreenRecording,
     PermissionsRequestMicrophone,
@@ -108,7 +103,6 @@ pub(crate) enum EngineMethod {
     CapturePreviewFrame,
     ExportInfo,
     ExportRun,
-    ExportRunCutPlan,
     ProjectCurrent,
     ProjectOpen,
     ProjectSave,
@@ -120,10 +114,6 @@ impl EngineMethod {
         match self {
             EngineMethod::SystemPing => "system.ping",
             EngineMethod::EngineCapabilities => "engine.capabilities",
-            EngineMethod::AgentPreflight => "agent.preflight",
-            EngineMethod::AgentRun => "agent.run",
-            EngineMethod::AgentStatus => "agent.status",
-            EngineMethod::AgentApply => "agent.apply",
             EngineMethod::PermissionsGet => "permissions.get",
             EngineMethod::PermissionsRequestScreenRecording => "permissions.requestScreenRecording",
             EngineMethod::PermissionsRequestMicrophone => "permissions.requestMicrophone",
@@ -142,7 +132,6 @@ impl EngineMethod {
             EngineMethod::CapturePreviewFrame => "capture.previewFrame",
             EngineMethod::ExportInfo => "export.info",
             EngineMethod::ExportRun => "export.run",
-            EngineMethod::ExportRunCutPlan => "export.runCutPlan",
             EngineMethod::ProjectCurrent => "project.current",
             EngineMethod::ProjectOpen => "project.open",
             EngineMethod::ProjectSave => "project.save",

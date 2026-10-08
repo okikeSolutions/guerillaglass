@@ -21,21 +21,23 @@ export const engineHttpReadyEnvelopeSchema = Schema.Struct({
 /**
  * Runtime TypeScript type for v2 HTTP engine readiness messages.
  */
-export type EngineHttpReadyEnvelope = Schema.Schema.Type<typeof engineHttpReadyEnvelopeSchema>;
+export const EngineHttpReadyEnvelope = engineHttpReadyEnvelopeSchema;
+/** Validated EngineHttpReadyEnvelope record. */
+export interface EngineHttpReadyEnvelope extends Schema.Schema.Type<
+  typeof EngineHttpReadyEnvelope
+> {}
 
 /**
  * Local HTTP address for a ready native engine process.
  */
-export type EngineHttpAddress = {
-  /**
-   * Loopback host bound by the native engine.
-   */
-  readonly host: string;
-  /**
-   * TCP port bound by the native engine.
-   */
-  readonly port: number;
-};
+export const EngineHttpAddress = Schema.Struct({
+  /** Loopback host bound by the native engine. */
+  host: Schema.String,
+  /** TCP port bound by the native engine. */
+  port: Schema.Finite,
+});
+/** Local HTTP connection address for a ready engine. */
+export interface EngineHttpAddress extends Schema.Schema.Type<typeof EngineHttpAddress> {}
 
 /**
  * Returns whether a readiness host is restricted to loopback access.

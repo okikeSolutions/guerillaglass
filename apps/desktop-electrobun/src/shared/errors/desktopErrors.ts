@@ -1,4 +1,4 @@
-import { Data } from "effect";
+import { Schema } from "effect";
 import {
   ContractDecodeError,
   EngineClientError,
@@ -8,48 +8,14 @@ import {
   JsonParseError,
 } from "@guerillaglass/engine-client/errors";
 
-export type FileAccessPolicyErrorCode =
-  | "FILE_PATH_REQUIRED"
-  | "LOCAL_FILE_PATH_INVALID"
-  | "LOCAL_FILE_URL_UNSUPPORTED"
-  | "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS"
-  | "TEXT_FILE_TYPE_UNSUPPORTED"
-  | "MEDIA_FILE_TYPE_UNSUPPORTED"
-  | "TEMP_MEDIA_PREFIX_REQUIRED"
-  | "PATH_NOT_FILE"
-  | "FILE_TOO_LARGE";
-
-export type MediaServerErrorCode =
-  | "MEDIA_SERVER_PORT_RESERVATION_FAILED"
-  | "MEDIA_SERVER_BIND_FAILED"
-  | "MEDIA_PATH_REQUIRED"
-  | "MEDIA_PATH_NOT_ABSOLUTE"
-  | "MEDIA_TYPE_UNSUPPORTED"
-  | "MEDIA_FILE_MISSING";
-
-export type PathPickerErrorCode =
-  | "PATH_PICKER_OPEN_DIALOG_FAILED"
-  | "PATH_PICKER_SAVE_DIALOG_FAILED"
-  | "PATH_PICKER_REQUEST_FAILED";
-
-export type BrowserStorageErrorCode =
-  | "BROWSER_STORAGE_UNAVAILABLE"
-  | "BROWSER_STORAGE_WRITE_FAILED";
-
+export type FileAccessPolicyErrorCode = FileAccessPolicyError["code"];
+export type MediaServerErrorCode = MediaServerError["code"];
+export type PathPickerErrorCode = PathPickerError["code"];
+export type BrowserStorageErrorCode = BrowserStorageError["code"];
 export type BridgeRequestLimitErrorCode = "BRIDGE_REQUEST_RATE_LIMITED" | "BRIDGE_REQUEST_TIMEOUT";
-
-export type CapabilityTokenErrorCode = "CAPABILITY_TOKEN_INVALID";
-
-export type ReviewBridgeErrorCode =
-  | "REVIEW_BRIDGE_URL_MISSING"
-  | "REVIEW_AUTH_TOKEN_MISSING"
-  | "REVIEW_REQUEST_FAILED";
-
-export type StudioActionReason =
-  | "screen_permission_required"
-  | "window_selection_required"
-  | "export_missing_recording"
-  | "export_missing_preset";
+export type CapabilityTokenErrorCode = CapabilityTokenError["code"];
+export type ReviewBridgeErrorCode = ReviewBridgeError["code"];
+export type StudioActionReason = StudioActionError["reason"];
 
 /**
  * Serialized error payload safe to ship across the Electrobun request boundary.
@@ -58,25 +24,34 @@ export type StudioActionReason =
  * fields needed to reconstruct domain errors, and a recursively summarized
  * cause chain. It does not attempt to preserve opaque runtime objects.
  */
-export type SerializedBridgeError = {
-  tag: string;
-  message?: string;
-  data?: Record<string, unknown>;
-  cause?: SerializedBridgeError;
-};
+export interface SerializedBridgeError {
+  readonly tag: string;
+  readonly message?: string;
+  readonly data?: Readonly<Record<string, unknown>>;
+  readonly cause?: SerializedBridgeError;
+}
 
-export class BridgeUnavailableError extends Data.TaggedError("BridgeUnavailableError")<{
-  bridge: string;
-}> {
+export const SerializedBridgeError: Schema.Codec<SerializedBridgeError, SerializedBridgeError> =
+  Schema.Struct({
+    tag: Schema.String,
+    message: Schema.optional(Schema.String),
+    data: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+    cause: Schema.optional(Schema.suspend(() => SerializedBridgeError)),
+  });
+
+export class BridgeUnavailableError extends Schema.TaggedError<BridgeUnavailableError>()(
+  "BridgeUnavailableError",
+  { bridge: Schema.String },
+) {
   get message(): string {
     return `Missing Electrobun bridge: ${this.bridge}`;
   }
 }
 
-export class BridgeInvocationError extends Data.TaggedError("BridgeInvocationError")<{
-  bridge: string;
-  cause: unknown;
-}> {
+export class BridgeInvocationError extends Schema.TaggedError<BridgeInvocationError>()(
+  "BridgeInvocationError",
+  { bridge: Schema.String, cause: Schema.Defect() },
+) {
   get message(): string {
     if (this.cause instanceof Error && this.cause.message.trim().length > 0) {
       return this.cause.message;
@@ -85,105 +60,153 @@ export class BridgeInvocationError extends Data.TaggedError("BridgeInvocationErr
   }
 }
 
-export class StudioActionError extends Data.TaggedError("StudioActionError")<{
-  reason: StudioActionReason;
-}> {
+export class StudioActionError extends Schema.TaggedError<StudioActionError>()(
+  "StudioActionError",
+  {
+    reason: Schema.Literals([
+      "screen_permission_required",
+      "window_selection_required",
+      "window_selection_failed",
+      "capture_permission_required",
+      "export_missing_recording",
+      "export_missing_preset",
+    ]),
+  },
+) {
   get message(): string {
     return this.reason;
   }
 }
 
-export class FileAccessPolicyError extends Data.TaggedError("FileAccessPolicyError")<{
-  code: FileAccessPolicyErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
+export class FileAccessPolicyError extends Schema.TaggedError<FileAccessPolicyError>()(
+  "FileAccessPolicyError",
+  {
+    code: Schema.Literals([
+      "FILE_PATH_REQUIRED",
+      "LOCAL_FILE_PATH_INVALID",
+      "LOCAL_FILE_URL_UNSUPPORTED",
+      "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS",
+      "TEXT_FILE_TYPE_UNSUPPORTED",
+      "MEDIA_FILE_TYPE_UNSUPPORTED",
+      "TEMP_MEDIA_PREFIX_REQUIRED",
+      "PATH_NOT_FILE",
+      "FILE_TOO_LARGE",
+    ]),
+    description: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
+) {
   get message(): string {
     return this.description;
   }
 }
 
-export class MediaServerError extends Data.TaggedError("MediaServerError")<{
-  code: MediaServerErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
+export class MediaServerError extends Schema.TaggedError<MediaServerError>()("MediaServerError", {
+  code: Schema.Literals([
+    "MEDIA_SERVER_PORT_RESERVATION_FAILED",
+    "MEDIA_SERVER_BIND_FAILED",
+    "MEDIA_PATH_REQUIRED",
+    "MEDIA_PATH_NOT_ABSOLUTE",
+    "MEDIA_TYPE_UNSUPPORTED",
+    "MEDIA_FILE_MISSING",
+    "MEDIA_TOKEN_GENERATION_FAILED",
+  ]),
+  description: Schema.String,
+  cause: Schema.optionalKey(Schema.Defect()),
+}) {
   get message(): string {
     return this.description;
   }
 }
 
-export class PathPickerError extends Data.TaggedError("PathPickerError")<{
-  code: PathPickerErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
+export class PathPickerError extends Schema.TaggedError<PathPickerError>()("PathPickerError", {
+  code: Schema.Literals([
+    "PATH_PICKER_OPEN_DIALOG_FAILED",
+    "PATH_PICKER_SAVE_DIALOG_FAILED",
+    "PATH_PICKER_REQUEST_FAILED",
+  ]),
+  description: Schema.String,
+  cause: Schema.optionalKey(Schema.Defect()),
+}) {
   get message(): string {
     return this.description;
   }
 }
 
-export class BrowserStorageError extends Data.TaggedError("BrowserStorageError")<{
-  code: BrowserStorageErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
+export class BrowserStorageError extends Schema.TaggedError<BrowserStorageError>()(
+  "BrowserStorageError",
+  {
+    code: Schema.Literals(["BROWSER_STORAGE_UNAVAILABLE", "BROWSER_STORAGE_WRITE_FAILED"]),
+    description: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
+) {
   get message(): string {
     return this.description;
   }
 }
 
-export class BridgeRequestLimitError extends Data.TaggedError("BridgeRequestLimitError")<{
-  requestName: string;
-  retryAfterMs: number;
-}> {
+export class BridgeRequestLimitError extends Schema.TaggedError<BridgeRequestLimitError>()(
+  "BridgeRequestLimitError",
+  { requestName: Schema.String, retryAfterMs: Schema.Finite },
+) {
   get message(): string {
     return `Too many ${this.requestName} requests. Try again in ${Math.ceil(this.retryAfterMs / 1000)} seconds.`;
   }
 }
 
-export class BridgeRequestTimeoutError extends Data.TaggedError("BridgeRequestTimeoutError")<{
-  requestName: string;
-  timeout: string;
-}> {
+export class BridgeRequestTimeoutError extends Schema.TaggedError<BridgeRequestTimeoutError>()(
+  "BridgeRequestTimeoutError",
+  { requestName: Schema.String, timeout: Schema.String },
+) {
   get message(): string {
     return `${this.requestName} timed out after ${this.timeout}.`;
   }
 }
 
-export class CapabilityTokenError extends Data.TaggedError("CapabilityTokenError")<{
-  code: CapabilityTokenErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
+export class CapabilityTokenError extends Schema.TaggedError<CapabilityTokenError>()(
+  "CapabilityTokenError",
+  {
+    code: Schema.Literal("CAPABILITY_TOKEN_INVALID"),
+    description: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
+) {
   get message(): string {
     return this.description;
   }
 }
 
-export class ReviewBridgeError extends Data.TaggedError("ReviewBridgeError")<{
-  code: ReviewBridgeErrorCode;
-  description: string;
-  cause?: unknown;
-}> {
+export class ReviewBridgeError extends Schema.TaggedError<ReviewBridgeError>()(
+  "ReviewBridgeError",
+  {
+    code: Schema.Literals([
+      "REVIEW_BRIDGE_URL_MISSING",
+      "REVIEW_AUTH_TOKEN_MISSING",
+      "REVIEW_REQUEST_FAILED",
+    ]),
+    description: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
+) {
   get message(): string {
     return this.description;
   }
 }
 
-export class StudioContextUnavailableError extends Data.TaggedError(
+export class StudioContextUnavailableError extends Schema.TaggedError<StudioContextUnavailableError>()(
   "StudioContextUnavailableError",
-)<{ readonly _unused?: never }> {
+  {},
+) {
   get message(): string {
     return "Studio context is not available";
   }
 }
 
-export class CaptureWindowPickerUnsupportedError extends Data.TaggedError(
+export class CaptureWindowPickerUnsupportedError extends Schema.TaggedError<CaptureWindowPickerUnsupportedError>()(
   "CaptureWindowPickerUnsupportedError",
-)<{
-  cause?: unknown;
-}> {
+  { cause: Schema.optionalKey(Schema.Defect()) },
+) {
   get message(): string {
     return "Window picker capture is unsupported on this platform.";
   }

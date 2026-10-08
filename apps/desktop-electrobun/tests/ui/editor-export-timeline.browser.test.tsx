@@ -1,18 +1,24 @@
-import { act, useEffect } from "react";
+import { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { page } from "vitest/browser";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   defaultBackgroundFramingSettings,
   type TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
+import { exportRunPayloadSchema } from "@guerillaglass/engine-contract/httpApi";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import {
   useStudioController,
   type StudioController,
 } from "../../src/mainview/app/studio/hooks/core/useStudioController";
+import type { StudioMode } from "../../src/mainview/app/studio/domain/inspectorSelectionModel";
 import { studioQueryKeys } from "../../src/mainview/app/studio/hooks/core/useStudioDataQueries";
+import { StudioProvider } from "../../src/mainview/app/studio/state/StudioProvider";
+import { InspectorPanel } from "../../src/mainview/app/studio/panels/InspectorPanel";
 
 const initialTimeline: TimelineDocument = {
   version: 2,
@@ -30,6 +36,7 @@ const initialTimeline: TimelineDocument = {
 let root: Root | undefined;
 let queryClient: QueryClient | undefined;
 let latestStudio: StudioController | null = null;
+let updateInspectorMode: ((mode: StudioMode) => void) | null = null;
 let capturedExportParams: unknown = null;
 let capturedSaveParams: unknown = null;
 
@@ -117,12 +124,58 @@ function installMockBridge() {
   bridgeWindow.ggHostSendStudioDiagnostics = () => {};
 }
 
+function currentStudio(): StudioController {
+  if (!latestStudio) {
+    throw new Error("Studio controller has not mounted");
+  }
+  return latestStudio;
+}
+
+function currentTimelineClip(index: number) {
+  const item = currentStudio().timelineDocument.items[index];
+  if (!item || item.kind !== "clip") {
+    throw new Error(`Expected timeline item ${index} to be a clip`);
+  }
+  return item;
+}
+
+function currentTimelineGap(index: number) {
+  const item = currentStudio().timelineDocument.items[index];
+  if (!item || item.kind !== "gap") {
+    throw new Error(`Expected timeline item ${index} to be a gap`);
+  }
+  return item;
+}
+
+function capturedExportTimeline(): TimelineDocument {
+  const payload = decodeUnknownWithSchemaSync(
+    exportRunPayloadSchema,
+    capturedExportParams,
+    "captured export payload",
+  );
+  if (!payload.timeline) {
+    throw new Error("Export payload omitted its timeline");
+  }
+  return payload.timeline;
+}
+
 function StudioHarness({ onStudio }: { onStudio: (studio: StudioController) => void }) {
   const studio = useStudioController();
+  const [mode, setMode] = useState<StudioMode>("deliver");
   useEffect(() => {
     onStudio(studio);
   }, [onStudio, studio]);
-  return null;
+  useEffect(() => {
+    updateInspectorMode = setMode;
+    return () => {
+      updateInspectorMode = null;
+    };
+  }, []);
+  return (
+    <StudioProvider value={studio}>
+      <InspectorPanel mode={mode} />
+    </StudioProvider>
+  );
 }
 
 function waitFor(assertion: () => void, timeoutMs = 2000): Promise<void> {
@@ -153,12 +206,22 @@ async function applyStudioAction(action: (studio: StudioController) => void | Pr
   });
 }
 
+async function setInspectorMode(mode: StudioMode) {
+  await act(async () => {
+    if (!updateInspectorMode) {
+      throw new Error("Inspector mode control has not mounted");
+    }
+    updateInspectorMode(mode);
+  });
+}
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
   capturedExportParams = null;
   capturedSaveParams = null;
   latestStudio = null;
+  updateInspectorMode = null;
   installMockBridge();
   document.body.innerHTML = '<div id="root"></div>';
   queryClient = new QueryClient({
@@ -185,10 +248,108 @@ afterEach(() => {
   root = undefined;
   queryClient = undefined;
   latestStudio = null;
+  updateInspectorMode = null;
   document.body.innerHTML = "";
 });
 
 describe("editor timeline export integration", () => {
+  test("shows deliver defaults when no inspector selection is active", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
+    );
+
+    await expect.element(page.getByRole("heading", { name: "Deliver Inspector" })).toBeVisible();
+    await expect.element(page.getByText("Active Preset")).toBeVisible();
+    await expect.element(page.getByText("Trim Window")).toBeVisible();
+  });
+
+  test("shows the selected clip inspector in the rendered editor", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
+    );
+    await applyStudioAction((studio) =>
+      studio.selectTimelineClip({
+        laneId: "video",
+        clipId: "segment-0",
+        startSeconds: 0,
+        endSeconds: 4,
+      }),
+    );
+
+    await expect.element(page.getByRole("heading", { name: "Video Clip Inspector" })).toBeVisible();
+    await expect.element(page.getByText("Selected Clip")).toBeVisible();
+    await expect.element(page.getByText("Active Preset")).not.toBeInTheDocument();
+  });
+
+  test("shows selected preset details and preserves deliver controls", async () => {
+    await waitFor(() => expect(latestStudio?.selectedPreset?.id).toBe("h264-1080p-30"));
+    await applyStudioAction((studio) => studio.setLastRoute("/deliver"));
+    await waitFor(() => expect(latestStudio?.activeMode).toBe("deliver"));
+    await applyStudioAction((studio) => studio.selectExportPreset("h264-1080p-30"));
+
+    await expect.element(page.getByRole("heading", { name: "Preset Inspector" })).toBeVisible();
+    await expect.element(page.getByText("Selected Preset")).toBeVisible();
+    await expect.element(page.getByText("File Type")).toBeVisible();
+    await expect.element(page.getByText("mp4")).toBeVisible();
+    await expect.element(page.getByText("Active Preset")).toBeVisible();
+    await expect.element(page.getByText("Trim Window")).toBeVisible();
+  });
+
+  test("shows selected capture window details and working capture controls", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
+    );
+    await applyStudioAction((studio) =>
+      studio.selectCaptureWindow({ windowId: 42, appName: "Safari", title: "Docs" }),
+    );
+    await setInspectorMode("capture");
+
+    await expect.element(page.getByRole("heading", { name: "Window Inspector" })).toBeVisible();
+    await expect.element(page.getByText("Selected Window")).toBeVisible();
+    await expect.element(page.getByText("Safari")).toBeVisible();
+    await expect.element(page.getByText("Window ID")).toBeVisible();
+    await expect.element(page.getByText("42", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "CAPTURE" }).click();
+    const captureFps = page.getByRole("combobox", { name: "Capture FPS" });
+    await expect.element(captureFps).toBeVisible();
+    await waitFor(() => expect(latestStudio?.settingsForm.state.values.captureFps).toBe(30));
+    const microphone = page.getByRole("checkbox", { name: "Include microphone" });
+    await microphone.click();
+    await waitFor(() => expect(latestStudio?.settingsForm.state.values.micEnabled).toBe(true));
+    await expect.element(microphone).toBeChecked();
+  });
+
+  test("records and resets a shortcut override from the advanced inspector", async () => {
+    await waitFor(() =>
+      expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
+    );
+    await setInspectorMode("capture");
+    await page.getByRole("button", { name: "ADVANCED" }).click();
+
+    const saveShortcutRecordButton = page.getByRole("button", { name: "Record" }).nth(4);
+    await expect.element(saveShortcutRecordButton).toBeVisible();
+    await saveShortcutRecordButton.click();
+    await act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "p",
+          code: "KeyP",
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    await waitFor(() => expect(latestStudio?.shortcutOverrides.save).toBe("Control+Shift+P"));
+    const resetSaveShortcut = page.getByRole("button", { name: "Reset" }).nth(4);
+    await expect.element(resetSaveShortcut).toBeEnabled();
+    await resetSaveShortcut.click();
+    await waitFor(() => expect(latestStudio?.shortcutOverrides.save).toBeUndefined());
+    await expect.element(resetSaveShortcut).toBeDisabled();
+  });
+
   test("drag-drop ripple move commits order, clears selection, moves playhead, and exports", async () => {
     await waitFor(() =>
       expect(latestStudio?.timelineDocument.items).toEqual(initialTimeline.items),
@@ -196,8 +357,7 @@ describe("editor timeline export integration", () => {
     await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
     await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(2));
 
-    const movedClip = latestStudio!.timelineDocument.items[0];
-    expect(movedClip?.kind).toBe("clip");
+    const movedClip = currentTimelineClip(0);
     await applyStudioAction((studio) => {
       studio.selectTimelineClip({
         laneId: "video",
@@ -226,9 +386,7 @@ describe("editor timeline export integration", () => {
     });
 
     await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
-    expect((capturedExportParams as { timeline: TimelineDocument }).timeline).toEqual(
-      latestStudio!.timelineDocument,
-    );
+    expect(capturedExportTimeline()).toEqual(currentStudio().timelineDocument);
     expect(capturedExportParams).toMatchObject({
       backgroundFraming: defaultBackgroundFramingSettings,
     });
@@ -289,7 +447,7 @@ describe("editor timeline export integration", () => {
     await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
     await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(2));
 
-    const liftedClip = latestStudio!.timelineDocument.items[1];
+    const liftedClip = currentTimelineClip(1);
     await applyStudioAction((studio) => {
       studio.selectTimelineClip({
         laneId: "video",
@@ -308,10 +466,8 @@ describe("editor timeline export integration", () => {
     await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(0.5));
     await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(3));
 
-    const movedClip = latestStudio!.timelineDocument.items[1];
-    const destinationGap = latestStudio!.timelineDocument.items[2];
-    expect(movedClip?.kind).toBe("clip");
-    expect(destinationGap?.kind).toBe("gap");
+    const movedClip = currentTimelineClip(1);
+    const destinationGap = currentTimelineGap(2);
     await applyStudioAction((studio) => {
       studio.selectTimelineClip({
         laneId: "video",
@@ -340,9 +496,7 @@ describe("editor timeline export integration", () => {
     });
 
     await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
-    expect((capturedExportParams as { timeline: TimelineDocument }).timeline).toEqual(
-      latestStudio!.timelineDocument,
-    );
+    expect(capturedExportTimeline()).toEqual(currentStudio().timelineDocument);
   });
 
   test("exports the timeline produced by split, lift, move, and delete controller actions", async () => {
@@ -354,8 +508,7 @@ describe("editor timeline export integration", () => {
     await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
     await waitFor(() => expect(latestStudio?.timelineDocument.items).toHaveLength(2));
 
-    const liftedClip = latestStudio!.timelineDocument.items[1];
-    expect(liftedClip?.kind).toBe("clip");
+    const liftedClip = currentTimelineClip(1);
     await applyStudioAction((studio) => {
       studio.selectTimelineClip({
         laneId: "video",
@@ -387,13 +540,12 @@ describe("editor timeline export integration", () => {
       ]);
     });
 
-    if (!latestStudio!.timelineRippleEnabled) {
+    if (!currentStudio().timelineRippleEnabled) {
       await applyStudioAction((studio) => studio.toggleTimelineRipple());
       await waitFor(() => expect(latestStudio?.timelineRippleEnabled).toBe(true));
     }
 
-    const movedClip = latestStudio!.timelineDocument.items[1];
-    expect(movedClip?.kind).toBe("clip");
+    const movedClip = currentTimelineClip(1);
     await applyStudioAction((studio) => {
       studio.selectTimelineClip({
         laneId: "video",
@@ -417,8 +569,7 @@ describe("editor timeline export integration", () => {
       ]);
     });
 
-    const deletedClip = latestStudio!.timelineDocument.items[2];
-    expect(deletedClip?.kind).toBe("clip");
+    const deletedClip = currentTimelineClip(2);
     await applyStudioAction((studio) => {
       studio.selectTimelineClip({
         laneId: "video",
@@ -448,9 +599,9 @@ describe("editor timeline export integration", () => {
     expect(capturedExportParams).toMatchObject({
       outputURL: "/tmp/guerillaglass-export.mp4",
       presetId: "h264-1080p-30",
-      timeline: latestStudio!.timelineDocument,
+      timeline: currentStudio().timelineDocument,
     });
-    expect((capturedExportParams as { timeline: TimelineDocument }).timeline.items).toEqual([
+    expect(capturedExportTimeline().items).toEqual([
       {
         kind: "clip",
         id: "segment-0",

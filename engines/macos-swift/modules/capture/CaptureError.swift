@@ -6,6 +6,7 @@ public enum CaptureError: LocalizedError {
     case screenRecordingDenied
     case windowNotFound
     case pickerCancelled
+    case pickerTimedOut
     case pickerAlreadyActive
     case captureNotRunning
     case captureStartTimedOut
@@ -23,6 +24,8 @@ public enum CaptureError: LocalizedError {
             return String(localized: "The selected window is no longer available for capture.")
         case .pickerCancelled:
             return String(localized: "Content selection was cancelled.")
+        case .pickerTimedOut:
+            return String(localized: "Content selection timed out. Choose a capture source again.")
         case .pickerAlreadyActive:
             return String(localized: "Content picker is already active.")
         case .captureNotRunning:

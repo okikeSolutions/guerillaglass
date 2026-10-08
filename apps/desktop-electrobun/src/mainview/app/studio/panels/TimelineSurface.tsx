@@ -12,7 +12,6 @@ import { useThrottler } from "@tanstack/react-pacer";
 import { AudioLines, Headphones, Lock, Video, VolumeX } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@guerillaglass/ui/components/tooltip";
-import { useStudioPlaybackValue } from "../state/StudioProvider";
 import type {
   TimelineClip,
   TimelineClipSemantic,
@@ -58,6 +57,7 @@ type MoveTimelineClipDropParams =
 
 type TimelineSurfaceProps = {
   durationSeconds: number;
+  playheadSeconds: number;
   trimEnabled?: boolean;
   trimStartSeconds?: number;
   trimEndSeconds?: number;
@@ -158,6 +158,7 @@ type TimelineOverlayProps = {
   labels: TimelineSurfaceLabels;
   timelineSnapEnabled: boolean;
   durationSeconds: number;
+  playheadSeconds: number;
   trimEnabled: boolean;
   trimStartPercent?: number;
   trimEndPercent?: number;
@@ -718,10 +719,11 @@ function TrimHandle({
 
 const TimelinePlayhead = memo(function TimelinePlayhead({
   durationSeconds,
+  playheadSeconds,
 }: {
   durationSeconds: number;
+  playheadSeconds: number;
 }) {
-  const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
   const playheadPercent = toPercent(playheadSeconds, durationSeconds);
   return <div className="gg-timeline-playhead" style={{ left: `${playheadPercent}%` }} />;
 });
@@ -731,6 +733,7 @@ function TimelineOverlay({
   labels,
   timelineSnapEnabled,
   durationSeconds,
+  playheadSeconds,
   trimEnabled,
   trimStartPercent,
   trimEndPercent,
@@ -752,7 +755,7 @@ function TimelineOverlay({
         lanes={lanes}
         target={clipDropTarget}
       />
-      <TimelinePlayhead durationSeconds={durationSeconds} />
+      <TimelinePlayhead durationSeconds={durationSeconds} playheadSeconds={playheadSeconds} />
       {trimEnabled &&
       trimStartPercent != null &&
       trimEndPercent != null &&
@@ -1047,6 +1050,7 @@ function TimelineClipDropAffordance({
 
 export function TimelineSurface({
   durationSeconds,
+  playheadSeconds,
   trimEnabled = false,
   trimStartSeconds,
   trimEndSeconds,
@@ -1173,6 +1177,7 @@ export function TimelineSurface({
             labels={labels}
             timelineSnapEnabled={timelineSnapEnabled}
             durationSeconds={durationSeconds}
+            playheadSeconds={playheadSeconds}
             trimEnabled={trimEnabled}
             trimStartPercent={trimEnabled ? trimStartPercent : undefined}
             trimEndPercent={trimEnabled ? trimEndPercent : undefined}

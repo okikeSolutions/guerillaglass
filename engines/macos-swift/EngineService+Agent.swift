@@ -5,6 +5,7 @@ import Foundation
 import Project
 
 private let agentPreflightTTLSeconds: TimeInterval = 60
+private let agentMaximumPreflightSessions = 4
 private let agentMaximumSourceDurationSeconds: Double = 10 * 60
 
 extension EngineService {
@@ -29,19 +30,10 @@ extension EngineService {
         if !(1 ... 10).contains(runtimeBudgetMinutes) {
             reasons.append("invalid_runtime_budget")
         }
-        var transcriptData: Data?
-        switch provider {
-        case "imported_transcript":
-            if transcriptPath?.isEmpty ?? true {
-                reasons.append("missing_imported_transcript")
-            } else {
-                transcriptData = try? readAgentTranscript(path: transcriptPath!)
-                if transcriptData == nil {
-                    reasons.append("invalid_imported_transcript")
-                }
-            }
-        default:
-            reasons.append("missing_local_model")
+        let transcript = agentPreflightTranscript(provider: provider, path: transcriptPath)
+        let transcriptData = transcript.data
+        if let reason = transcript.blockingReason {
+            reasons.append(reason)
         }
 
         var sourceRevision: String?
@@ -83,6 +75,14 @@ extension EngineService {
             let value = "macos-preflight-\(UUID().uuidString)"
             let createdAt = Date()
             let expiry = createdAt.addingTimeInterval(agentPreflightTTLSeconds)
+            preflightSessions = preflightSessions.filter {
+                createdAt.timeIntervalSince($0.value.createdAt) <= agentPreflightTTLSeconds
+            }
+            guard preflightSessions.count < agentMaximumPreflightSessions else {
+                return .ok(.init(body: .json(preflightResult(
+                    reasons: ["preflight_capacity"], provider: provider, token: nil, expiresAt: nil
+                ))))
+            }
             preflightSessions[value] = EngineAgentPreflightSession(
                 token: value,
                 runtimeBudgetMinutes: runtimeBudgetMinutes,
@@ -90,6 +90,7 @@ extension EngineService {
                 importedTranscriptPath: transcriptPath,
                 importedTranscriptData: transcriptData,
                 projectId: currentProjectDocument.project.id,
+                projectSessionID: projectSessionID,
                 projectPath: projectURL.path,
                 recordingURL: recordingURL.path,
                 recordingRevision: sourceRevision,
@@ -106,6 +107,22 @@ extension EngineService {
             token: token,
             expiresAt: expiresAt
         ))))
+    }
+
+    private func agentPreflightTranscript(
+        provider: String,
+        path: String?
+    ) -> (data: Data?, blockingReason: String?) {
+        guard provider == "imported_transcript" else {
+            return (nil, "missing_local_model")
+        }
+        guard let path, !path.isEmpty else {
+            return (nil, "missing_imported_transcript")
+        }
+        guard let data = try? readAgentTranscript(path: path) else {
+            return (nil, "invalid_imported_transcript")
+        }
+        return (data, nil)
     }
 
     // swiftlint:disable:next function_body_length
@@ -159,6 +176,7 @@ extension EngineService {
                 ))))
             }
             guard source.revision == session.recordingRevision,
+                  projectSessionID == session.projectSessionID,
                   currentProjectDocument.project.id == session.projectId,
                   currentProjectURL?.path == session.projectPath,
                   availableAgentRecordingURL()?.path == session.recordingURL
@@ -206,17 +224,9 @@ extension EngineService {
                 latestAppliedRunID: document.project.agentAnalysis?.latestAppliedRunID,
                 latestRunSummaryPath: "analysis/\(ProjectFile.runSummaryV1JSON)"
             )
-            do {
-                currentProjectDocument = try projectStore.writeProject(
-                    document: document,
-                    assets: .init(),
-                    to: projectURL
-                )
-            } catch {
-                // The atomic run summary is canonical and remains recoverable even if this
-                // denormalized project.json pointer cannot be refreshed.
-                currentProjectDocument = document
-            }
+            // Artifacts commit independently. Updating the working pointer must never
+            // persist unsaved edits; project.open recovers the canonical run summary.
+            currentProjectDocument = document
             return .ok(.init(body: .json(.init(
                 jobId: jobId,
                 status: plannedRun.qaReport.passed ? .completed : .blocked
@@ -342,17 +352,22 @@ extension EngineService {
             throw AgentRunResolutionError.invalidArtifacts
         }
         guard summary.jobId == jobId else { throw AgentRunResolutionError.notFound }
+        let sessionID = projectSessionID
         let projectId = currentProjectDocument.project.id
         let recordingFileName = currentProjectDocument.recordingFileName
         guard let recordingURL = availableAgentRecordingURL(),
               summary.recordingFileName == recordingFileName,
               let source = try? await agentSource(recordingURL: recordingURL),
               source.revision == summary.recordingRevision,
+              projectSessionID == sessionID,
               currentProjectURL?.path == projectURL.path,
               currentProjectDocument.project.id == projectId,
               currentProjectDocument.recordingFileName == recordingFileName,
               availableAgentRecordingURL()?.path == recordingURL.path
         else { throw AgentRunResolutionError.projectMismatch }
+        guard try agentArtifactStore.loadLatest(projectURL: projectURL, projectId: projectId) == summary else {
+            throw AgentRunResolutionError.notFound
+        }
         let run = EngineAgentRunRecord(summary: summary)
         agentRuns = [jobId: run]
         latestAgentJobId = jobId
@@ -365,29 +380,35 @@ extension EngineService {
         agentRecoveryFailureJobId = nil
         latestAgentJobId = nil
         latestAgentUpdatedAt = nil
-        guard let projectURL = currentProjectURL else { return }
+        guard let projectURL = currentProjectURL,
+              let recordingURL = availableAgentRecordingURL(),
+              let context = agentProjectContext(recordingURL: recordingURL)
+        else { return }
         do {
             guard let summary = try agentArtifactStore.loadLatest(
                 projectURL: projectURL,
-                projectId: currentProjectDocument.project.id
+                projectId: context.projectId
             ) else { return }
-            guard let recordingURL = availableAgentRecordingURL() else {
-                throw AgentRunResolutionError.projectMismatch
-            }
             let source = try await agentSource(recordingURL: recordingURL)
+            guard matchesAgentProjectContext(context), latestAgentJobId == nil else { return }
             guard source.revision == summary.recordingRevision else {
                 throw AgentRunResolutionError.projectMismatch
+            }
+            guard try agentArtifactStore.loadLatest(projectURL: projectURL, projectId: context.projectId) == summary else {
+                return
             }
             agentRuns[summary.jobId] = EngineAgentRunRecord(summary: summary)
             latestAgentJobId = summary.jobId
             latestAgentUpdatedAt = isoString(summary.updatedAt)
         } catch {
+            guard matchesAgentProjectContext(context), latestAgentJobId == nil else { return }
             agentRecoveryFailureJobId = currentProjectDocument.project.agentAnalysis?.latestRunID
             latestAgentUpdatedAt = isoNow()
         }
     }
 
     struct AgentProjectContext {
+        let projectSessionID: UUID
         let projectId: UUID
         let projectPath: String
         let recordingPath: String
@@ -402,6 +423,7 @@ extension EngineService {
     func agentProjectContext(recordingURL: URL) -> AgentProjectContext? {
         guard let projectPath = currentProjectURL?.path else { return nil }
         return AgentProjectContext(
+            projectSessionID: projectSessionID,
             projectId: currentProjectDocument.project.id,
             projectPath: projectPath,
             recordingPath: recordingURL.path
@@ -409,7 +431,8 @@ extension EngineService {
     }
 
     func matchesAgentProjectContext(_ context: AgentProjectContext) -> Bool {
-        currentProjectDocument.project.id == context.projectId &&
+        projectSessionID == context.projectSessionID &&
+            currentProjectDocument.project.id == context.projectId &&
             currentProjectURL?.path == context.projectPath &&
             availableAgentRecordingURL()?.path == context.recordingPath
     }
@@ -520,7 +543,7 @@ extension EngineService {
         if reasons.isEmpty, let token, let expiresAt {
             return .init(value1: .init(
                 ready: true,
-                blockingReasons: .init(value1: .init(), value2: .init()),
+                blockingReasons: [],
                 canApplyDestructive: hasUnsavedProjectChanges,
                 transcriptionProvider: .init(rawValue: provider) ?? .none,
                 preflightToken: token,
@@ -556,6 +579,7 @@ extension EngineService {
         guard session.runtimeBudgetMinutes == runtimeBudgetMinutes,
               session.transcriptionProvider == transcriptionProvider,
               session.importedTranscriptPath == importedTranscriptPath,
+              session.projectSessionID == projectSessionID,
               session.projectId == currentProjectDocument.project.id,
               session.projectPath == currentProjectURL?.path,
               session.recordingURL == availableAgentRecordingURL()?.path

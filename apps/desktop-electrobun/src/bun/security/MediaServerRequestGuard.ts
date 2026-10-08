@@ -1,4 +1,4 @@
-import type { HttpServerRequest } from "effect/unstable/http/HttpServerRequest";
+import type { HttpServerRequest } from "effect/http/HttpServerRequest";
 
 type MediaServerRequestGuardResult =
   | { readonly allowed: true }
