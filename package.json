@@ -1,6 +1,7 @@
 {
   "name": "guerillaglass",
   "version": "1.0.0",
+  "packageManager": "bun@1.4.1",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -54,26 +55,28 @@
     "docs:check:native": "bun ./Scripts/docs_gate.mjs --scope=native",
     "coverage": "bash ./Scripts/coverage.sh",
     "coverage:check": "bash ./Scripts/coverage_check.sh",
+    "postinstall": "cd apps/desktop-electrobun && bun run electrobun:sync",
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
-    "@better-auth/expo": "~1.6.15",
+    "@better-auth/expo": "~1.6.33",
     "@convex-dev/better-auth": "^0.12.5",
-    "better-auth": "~1.6.15",
-    "convex": "^1.42.3"
+    "better-auth": "~1.6.33",
+    "convex": "^1.46.0"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.24.3",
-    "@inlang/paraglide-js": "^2.22.0",
+    "@effect/tsgo": "0.45.0",
+    "@inlang/paraglide-js": "^2.25.4",
     "@nkzw/eslint-plugin": "^2.0.0",
+    "@types/bun": "^1.4.2",
     "eslint-plugin-no-only-tests": "^3.4.0",
-    "eslint-plugin-perfectionist": "^5.10.0",
+    "eslint-plugin-perfectionist": "^5.11.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "oxc-parser": "^0.141.0",
-    "oxfmt": "^0.60.0",
-    "oxlint": "^1.75.0",
-    "oxlint-tsgolint": "^7.0.2001",
+    "oxc-parser": "^0.150.0",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "oxlint-tsgolint": "^7.0.2002",
     "typescript": "7.0.2"
   }
 }

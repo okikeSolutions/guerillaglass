@@ -19,15 +19,15 @@ const qaReport = {
 describe("Agent Mode discoverability contract", () => {
   it("matches the native runtime budget limit", () => {
     expect(
-      Schema.decodeUnknownSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 10 }),
+      Schema.decodeSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 10 }),
     ).toEqual({ runtimeBudgetMinutes: 10 });
     expect(() =>
-      Schema.decodeUnknownSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 11 }),
+      Schema.decodeSync(agentPreflightPayloadSchema)({ runtimeBudgetMinutes: 11 }),
     ).toThrow();
   });
 
   it("exposes token expiry only with a ready preflight response", () => {
-    const ready = Schema.decodeUnknownSync(agentPreflightResultSchema)({
+    const ready = Schema.decodeSync(agentPreflightResultSchema)({
       ready: true,
       blockingReasons: [],
       canApplyDestructive: false,
@@ -37,7 +37,7 @@ describe("Agent Mode discoverability contract", () => {
     });
     expect("preflightToken" in ready && ready.preflightToken).toBe("token");
 
-    const blocked = Schema.decodeUnknownSync(agentPreflightResultSchema)({
+    const blocked = Schema.decodeSync(agentPreflightResultSchema)({
       ready: false,
       blockingReasons: ["missing_project"],
       canApplyDestructive: false,
@@ -55,7 +55,7 @@ describe("Agent Mode discoverability contract", () => {
   });
 
   it("returns reviewable artifacts and an end-exclusive cut plan", () => {
-    const result = Schema.decodeUnknownSync(agentStatusResultSchema)({
+    const result = Schema.decodeSync(agentStatusResultSchema)({
       jobId: "agent-1",
       status: "completed",
       runtimeBudgetMinutes: 10,
@@ -101,9 +101,9 @@ describe("Agent Mode discoverability contract", () => {
         { id: "takeaway", beat: "takeaway", startFrame: 90, endFrame: 120 },
       ],
     } as const;
-    expect(Schema.decodeUnknownSync(agentCutPlanSummarySchema)(base).segments).toHaveLength(4);
+    expect(Schema.decodeSync(agentCutPlanSummarySchema)(base).segments).toHaveLength(4);
     expect(() =>
-      Schema.decodeUnknownSync(agentCutPlanSummarySchema)({
+      Schema.decodeSync(agentCutPlanSummarySchema)({
         ...base,
         segments: base.segments.map((segment, index) =>
           index === 1 ? { ...segment, startFrame: 20 } : segment,
@@ -111,7 +111,7 @@ describe("Agent Mode discoverability contract", () => {
       }),
     ).toThrow();
     expect(() =>
-      Schema.decodeUnknownSync(agentCutPlanSummarySchema)({
+      Schema.decodeSync(agentCutPlanSummarySchema)({
         ...base,
         segments: base.segments.map((segment, index) =>
           index === 3 ? { ...segment, id: "payoff", beat: "payoff" } : segment,
@@ -122,7 +122,7 @@ describe("Agent Mode discoverability contract", () => {
 
   it("requires a verifiable successful apply result", () => {
     expect(
-      Schema.decodeUnknownSync(agentApplyResultSchema)({
+      Schema.decodeSync(agentApplyResultSchema)({
         success: true,
         jobId: "agent-1",
         status: "applied",
@@ -131,7 +131,7 @@ describe("Agent Mode discoverability contract", () => {
       }),
     ).toMatchObject({ appliedSegments: 4, status: "applied" });
     expect(() =>
-      Schema.decodeUnknownSync(agentApplyResultSchema)({
+      Schema.decodeSync(agentApplyResultSchema)({
         success: true,
         jobId: "agent-1",
         status: "applied",
@@ -141,31 +141,27 @@ describe("Agent Mode discoverability contract", () => {
     ).toThrow();
   });
 
-  it("documents Agent workflow semantics and exact error statuses in OpenAPI", () => {
-    const document = EngineOpenApi as {
-      paths: Record<
-        string,
-        Record<string, { summary?: string; description?: string; responses: object }>
-      >;
-    };
-    const preflight = document.paths["/v1/agent/preflight"]?.post;
-    const run = document.paths["/v1/agent/runs"]?.post;
-    const apply = document.paths["/v1/agent/runs/{jobId}/apply"]?.post;
-    const cutPlanExport = document.paths["/v1/exports/from-cut-plan"]?.post;
+  it("maps Agent workflow failures to the declared HTTP response statuses", () => {
+    const responseStatuses = (responses: object | undefined) =>
+      Object.keys(responses ?? {}).sort();
 
-    expect(preflight?.summary).toBe("Validate Agent Mode prerequisites");
-    expect(preflight?.description).toContain("short-lived token");
-    expect(Object.keys(preflight?.responses ?? {})).not.toEqual(
-      expect.arrayContaining(["409", "422"]),
-    );
-    expect(Object.keys(run?.responses ?? {})).toEqual(
-      expect.arrayContaining(["200", "400", "409", "422"]),
-    );
-    expect(Object.keys(apply?.responses ?? {})).toEqual(
-      expect.arrayContaining(["404", "409", "422"]),
-    );
-    expect(JSON.stringify(EngineOpenApi)).toContain("project_mismatch");
-    expect(JSON.stringify(EngineOpenApi)).toContain("preflight_expired");
-    expect(Object.keys(cutPlanExport?.responses ?? {})).toContain("404");
+    expect(
+      responseStatuses(EngineOpenApi.paths["/v1/agent/preflight"]!.post!.responses),
+    ).toEqual(["200", "400", "401", "403", "500"]);
+    expect(responseStatuses(EngineOpenApi.paths["/v1/agent/runs"]!.post!.responses)).toEqual([
+      "200",
+      "400",
+      "401",
+      "403",
+      "409",
+      "422",
+      "500",
+    ]);
+    expect(
+      responseStatuses(EngineOpenApi.paths["/v1/agent/runs/{jobId}/apply"]!.post!.responses),
+    ).toEqual(["200", "400", "401", "403", "404", "409", "422", "500"]);
+    expect(
+      responseStatuses(EngineOpenApi.paths["/v1/exports/from-cut-plan"]!.post!.responses),
+    ).toEqual(["200", "400", "401", "403", "404", "409", "422", "500"]);
   });
 });

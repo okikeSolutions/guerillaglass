@@ -25,7 +25,7 @@ extension EngineService {
         }
         do {
             try await captureEngine.startDisplayCapture(
-                displayID: payload.displayId.map { CGDirectDisplayID($0.value1) },
+                displayID: payload.displayId.map { CGDirectDisplayID($0) },
                 enableMic: payload.enableMic ?? false,
                 targetFrameRate: fps,
                 enablePreview: payload.enablePreview ?? true
@@ -62,7 +62,7 @@ extension EngineService {
         guard let fps = resolvedFrameRate(payload.captureFps) else {
             return .badRequest(.init(body: .json(frameRateError())))
         }
-        let windowId = CGWindowID(payload.windowId.value1)
+        let windowId = CGWindowID(payload.windowId)
         do {
             if windowId == 0 {
                 try await captureEngine.startCaptureUsingPicker(
@@ -102,8 +102,8 @@ extension EngineService {
     ) async throws -> Operations.capture_period_capturePreviewFrame.Output {
         let frame = captureEngine.latestPreviewFrame().map {
             Components.Schemas.CapturePreviewFrame(
-                frameId: .init(value1: Double($0.frameId)),
-                bytesBase64: .init(value1: $0.bytesBase64)
+                frameId: Int($0.frameId),
+                bytesBase64: $0.bytesBase64
             )
         }
         return .ok(.init(body: .json(.init(frame: frame))))

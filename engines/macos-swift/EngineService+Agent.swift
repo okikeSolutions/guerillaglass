@@ -12,9 +12,9 @@ extension EngineService {
         _ input: Operations.agent_period_agentPreflight.Input
     ) async throws -> Operations.agent_period_agentPreflight.Output {
         let payload: Components.Schemas.AgentPreflightPayload = switch input.body { case let .json(body): body }
-        let runtimeBudgetMinutes = Int(payload.runtimeBudgetMinutes?.value1 ?? 10)
+        let runtimeBudgetMinutes = payload.runtimeBudgetMinutes ?? 10
         let provider = payload.transcriptionProvider?.rawValue ?? "none"
-        let transcriptPath = payload.importedTranscriptPath?.value1
+        let transcriptPath = payload.importedTranscriptPath
         var reasons: [String] = []
 
         let projectURL = currentProjectURL
@@ -113,13 +113,13 @@ extension EngineService {
         _ input: Operations.agent_period_agentRun.Input
     ) async throws -> Operations.agent_period_agentRun.Output {
         let payload: Components.Schemas.AgentRunPayload = switch input.body { case let .json(body): body }
-        let runtimeBudgetMinutes = Int(payload.runtimeBudgetMinutes?.value1 ?? 10)
+        let runtimeBudgetMinutes = payload.runtimeBudgetMinutes ?? 10
         let provider = payload.transcriptionProvider?.rawValue ?? "none"
-        let transcriptPath = payload.importedTranscriptPath?.value1
+        let transcriptPath = payload.importedTranscriptPath
         let session: EngineAgentPreflightSession
         do {
             session = try validatePreflightToken(
-                payload.preflightToken.value1,
+                payload.preflightToken,
                 runtimeBudgetMinutes: runtimeBudgetMinutes,
                 transcriptionProvider: provider,
                 importedTranscriptPath: transcriptPath
@@ -218,7 +218,7 @@ extension EngineService {
                 currentProjectDocument = document
             }
             return .ok(.init(body: .json(.init(
-                jobId: .init(value1: jobId),
+                jobId: jobId,
                 status: plannedRun.qaReport.passed ? .completed : .blocked
             ))))
         } catch AgentArtifactError.projectMismatch {
@@ -248,7 +248,7 @@ extension EngineService {
         _ input: Operations.agent_period_agentStatus.Input
     ) async throws -> Operations.agent_period_agentStatus.Output {
         do {
-            let run = try await resolvedAgentRun(jobId: input.path.jobId.value1)
+            let run = try await resolvedAgentRun(jobId: input.path.jobId)
             return .ok(.init(body: .json(agentRunSummary(run.summary))))
         } catch AgentRunResolutionError.notFound {
             return .notFound(.init(body: .json(notFound("Unknown Agent Mode job."))))
@@ -269,7 +269,7 @@ extension EngineService {
         _ input: Operations.agent_period_agentApply.Input
     ) async throws -> Operations.agent_period_agentApply.Output {
         let payload: Components.Schemas.AgentApplyPayload = switch input.body { case let .json(body): body }
-        let jobId = input.path.jobId.value1
+        let jobId = input.path.jobId
         let run: EngineAgentRunRecord
         do {
             run = try await resolvedAgentRun(jobId: jobId)
@@ -311,10 +311,10 @@ extension EngineService {
         agentRuns[jobId] = run
         return .ok(.init(body: .json(.init(
             success: true,
-            message: .init(value1: "Applied the verified cut plan to the working timeline."),
-            jobId: .init(value1: jobId),
+            message: "Applied the verified cut plan to the working timeline.",
+            jobId: jobId,
             status: .applied,
-            appliedSegments: .init(value1: Double(timeline.items.count)),
+            appliedSegments: timeline.items.count,
             projectHasUnsavedChanges: true
         ))))
     }
@@ -523,8 +523,8 @@ extension EngineService {
                 blockingReasons: .init(value1: .init(), value2: .init()),
                 canApplyDestructive: hasUnsavedProjectChanges,
                 transcriptionProvider: .init(rawValue: provider) ?? .none,
-                preflightToken: .init(value1: token),
-                preflightTokenExpiresAt: .init(value1: isoString(expiresAt))
+                preflightToken: token,
+                preflightTokenExpiresAt: isoString(expiresAt)
             ))
         }
         return .init(value2: .init(
@@ -685,21 +685,21 @@ extension EngineService {
 
     private func agentRunSummary(_ summary: AgentRunSummaryArtifact) -> Components.Schemas.AgentRunSummary {
         .init(
-            jobId: .init(value1: summary.jobId),
+            jobId: summary.jobId,
             status: .init(rawValue: summary.status.rawValue) ?? .failed,
-            runtimeBudgetMinutes: .init(value1: Double(summary.runtimeBudgetMinutes)),
+            runtimeBudgetMinutes: summary.runtimeBudgetMinutes,
             qaReport: agentQAReport(summary.qaReport),
             blockingReason: summary.qaReport.passed ? nil : .weak_narrative_structure,
             artifacts: summary.artifacts.compactMap(agentArtifactReference),
             cutPlan: summary.qaReport.passed ? agentCutPlan(summary.cutPlan) : nil,
-            updatedAt: .init(value1: isoString(summary.updatedAt))
+            updatedAt: isoString(summary.updatedAt)
         )
     }
 
     private func agentQAReport(_ report: AgentQAReport) -> Components.Schemas.AgentQAReport {
         .init(
             passed: report.passed,
-            score: .init(value1: report.score),
+            score: report.score,
             coverage: .init(
                 hook: report.coverage.hook,
                 action: report.coverage.action,
@@ -721,27 +721,27 @@ extension EngineService {
         case .transcriptFullV1:
             return .init(value1: .init(
                 kind: .init(rawValue: kind)!, path: .init(rawValue: path)!,
-                sha256: reference.sha256.map { .init(value1: $0) }
+                sha256: reference.sha256
             ))
         case .transcriptWordsV1:
             return .init(value2: .init(
                 kind: .init(rawValue: kind)!, path: .init(rawValue: path)!,
-                sha256: reference.sha256.map { .init(value1: $0) }
+                sha256: reference.sha256
             ))
         case .beatMapV1:
             return .init(value3: .init(
                 kind: .init(rawValue: kind)!, path: .init(rawValue: path)!,
-                sha256: reference.sha256.map { .init(value1: $0) }
+                sha256: reference.sha256
             ))
         case .qaReportV1:
             return .init(value4: .init(
                 kind: .init(rawValue: kind)!, path: .init(rawValue: path)!,
-                sha256: reference.sha256.map { .init(value1: $0) }
+                sha256: reference.sha256
             ))
         case .cutPlanV1:
             return .init(value5: .init(
                 kind: .init(rawValue: kind)!, path: .init(rawValue: path)!,
-                sha256: reference.sha256.map { .init(value1: $0) }
+                sha256: reference.sha256
             ))
         case .runSummaryV1:
             return .init(value6: .init(
@@ -750,20 +750,20 @@ extension EngineService {
         }
     }
 
-    private func agentCutPlan(_ cutPlan: AgentCutPlanArtifact) -> Components.Schemas.AgentCutPlanSummary {
+    private func agentCutPlan(_ cutPlan: AgentCutPlanArtifact) -> Components.Schemas.AgentCutPlanSummaryEncoded {
         .init(
             version: 1,
             sourceFps: .init(
-                numerator: .init(value1: Double(cutPlan.sourceFps.numerator)),
-                denominator: .init(value1: Double(cutPlan.sourceFps.denominator))
+                numerator: cutPlan.sourceFps.numerator,
+                denominator: cutPlan.sourceFps.denominator
             ),
-            sourceFrameCount: .init(value1: Double(cutPlan.sourceFrameCount)),
+            sourceFrameCount: cutPlan.sourceFrameCount,
             segments: cutPlan.segments.map { segment in
                 .init(
-                    id: .init(value1: segment.id),
+                    id: segment.id,
                     beat: .init(rawValue: segment.beat.rawValue) ?? .hook,
-                    startFrame: .init(value1: Double(segment.startFrame)),
-                    endFrame: .init(value1: Double(segment.endFrame))
+                    startFrame: segment.startFrame,
+                    endFrame: segment.endFrame
                 )
             }
         )

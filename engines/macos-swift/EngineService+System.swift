@@ -6,10 +6,10 @@ extension EngineService {
         _: Operations.system_period_systemPing.Input
     ) async throws -> Operations.system_period_systemPing.Output {
         .ok(.init(body: .json(.init(
-            app: .init(value1: "guerillaglass"),
-            engineVersion: .init(value1: "0.2.0"),
-            protocolVersion: .init(value1: "2"),
-            platform: .init(value1: "macos")
+            app: "guerillaglass",
+            engineVersion: "0.2.0",
+            protocolVersion: "2",
+            platform: "macos"
         ))))
     }
 
@@ -17,8 +17,8 @@ extension EngineService {
         _: Operations.system_period_engineCapabilities.Input
     ) async throws -> Operations.system_period_engineCapabilities.Output {
         .ok(.init(body: .json(.init(
-            protocolVersion: .init(value1: "2"),
-            platform: .init(value1: "macos"),
+            protocolVersion: "2",
+            platform: "macos",
             phase: .native,
             capture: .init(display: true, window: true, systemAudio: true, microphone: true),
             recording: .init(inputTracking: true),
@@ -30,12 +30,12 @@ extension EngineService {
                 status: true,
                 apply: true,
                 localOnly: true,
-                runtimeBudgetMinutes: .init(value1: 10),
+                runtimeBudgetMinutes: 10,
                 supportedTranscriptionProviders: [.imported_transcript],
-                maxSourceDurationSeconds: .init(value1: 600),
-                preflightTokenTtlSeconds: .init(value1: 60),
-                artifactVersion: .init(value1: 1),
-                cutPlanVersion: .init(value1: 1)
+                maxSourceDurationSeconds: 600,
+                preflightTokenTtlSeconds: 60,
+                artifactVersion: 1,
+                cutPlanVersion: 1
             )
         ))))
     }

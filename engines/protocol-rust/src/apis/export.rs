@@ -17,7 +17,7 @@ pub enum ExportExportGetResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineNotFoundError response body.
@@ -35,7 +35,7 @@ pub enum ExportExportInfoResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineRuntimeError response body.
@@ -51,7 +51,7 @@ pub enum ExportExportRunResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineRuntimeError response body.
@@ -67,7 +67,7 @@ pub enum ExportExportRunCutPlanResponse {
     /// EngineBadRequestError response body.
     Status400_EngineBadRequestErrorResponseBody(models::EngineBadRequestError),
     /// EngineUnauthorizedError response body.
-    Status401_EngineUnauthorizedErrorResponseBody(models::AgentAgentPreflight401Response),
+    Status401_EngineUnauthorizedErrorResponseBody(models::EngineUnauthorizedError),
     /// EngineForbiddenError response body.
     Status403_EngineForbiddenErrorResponseBody(models::EngineForbiddenError),
     /// EngineNotFoundError response body.

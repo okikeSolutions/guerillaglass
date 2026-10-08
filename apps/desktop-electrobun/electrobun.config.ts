@@ -14,7 +14,10 @@ export default {
     version: packageJson.version,
   },
   build: {
-    bunVersion: "1.3.14",
+    mainProcess: "bun",
+    bun: {
+      entrypoint: "src/bun/index.ts",
+    },
     copy: {
       "dist/index.html": "views/mainview/index.html",
       "dist/assets": "views/mainview/assets",

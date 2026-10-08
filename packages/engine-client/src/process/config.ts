@@ -3,7 +3,7 @@ import { Config } from "effect";
 /**
  * Optional native engine executable path supplied by embedding apps or tests.
  */
-export const EnginePathConfig = Config.option(Config.string("GG_ENGINE_PATH"));
+export const EnginePathConfig = Config.option(Config.String("GG_ENGINE_PATH"));
 
 /**
  * Effect configuration recipe for launching a managed native engine process.
@@ -15,7 +15,7 @@ export const EnginePathConfig = Config.option(Config.string("GG_ENGINE_PATH"));
  */
 export const EngineProcessConfig = Config.all({
   enginePath: EnginePathConfig,
-  readinessTimeoutMs: Config.number("ENGINE_READINESS_TIMEOUT_MS").pipe(Config.withDefault(10_000)),
+  readinessTimeoutMs: Config.Number("ENGINE_READINESS_TIMEOUT_MS").pipe(Config.withDefault(10_000)),
 });
 
 /**

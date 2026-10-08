@@ -44,4 +44,9 @@ if 'tower = { version = "0.5", features = ["util"] }' not in text:
     text = text.replace('[dev-dependencies]\n', '[dev-dependencies]\ntower = { version = "0.5", features = ["util"] }\n')
 path.write_text(text)
 Path('engines/protocol-rust/README.md').write_text('''# protocol-rust\n\nGenerated Rust server bindings for the GuerillaGlass Engine Contract v2 HTTP/OpenAPI API.\n\n## Source of truth\n\n- TypeScript/Effect contract: `packages/engine-contract/src/httpApi.ts`\n- Generated OpenAPI: `packages/engine-contract/generated/engine.openapi.json`\n- Rust generator config: `engines/protocol-rust/openapi-generator-config.json`\n\nThis package is intentionally v2-only. It only exposes generated HTTP/OpenAPI bindings and server helpers.\n\n## Regenerate\n\n```bash\nbun run protocol:generate-bindings\n```\n\n## Check\n\n```bash\ncargo check --manifest-path engines/protocol-rust/Cargo.toml\n```\n''')
+for path in Path('engines/protocol-rust/src').rglob('*.rs'):
+    text = path.read_text()
+    normalized = '\n'.join(line.rstrip() for line in text.splitlines()).rstrip() + '\n'
+    if normalized != text:
+        path.write_text(normalized)
 PY
