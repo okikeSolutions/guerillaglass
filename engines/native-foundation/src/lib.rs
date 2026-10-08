@@ -491,8 +491,8 @@ mod tests {
                 state,
                 &request("r13", EngineMethod::AgentRun, json!({})),
             );
-            let message = expect_error(response, ProtocolErrorCode::InvalidParams);
-            assert!(message.contains("preflightToken is required"));
+            let message = expect_error(response, ProtocolErrorCode::PreflightExpired);
+            assert!(message.contains("preflightToken"));
         });
     }
 

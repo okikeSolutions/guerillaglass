@@ -82,20 +82,73 @@ extension EngineService {
         guard let preset = Presets.all.first(where: { $0.id == payload.presetId }) else {
             return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unknown export preset."))))
         }
-        guard let recordingURL = availableRecordingURL() else {
+        guard let recordingURL = availableRecordingURL(),
+              let projectContext = agentProjectContext(recordingURL: recordingURL)
+        else {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "No recording is available to export."))))
         }
+        let run: EngineAgentRunRecord
         do {
-            let exportedURL = try await exportPipeline.export(
+            run = try await resolvedAgentRun(jobId: payload.jobId)
+        } catch AgentRunResolutionError.notFound {
+            return .notFound(.init(body: .json(notFound("Unknown Agent Mode job."))))
+        } catch AgentRunResolutionError.projectMismatch {
+            return .conflict(.init(body: .json(conflict(
+                .project_mismatch,
+                "Agent Mode job does not match the active project or recording."
+            ))))
+        } catch {
+            return .unprocessableContent(.init(body: .json(unprocessable(
+                .invalid_cut_plan,
+                "Agent Mode artifacts are missing, unsafe, or invalid."
+            ))))
+        }
+        guard matchesAgentProjectContext(projectContext) else {
+            return .conflict(.init(body: .json(conflict(
+                .project_mismatch,
+                "The active project changed while resolving the Agent Mode run."
+            ))))
+        }
+        guard run.summary.qaReport.passed else {
+            return .unprocessableContent(.init(body: .json(unprocessable(
+                .qa_failed,
+                "Narrative QA failed. Cut-plan export is blocked."
+            ))))
+        }
+        do {
+            let snapshotURL = try await makeAgentRecordingSnapshot(
                 recordingURL: recordingURL,
+                expectedRevision: run.summary.recordingRevision
+            )
+            defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
+            guard matchesAgentProjectContext(projectContext) else {
+                return .conflict(.init(body: .json(conflict(
+                    .project_mismatch,
+                    "The active project changed while snapshotting the recording."
+                ))))
+            }
+            let autoZoom = currentProjectDocument.project.autoZoom
+            let captureMetadata = currentProjectDocument.project.captureMetadata
+            let backgroundFraming = currentProjectDocument.project.backgroundFraming
+            let cameraEvents = try availableCameraEvents(for: autoZoom)
+            let timeline = try run.summary.cutPlan.timeline()
+            let exportedURL = try await exportPipeline.export(
+                recordingURL: snapshotURL,
                 preset: preset,
                 trimRange: nil,
                 outputURL: URL(fileURLWithPath: payload.outputURL),
-                cameraEvents: availableCameraEvents(for: currentProjectDocument.project.autoZoom),
-                autoZoomSettings: currentProjectDocument.project.autoZoom,
-                captureMetadata: currentProjectDocument.project.captureMetadata,
-                backgroundFraming: currentProjectDocument.project.backgroundFraming
+                cameraEvents: cameraEvents,
+                autoZoomSettings: autoZoom,
+                captureMetadata: captureMetadata,
+                timeline: exportTimeline(from: timeline),
+                backgroundFraming: backgroundFraming
             )
+            guard matchesAgentProjectContext(projectContext) else {
+                return .conflict(.init(body: .json(conflict(
+                    .project_mismatch,
+                    "The active project changed while exporting the cut plan."
+                ))))
+            }
             let jobId = "macos-export-cut-plan-\(UUID().uuidString)"
             latestExportJobId = jobId
             latestExportOutputURL = exportedURL
@@ -104,10 +157,17 @@ extension EngineService {
                 jobId: jobId,
                 status: .succeeded,
                 outputURL: exportedURL.path,
-                appliedSegments: currentProjectDocument.project.timeline.items.count
+                appliedSegments: timeline.items.count
             ))))
         } catch is CancellationError {
             throw CancellationError()
+        } catch AgentArtifactError.invalidCutPlan {
+            return .unprocessableContent(.init(body: .json(unprocessable(.invalid_cut_plan, "Cut plan is missing or invalid."))))
+        } catch AgentArtifactError.projectMismatch {
+            return .conflict(.init(body: .json(conflict(
+                .project_mismatch,
+                "The recording changed before a stable export snapshot could be created."
+            ))))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }
@@ -147,6 +207,25 @@ extension EngineService {
         )
     }
 
+    private func exportTimeline(from timeline: TimelineDocument) -> ExportTimelineDocument? {
+        guard !timeline.items.isEmpty else { return nil }
+        return ExportTimelineDocument(
+            version: timeline.version,
+            items: timeline.items.map { item in
+                switch item {
+                case let .clip(clip):
+                    .clip(ExportTimelineClip(
+                        id: clip.id,
+                        sourceStartSeconds: clip.sourceStartSeconds,
+                        sourceEndSeconds: clip.sourceEndSeconds
+                    ))
+                case let .gap(gap):
+                    .gap(ExportTimelineGap(id: gap.id, durationSeconds: gap.durationSeconds))
+                }
+            }
+        )
+    }
+
     private func exportTimeline(
         from timeline: Components.Schemas.ExportRunPayload.timelinePayload?
     ) throws -> ExportTimelineDocument? {
@@ -165,10 +244,7 @@ extension EngineService {
                 ))
             }
             if let gap = item.value2 {
-                return .gap(ExportTimelineGap(
-                    id: gap.id,
-                    durationSeconds: gap.durationSeconds
-                ))
+                return .gap(ExportTimelineGap(id: gap.id, durationSeconds: gap.durationSeconds))
             }
             return nil
         }

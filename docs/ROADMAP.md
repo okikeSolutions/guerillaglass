@@ -119,6 +119,10 @@ Groundwork already present:
 - [x] Preflight token handshake and blocking semantics are implemented
 - [x] Agent artifacts persist inside project packages under `analysis/*.v1.json`
 - [x] Deterministic cut-plan apply/export path exists in the engine contract
+  - The supported production path is macOS plus an imported timed transcript; foundation shells advertise Agent/cut-plan capabilities as unavailable.
+  - Status exposes QA, project-relative artifacts, and the exact rational-FPS frame plan used by both apply and export.
+  - The latest run is project-bound and recovered from `run-summary.v1` when reopening a project.
+  - Operational guidance and remaining discoverability gaps are tracked in `docs/AGENT_MODE_RUNBOOK.md` and `docs/AGENT_DISCOVERABILITY_AUDIT.md`.
 
 ---
 

@@ -40,7 +40,7 @@ export const ProjectRecentsLimitSchema = PositiveInt.pipe(lessThanOrEqualTo(100)
 /**
  * Agent runtime budget in minutes, capped to supported local-engine limits.
  */
-export const RuntimeBudgetMinutesSchema = PositiveInt.pipe(lessThanOrEqualTo(60));
+export const RuntimeBudgetMinutesSchema = PositiveInt.pipe(lessThanOrEqualTo(10));
 
 /**
  * Builds a reusable numeric schema check for inclusive lower bounds.

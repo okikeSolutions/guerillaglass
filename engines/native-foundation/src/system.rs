@@ -32,19 +32,24 @@ pub(crate) fn capabilities(id: &EngineCallId, platform: &str) -> EngineResponse 
             },
             "export": {
                 "presets": true,
-                "cutPlan": true,
+                "cutPlan": false,
                 "backgroundFraming": false,
             },
             "project": {
                 "openSave": true,
             },
             "agent": {
-                "preflight": true,
-                "run": true,
-                "status": true,
-                "apply": true,
+                "preflight": false,
+                "run": false,
+                "status": false,
+                "apply": false,
                 "localOnly": true,
                 "runtimeBudgetMinutes": 10,
+                "supportedTranscriptionProviders": [],
+                "maxSourceDurationSeconds": 600,
+                "preflightTokenTtlSeconds": 60,
+                "artifactVersion": 1,
+                "cutPlanVersion": 1,
             }
         }),
     )

@@ -137,7 +137,7 @@ pub(crate) fn run_cut_plan(id: &EngineCallId, state: &State, params: &Value) -> 
         None => {
             return failure(
                 id,
-                ProtocolErrorCode::InvalidParams,
+                ProtocolErrorCode::NotFound,
                 format!("Unknown jobId: {job_id}"),
             )
         }

@@ -126,6 +126,8 @@ bun run i18n:compile
 - Completed migration notes: `docs/MIGRATION.md`
 - Docs coverage thresholds: `docs/doc_coverage_policy.json`
 - Desktop accessibility + hotkey policy: `docs/DESKTOP_ACCESSIBILITY.md`
+- Local Agent Mode runbook: [`docs/AGENT_MODE_RUNBOOK.md`](docs/AGENT_MODE_RUNBOOK.md)
+- Agent discoverability audit: [`docs/AGENT_DISCOVERABILITY_AUDIT.md`](docs/AGENT_DISCOVERABILITY_AUDIT.md)
 - Agent repo conventions: [`AGENTS.md`](AGENTS.md)
 - Change propagation guide: [`docs/CHANGE_MAP.md`](docs/CHANGE_MAP.md)
 - Review rubric: [`REVIEW.md`](REVIEW.md)

@@ -30,7 +30,12 @@ extension EngineService {
                 status: true,
                 apply: true,
                 localOnly: true,
-                runtimeBudgetMinutes: 10
+                runtimeBudgetMinutes: 10,
+                supportedTranscriptionProviders: [.imported_transcript],
+                maxSourceDurationSeconds: 600,
+                preflightTokenTtlSeconds: 60,
+                artifactVersion: 1,
+                cutPlanVersion: 1
             )
         ))))
     }

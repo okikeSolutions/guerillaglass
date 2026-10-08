@@ -129,7 +129,6 @@ export const engineApi = {
   async agentPreflight(params?: {
     runtimeBudgetMinutes?: number;
     transcriptionProvider?: "none" | "imported_transcript";
-    importedTranscriptPath?: string;
   }) {
     return await invokeBridgeContract("ggEngineAgentPreflight", "agent preflight result", params);
   },
@@ -138,7 +137,6 @@ export const engineApi = {
     preflightToken: string;
     runtimeBudgetMinutes?: number;
     transcriptionProvider?: "none" | "imported_transcript";
-    importedTranscriptPath?: string;
     force?: boolean;
   }) {
     return await invokeBridgeContract("ggEngineAgentRun", "agent run result", params);

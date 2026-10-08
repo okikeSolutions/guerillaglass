@@ -99,7 +99,7 @@ export const isoDateTimeSchema = IsoDateTime;
 /**
  * Legacy JSON-RPC request identifier retained only for migration tooling.
  */
-export const jsonRpcIdSchema = Schema.Union([Schema.String, Schema.Number]);
+export const jsonRpcIdSchema = Schema.Union([Schema.String, Schema.Finite]);
 
 /** Branded capture session identifier. */
 export type CaptureSessionId = typeof captureSessionIdSchema.Type;

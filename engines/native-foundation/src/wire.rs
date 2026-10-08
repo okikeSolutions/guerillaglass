@@ -16,6 +16,9 @@ pub(crate) enum ProtocolErrorCode {
     QaFailed,
     MissingLocalModel,
     InvalidCutPlan,
+    PreflightExpired,
+    PreflightMismatch,
+    NotFound,
     RuntimeError,
 }
 
@@ -30,6 +33,9 @@ impl ProtocolErrorCode {
             Self::QaFailed => "qa_failed",
             Self::MissingLocalModel => "missing_local_model",
             Self::InvalidCutPlan => "invalid_cut_plan",
+            Self::PreflightExpired => "preflight_expired",
+            Self::PreflightMismatch => "preflight_mismatch",
+            Self::NotFound => "not_found",
             Self::RuntimeError => "runtime_error",
         }
     }
@@ -77,6 +83,7 @@ pub(crate) struct EngineRequest {
     pub(crate) params: Value,
 }
 
+#[allow(dead_code)] // Legacy internal dispatcher remains testable while unsupported HTTP methods fail truthfully.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EngineMethod {
     SystemPing,

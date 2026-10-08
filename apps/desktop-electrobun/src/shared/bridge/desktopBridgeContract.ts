@@ -1,7 +1,10 @@
 import {
+  agentApplyResultSchema,
   agentPreflightResultSchema,
+  type AgentApplyResult,
   agentRunResultSchema,
   agentStatusResultSchema,
+  transcriptionProviderSchema,
   type AgentPreflightResult,
   type AgentRunResult,
   type AgentStatusResult,
@@ -43,6 +46,7 @@ import {
   type CapabilitiesResult,
   type PingResult,
 } from "@guerillaglass/engine-contract/domains/system";
+import { RuntimeBudgetMinutesSchema } from "@guerillaglass/engine-contract/shared/helpers";
 import type {
   AutoZoomSettings,
   BackgroundFramingSettings,
@@ -81,8 +85,6 @@ import {
 } from "@guerillaglass/engine-contract/schema-primitives";
 import { Schema } from "effect";
 import {
-  agentPreflightPayloadSchema,
-  agentRunPayloadSchema,
   captureStartCurrentWindowPayloadSchema,
   captureStartDisplayPayloadSchema,
   captureStartWindowPayloadSchema,
@@ -229,8 +231,17 @@ export const studioDiagnosticsEntrySchema = Schema.Struct({
   ),
 });
 const undefinedBridgeParamsSchema = Schema.Void;
-const engineAgentPreflightBridgeParamsSchema = agentPreflightPayloadSchema;
-const engineAgentRunBridgeParamsSchema = agentRunPayloadSchema;
+// Renderer callers cannot supply local transcript paths. A future UI must use a host-minted grant.
+const engineAgentPreflightBridgeParamsSchema = Schema.Struct({
+  runtimeBudgetMinutes: Schema.optionalKey(RuntimeBudgetMinutesSchema),
+  transcriptionProvider: Schema.optionalKey(transcriptionProviderSchema),
+});
+const engineAgentRunBridgeParamsSchema = Schema.Struct({
+  preflightToken: agentPreflightTokenSchema,
+  runtimeBudgetMinutes: Schema.optionalKey(RuntimeBudgetMinutesSchema),
+  transcriptionProvider: Schema.optionalKey(transcriptionProviderSchema),
+  force: Schema.optionalKey(Schema.Boolean),
+});
 const engineAgentStatusBridgeParamsSchema = Schema.Struct({ jobId: agentJobIdSchema });
 const engineAgentApplyBridgeParamsSchema = Schema.Struct({
   jobId: agentJobIdSchema,
@@ -254,7 +265,7 @@ const engineSuccessSchemas = {
   "agent.preflight": agentPreflightResultSchema,
   "agent.run": agentRunResultSchema,
   "agent.status": agentStatusResultSchema,
-  "agent.apply": actionResultSchema,
+  "agent.apply": agentApplyResultSchema,
   "permissions.requestScreenRecording": actionResultSchema,
   "permissions.requestMicrophone": actionResultSchema,
   "permissions.requestInputMonitoring": actionResultSchema,
@@ -444,21 +455,16 @@ export const bridgeRequestDefinitions = {
     {
       runtimeBudgetMinutes?: number;
       transcriptionProvider?: "none" | "imported_transcript";
-      importedTranscriptPath?: ProjectPath;
     },
     AgentPreflightResult,
     [
       params?: {
         runtimeBudgetMinutes?: number;
         transcriptionProvider?: "none" | "imported_transcript";
-        importedTranscriptPath?: string;
       },
     ]
   >(
-    (params) => ({
-      ...params,
-      importedTranscriptPath: makeOptionalProjectPath(params?.importedTranscriptPath),
-    }),
+    (params) => params ?? {},
     engineAgentPreflightBridgeParamsSchema,
     engineSuccessSchema("agent.preflight"),
   ),
@@ -467,7 +473,6 @@ export const bridgeRequestDefinitions = {
       preflightToken: AgentPreflightToken;
       runtimeBudgetMinutes?: number;
       transcriptionProvider?: "none" | "imported_transcript";
-      importedTranscriptPath?: ProjectPath;
       force?: boolean;
     },
     AgentRunResult,
@@ -476,7 +481,6 @@ export const bridgeRequestDefinitions = {
         preflightToken: string;
         runtimeBudgetMinutes?: number;
         transcriptionProvider?: "none" | "imported_transcript";
-        importedTranscriptPath?: string;
         force?: boolean;
       },
     ]
@@ -484,7 +488,6 @@ export const bridgeRequestDefinitions = {
     (params) => ({
       ...params,
       preflightToken: makeAgentPreflightToken(params.preflightToken),
-      importedTranscriptPath: makeOptionalProjectPath(params.importedTranscriptPath),
     }),
     engineAgentRunBridgeParamsSchema,
     engineSuccessSchema("agent.run"),
@@ -500,7 +503,7 @@ export const bridgeRequestDefinitions = {
   ),
   ggEngineAgentApply: defineValidatedBridgeRequest<
     { jobId: AgentJobId; destructiveIntent?: boolean },
-    ActionResult,
+    AgentApplyResult,
     [params: { jobId: string; destructiveIntent?: boolean }]
   >(
     (params) => ({ ...params, jobId: makeAgentJobId(params.jobId) }),

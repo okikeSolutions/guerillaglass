@@ -85,10 +85,6 @@ fn params_from_body<T: Serialize>(body: &T) -> Result<Value, models::EngineBadRe
         .map_err(|error| bad_request("invalid_request", format!("Invalid request body: {error}")))
 }
 
-fn params_with_job_id(job_id: &str) -> Value {
-    json!({ "jobId": job_id })
-}
-
 fn bad_or_runtime(error: models::EngineBadRequestError) -> bool {
     error.code == ProtocolErrorCode::RuntimeError.as_str()
 }
@@ -328,70 +324,77 @@ impl apis::sources::Sources<()> for NativeFoundationApi {
 #[async_trait]
 impl apis::agent::Agent<()> for NativeFoundationApi {
     type Claims = ();
+
     async fn agent_agent_apply(
         &self,
         _: &Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
-        path: &models::AgentAgentApplyPathParams,
-        body: &models::AgentApplyPayload,
+        _: &models::AgentAgentApplyPathParams,
+        _: &models::AgentApplyPayload,
     ) -> Result<apis::agent::AgentAgentApplyResponse, ()> {
-        let mut params = params_from_body(body).unwrap_or_else(|_| json!({}));
-        if let Value::Object(ref mut object) = params {
-            object.insert("jobId".to_string(), json!(path.job_id));
-        }
-        map_response!(
-            self.model(EngineMethod::AgentApply, params),
-            apis::agent::AgentAgentApplyResponse::Status200_ActionResult,
-            apis::agent::AgentAgentApplyResponse::Status400_EngineBadRequestErrorResponseBody,
-            apis::agent::AgentAgentApplyResponse::Status500_EngineRuntimeErrorResponseBody
+        Ok(
+            apis::agent::AgentAgentApplyResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "Agent Mode is unavailable on foundation shells",
+                ),
+            ),
         )
     }
+
     async fn agent_agent_preflight(
         &self,
         _: &Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
-        body: &models::AgentPreflightPayload,
+        _: &models::AgentPreflightPayload,
     ) -> Result<apis::agent::AgentAgentPreflightResponse, ()> {
-        map_response!(
-            params_from_body(body)
-                .and_then(|params| self.model(EngineMethod::AgentPreflight, params)),
-            apis::agent::AgentAgentPreflightResponse::Status200_AgentPreflightResult,
-            apis::agent::AgentAgentPreflightResponse::Status400_EngineBadRequestErrorResponseBody,
-            apis::agent::AgentAgentPreflightResponse::Status500_EngineRuntimeErrorResponseBody
+        Ok(
+            apis::agent::AgentAgentPreflightResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "Agent Mode is unavailable on foundation shells",
+                ),
+            ),
         )
     }
+
     async fn agent_agent_run(
         &self,
         _: &Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
-        body: &models::AgentRunPayload,
+        _: &models::AgentRunPayload,
     ) -> Result<apis::agent::AgentAgentRunResponse, ()> {
-        map_response!(
-            params_from_body(body).and_then(|params| self.model(EngineMethod::AgentRun, params)),
-            apis::agent::AgentAgentRunResponse::Status200_AgentRunResult,
-            apis::agent::AgentAgentRunResponse::Status400_EngineBadRequestErrorResponseBody,
-            apis::agent::AgentAgentRunResponse::Status500_EngineRuntimeErrorResponseBody
+        Ok(
+            apis::agent::AgentAgentRunResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "Agent Mode is unavailable on foundation shells",
+                ),
+            ),
         )
     }
+
     async fn agent_agent_status(
         &self,
         _: &Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
-        path: &models::AgentAgentStatusPathParams,
+        _: &models::AgentAgentStatusPathParams,
     ) -> Result<apis::agent::AgentAgentStatusResponse, ()> {
-        map_response!(
-            self.model(EngineMethod::AgentStatus, params_with_job_id(&path.job_id)),
-            apis::agent::AgentAgentStatusResponse::Status200_AgentRunSummary,
-            apis::agent::AgentAgentStatusResponse::Status400_EngineBadRequestErrorResponseBody,
-            apis::agent::AgentAgentStatusResponse::Status500_EngineRuntimeErrorResponseBody
+        Ok(
+            apis::agent::AgentAgentStatusResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "Agent Mode is unavailable on foundation shells",
+                ),
+            ),
         )
     }
 }
@@ -460,9 +463,13 @@ impl apis::export::Export<()> for NativeFoundationApi {
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
-        body: &models::ExportRunCutPlanPayload,
+        _: &models::ExportRunCutPlanPayload,
     ) -> Result<apis::export::ExportExportRunCutPlanResponse, ()> {
-        map_response!(params_from_body(body).and_then(|params| self.model(EngineMethod::ExportRunCutPlan, params)), apis::export::ExportExportRunCutPlanResponse::Status200_ExportRunCutPlanResult, apis::export::ExportExportRunCutPlanResponse::Status400_EngineBadRequestErrorResponseBody, apis::export::ExportExportRunCutPlanResponse::Status500_EngineRuntimeErrorResponseBody)
+        Ok(
+            apis::export::ExportExportRunCutPlanResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request("unsupported_method", "Cut-plan export is unavailable on foundation shells"),
+            ),
+        )
     }
 }
 
@@ -692,14 +699,24 @@ mod tests {
 
     async fn authorized_json(method: &str, uri: &str, body: Body) -> (StatusCode, Value) {
         let response = http_app(config(), "test-token".to_string())
-            .oneshot(request_builder(method, uri).body(body).unwrap())
+            .oneshot(
+                request_builder(method, uri)
+                    .header("content-type", "application/json")
+                    .body(body)
+                    .unwrap(),
+            )
             .await
             .unwrap();
         let status = response.status();
         let bytes = body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
-        let json: Value = serde_json::from_slice(&bytes).unwrap();
+        let json: Value = serde_json::from_slice(&bytes).unwrap_or_else(|error| {
+            panic!(
+                "response was not JSON (status {status}, body {:?}): {error}",
+                String::from_utf8_lossy(&bytes)
+            )
+        });
         (status, json)
     }
 
@@ -718,7 +735,51 @@ mod tests {
         assert_eq!(capabilities["phase"], "foundation");
         assert_eq!(capabilities["capture"]["display"], true);
         assert_eq!(capabilities["export"]["backgroundFraming"], false);
+        assert_eq!(capabilities["export"]["cutPlan"], false);
         assert_eq!(capabilities["agent"]["localOnly"], true);
+        for operation in ["preflight", "run", "status", "apply"] {
+            assert_eq!(capabilities["agent"][operation], false, "{operation}");
+        }
+        assert_eq!(
+            capabilities["agent"]["supportedTranscriptionProviders"],
+            json!([])
+        );
+    }
+
+    #[tokio::test]
+    async fn http_transport_rejects_agent_operations_on_foundation_shells() {
+        let (status_code, status) =
+            authorized_json("GET", "/v1/agent/runs/missing", Body::empty()).await;
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+        assert_eq!(status["code"], "unsupported_method");
+
+        let (apply_code, apply) =
+            authorized_json("POST", "/v1/agent/runs/missing/apply", Body::from("{}")).await;
+        assert_eq!(apply_code, StatusCode::BAD_REQUEST);
+        assert_eq!(apply["code"], "unsupported_method");
+
+        let (preflight_code, preflight) =
+            authorized_json("POST", "/v1/agent/preflight", Body::from("{}")).await;
+        assert_eq!(preflight_code, StatusCode::BAD_REQUEST);
+        assert_eq!(preflight["code"], "unsupported_method");
+
+        let (run_code, run) = authorized_json(
+            "POST",
+            "/v1/agent/runs",
+            Body::from(r#"{"preflightToken":"token"}"#),
+        )
+        .await;
+        assert_eq!(run_code, StatusCode::BAD_REQUEST);
+        assert_eq!(run["code"], "unsupported_method");
+
+        let (export_code, export) = authorized_json(
+            "POST",
+            "/v1/exports/from-cut-plan",
+            Body::from(r#"{"outputURL":"/tmp/output.mp4","presetId":"1080p","jobId":"missing"}"#),
+        )
+        .await;
+        assert_eq!(export_code, StatusCode::BAD_REQUEST);
+        assert_eq!(export["code"], "unsupported_method");
     }
 
     #[tokio::test]
