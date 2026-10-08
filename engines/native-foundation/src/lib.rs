@@ -259,15 +259,70 @@ mod tests {
     }
 
     #[test]
-    fn export_run_requires_output_url() {
-        with_state("export-run-missing-output", |state, _| {
-            let response = handle_request(
-                "linux",
-                state,
-                &request("r9", EngineMethod::ExportRun, json!({})),
-            );
-            let message = expect_error(response, ProtocolErrorCode::InvalidParams);
-            assert_eq!(message, "outputURL is required");
+    fn export_run_rejects_invalid_requests_without_mutating_output_or_state() {
+        with_state("export-run-invalid-request", |state, root| {
+            let output_path = root.join("existing.mp4");
+            let unsupported_path = root.join("existing.txt");
+            let directory_path = root.join("directory.mp4");
+            fs::write(&output_path, b"previous export").expect("write existing export");
+            fs::write(&unsupported_path, b"unrelated file").expect("write unrelated file");
+            fs::create_dir(&directory_path).expect("create invalid directory target");
+            let previous_settings = BackgroundFramingParams {
+                enabled: true,
+                ..BackgroundFramingParams::default()
+            };
+            state.latest_export_background_framing = Some(previous_settings.clone());
+            let cases = [
+                (json!({}), ProtocolErrorCode::InvalidParams),
+                (json!({ "outputURL": 42 }), ProtocolErrorCode::InvalidParams),
+                (
+                    json!({ "outputURL": "relative.mp4" }),
+                    ProtocolErrorCode::InvalidParams,
+                ),
+                (
+                    json!({ "outputURL": unsupported_path.to_string_lossy() }),
+                    ProtocolErrorCode::InvalidParams,
+                ),
+                (
+                    json!({
+                        "outputURL": output_path.to_string_lossy(),
+                        "backgroundFraming": {
+                            "version": 1,
+                            "enabled": true,
+                            "backgroundColor": "#112233",
+                            "paddingFraction": 0.26,
+                            "cornerRadiusFraction": 0.04,
+                            "shadowStrength": 0.5
+                        }
+                    }),
+                    ProtocolErrorCode::InvalidParams,
+                ),
+                (
+                    json!({ "outputURL": directory_path.to_string_lossy() }),
+                    ProtocolErrorCode::PermissionDenied,
+                ),
+            ];
+            for (params, code) in cases {
+                let response = handle_request(
+                    "linux",
+                    state,
+                    &request("invalid-export", EngineMethod::ExportRun, params),
+                );
+                expect_error(response, code);
+                assert_eq!(
+                    fs::read(&output_path).expect("read previous export"),
+                    b"previous export"
+                );
+                assert_eq!(
+                    fs::read(&unsupported_path).expect("read unrelated file"),
+                    b"unrelated file"
+                );
+                assert!(directory_path.is_dir());
+                assert_eq!(
+                    state.latest_export_background_framing,
+                    Some(previous_settings.clone())
+                );
+            }
         });
     }
 

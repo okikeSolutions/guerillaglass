@@ -10,7 +10,7 @@ Current inventory: 91 files, 496 declarations (net +8). The full ledger has a si
 - **macOS Swift product:** 20 files, 111 declarations (101 retained, 10 repaired/new).
 - **desktop host and domain:** 42 files, 205 declarations (136 retained, 69 repaired/new).
 - **desktop renderer integration:** 5 files, 37 declarations (28 retained, 9 repaired/new).
-- **Rust native foundation:** 3 files, 28 declarations (27 retained, 1 repaired/new).
+- **Rust native foundation:** 3 files, 28 declarations (26 retained, 2 repaired/new).
 - **Rust protocol:** 1 files, 9 declarations (9 retained, 0 repaired/new).
 - **Swift protocol:** 1 files, 10 declarations (8 retained, 2 repaired/new).
 - **engine client:** 5 files, 27 declarations (8 retained, 19 repaired/new).
@@ -54,3 +54,12 @@ force-environment fixtures and preflight helpers were removed. No production
 HTTP route used them. The authenticated unsupported-operation test remains the
 foundation owner. macOS planner, storage and live HTTP/media evidence protect the
 implemented Agent workflow. No test-only production seam was added.
+
+## PR validation follow-up
+
+The retained Rust export request owner now rejects missing/numeric output paths,
+relative paths, unsupported extensions, invalid framing and directory targets.
+Each case requires a typed error and preserves existing output bytes and prior
+export settings. Existing successful export and symlink rejection claims remain
+separate. Bypassing framing validation makes this owner fail. No new declaration,
+production seam or coverage-threshold exception was added.

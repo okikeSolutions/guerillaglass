@@ -30,19 +30,10 @@ extension EngineService {
         if !(1 ... 10).contains(runtimeBudgetMinutes) {
             reasons.append("invalid_runtime_budget")
         }
-        var transcriptData: Data?
-        switch provider {
-        case "imported_transcript":
-            if transcriptPath?.isEmpty ?? true {
-                reasons.append("missing_imported_transcript")
-            } else {
-                transcriptData = try? readAgentTranscript(path: transcriptPath!)
-                if transcriptData == nil {
-                    reasons.append("invalid_imported_transcript")
-                }
-            }
-        default:
-            reasons.append("missing_local_model")
+        let transcript = agentPreflightTranscript(provider: provider, path: transcriptPath)
+        let transcriptData = transcript.data
+        if let reason = transcript.blockingReason {
+            reasons.append(reason)
         }
 
         var sourceRevision: String?
@@ -116,6 +107,22 @@ extension EngineService {
             token: token,
             expiresAt: expiresAt
         ))))
+    }
+
+    private func agentPreflightTranscript(
+        provider: String,
+        path: String?
+    ) -> (data: Data?, blockingReason: String?) {
+        guard provider == "imported_transcript" else {
+            return (nil, "missing_local_model")
+        }
+        guard let path, !path.isEmpty else {
+            return (nil, "missing_imported_transcript")
+        }
+        guard let data = try? readAgentTranscript(path: path) else {
+            return (nil, "invalid_imported_transcript")
+        }
+        return (data, nil)
     }
 
     // swiftlint:disable:next function_body_length

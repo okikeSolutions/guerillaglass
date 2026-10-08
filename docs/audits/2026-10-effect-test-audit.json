@@ -75,8 +75,8 @@
     "Rust native foundation": {
       "files": 3,
       "declarations": 28,
-      "retained": 27,
-      "repaired": 1
+      "retained": 26,
+      "repaired": 2
     },
     "Rust protocol": {
       "files": 1,
@@ -3854,131 +3854,131 @@
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
       "line": 262,
-      "test": "export_run_requires_output_url",
-      "mark": "R",
-      "claim": "export_run_requires_output_url",
-      "credibleRegression": "The observable behavior or invariant in “export_run_requires_output_url” returns a wrong result or fails to hold.",
+      "test": "export_run_rejects_invalid_requests_without_mutating_output_or_state",
+      "mark": "F",
+      "claim": "Invalid export payloads, relative or unsupported output paths, invalid framing and directory targets are rejected without changing existing output bytes or latest export settings.",
+      "credibleRegression": "Removing payload/path/framing rejection permits an invalid export to overwrite prior output or install new settings. Bypassing framing validation fails the retained owner test.",
       "evidence": "engines/native-foundation/src/lib.rs:262"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 275,
+      "line": 330,
       "test": "export_run_writes_output_file",
       "mark": "R",
       "claim": "export_run_writes_output_file",
       "credibleRegression": "The observable behavior or invariant in “export_run_writes_output_file” returns a wrong result or fails to hold.",
-      "evidence": "engines/native-foundation/src/lib.rs:275"
+      "evidence": "engines/native-foundation/src/lib.rs:330"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 296,
+      "line": 351,
       "test": "export_run_resolves_background_framing_override_then_persisted_settings",
       "mark": "R",
       "claim": "export_run_resolves_background_framing_override_then_persisted_settings",
       "credibleRegression": "The value or state in “export_run_resolves_background_framing_override_then_persisted_settings” is dropped, mutated, or not propagated across its boundary.",
-      "evidence": "engines/native-foundation/src/lib.rs:296"
+      "evidence": "engines/native-foundation/src/lib.rs:351"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 370,
+      "line": 425,
       "test": "export_run_rejects_symlink_output_file",
       "mark": "R",
       "claim": "export_run_rejects_symlink_output_file",
       "credibleRegression": "The invalid, unauthorized, unavailable, or boundary input in “export_run_rejects_symlink_output_file” is accepted or mapped incorrectly.",
-      "evidence": "engines/native-foundation/src/lib.rs:370"
+      "evidence": "engines/native-foundation/src/lib.rs:425"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 397,
+      "line": 452,
       "test": "project_open_and_recents_persist_recent_project_index",
       "mark": "R",
       "claim": "project_open_and_recents_persist_recent_project_index",
       "credibleRegression": "The value or state in “project_open_and_recents_persist_recent_project_index” is dropped, mutated, or not propagated across its boundary.",
-      "evidence": "engines/native-foundation/src/lib.rs:397"
+      "evidence": "engines/native-foundation/src/lib.rs:452"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 440,
+      "line": 495,
       "test": "project_save_clamps_auto_zoom_and_writes_snapshot",
       "mark": "R",
       "claim": "project_save_clamps_auto_zoom_and_writes_snapshot",
       "credibleRegression": "The observable behavior or invariant in “project_save_clamps_auto_zoom_and_writes_snapshot” returns a wrong result or fails to hold.",
-      "evidence": "engines/native-foundation/src/lib.rs:440"
+      "evidence": "engines/native-foundation/src/lib.rs:495"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 478,
+      "line": 533,
       "test": "project_save_open_round_trips_background_framing_and_rejects_malformed_values",
       "mark": "R",
       "claim": "project_save_open_round_trips_background_framing_and_rejects_malformed_values",
       "credibleRegression": "The invalid, unauthorized, unavailable, or boundary input in “project_save_open_round_trips_background_framing_and_rejects_malformed_values” is accepted or mapped incorrectly.",
-      "evidence": "engines/native-foundation/src/lib.rs:478"
+      "evidence": "engines/native-foundation/src/lib.rs:533"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 532,
+      "line": 587,
       "test": "project_save_rejects_invalid_background_framing_boundaries",
       "mark": "R",
       "claim": "project_save_rejects_invalid_background_framing_boundaries",
       "credibleRegression": "The invalid, unauthorized, unavailable, or boundary input in “project_save_rejects_invalid_background_framing_boundaries” is accepted or mapped incorrectly.",
-      "evidence": "engines/native-foundation/src/lib.rs:532"
+      "evidence": "engines/native-foundation/src/lib.rs:587"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 592,
+      "line": 647,
       "test": "project_save_rejects_symlink_project_path",
       "mark": "R",
       "claim": "project_save_rejects_symlink_project_path",
       "credibleRegression": "The invalid, unauthorized, unavailable, or boundary input in “project_save_rejects_symlink_project_path” is accepted or mapped incorrectly.",
-      "evidence": "engines/native-foundation/src/lib.rs:592"
+      "evidence": "engines/native-foundation/src/lib.rs:647"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 617,
+      "line": 672,
       "test": "failed_project_snapshot_write_does_not_commit_candidate_state",
       "mark": "R",
       "claim": "failed_project_snapshot_write_does_not_commit_candidate_state",
       "credibleRegression": "The observable behavior or invariant in “failed_project_snapshot_write_does_not_commit_candidate_state” returns a wrong result or fails to hold.",
-      "evidence": "engines/native-foundation/src/lib.rs:617"
+      "evidence": "engines/native-foundation/src/lib.rs:672"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 653,
+      "line": 708,
       "test": "project_recents_deduplicates_and_truncates_to_maximum_size",
       "mark": "R",
       "claim": "project_recents_deduplicates_and_truncates_to_maximum_size",
       "credibleRegression": "The observable behavior or invariant in “project_recents_deduplicates_and_truncates_to_maximum_size” returns a wrong result or fails to hold.",
-      "evidence": "engines/native-foundation/src/lib.rs:653"
+      "evidence": "engines/native-foundation/src/lib.rs:708"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 705,
+      "line": 760,
       "test": "load_recent_projects_ignores_invalid_payload_and_invalid_items",
       "mark": "R",
       "claim": "load_recent_projects_ignores_invalid_payload_and_invalid_items",
       "credibleRegression": "The invalid, unauthorized, unavailable, or boundary input in “load_recent_projects_ignores_invalid_payload_and_invalid_items” is accepted or mapped incorrectly.",
-      "evidence": "engines/native-foundation/src/lib.rs:705"
+      "evidence": "engines/native-foundation/src/lib.rs:760"
     },
     {
       "owner": "Rust native foundation",
       "file": "engines/native-foundation/src/lib.rs",
-      "line": 738,
+      "line": 793,
       "test": "save_and_record_helpers_write_expected_item_shape",
       "mark": "R",
       "claim": "save_and_record_helpers_write_expected_item_shape",
       "credibleRegression": "The observable behavior or invariant in “save_and_record_helpers_write_expected_item_shape” returns a wrong result or fails to hold.",
-      "evidence": "engines/native-foundation/src/lib.rs:738"
+      "evidence": "engines/native-foundation/src/lib.rs:793"
     },
     {
       "owner": "Rust native foundation",
@@ -5521,6 +5521,53 @@
         "media": ".tmp/runtime-acceptance/picker-fix/final-restart.mov",
         "decodeReport": ".tmp/runtime-acceptance/picker-fix/final-media-check.json"
       }
+    },
+    "prHistoryRepair": {
+      "pullRequest": 175,
+      "branch": "fix/effect-audit-capture",
+      "remoteBase": "8801ee91e9bd182f4cb80481cebf500a01a5d01a",
+      "squashedCodeCommit": "25958a89182d09b697f5133e9d0dba78ae250983",
+      "verifiedOriginalTree": "8db1013a5e5520a707316dc341349a8c99b4e81e",
+      "originalHistoryBackup": "backup/effect-audit-before-pr-2026-10-08",
+      "mergeCommitsIntroduced": 0,
+      "ciRepairs": [
+        "Extract preflight transcript validation into a private production helper to satisfy SwiftLint function length without suppressing the rule.",
+        "Strengthen the retained Rust export rejection owner with invalid payload/path/framing/directory cases and output/state preservation; retain the existing coverage threshold."
+      ],
+      "commands": {
+        "swiftlint --quiet": {
+          "result": "passed",
+          "log": ".tmp/pr-175-swiftlint.log",
+          "note": "Existing warning-level findings remain; no error-level findings."
+        },
+        "bun run gate:swift:fast": {
+          "result": "passed",
+          "log": ".tmp/pr-175-swift-fast.log"
+        },
+        "bun run agent:smoke:macos": {
+          "result": "passed",
+          "log": ".tmp/pr-175-agent-smoke.log"
+        },
+        "cargo test -p native-foundation -j 2 -- --test-threads=2": {
+          "result": "passed",
+          "tests": 28,
+          "log": ".tmp/pr-175-rust-tests.log"
+        },
+        "cargo clippy -p native-foundation --all-targets -j 2 -- -D warnings": {
+          "result": "passed",
+          "log": ".tmp/pr-175-rust-clippy.log"
+        }
+      },
+      "redControl": {
+        "result": "failed as intended",
+        "claim": "Invalid framing must be rejected before overwrite or state update",
+        "log": ".tmp/pr-175-export-red.log"
+      },
+      "followupReview": {
+        "openStandardsFindings": 0,
+        "openSpecFindings": 0
+      },
+      "ciStatusAtRepair": "Initial Swift lint and Rust export coverage failures repaired locally; remote CI rerun required before merge."
     }
   }
 }

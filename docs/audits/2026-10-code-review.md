@@ -68,3 +68,19 @@ merge commits are forbidden. The original history remains on the local
 
 The following documentation commit retains native screenshots for rendering
 directly in the PR description. The code was unchanged by this history repair.
+
+## PR CI corrections
+
+The first CI run found one error-level SwiftLint function-length violation and
+insufficient coverage of the remaining Rust export handler. Transcript preflight
+input validation now has a private production helper, preserving blocker ordering
+and removing the forced path unwrap. SwiftLint passes with existing warning-level
+findings. The engine fast build and real Agent smoke pass.
+
+The existing Rust export rejection test now checks malformed payloads, relative
+and unsupported paths, invalid framing and directory targets. Failed requests
+preserve prior output bytes and export settings. Bypassing framing validation
+fails this test. All 28 foundation tests and Clippy pass. The coverage threshold
+was retained. Both review agents found zero issues in these follow-up changes.
+The machine-readable ledger records the commands in `validation.prHistoryRepair`;
+remote CI must pass before merge.
