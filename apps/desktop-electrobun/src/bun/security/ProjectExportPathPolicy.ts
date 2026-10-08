@@ -23,7 +23,7 @@ export class ProjectExportPathPolicy extends Context.Service<
   ProjectExportPathPolicyService
 >()("@guerillaglass/desktop/ProjectExportPathPolicy") {}
 
-function normalizeLocalPath(
+const normalizeLocalPath = Effect.fn("ProjectExportPathPolicy.normalizeLocalPath")(function (
   path: Path.Path,
   value: string,
 ): Effect.Effect<string, FileAccessPolicyError> {
@@ -65,25 +65,27 @@ function normalizeLocalPath(
     );
     return path.resolve(localPath);
   });
-}
+});
 
-function requireExtension(
+const requireExtension = Effect.fn("ProjectExportPathPolicy.requireExtension")(function (
   path: Path.Path,
   filePath: string,
   expected: string | ReadonlySet<string>,
-): string {
+): Effect.Effect<string, FileAccessPolicyError> {
   const extension = path.extname(filePath).toLowerCase();
   const allowed = typeof expected === "string" ? extension === expected : expected.has(extension);
   if (!allowed) {
-    throw new FileAccessPolicyError({
-      code: "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS",
-      description: "The selected path is not allowed for this operation.",
-    });
+    return Effect.fail(
+      new FileAccessPolicyError({
+        code: "FILE_ACCESS_OUTSIDE_ALLOWED_ROOTS",
+        description: "The selected path is not allowed for this operation.",
+      }),
+    );
   }
-  return filePath;
-}
+  return Effect.succeed(filePath);
+});
 
-function requireGranted(
+const requireGranted = Effect.fn("ProjectExportPathPolicy.requireGranted")(function (
   grants: FileAccessGrantsService,
   kind: "project-open" | "project-save" | "export-directory",
   filePath: string,
@@ -101,7 +103,7 @@ function requireGranted(
       );
     }),
   );
-}
+});
 
 export const layerProjectExportPathPolicy = Layer.effect(
   ProjectExportPathPolicy,
@@ -111,24 +113,42 @@ export const layerProjectExportPathPolicy = Layer.effect(
 
     const validateProjectPath = (kind: "project-open" | "project-save", projectPath: string) =>
       normalizeLocalPath(path, projectPath).pipe(
-        Effect.map((normalizedPath) =>
+        Effect.flatMap((normalizedPath) =>
           requireExtension(path, normalizedPath, projectPackageExtension),
         ),
         Effect.flatMap((normalizedPath) => requireGranted(grants, kind, normalizedPath)),
       );
 
     return ProjectExportPathPolicy.of({
-      validateProjectOpenPath: (projectPath) => validateProjectPath("project-open", projectPath),
-      validateProjectSavePath: (projectPath) => validateProjectPath("project-save", projectPath),
-      validateExportOutputPath: (outputURL) =>
-        normalizeLocalPath(path, outputURL).pipe(
-          Effect.map((normalizedPath) =>
-            requireExtension(path, normalizedPath, exportFileExtensions),
+      validateProjectOpenPath: Effect.fn("ProjectExportPathPolicy.validateProjectOpenPath")(
+        (
+          projectPath: Parameters<
+            (typeof ProjectExportPathPolicy.Service)["validateProjectOpenPath"]
+          >[0],
+        ) => validateProjectPath("project-open", projectPath),
+      ),
+      validateProjectSavePath: Effect.fn("ProjectExportPathPolicy.validateProjectSavePath")(
+        (
+          projectPath: Parameters<
+            (typeof ProjectExportPathPolicy.Service)["validateProjectSavePath"]
+          >[0],
+        ) => validateProjectPath("project-save", projectPath),
+      ),
+      validateExportOutputPath: Effect.fn("ProjectExportPathPolicy.validateExportOutputPath")(
+        (
+          outputURL: Parameters<
+            (typeof ProjectExportPathPolicy.Service)["validateExportOutputPath"]
+          >[0],
+        ) =>
+          normalizeLocalPath(path, outputURL).pipe(
+            Effect.flatMap((normalizedPath) =>
+              requireExtension(path, normalizedPath, exportFileExtensions),
+            ),
+            Effect.flatMap((normalizedPath) =>
+              requireGranted(grants, "export-directory", normalizedPath),
+            ),
           ),
-          Effect.flatMap((normalizedPath) =>
-            requireGranted(grants, "export-directory", normalizedPath),
-          ),
-        ),
+      ),
     });
   }),
 );

@@ -11,7 +11,7 @@ For every PR that changes rendered UI behavior, attach rendered screenshots here
 - [ ] Read and applied `AGENTS.md`, the nearest nested agent guide, and `REVIEW.md`
 - [ ] Kept the change scoped to one roadmap slice or maintenance purpose
 - [ ] Ran `bun run repo:check`
-- [ ] Ran `bun run gate` or documented unsupported/deferred platform checks
+- [ ] Ran affected fast gates and focused tests; CI full-gate checks pass or deferred checks are documented
 - [ ] Regenerated derived artifacts and verified determinism when changing contracts, or N/A
 - [ ] Updated roadmap/docs when architecture, workflow, or tracked status changed, or N/A
 - [ ] Added both `en-US` and `de-DE` messages for user-visible UI, or N/A

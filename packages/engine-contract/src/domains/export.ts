@@ -43,19 +43,27 @@ export const exportRunCutPlanResultSchema = Schema.Struct({
 /**
  * Runtime TypeScript type for an export preset.
  */
-export type ExportPreset = Schema.Schema.Type<typeof exportPresetSchema>;
+export const ExportPreset = exportPresetSchema;
+/** Validated ExportPreset record. */
+export interface ExportPreset extends Schema.Schema.Type<typeof ExportPreset> {}
 
 /**
  * Runtime TypeScript type for export-info responses.
  */
-export type ExportInfoResult = Schema.Schema.Type<typeof exportInfoResultSchema>;
+export const ExportInfoResult = exportInfoResultSchema;
+/** Validated ExportInfoResult record. */
+export interface ExportInfoResult extends Schema.Schema.Type<typeof ExportInfoResult> {}
 
 /**
  * Runtime TypeScript type for standard export job responses.
  */
-export type ExportRunResult = Schema.Schema.Type<typeof exportRunResultSchema>;
+export const ExportRunResult = exportRunResultSchema;
+/** Validated ExportRunResult record. */
+export interface ExportRunResult extends Schema.Schema.Type<typeof ExportRunResult> {}
 
 /**
  * Runtime TypeScript type for cut-plan export job responses.
  */
-export type ExportRunCutPlanResult = Schema.Schema.Type<typeof exportRunCutPlanResultSchema>;
+export const ExportRunCutPlanResult = exportRunCutPlanResultSchema;
+/** Validated ExportRunCutPlanResult record. */
+export interface ExportRunCutPlanResult extends Schema.Schema.Type<typeof ExportRunCutPlanResult> {}

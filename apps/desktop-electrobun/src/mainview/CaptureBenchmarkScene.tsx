@@ -1,3 +1,4 @@
+import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { useEffect, useRef } from "react";
 import { sendHostStudioDiagnostics } from "./lib/engine";
 import { captureBenchmarkWindowTitle } from "../shared/captureBenchmark";
@@ -60,7 +61,7 @@ export function CaptureBenchmarkScene() {
           source: "renderer",
           level: "INFO",
           message: "capture-benchmark-ready",
-          timestamp: new Date().toISOString(),
+          timestamp: isoDateTimeSchema.make(new Date().toISOString()),
           annotations: {
             title: captureBenchmarkWindowTitle,
             phase: "painted",

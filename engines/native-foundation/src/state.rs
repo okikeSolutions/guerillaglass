@@ -2,35 +2,12 @@ use crate::params::BackgroundFramingParams;
 use crate::path_security::{create_directory_all_no_symlink, write_file_no_symlink};
 use crate::wire::{CaptureClock, RunningDuration};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 pub(crate) const MAX_RECENT_PROJECTS: usize = 20;
-
-#[derive(Clone)]
-pub(crate) struct AgentRunState {
-    pub(crate) job_id: String,
-    pub(crate) status: &'static str,
-    pub(crate) runtime_budget_minutes: i64,
-    pub(crate) blocking_reason: Option<&'static str>,
-    pub(crate) updated_at: String,
-    pub(crate) qa_report: Value,
-}
-
-#[derive(Clone)]
-pub(crate) struct PreflightSession {
-    pub(crate) token: String,
-    pub(crate) ready: bool,
-    pub(crate) runtime_budget_minutes: i64,
-    pub(crate) transcription_provider: String,
-    pub(crate) imported_transcript_path: String,
-    pub(crate) project_path: Option<String>,
-    pub(crate) recording_url: Option<String>,
-    pub(crate) created_at_unix_seconds: i64,
-}
 
 #[derive(Clone)]
 pub(crate) struct State {
@@ -53,8 +30,6 @@ pub(crate) struct State {
     pub(crate) recent_projects: Vec<Value>,
     pub(crate) recents_index_path: PathBuf,
     pub(crate) unsaved_changes: bool,
-    pub(crate) agent_runs: HashMap<String, AgentRunState>,
-    pub(crate) preflight_sessions: HashMap<String, PreflightSession>,
 }
 
 impl State {
@@ -80,8 +55,6 @@ impl State {
             recent_projects,
             recents_index_path,
             unsaved_changes: false,
-            agent_runs: HashMap::new(),
-            preflight_sessions: HashMap::new(),
         }
     }
 
@@ -121,11 +94,6 @@ impl State {
     }
 
     pub(crate) fn project_state(&self) -> Value {
-        let latest_run = self
-            .agent_runs
-            .values()
-            .max_by(|left, right| left.updated_at.cmp(&right.updated_at));
-
         json!({
             "projectPath": self.project_path,
             "recordingURL": self.recording_url,
@@ -143,10 +111,10 @@ impl State {
                 "updatedAt": now_iso8601(),
             },
             "agentAnalysis": {
-                "latestJobId": latest_run.map(|run| run.job_id.clone()),
-                "latestStatus": latest_run.map(|run| run.status),
-                "qaPassed": latest_run.and_then(|run| run.qa_report.get("passed").and_then(Value::as_bool)),
-                "updatedAt": latest_run.map(|run| run.updated_at.clone()),
+                "latestJobId": Value::Null,
+                "latestStatus": Value::Null,
+                "qaPassed": Value::Null,
+                "updatedAt": Value::Null,
             },
         })
     }

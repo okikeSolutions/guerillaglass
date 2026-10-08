@@ -36,6 +36,7 @@ playground.xcworkspace
 guerillaglass.app/
 node_modules/
 .hutch/
+.cottontail-tmp/
 .env.local
 apps/*/.env.local
 apps/*/dist/

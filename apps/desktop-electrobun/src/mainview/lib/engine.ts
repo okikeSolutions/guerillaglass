@@ -27,12 +27,14 @@ import type {
   WindowBridgeBindings,
   BridgeRequestName,
   BridgeRequests,
+  BridgeRequestArguments,
 } from "@shared/bridge/desktopBridgeContract";
-import { bridgeRequestDefinitions } from "@shared/bridge/desktopBridgeContract";
+import { bridgeDefinitionsByName } from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,
+  StudioActionError,
   PathPickerError,
   isKnownTaggedError,
 } from "@shared/errors/desktopErrors";
@@ -40,67 +42,43 @@ import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import {
   decodeUnknownWithSchemaSync,
   parseJsonStringSync,
-  validateEncodedUnknownWithSchemaSync,
-  type MutableDeep,
 } from "@guerillaglass/engine-client/schemaContracts";
 
-function requireBridge<K extends keyof WindowBridgeBindings>(
+async function invokeBridge<K extends BridgeRequestName>(
   name: K,
-): NonNullable<WindowBridgeBindings[K]> {
-  const bridgeWindow = window as Window & WindowBridgeBindings;
-  const bridge = bridgeWindow[name];
-  if (!bridge) {
-    throw new BridgeUnavailableError({ bridge: String(name) });
-  }
-  return bridge as NonNullable<WindowBridgeBindings[K]>;
-}
-
-async function invokeBridge<K extends keyof WindowBridgeBindings>(
-  name: K,
-  ...args: unknown[]
+  ...args: BridgeRequestArguments[K]
 ): Promise<unknown> {
-  const bridge = requireBridge(name) as (...bridgeArgs: unknown[]) => Promise<unknown>;
+  const bridgeWindow = window as Window & WindowBridgeBindings;
+  const requests: {
+    [N in BridgeRequestName]?: (
+      ...args: BridgeRequestArguments[N]
+    ) => Promise<BridgeRequests[N]["response"]>;
+  } = bridgeWindow;
+  const bridge = requests[name];
+  if (!bridge) {
+    throw new BridgeUnavailableError({ bridge: name });
+  }
   try {
     return await bridge(...args);
   } catch (error) {
     if (isKnownTaggedError(error)) {
       throw error;
     }
-    throw new BridgeInvocationError({
-      bridge: String(name),
-      cause: error,
-    });
+    throw new BridgeInvocationError({ bridge: name, cause: error });
   }
 }
 
 async function invokeBridgeContract<K extends BridgeRequestName>(
   name: K,
   contract: string,
-  ...args: unknown[]
-): Promise<MutableDeep<BridgeRequests[K]["response"]>> {
+  ...args: BridgeRequestArguments[K]
+): Promise<BridgeRequests[K]["response"]> {
   const raw = await invokeBridge(name, ...args);
-  const schema = bridgeRequestDefinitions[name].responseSchema;
-  if (!schema) {
-    return raw as never;
-  }
-  return validateEncodedUnknownWithSchemaSync(schema, raw, contract) as never;
+  return decodeUnknownWithSchemaSync(bridgeDefinitionsByName[name].responseSchema, raw, contract);
 }
 
-async function invokeCaptureStatus<K extends BridgeRequestName>(
-  name: K,
-  contract: string,
-  ...args: unknown[]
-): Promise<CaptureStatusResult> {
-  return (await invokeBridgeContract(name, contract, ...args)) as CaptureStatusResult;
-}
-
-async function invokeProjectState<K extends BridgeRequestName>(
-  name: K,
-  contract: string,
-  ...args: unknown[]
-): Promise<ProjectState> {
-  return (await invokeBridgeContract(name, contract, ...args)) as ProjectState;
-}
+const invokeCaptureStatus = invokeBridgeContract;
+const invokeProjectState = invokeBridgeContract;
 
 function isMacOS13WindowPickerUnsupported(error: unknown): boolean {
   if (error instanceof BridgeInvocationError) {
@@ -230,6 +208,20 @@ export const engineApi = {
     } catch (error) {
       if (windowId === 0 && isMacOS13WindowPickerUnsupported(error)) {
         throw new CaptureWindowPickerUnsupportedError({ cause: error });
+      }
+      if (
+        windowId === 0 &&
+        error instanceof EngineResponseError &&
+        error.code === "permission_denied"
+      ) {
+        throw new StudioActionError({ reason: "capture_permission_required" });
+      }
+      if (
+        windowId === 0 &&
+        error instanceof EngineResponseError &&
+        error.code === "invalid_request"
+      ) {
+        throw new StudioActionError({ reason: "window_selection_failed" });
       }
       throw error;
     }

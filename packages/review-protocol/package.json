@@ -8,13 +8,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "effect": "4.0.0-rc.115"
+    "effect": "4.0.2"
   },
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "^5.0.1"
   }
 }

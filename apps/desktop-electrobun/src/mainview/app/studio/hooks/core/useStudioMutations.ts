@@ -70,31 +70,29 @@ export function mergeFinishedCaptureStatus(
 }
 
 export type SettingsFormApi = {
-  state: {
-    values: {
-      captureSource: CaptureSourceMode;
-      selectedDisplayId: number;
-      selectedWindowId: number;
-      captureFps: CaptureFrameRate;
-      micEnabled: boolean;
-      trackInputEvents: boolean;
-      autoZoom: AutoZoomSettings;
-      backgroundFraming: BackgroundFramingSettings;
-    };
+  getValues: () => {
+    captureSource: CaptureSourceMode;
+    selectedDisplayId: number;
+    selectedWindowId: number;
+    captureFps: CaptureFrameRate;
+    micEnabled: boolean;
+    trackInputEvents: boolean;
+    autoZoom: AutoZoomSettings;
+    backgroundFraming: BackgroundFramingSettings;
   };
-  setFieldValue: (...args: unknown[]) => void;
+  setSelectedDisplayId: (value: number) => void;
+  setSelectedWindowId: (value: number) => void;
 };
 
 export type ExportFormApi = {
-  state: {
-    values: {
-      presetId: string;
-      fileName: string;
-      trimStartSeconds: number;
-      trimEndSeconds: number;
-    };
+  getValues: () => {
+    presetId: string;
+    fileName: string;
+    trimStartSeconds: number;
+    trimEndSeconds: number;
   };
-  setFieldValue: (...args: unknown[]) => void;
+  setTrimStartSeconds: (value: number) => void;
+  setTrimEndSeconds: (value: number) => void;
 };
 
 type UseStudioActionsOptions = {
@@ -122,7 +120,7 @@ type UseStudioActionsOptions = {
   permissionsQuery: RefetchableQuery<PermissionsResult>;
   sourcesQuery: RefetchableQuery<SourcesResult>;
   captureStatusQuery: RefetchableQuery<CaptureStatusResult>;
-  exportInfoQuery: RefetchableQuery<{ presets: ExportPreset[] }>;
+  exportInfoQuery: RefetchableQuery<{ presets: ReadonlyArray<ExportPreset> }>;
   projectQuery: RefetchableQuery<ProjectState>;
   projectRecentsQuery: RefetchableQuery<ProjectRecentsResult>;
   eventsQuery: RefetchableQuery<unknown[]>;
@@ -181,14 +179,14 @@ export function useStudioMutations({
         baselineSelectedDisplayId,
       );
       if (nextSelectedDisplayId !== baselineSelectedDisplayId) {
-        settingsForm.setFieldValue("selectedDisplayId", nextSelectedDisplayId);
+        settingsForm.setSelectedDisplayId(nextSelectedDisplayId);
       }
       const nextSelectedWindowId = resolveSelectedWindowId(
         nextSources.windows,
         baselineSelectedWindowId,
       );
       if (nextSelectedWindowId !== baselineSelectedWindowId) {
-        settingsForm.setFieldValue("selectedWindowId", nextSelectedWindowId);
+        settingsForm.setSelectedWindowId(nextSelectedWindowId);
       }
       return {
         selectedDisplayId: nextSelectedDisplayId,
@@ -261,7 +259,7 @@ export function useStudioMutations({
         selectedDisplayId: configuredDisplayId,
         micEnabled,
         captureFps,
-      } = settingsForm.state.values;
+      } = settingsForm.getValues();
       const captureSource = options?.captureSourceOverride ?? configuredCaptureSource;
       if (captureSource === "window") {
         if (options?.preferCurrentWindow) {
@@ -440,7 +438,7 @@ export function useStudioMutations({
           captureSourceOverride: options?.captureSourceOverride,
           preferWindowPicker:
             options?.preferWindowPicker ??
-            (settingsForm.state.values.captureSource === "window" && selectedWindowId === 0),
+            (settingsForm.getValues().captureSource === "window" && selectedWindowId === 0),
           preferCurrentWindow: options?.preferCurrentWindow,
         });
       }
@@ -459,7 +457,7 @@ export function useStudioMutations({
       }
 
       const recordingStatus = await engineApi.startRecording(
-        settingsForm.state.values.trackInputEvents,
+        settingsForm.getValues().trackInputEvents,
       );
       return {
         nextStatus: recordingStatus,
@@ -514,11 +512,11 @@ export function useStudioMutations({
           };
         },
       );
-      exportForm.setFieldValue("trimStartSeconds", 0);
-      exportForm.setFieldValue("trimEndSeconds", 0);
+      exportForm.setTrimStartSeconds(0);
+      exportForm.setTrimEndSeconds(0);
       resetPlayhead();
 
-      if (settingsForm.state.values.trackInputEvents && inputMonitoringDenied) {
+      if (settingsForm.getValues().trackInputEvents && inputMonitoringDenied) {
         setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
       } else {
         setNotice({ kind: "success", message: ui.notices.recordingStarted });
@@ -598,8 +596,8 @@ export function useStudioMutations({
       }
       const nextProject = await engineApi.projectSave({
         projectPath,
-        autoZoom: settingsForm.state.values.autoZoom,
-        backgroundFraming: settingsForm.state.values.backgroundFraming,
+        autoZoom: settingsForm.getValues().autoZoom,
+        backgroundFraming: settingsForm.getValues().backgroundFraming,
         timeline: timelineDocument,
       });
       return nextProject;
@@ -641,28 +639,28 @@ export function useStudioMutations({
 
       const extension = selectedPreset.fileType;
       const safeFileName =
-        exportForm.state.values.fileName.trim().length > 0
-          ? exportForm.state.values.fileName.trim()
+        exportForm.getValues().fileName.trim().length > 0
+          ? exportForm.getValues().fileName.trim()
           : "guerillaglass-export";
 
       const outputURL = `${targetDirectory.replace(/[\\/]$/, "")}/${safeFileName}.${extension}`;
       const trimStart =
-        exportForm.state.values.trimStartSeconds > 0
-          ? exportForm.state.values.trimStartSeconds
+        exportForm.getValues().trimStartSeconds > 0
+          ? exportForm.getValues().trimStartSeconds
           : undefined;
       const trimEnd =
-        exportForm.state.values.trimEndSeconds > 0
-          ? exportForm.state.values.trimEndSeconds
+        exportForm.getValues().trimEndSeconds > 0
+          ? exportForm.getValues().trimEndSeconds
           : undefined;
 
       const result = await engineApi.runExport({
         outputURL,
         presetId: selectedPreset.id,
-        trimStartSeconds: trimStart,
-        trimEndSeconds: trimEnd,
+        ...(trimStart === undefined ? {} : { trimStartSeconds: trimStart }),
+        ...(trimEnd === undefined ? {} : { trimEndSeconds: trimEnd }),
         timeline: timelineDocument,
-        autoZoom: settingsForm.state.values.autoZoom,
-        backgroundFraming: settingsForm.state.values.backgroundFraming,
+        autoZoom: settingsForm.getValues().autoZoom,
+        backgroundFraming: settingsForm.getValues().backgroundFraming,
       });
       return { ...result, outputURL: result.outputURL ?? outputURL };
     },

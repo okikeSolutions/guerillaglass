@@ -46,6 +46,14 @@ describe("Agent Mode discoverability contract", () => {
       transcriptionProvider: "none",
     });
     expect("preflightToken" in blocked).toBe(false);
+    expect(
+      Schema.decodeSync(agentPreflightResultSchema)({
+        ready: false,
+        blockingReasons: ["preflight_capacity"],
+        canApplyDestructive: false,
+        transcriptionProvider: "imported_transcript",
+      }).ready,
+    ).toBe(false);
     expect(() =>
       Schema.decodeUnknownSync(agentPreflightResultSchema)({
         ready: true,

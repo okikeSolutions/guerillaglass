@@ -4,16 +4,6 @@ import InputTracking
 import XCTest
 
 final class AutomationTests: XCTestCase {
-    func testPlannerInitialization() {
-        let planner = VirtualCameraPlanner()
-        let model = AttentionModel()
-        let constraints = ZoomConstraints()
-
-        XCTAssertNotNil(planner)
-        XCTAssertNotNil(model)
-        XCTAssertNotNil(constraints)
-    }
-
     func testAttentionModelDwellAndClickIntensity() {
         let constraints = ZoomConstraints(
             dwellDuration: 0.1,

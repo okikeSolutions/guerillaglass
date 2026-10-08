@@ -1,14 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { Schema } from "effect";
+import * as OpenApi from "effect/http-api/OpenApi";
+import * as HttpApi from "effect/http-api/HttpApi";
 import { EngineOpenApi } from "../src/openApi";
 import { EngineHttpApi } from "../src/httpApi";
 
-type OpenApiOperation = {
-  readonly operationId?: string;
-  readonly parameters?: ReadonlyArray<{ readonly in?: string; readonly name?: string }>;
-  readonly requestBody?: unknown;
-  readonly responses?: Record<string, unknown>;
-};
+type OpenApiOperation = OpenApi.OpenAPISpecOperation;
 
 type ReflectedEndpoint = {
   readonly groupName: string;
@@ -41,21 +38,22 @@ function toOpenApiPath(path: string) {
  * @returns Reflected endpoint entries used by coverage assertions.
  */
 function reflectEndpoints(): ReadonlyArray<ReflectedEndpoint> {
-  return Object.entries(EngineHttpApi.groups).flatMap(([groupName, group]) =>
-    Object.entries(group.endpoints).map(([endpointName, endpoint]) => {
+  const endpoints: Array<ReflectedEndpoint> = [];
+  HttpApi.reflect(EngineHttpApi, {
+    onGroup: () => undefined,
+    onEndpoint: ({ group, endpoint, successes, errors }) => {
       const payloadSchemas = Array.from(endpoint.payload.values()).flatMap(
-        (payload) => (payload as { readonly schemas: ReadonlyArray<Schema.Top> }).schemas,
+        (payload) => payload.schemas,
       );
-      const successSchemas = Array.from(endpoint.success);
-      const errorSchemas = Array.from(endpoint.error);
-
-      return {
-        groupName,
-        endpointName,
+      const successSchemas = Array.from(successes.values()).flatMap((schemas) => schemas);
+      const errorSchemas = Array.from(errors.values()).flatMap((schemas) => schemas);
+      endpoints.push({
+        groupName: group.identifier,
+        endpointName: endpoint.identifier,
         method: endpoint.method.toLowerCase(),
         httpApiPath: endpoint.path,
         openApiPath: toOpenApiPath(endpoint.path),
-        operationId: `${groupName}.${endpointName}`,
+        operationId: `${group.identifier}.${endpoint.identifier}`,
         params: endpoint.params,
         query: endpoint.query,
         payloadSize: payloadSchemas.length,
@@ -68,9 +66,10 @@ function reflectEndpoints(): ReadonlyArray<ReflectedEndpoint> {
           ...successSchemas.map((schema) => ({ role: "success", schema })),
           ...errorSchemas.map((schema) => ({ role: "error", schema })),
         ],
-      } satisfies ReflectedEndpoint;
-    }),
-  );
+      });
+    },
+  });
+  return endpoints;
 }
 
 /**
@@ -80,10 +79,17 @@ function reflectEndpoints(): ReadonlyArray<ReflectedEndpoint> {
  * @returns The matching OpenAPI operation, if present.
  */
 function findOpenApiOperation(endpoint: ReflectedEndpoint): OpenApiOperation | undefined {
-  const pathItem = EngineOpenApi.paths[endpoint.openApiPath as keyof typeof EngineOpenApi.paths] as
-    | Record<string, OpenApiOperation>
-    | undefined;
-  return pathItem?.[endpoint.method];
+  const pathItem = Object.entries(EngineOpenApi.paths).find(
+    ([path]) => path === endpoint.openApiPath,
+  )?.[1];
+  if (!pathItem || !isOpenApiMethod(endpoint.method)) {
+    return undefined;
+  }
+  return pathItem[endpoint.method];
+}
+
+function isOpenApiMethod(method: string): method is OpenApi.OpenAPISpecMethodName {
+  return ["get", "put", "post", "delete", "options", "head", "patch", "trace"].includes(method);
 }
 
 describe("EngineHttpApi endpoint and schema coverage", () => {

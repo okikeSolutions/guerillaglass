@@ -1,6 +1,6 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Effect, Layer, Metric } from "effect";
+import { Effect, Layer, Metric, Schema } from "effect";
 import { layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import { layerEngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
 import { makeDesktopAppRuntime, type DesktopAppRuntime } from "./AppRuntime";
@@ -138,11 +138,24 @@ async function bootstrapApp() {
   }
 }
 
+class DesktopBootstrapError extends Schema.TaggedError<DesktopBootstrapError>()(
+  "DesktopBootstrapError",
+  { cause: Schema.Defect() },
+) {}
+
+class DesktopRuntimeDisposalError extends Schema.TaggedError<DesktopRuntimeDisposalError>()(
+  "DesktopRuntimeDisposalError",
+  { cause: Schema.Defect() },
+) {}
+
 const disposeDesktopAppEffect = Effect.gen(function* () {
   yield* Effect.logInfo("desktop runtime dispose start");
-  yield* Effect.promise(disposeDesktopApp).pipe(
-    Effect.catchCause((cause) =>
-      Effect.logError("desktop runtime dispose failed", { cause }).pipe(Effect.asVoid),
+  yield* Effect.tryPromise({
+    try: disposeDesktopApp,
+    catch: (cause) => new DesktopRuntimeDisposalError({ cause }),
+  }).pipe(
+    Effect.catch((error) =>
+      Effect.logError("desktop runtime dispose failed", { error }).pipe(Effect.asVoid),
     ),
   );
   yield* Effect.logInfo("desktop runtime dispose complete");
@@ -159,7 +172,10 @@ const desktopMainEffect = Effect.scoped(
         logPaths,
       }),
     );
-    yield* Effect.promise(bootstrapApp).pipe(
+    yield* Effect.tryPromise({
+      try: bootstrapApp,
+      catch: (cause) => new DesktopBootstrapError({ cause }),
+    }).pipe(
       Effect.trackDuration(desktopBootstrapDuration),
       Effect.annotateLogs({ component: "desktop-bootstrap" }),
       Effect.withLogSpan("desktop-bootstrap"),

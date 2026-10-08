@@ -1,28 +1,31 @@
-import { Config, Context, Effect, Layer, Option } from "effect";
+import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 
-export type DesktopAppConfig = {
-  readonly captureBenchmarkEnabled: boolean;
-  readonly studioDiagnosticsEnabled: boolean;
-  readonly mediaServerDebugLoggingEnabled: boolean;
-  readonly devServerPort: number;
-  readonly nodeEnv: string;
-  readonly electrobunBuild: string | null;
-  readonly allowCustomEnginePath: boolean;
-  readonly enginePath: string | null;
-  readonly engineExpectedSha256: string | null;
-  readonly engineExpectedTeamId: string | null;
-  readonly engineSigningRequirement: string | null;
-  readonly macosCodeSignatureHelperPath: string | null;
-  readonly windowsAuthenticodeHelperPath: string | null;
-  readonly windowsExpectedPublisherSha256Thumbprint: string | null;
-  readonly windowsExpectedPublisherSubject: string | null;
-  readonly windowsAllowOfflineRevocation: boolean;
-  readonly engineRequireCurrentUserOwner: boolean;
-  readonly engineRejectWorldWritable: boolean;
-  readonly tempDirectory: string | null;
-  readonly reviewConvexUrl: string | null;
-};
+/** Validated runtime settings used by desktop host services. */
+export const DesktopAppConfig = Schema.Struct({
+  captureBenchmarkEnabled: Schema.Boolean,
+  studioDiagnosticsEnabled: Schema.Boolean,
+  mediaServerDebugLoggingEnabled: Schema.Boolean,
+  devServerPort: Schema.Finite,
+  nodeEnv: Schema.String,
+  electrobunBuild: Schema.NullOr(Schema.String),
+  allowCustomEnginePath: Schema.Boolean,
+  enginePath: Schema.NullOr(Schema.String),
+  engineExpectedSha256: Schema.NullOr(Schema.String),
+  engineExpectedTeamId: Schema.NullOr(Schema.String),
+  engineSigningRequirement: Schema.NullOr(Schema.String),
+  macosCodeSignatureHelperPath: Schema.NullOr(Schema.String),
+  windowsAuthenticodeHelperPath: Schema.NullOr(Schema.String),
+  windowsExpectedPublisherSha256Thumbprint: Schema.NullOr(Schema.String),
+  windowsExpectedPublisherSubject: Schema.NullOr(Schema.String),
+  windowsAllowOfflineRevocation: Schema.Boolean,
+  engineRequireCurrentUserOwner: Schema.Boolean,
+  engineRejectWorldWritable: Schema.Boolean,
+  tempDirectory: Schema.NullOr(Schema.String),
+  reviewConvexUrl: Schema.NullOr(Schema.String),
+});
+export interface DesktopAppConfig extends Schema.Schema.Type<typeof DesktopAppConfig> {}
 
+/** Desktop configuration acquired once when the app layer starts. */
 export class AppConfig extends Context.Service<AppConfig, DesktopAppConfig>()(
   "@guerillaglass/desktop/AppConfig",
 ) {}
@@ -30,12 +33,30 @@ export class AppConfig extends Context.Service<AppConfig, DesktopAppConfig>()(
 const optionalString = (name: string) => Config.option(Config.String(name));
 
 const optionalUrlString = (name: string) =>
-  Config.option(Config.URL(name)).pipe(Config.map((value) => Option.map(value, String)));
+  Config.option(Config.URL(name)).pipe(
+    Config.map((value) =>
+      Option.map(
+        Option.filter(value, (url) => url.protocol === "http:" || url.protocol === "https:"),
+        String,
+      ),
+    ),
+  );
+
+const readHostedReviewUrl = Effect.fn("AppConfig.readHostedReviewUrl")((name: string) =>
+  optionalUrlString(name).pipe(
+    Effect.tapError(() =>
+      Effect.logWarning("Invalid hosted review URL; local recording remains available", {
+        setting: name,
+      }),
+    ),
+    Effect.orElseSucceed(() => Option.none<string>()),
+  ),
+);
 
 const appConfigEffect = Effect.gen(function* () {
   const ggDebugEnabled = yield* Config.Boolean("GG_DEBUG").pipe(Config.withDefault(false));
-  const ggReviewConvexUrl = yield* optionalUrlString("GG_REVIEW_CONVEX_URL");
-  const viteConvexUrl = yield* optionalUrlString("VITE_CONVEX_URL");
+  const ggReviewConvexUrl = yield* readHostedReviewUrl("GG_REVIEW_CONVEX_URL");
+  const viteConvexUrl = yield* readHostedReviewUrl("VITE_CONVEX_URL");
 
   return AppConfig.of({
     captureBenchmarkEnabled: yield* Config.Boolean("GG_CAPTURE_BENCHMARK").pipe(
@@ -85,4 +106,5 @@ const appConfigEffect = Effect.gen(function* () {
   });
 });
 
+/** Reads and validates desktop configuration from the active Config provider. */
 export const layerAppConfig = Layer.effect(AppConfig, appConfigEffect);

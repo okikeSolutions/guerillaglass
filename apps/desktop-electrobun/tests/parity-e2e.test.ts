@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 import { Effect, Stream } from "effect";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import * as ChildProcess from "effect/process/ChildProcess";
 import { EngineClient, layerEngineClientBun } from "@guerillaglass/engine-client/service";
 import {
   outputUrlSchema,
@@ -110,14 +110,17 @@ describe("engine HTTP parity e2e", () => {
             expect(afterStop.isRecording).toBe(false);
 
             const exportInfo = yield* engine.exportInfo;
-            const exportPreset = exportInfo.presets[0]!;
+            const exportPreset = exportInfo.presets[0];
+            if (!exportPreset) {
+              throw new Error(`${fixture.name} exposes no export presets`);
+            }
             const exportResult = yield* engine.exportRun({
               outputURL: outputUrlSchema.make(path.join(tempRoot, `${fixture.name}-e2e.mp4`)),
               presetId: exportPreset.id,
               trimStartSeconds: 0,
               trimEndSeconds: 3,
             });
-            expect(exportResult.outputURL).toContain(`${fixture.name}-e2e.mp4`);
+            expect(exportResult.outputURL).toBe(path.join(tempRoot, `${fixture.name}-e2e.mp4`));
 
             const projectPath = projectPathSchema.make(
               path.join(tempRoot, `${fixture.name}.gglassproj`),
@@ -161,7 +164,7 @@ describe("engine HTTP parity e2e", () => {
               }),
             ),
             Effect.scoped,
-            (effect) => Effect.runPromise(effect as Effect.Effect<void, unknown, never>),
+            (effect) => Effect.runPromise(effect),
           );
         } finally {
           fs.rmSync(tempRoot, { force: true, recursive: true });

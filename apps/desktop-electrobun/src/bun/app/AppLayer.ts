@@ -1,9 +1,9 @@
-import {
-  captureStatusResultSchema,
-  type CaptureStatusResult,
-} from "@guerillaglass/engine-contract/domains/capture";
+import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
+import type { HttpClient } from "effect/http";
+import { layerNoFollowFileIO, type NoFollowFileIO } from "../security/NoFollowFileIO";
+import { captureStatusResultSchema } from "@guerillaglass/engine-contract/domains/capture";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Effect, Exit, Layer, Schema, Cause } from "effect";
+import { Effect, Layer, Schedule, Schema } from "effect";
 import { AgentService } from "@guerillaglass/engine-client/services/AgentService";
 import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
 import type { EngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
@@ -32,24 +32,25 @@ import {
   layerProjectExportPathPolicy,
 } from "../security/ProjectExportPathPolicy";
 
-function messageFromUnknownError(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
+/** Implementations and polling settings selected by the desktop composition root. */
 export type DesktopAppLayerOptions = {
   engineDomainServicesLayer: Layer.Layer<
     EngineDomainServices,
     unknown,
-    AppConfig | DesktopTempDirectory
+    AppConfig | DesktopTempDirectory | NoFollowFileIO
   >;
   reviewGatewayLayer?: Layer.Layer<ReviewGateway, never, AppConfig>;
   mediaSourceServiceLayer?: Layer.Layer<
     MediaSourceService,
     never,
-    AppConfig | DesktopTempDirectory
+    AppConfig | DesktopTempDirectory | NoFollowFileIO
   >;
-  desktopShellLayer: Layer.Layer<DesktopShell, never, AppConfig>;
-  projectSessionLayer: Layer.Layer<ProjectSession, never, AppConfig | DesktopTempDirectory>;
+  desktopShellLayer: Layer.Layer<DesktopShell, never, AppConfig | HttpClient.HttpClient>;
+  projectSessionLayer: Layer.Layer<
+    ProjectSession,
+    never,
+    AppConfig | DesktopTempDirectory | NoFollowFileIO
+  >;
   desktopTempDirectoryLayer: Layer.Layer<DesktopTempDirectory, unknown, never>;
   enableCaptureStatusPolling?: boolean;
   initialCaptureStatusDelayMs?: number;
@@ -79,48 +80,34 @@ export type DesktopAppServices =
   | HostBridgeService;
 
 /** Creates the polling program that forwards capture status updates through the app layer. */
-export function makeCaptureStatusPollingEffect(
-  initialDelayMs = 0,
-  intervalMs = 500,
-): Effect.Effect<void, never, CaptureService | DesktopShell> {
-  return Effect.gen(function* () {
-    if (initialDelayMs > 0) {
-      yield* Effect.sleep(`${Math.max(0, initialDelayMs)} millis`);
-    }
-
-    const capture = yield* CaptureService;
-    const shell = yield* DesktopShell;
-
-    while (true) {
-      yield* Effect.exit(
-        capture.status.pipe(
-          Effect.flatMap((captureStatus) =>
-            Schema.encodeUnknownEffect(Schema.toCodecJson(captureStatusResultSchema))(
-              captureStatus,
-            ).pipe(
-              Effect.flatMap((encodedCaptureStatus) =>
-                shell.publishCaptureStatus(encodedCaptureStatus as CaptureStatusResult),
-              ),
-            ),
-          ),
-        ),
-      ).pipe(
-        Effect.flatMap((sendResult) => {
-          if (Exit.isSuccess(sendResult)) {
-            return Effect.void;
-          }
-          return Effect.logWarning(
-            `capture status polling failed: ${messageFromUnknownError(
-              Cause.squash(sendResult.cause),
-              "capture status polling failed",
-            )}`,
-          );
-        }),
+export const makeCaptureStatusPollingEffect = Effect.fn("AppLayer.makeCaptureStatusPollingEffect")(
+  function (
+    initialDelayMs = 0,
+    intervalMs = 500,
+  ): Effect.Effect<void, never, CaptureService | DesktopShell> {
+    return Effect.gen(function* () {
+      const capture = yield* CaptureService;
+      const shell = yield* DesktopShell;
+      const encodeStatus = Schema.encodeUnknownEffect(
+        Schema.toCodecJson(captureStatusResultSchema),
       );
-      yield* Effect.sleep(`${Math.max(50, intervalMs)} millis`);
-    }
-  });
-}
+      const poll = Effect.fn("DesktopApp.pollCaptureStatus")(function* () {
+        const captureStatus = yield* capture.status;
+        const encodedCaptureStatus = yield* encodeStatus(captureStatus);
+        const bridgedCaptureStatus =
+          yield* Schema.decodeUnknownEffect(captureStatusResultSchema)(encodedCaptureStatus);
+        yield* shell.publishCaptureStatus(bridgedCaptureStatus);
+      });
+
+      const worker = poll().pipe(
+        Effect.tapError((error) => Effect.logWarning("capture status polling failed", error)),
+        Effect.ignore,
+        Effect.repeat(Schedule.spaced(`${Math.max(50, intervalMs)} millis`)),
+      );
+      yield* initialDelayMs > 0 ? worker.pipe(Effect.delay(`${initialDelayMs} millis`)) : worker;
+    });
+  },
+);
 
 function makeCaptureStatusPollingLayer(
   options: DesktopAppLayerOptions,
@@ -169,19 +156,25 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
     options.desktopShellLayer,
     projectSessionLayer,
     securityLayer,
-    layerHostBridgeService,
   ).pipe(Layer.provideMerge(layerAppConfig));
 
-  const servicesLayer = appServicesLayer.pipe(
+  const servicesLayer = layerHostBridgeService.pipe(
+    Layer.provideMerge(appServicesLayer),
     Layer.provideMerge(Layer.mergeAll(layerAppLogging, layerEffectDevTools)),
   );
 
   if (options.enableCaptureStatusPolling === false) {
-    return servicesLayer.pipe(Layer.provide(NodeServices.layer));
+    return servicesLayer.pipe(
+      Layer.provide(NodeServices.layer),
+      Layer.provide(layerNoFollowFileIO),
+      Layer.provide(NodeHttpClient.layerNodeHttp),
+    );
   }
 
   return makeCaptureStatusPollingLayer(options).pipe(
     Layer.provideMerge(servicesLayer),
     Layer.provide(NodeServices.layer),
+    Layer.provide(layerNoFollowFileIO),
+    Layer.provide(NodeHttpClient.layerNodeHttp),
   );
 }

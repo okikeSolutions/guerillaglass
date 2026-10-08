@@ -1,14 +1,21 @@
-import { Context, Effect, Layer, Path, Ref } from "effect";
+import { Clock, Context, Effect, Layer, Path, Ref, Schema } from "effect";
 import type { HostPathPickerMode } from "../../shared/bridge/desktopBridgeContract";
 
-export type FileAccessGrantKind = "project-open" | "project-save" | "export-directory";
+/** Filesystem authority conferred by a successful host picker action. */
+export const FileAccessGrantKind = Schema.Literals([
+  "project-open",
+  "project-save",
+  "export-directory",
+]);
+export type FileAccessGrantKind = typeof FileAccessGrantKind.Type;
 
-type FileAccessGrant = {
-  readonly kind: FileAccessGrantKind;
-  readonly path: string;
-  readonly grantedAt: number;
-  readonly expiresAt: number;
-};
+const FileAccessGrant = Schema.Struct({
+  kind: FileAccessGrantKind,
+  path: Schema.String,
+  grantedAt: Schema.Finite,
+  expiresAt: Schema.Finite,
+});
+interface FileAccessGrant extends Schema.Schema.Type<typeof FileAccessGrant> {}
 
 export type FileAccessGrantsService = {
   readonly grantPickedPath: (mode: HostPathPickerMode, filePath: string) => Effect.Effect<void>;
@@ -47,8 +54,9 @@ function grantMatchesPath(
   grant: FileAccessGrant,
   kind: FileAccessGrantKind,
   filePath: string,
+  now: number,
 ): boolean {
-  if (grant.kind !== kind || grant.expiresAt <= Date.now()) {
+  if (grant.kind !== kind || grant.expiresAt <= now) {
     return false;
   }
   if (kind === "export-directory") {
@@ -63,41 +71,45 @@ export const layerFileAccessGrants = Layer.effect(
     const path = yield* Path.Path;
     const grantsRef = yield* Ref.make(new Map<string, FileAccessGrant>());
 
-    const grantPath = (kind: FileAccessGrantKind, filePath: string) =>
-      Effect.sync(() => normalizeGrantPath(path, filePath)).pipe(
-        Effect.flatMap((normalizedPath) =>
-          Ref.update(grantsRef, (grants) => {
-            const now = Date.now();
-            const next = new Map(
-              Array.from(grants.entries()).filter(([, grant]) => grant.expiresAt > now),
-            );
-            const grantRoot = normalizedPath;
-            next.set(`${kind}:${grantRoot}`, {
-              kind,
-              path: grantRoot,
-              grantedAt: now,
-              expiresAt: now + grantTtlMs,
-            });
-            return next;
-          }),
-        ),
-      );
+    // Grants are authoritative picker permissions. A missing entry must never be populated
+    // by a cache lookup, and export-directory grants authorize descendants of their root.
+    const grantPath = Effect.fn("FileAccessGrants.grantPath")(function* (
+      kind: FileAccessGrantKind,
+      filePath: string,
+    ) {
+      const normalizedPath = normalizeGrantPath(path, filePath);
+      const now = yield* Clock.currentTimeMillis;
+      yield* Ref.update(grantsRef, (grants) => {
+        const next = new Map(
+          Array.from(grants.entries()).filter(([, grant]) => grant.expiresAt > now),
+        );
+        next.set(`${kind}:${normalizedPath}`, {
+          kind,
+          path: normalizedPath,
+          grantedAt: now,
+          expiresAt: now + grantTtlMs,
+        });
+        return next;
+      });
+    });
 
     return FileAccessGrants.of({
-      grantPickedPath: (mode, filePath) => grantPath(grantKindForPickerMode(mode), filePath),
+      grantPickedPath: Effect.fn("FileAccessGrants.grantPickedPath")(
+        (mode: HostPathPickerMode, filePath: string) =>
+          grantPath(grantKindForPickerMode(mode), filePath),
+      ),
       grantPath,
-      isGrantedPath: (kind, filePath) =>
-        Effect.sync(() => normalizeGrantPath(path, filePath)).pipe(
-          Effect.flatMap((normalizedPath) =>
-            Ref.get(grantsRef).pipe(
-              Effect.map((grants) =>
-                Array.from(grants.values()).some((grant) =>
-                  grantMatchesPath(path, grant, kind, normalizedPath),
-                ),
-              ),
-            ),
-          ),
-        ),
+      isGrantedPath: Effect.fn("FileAccessGrants.isGrantedPath")(function* (
+        kind: FileAccessGrantKind,
+        filePath: string,
+      ) {
+        const normalizedPath = normalizeGrantPath(path, filePath);
+        const now = yield* Clock.currentTimeMillis;
+        const grants = yield* Ref.get(grantsRef);
+        return Array.from(grants.values()).some((grant) =>
+          grantMatchesPath(path, grant, kind, normalizedPath, now),
+        );
+      }),
     });
   }),
 );

@@ -1,3 +1,4 @@
+import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { useEffect } from "react";
 import { Effect, Metric } from "effect";
 import { sendHostStudioDiagnostics } from "./engine";
@@ -124,16 +125,12 @@ function emitDiagnosticsLog(options: DiagnosticsLogOptions): void {
     source: "renderer",
     level: options.level,
     message: formatDiagnosticsMessage(options.message),
-    timestamp: options.date.toISOString(),
+    timestamp: isoDateTimeSchema.make(options.date.toISOString()),
+    ...(options.annotations && Object.keys(options.annotations).length > 0
+      ? { annotations: options.annotations }
+      : {}),
+    ...(options.spans && Object.keys(options.spans).length > 0 ? { spans: options.spans } : {}),
   };
-
-  if (options.annotations && Object.keys(options.annotations).length > 0) {
-    entry.annotations = options.annotations;
-  }
-
-  if (options.spans && Object.keys(options.spans).length > 0) {
-    entry.spans = options.spans;
-  }
 
   if (typeof window === "undefined") {
     return;

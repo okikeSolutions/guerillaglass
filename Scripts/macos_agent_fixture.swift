@@ -45,7 +45,7 @@ func makePixelBuffer(width: Int, height: Int, frameIndex: Int) -> CVPixelBuffer?
 }
 
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--probe" {
-    let asset = AVAsset(url: URL(fileURLWithPath: CommandLine.arguments[2]))
+    let asset = AVURLAsset(url: URL(fileURLWithPath: CommandLine.arguments[2]))
     let duration = try await asset.load(.duration).seconds
     let tracks = try await asset.loadTracks(withMediaType: .video)
     let size = try await tracks.first?.load(.naturalSize) ?? .zero
@@ -111,7 +111,7 @@ guard writer.startWriting() else { throw writer.error ?? NSError(domain: "AgentF
 writer.startSession(atSourceTime: .zero)
 for frame in 0 ..< 240 {
     while !input.isReadyForMoreMediaData {
-        Thread.sleep(forTimeInterval: 0.001)
+        try await Task.sleep(for: .milliseconds(1))
     }
     guard let pixelBuffer = makePixelBuffer(width: width, height: height, frameIndex: frame),
           adaptor.append(pixelBuffer, withPresentationTime: CMTime(value: Int64(frame), timescale: fps))
@@ -119,9 +119,7 @@ for frame in 0 ..< 240 {
 }
 
 input.markAsFinished()
-let semaphore = DispatchSemaphore(value: 0)
-writer.finishWriting { semaphore.signal() }
-semaphore.wait()
+await writer.finishWriting()
 guard writer.status == .completed else {
     throw writer.error ?? NSError(domain: "AgentFixture", code: 4)
 }

@@ -17,7 +17,7 @@ function configuredWindowsAuthenticodeTrust(config: DesktopAppConfig): boolean {
   );
 }
 
-function validateStaticConfig(
+const validateStaticConfig = Effect.fn("EngineExecutablePolicy.validateStaticConfig")(function (
   path: Path.Path,
   config: DesktopAppConfig,
 ): Effect.Effect<void, EngineProcessError> {
@@ -69,9 +69,16 @@ function validateStaticConfig(
         }
       }
     },
-    catch: (error) => error as EngineProcessError,
+    catch: (cause) =>
+      cause instanceof EngineProcessError
+        ? cause
+        : new EngineProcessError({
+            code: "ENGINE_TRUST_REJECTED",
+            message: "Unable to validate engine executable configuration.",
+            cause,
+          }),
   });
-}
+});
 
 /** Validates development-only native engine executable overrides before the engine layer starts. */
 export const validateEngineExecutablePolicy: Effect.Effect<

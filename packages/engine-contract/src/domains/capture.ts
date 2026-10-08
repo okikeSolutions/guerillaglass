@@ -55,19 +55,29 @@ export const capturePreviewFrameResultSchema = Schema.Struct({
 /**
  * Runtime TypeScript type for capture telemetry.
  */
-export type CaptureTelemetry = Schema.Schema.Type<typeof captureTelemetrySchema>;
+export const CaptureTelemetry = captureTelemetrySchema;
+/** Validated CaptureTelemetry record. */
+export interface CaptureTelemetry extends Schema.Schema.Type<typeof CaptureTelemetry> {}
 
 /**
  * Runtime TypeScript type for a base64 preview frame.
  */
-export type CapturePreviewFrame = Schema.Schema.Type<typeof capturePreviewFrameSchema>;
+export const CapturePreviewFrame = capturePreviewFrameSchema;
+/** Validated CapturePreviewFrame record. */
+export interface CapturePreviewFrame extends Schema.Schema.Type<typeof CapturePreviewFrame> {}
 
 /**
  * Runtime TypeScript type for capture and recording status responses.
  */
-export type CaptureStatusResult = Schema.Schema.Type<typeof captureStatusResultSchema>;
+export const CaptureStatusResult = captureStatusResultSchema;
+/** Validated CaptureStatusResult record. */
+export interface CaptureStatusResult extends Schema.Schema.Type<typeof CaptureStatusResult> {}
 
 /**
  * Runtime TypeScript type for a base64 preview frame.
  */
-export type CapturePreviewFrameResult = Schema.Schema.Type<typeof capturePreviewFrameResultSchema>;
+export const CapturePreviewFrameResult = capturePreviewFrameResultSchema;
+/** Validated CapturePreviewFrameResult record. */
+export interface CapturePreviewFrameResult extends Schema.Schema.Type<
+  typeof CapturePreviewFrameResult
+> {}

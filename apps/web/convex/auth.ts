@@ -1,3 +1,4 @@
+import { Config, Effect } from "effect";
 import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
 import { createClient } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
@@ -8,7 +9,7 @@ import type { GenericCtx } from "@convex-dev/better-auth";
 import type { DataModel } from "./_generated/dataModel";
 import authSchema from "./betterAuth/schema";
 
-const siteUrl = process.env.SITE_URL!;
+const siteUrl = Effect.runSync(Config.URL("SITE_URL").pipe(Config.map(String)));
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -18,21 +19,23 @@ export const authComponent = createClient<DataModel, typeof authSchema>(componen
   },
 });
 
-export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
-  return {
-    baseURL: siteUrl,
-    database: authComponent.adapter(ctx),
-    // Configure simple, non-verified email/password to get started
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-    },
-    plugins: [
-      // The Convex plugin is required for Convex compatibility
-      convex({ authConfig }),
-    ],
-  } satisfies BetterAuthOptions;
-};
+export const authOptions = {
+  baseURL: siteUrl,
+  // Configure simple, non-verified email/password to get started
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false,
+  },
+  plugins: [
+    // The Convex plugin is required for Convex compatibility
+    convex({ authConfig }),
+  ],
+} satisfies BetterAuthOptions;
+
+export const createAuthOptions = (ctx: GenericCtx<DataModel>) => ({
+  ...authOptions,
+  database: authComponent.adapter(ctx),
+});
 
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth(createAuthOptions(ctx));

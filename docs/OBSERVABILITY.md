@@ -2,10 +2,10 @@
 
 This document summarizes the desktop observability stack implemented for Guerillaglass. It is based on the installed/vendored Effect v4 APIs:
 
-- `effect@4.0.0-beta.101`
-- `@effect/platform-node@4.0.0-beta.101`
-- `effect/unstable/devtools`
-- `effect/unstable/observability` researched but not currently wired
+- `effect@4.0.2`
+- `@effect/platform-node@4.0.2`
+- `effect/devtools`
+- `effect/observability` researched but not currently wired
 
 ## Overview
 
@@ -43,9 +43,9 @@ The desktop host runs in Electrobun's Bun executable while using Effect's Node p
 | Metrics | Capture | Operation counters/durations | `capture_operations_total{operation}`, `capture_operation_duration{operation}`, `capture_operation_failures_total{operation}` | `packages/engine-client/src/metrics.ts`; `CaptureService.ts` |
 | Diagnostics | Process diagnostics | Runtime process hooks | Logs `uncaughtExceptionMonitor`, `unhandledRejection`, `warning`, `beforeExit`, `exit` through Effect logger | `AppLogging.ts`; `layerDesktopProcessDiagnostics` |
 | Diagnostics | Heartbeat | Process heartbeat | Every 2s logs memory/resource/uptime and updates memory metrics | `AppLogging.ts` |
-| DevTools | Optional Effect DevTools | WebSocket client | Gated by `GG_EFFECT_DEVTOOLS=1`; default URL is Effect default `ws://localhost:34437`; override via `GG_EFFECT_DEVTOOLS_URL` | `AppLogging.ts`; `effect/unstable/devtools`; `DevTools.layer(...)` |
-| DevTools | Compatibility | VS Code extension | Old extension used Effect 3 / `@effect/experimental`; app uses Effect 4 beta. Keep app DevTools layer optional until a compatible receiver is used | Research result |
-| Exporters | Prometheus / OTLP | Not wired yet | Researched available in vendor but not implemented: `PrometheusMetrics`, `OtlpMetrics`, `OtlpLogger`, `OtlpTracer` | `effect/unstable/observability` |
+| DevTools | Optional Effect DevTools | WebSocket client | Gated by `GG_EFFECT_DEVTOOLS=1`; default URL is Effect default `ws://localhost:34437`; override via `GG_EFFECT_DEVTOOLS_URL` | `AppLogging.ts`; `effect/devtools`; `DevTools.layer(...)` |
+| DevTools | Compatibility | VS Code extension | Old extension used Effect 3 / `@effect/experimental`; app uses Effect 4.0. Keep app DevTools layer optional until a compatible receiver is used | Research result |
+| Exporters | Prometheus / OTLP | Not wired yet | Researched available in vendor but not implemented: `PrometheusMetrics`, `OtlpMetrics`, `OtlpLogger`, `OtlpTracer` | `effect/observability` |
 
 ## Log Destinations
 
@@ -246,7 +246,7 @@ GG_EFFECT_DEVTOOLS_URL=ws://localhost:34438
 The app uses the Effect v4 API:
 
 ```ts
-import { DevTools } from "effect/unstable/devtools";
+import { DevTools } from "effect/devtools";
 ```
 
 The older VS Code extension version that was tested used Effect 3 / `@effect/experimental`, so it did not match the current Effect v4 metric schema. Keep this layer enabled only when using a compatible receiver.
@@ -256,7 +256,7 @@ The older VS Code extension version that was tested used Effect 3 / `@effect/exp
 Effect v4 also includes OTLP and Prometheus support under:
 
 ```ts
-import { OtlpLogger, OtlpMetrics, OtlpTracer, PrometheusMetrics } from "effect/unstable/observability";
+import { OtlpLogger, OtlpMetrics, OtlpTracer, PrometheusMetrics } from "effect/observability";
 ```
 
 Possible future export routes:

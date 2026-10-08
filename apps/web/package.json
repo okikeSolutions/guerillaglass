@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "test": "bun run i18n:compile && bun run test:ci",
     "test:ci": "vitest run",
-    "generate:auth": "SITE_URL=http://localhost:3000 npx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts",
+    "generate:auth": "SITE_URL=http://localhost:3000 bunx @better-auth/cli generate -y --config convex/betterAuth/auth.ts --output convex/betterAuth/generatedSchema.ts",
     "i18n:compile": "cd ../.. && bun run i18n:compile:web"
   },
   "dependencies": {
@@ -37,6 +37,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.46.0",
+    "effect": "4.0.2",
     "lucide-react": "^1.47.0",
     "motion": "^13.4.0",
     "nitro": "^3.0.260903-beta",

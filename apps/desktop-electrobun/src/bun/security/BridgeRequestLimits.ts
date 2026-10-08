@@ -1,5 +1,5 @@
-import { Context, Duration, Effect, Layer, Semaphore } from "effect";
-import { RateLimiter } from "effect/unstable/persistence";
+import { Context, Duration, Effect, Layer, Schema, Semaphore } from "effect";
+import { RateLimiter } from "effect/persistence";
 import type { BridgeRequestName } from "../../shared/bridge/desktopBridgeContract";
 import {
   BridgeRequestLimitError,
@@ -7,11 +7,12 @@ import {
 } from "../../shared/errors/desktopErrors";
 import { bridgeRequestTimeoutFor } from "./BridgeRequestTimeouts";
 
-type BridgeLimitRule = {
-  readonly maxRequests: number;
-  readonly windowMs: number;
-  readonly maxConcurrent: number;
-};
+const BridgeLimitRule = Schema.Struct({
+  maxRequests: Schema.Finite,
+  windowMs: Schema.Finite,
+  maxConcurrent: Schema.Finite,
+});
+interface BridgeLimitRule extends Schema.Schema.Type<typeof BridgeLimitRule> {}
 
 const defaultBridgeLimitRule: BridgeLimitRule = {
   maxRequests: 120,
@@ -35,6 +36,7 @@ type BridgeRequestLimitsService = {
   readonly guard: <A, E, R>(
     name: BridgeRequestName,
     effect: Effect.Effect<A, E, R>,
+    params?: unknown,
   ) => Effect.Effect<A, E | BridgeRequestLimitError | BridgeRequestTimeoutError, R>;
 };
 
@@ -55,7 +57,7 @@ export const layerBridgeRequestLimits = Layer.effect(
     const limiter = yield* RateLimiter.RateLimiter;
     const semaphores = new Map<BridgeRequestName, Semaphore.Semaphore>();
 
-    const checkRateLimit = (
+    const checkRateLimit = Effect.fn("BridgeRequestLimits.checkRateLimit")((
       name: BridgeRequestName,
     ): Effect.Effect<void, BridgeRequestLimitError> => {
       const rule = ruleFor(name);
@@ -80,7 +82,7 @@ export const layerBridgeRequestLimits = Layer.effect(
               }),
           ),
         );
-    };
+    });
 
     const semaphoreFor = (name: BridgeRequestName) => {
       const existing = semaphores.get(name);
@@ -93,25 +95,27 @@ export const layerBridgeRequestLimits = Layer.effect(
     };
 
     return BridgeRequestLimits.of({
-      guard: (name, effect) =>
-        Effect.gen(function* () {
-          yield* checkRateLimit(name);
-          const timeout = bridgeRequestTimeoutFor(name);
-          return yield* semaphoreFor(name)
-            .withPermit(effect)
-            .pipe(
-              Effect.timeoutOrElse({
-                duration: timeout as Duration.Input,
-                orElse: () =>
-                  Effect.fail(
-                    new BridgeRequestTimeoutError({
-                      requestName: name,
-                      timeout,
-                    }),
-                  ),
-              }),
-            );
-        }),
+      guard: Effect.fn("BridgeRequestLimits.guard")(
+        <A, E, R>(name: BridgeRequestName, effect: Effect.Effect<A, E, R>, params?: unknown) =>
+          Effect.gen(function* () {
+            yield* checkRateLimit(name);
+            const timeout = bridgeRequestTimeoutFor(name, params);
+            return yield* semaphoreFor(name)
+              .withPermit(effect)
+              .pipe(
+                Effect.timeoutOrElse({
+                  duration: timeout,
+                  orElse: () =>
+                    Effect.fail(
+                      new BridgeRequestTimeoutError({
+                        requestName: name,
+                        timeout,
+                      }),
+                    ),
+                }),
+              );
+          }),
+      ),
     });
   }).pipe(Effect.provide(layerEffectRateLimiter)),
 );

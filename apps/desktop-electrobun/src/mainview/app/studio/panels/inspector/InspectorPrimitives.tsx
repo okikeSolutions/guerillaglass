@@ -1,5 +1,5 @@
 import { Volume2, VolumeX } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import {
   captureFrameRates,
   type CaptureFrameRate,
@@ -132,16 +132,20 @@ export function InspectorSelectField({
   onValueChange: (value: string | null) => void;
   description?: string;
 }) {
+  const selectId = useId();
+
   return (
     <InspectorOptionCard className="space-y-3">
       <Field>
-        <FieldLabel className="border-0 px-0 py-0 gg-copy-strong">{label}</FieldLabel>
+        <FieldLabel htmlFor={selectId} className="border-0 px-0 py-0 gg-copy-strong">
+          {label}
+        </FieldLabel>
         {description ? (
           <FieldDescription className="gg-copy-meta pt-1">{description}</FieldDescription>
         ) : null}
         <FieldContent>
           <Select value={value} onValueChange={onValueChange}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger id={selectId} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

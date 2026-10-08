@@ -2,6 +2,8 @@
 
 This file is the operational entry point for coding agents. Read it before changing code, then read the nearest nested `AGENTS.md` for the subsystem you touch.
 
+Before choosing validation commands, read [Verification selection](docs/CHANGE_MAP.md#verification-selection). Select checks for every affected subsystem, including generated consumers. Use fast native checks and focused tests locally; run the full local gate when explicitly requested.
+
 ## Mission and current priority
 
 Guerilla Glass is a local-first recorder and polished demo editor with a separate hosted review plane. The product workflow is `Record -> Edit -> Deliver`.
@@ -18,6 +20,7 @@ Normative product requirements live in `docs/SPEC.md`. Execution status and sequ
 | Current work and PR order   | `docs/ROADMAP.md`                   |
 | System boundaries           | `docs/ARCHITECTURE.md`              |
 | Change propagation          | `docs/CHANGE_MAP.md`                |
+| Effect services and schemas | `docs/EFFECT_PRACTICES.md`          |
 | Review expectations         | `REVIEW.md`                         |
 | Timeline semantics          | `docs/TIMELINE_EDITING_DESIGN.md`   |
 | Background framing v1       | `docs/BACKGROUND_FRAMING_DESIGN.md` |
@@ -90,33 +93,15 @@ See `docs/CHANGE_MAP.md` for change-specific paths and required checks.
 ```bash
 bun run bootstrap
 bun run repo:check
-bun run gate
 ```
 
-Focused commands:
-
-```bash
-bun run gate:typescript
-bun run gate:rust
-bun run swift:test
-bun run desktop:typecheck
-bun run desktop:test
-bun run desktop:test:ui
-bun run desktop:acceptance
-bun run web:typecheck
-bun run protocol:typecheck
-bun run protocol:generate-bindings
-bun run docs:check
-```
-
-The full gate requires macOS for the production Swift path. On another platform, run all supported focused gates and clearly report what was not run.
+Change-specific local commands, test selection, CI coverage, and full-gate log locations live in [Verification selection](docs/CHANGE_MAP.md#verification-selection).
 
 ## Completion checklist
 
 Before declaring work complete:
 
-- Run `bun run repo:check` and relevant focused tests.
-- Run `bun run gate` when the platform supports it.
+- Run `bun run repo:check` and the local checks selected from [Verification selection](docs/CHANGE_MAP.md#verification-selection). Report checks deferred to CI or unavailable on this platform.
 - On macOS, validate desktop/runtime work in the packaged application with Peekaboo as well as `bun run desktop:acceptance`: verify Peekaboo permissions through its GUI bridge, navigate the affected workflow, and retain native-window screenshots. Static, browser, and runtime-smoke evidence do not replace Peekaboo interaction.
 - For every PR touching UI, attach rendered screenshots directly in the PR summary before review/merge; local file paths and artifact-only links do not satisfy this requirement. Desktop UI evidence must include the affected packaged-app state.
 - Confirm generated files are current and deterministic for contract changes.

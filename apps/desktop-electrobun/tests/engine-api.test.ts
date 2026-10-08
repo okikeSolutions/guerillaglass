@@ -1,3 +1,5 @@
+import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
+import { CaptureService } from "@guerillaglass/engine-client/services/CaptureService";
 import { Effect, Layer } from "effect";
 import { beforeEach, describe, expect, test } from "vitest";
 import {
@@ -27,12 +29,20 @@ import type {
 import {
   BridgeUnavailableError,
   CaptureWindowPickerUnsupportedError,
+  StudioActionError,
   MediaServerError,
 } from "@shared/errors/desktopErrors";
 import { ContractDecodeError, EngineResponseError } from "@guerillaglass/engine-client/errors";
-import type { EngineDomainServices } from "@guerillaglass/engine-client/services/domainServices";
+import { AgentService } from "@guerillaglass/engine-client/services/AgentService";
+import { ExportService } from "@guerillaglass/engine-client/services/ExportService";
+import { PermissionsService } from "@guerillaglass/engine-client/services/PermissionsService";
+import { ProjectService } from "@guerillaglass/engine-client/services/ProjectService";
+import { RecordingService } from "@guerillaglass/engine-client/services/RecordingService";
+import { SourcesService } from "@guerillaglass/engine-client/services/SourcesService";
+import { SystemService } from "@guerillaglass/engine-client/services/SystemService";
 import { createEngineBridgeHandlers } from "../src/bun/bridge/requestHandlers";
 import { MediaSourceService } from "../src/bun/media/service";
+import { makeLayerReviewGateway } from "../src/bun/review/service";
 import { makeDesktopAppRuntime } from "../src/bun/app/AppRuntime";
 import { DesktopShell } from "../src/bun/shell/DesktopShell";
 import { ProjectSession } from "../src/bun/session/ProjectSession";
@@ -86,25 +96,31 @@ function installWindowBridge(
     () => {},
     () => {},
   );
-  (globalThis as unknown as { window: Record<string, unknown> }).window = {
-    ...bindings,
-  };
+  installRendererWindow(bindings);
   return bindings;
 }
 
+function installRendererWindow(value: object) {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value,
+    writable: true,
+  });
+}
+
 beforeEach(() => {
-  delete (globalThis as { window?: unknown }).window;
+  Reflect.deleteProperty(globalThis, "window");
 });
 
 describe("renderer engine bridge", () => {
   test("throws a clear error when bridge is missing", async () => {
-    (globalThis as { window: unknown }).window = {};
+    installRendererWindow({});
     try {
       await engineApi.ping();
       throw new Error("Expected ping to fail when bridge is missing");
     } catch (error) {
       expect(error).toBeInstanceOf(BridgeUnavailableError);
-      expect((error as Error).message).toContain("Missing Electrobun bridge");
+      expect(error).toMatchObject({ bridge: "ggEnginePing" });
     }
   });
 
@@ -144,7 +160,7 @@ describe("renderer engine bridge", () => {
       displayId: undefined as number | undefined,
       enablePreview: true,
     };
-    (globalThis as unknown as { window: Record<string, unknown> }).window = {
+    installRendererWindow({
       ggEnginePing: async () => ({
         app: "guerillaglass",
         engineVersion: "0.2.0",
@@ -317,7 +333,7 @@ describe("renderer engine bridge", () => {
       ggHostSendStudioDiagnostics: (entry: unknown) => {
         lastStudioDiagnostics = entry;
       },
-    };
+    });
 
     const ping = await engineApi.ping();
     const capabilities = await engineApi.capabilities();
@@ -363,7 +379,7 @@ describe("renderer engine bridge", () => {
       source: "renderer",
       level: "INFO",
       message: "renderer diagnostics enabled",
-      timestamp: "2026-04-10T15:00:00.000Z",
+      timestamp: isoDateTimeSchema.make("2026-04-10T15:00:00.000Z"),
       annotations: {
         route: "/edit",
       },
@@ -402,9 +418,9 @@ describe("renderer engine bridge", () => {
     expect(stoppedRecording.isRecording).toBe(false);
     expect(stoppedCapture.isRunning).toBe(false);
     expect(stoppedCapture.captureSessionId).toBeUndefined();
-    expect(exportResult.outputURL).toContain("out.mp4");
-    expect(openedProject.projectPath).toContain("project.gglassproj");
-    expect(savedProject.projectPath).toContain("project.gglassproj");
+    expect(exportResult.outputURL).toBe("/tmp/out.mp4");
+    expect(openedProject.projectPath).toBe("/tmp/project.gglassproj");
+    expect(savedProject.projectPath).toBe("/tmp/project.gglassproj");
     expect(recentProjects.items).toHaveLength(1);
     expect(picked).toBe("/tmp");
     expect(mediaSourceURL).toBe("media://token");
@@ -422,7 +438,7 @@ describe("renderer engine bridge", () => {
       source: "renderer",
       level: "INFO",
       message: "renderer diagnostics enabled",
-      timestamp: "2026-04-10T15:00:00.000Z",
+      timestamp: isoDateTimeSchema.make("2026-04-10T15:00:00.000Z"),
       annotations: {
         route: "/edit",
       },
@@ -462,8 +478,11 @@ describe("renderer engine bridge", () => {
       throw new Error("Expected media source resolution to fail");
     } catch (error) {
       expect(error).toBeInstanceOf(MediaServerError);
-      expect((error as MediaServerError).code).toBe("MEDIA_FILE_MISSING");
-      expect((error as Error).message).toBe("Media file could not be found.");
+      if (!(error instanceof MediaServerError)) {
+        throw error;
+      }
+      expect(error.code).toBe("MEDIA_FILE_MISSING");
+      expect(error.message).toBe("Media file could not be found.");
     }
   });
 
@@ -607,11 +626,6 @@ describe("renderer engine bridge", () => {
   });
 
   test("serializes tagged review bridge configuration failures", async () => {
-    const originalReviewConvexUrl = process.env.GG_REVIEW_CONVEX_URL;
-    const originalViteConvexUrl = process.env.VITE_CONVEX_URL;
-    delete process.env.GG_REVIEW_CONVEX_URL;
-    delete process.env.VITE_CONVEX_URL;
-
     const runtime = await makeDesktopAppRuntime({
       desktopShellLayer: Layer.succeed(DesktopShell, {
         start: () => Effect.void,
@@ -620,10 +634,20 @@ describe("renderer engine bridge", () => {
         dispose: Effect.void,
       }),
       enableCaptureStatusPolling: false,
-      projectSessionLayer: Layer.succeed(ProjectSession, {} as never),
+      projectSessionLayer: Layer.mock(ProjectSession, {}),
       desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
-      engineDomainServicesLayer: Layer.empty as Layer.Layer<EngineDomainServices>,
-      mediaSourceServiceLayer: Layer.succeed(MediaSourceService, {} as never),
+      engineDomainServicesLayer: Layer.mergeAll(
+        Layer.mock(CaptureService, {}),
+        Layer.mock(AgentService, {}),
+        Layer.mock(ExportService, {}),
+        Layer.mock(PermissionsService, {}),
+        Layer.mock(ProjectService, {}),
+        Layer.mock(RecordingService, {}),
+        Layer.mock(SourcesService, {}),
+        Layer.mock(SystemService, {}),
+      ),
+      reviewGatewayLayer: makeLayerReviewGateway({ resolveConvexUrl: () => undefined }),
+      mediaSourceServiceLayer: Layer.mock(MediaSourceService, {}),
     });
 
     try {
@@ -641,22 +665,12 @@ describe("renderer engine bridge", () => {
       expect(response.error.tag).toBe("ReviewBridgeError");
       expect(response.error.data?.code).toBe("REVIEW_BRIDGE_URL_MISSING");
     } finally {
-      if (originalReviewConvexUrl === undefined) {
-        delete process.env.GG_REVIEW_CONVEX_URL;
-      } else {
-        process.env.GG_REVIEW_CONVEX_URL = originalReviewConvexUrl;
-      }
-      if (originalViteConvexUrl === undefined) {
-        delete process.env.VITE_CONVEX_URL;
-      } else {
-        process.env.VITE_CONVEX_URL = originalViteConvexUrl;
-      }
       await runtime.dispose();
     }
   });
 
   test("sendHostMenuState is a no-op when host sender is not available", () => {
-    (globalThis as unknown as { window: Record<string, unknown> }).window = {};
+    installRendererWindow({});
     expect(() =>
       sendHostMenuState({
         canSave: false,
@@ -667,4 +681,51 @@ describe("renderer engine bridge", () => {
       }),
     ).not.toThrow();
   });
+});
+
+test("localizes picker failures while preserving direct-window transport errors", async () => {
+  installWindowBridge({
+    ggEngineStartWindowCapture: async () => {
+      throw new EngineResponseError({
+        code: "invalid_request",
+        description: "native diagnostic from an arbitrary locale",
+      });
+    },
+  });
+  const pickerFailure = await engineApi
+    .startWindowCapture(0, false)
+    .catch((error: unknown) => error);
+  expect(pickerFailure).toBeInstanceOf(StudioActionError);
+  expect(pickerFailure).toMatchObject({ reason: "window_selection_failed" });
+  const { getStudioMessages } = await import("@shared/localization");
+  const { mapStudioActionErrorMessage } = await import("@studio/hooks/core/useStudioController");
+  const german = getStudioMessages("de-DE");
+  expect(mapStudioActionErrorMessage(german, pickerFailure)).toBe(
+    german.notices.windowSelectionFailed,
+  );
+  await expect(engineApi.startWindowCapture(42, false)).rejects.toBeInstanceOf(EngineResponseError);
+  installWindowBridge({
+    ggEngineStartWindowCapture: async () => {
+      throw new EngineResponseError({
+        code: "permission_denied",
+        description: "microphone authorization denied",
+      });
+    },
+  });
+  const permissionFailure = await engineApi
+    .startWindowCapture(0, true)
+    .catch((error: unknown) => error);
+  expect(permissionFailure).toMatchObject({ reason: "capture_permission_required" });
+  expect(mapStudioActionErrorMessage(german, permissionFailure)).toBe(
+    german.notices.capturePermissionRequired,
+  );
+  installWindowBridge({
+    ggEngineStartWindowCapture: async () => {
+      throw new EngineResponseError({
+        code: "runtime_error",
+        description: "stream failed after selection",
+      });
+    },
+  });
+  await expect(engineApi.startWindowCapture(0, false)).rejects.toBeInstanceOf(EngineResponseError);
 });

@@ -1,3 +1,4 @@
+import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { desktopApi, sendHostStudioDiagnostics } from "@lib/engine";
@@ -25,7 +26,7 @@ function emitLivePreviewDiagnostic(
     source: "renderer",
     level,
     message,
-    timestamp: new Date().toISOString(),
+    timestamp: isoDateTimeSchema.make(new Date().toISOString()),
     annotations: {
       component: "live-capture-preview",
       ...(annotations ?? {}),

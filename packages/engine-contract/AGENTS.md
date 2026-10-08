@@ -17,9 +17,4 @@ This package is the source of truth for the native engine wire protocol. Domain 
 
 ## Checks
 
-```bash
-(cd packages/engine-contract && bun run check:contract:full)
-bun run protocol:generate-bindings
-cargo fmt --all
-bun run protocol:check-determinism
-```
+Use the engine-contract/generated-protocol row in [Verification selection](../../docs/CHANGE_MAP.md#verification-selection). It covers generation, determinism, both native consumers, and focused handler/client tests. A schema edit can require Rust and Swift checks even when the source diff is entirely TypeScript.

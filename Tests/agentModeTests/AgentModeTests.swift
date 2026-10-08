@@ -124,7 +124,7 @@ final class AgentModeTests: XCTestCase {
         )
 
         let store = AgentArtifactStore()
-        let persisted = try store.write(plannedRun: planned, summary: summary, projectURL: root)
+        var persisted = try store.write(plannedRun: planned, summary: summary, projectURL: root)
         let recovered = try XCTUnwrap(store.loadLatest(projectURL: root, projectId: projectId))
 
         XCTAssertEqual(recovered, persisted)
@@ -141,6 +141,30 @@ final class AgentModeTests: XCTestCase {
             persisted,
             "a failed replacement must preserve the prior generation"
         )
+        let manifestURL = root.appendingPathComponent("analysis/\(ProjectFile.runSummaryV1JSON)")
+        let validManifest = try Data(contentsOf: manifestURL)
+        for (field, invalidValue) in [
+            ("runtimeBudgetMinutes", 0 as Any),
+            ("runtimeBudgetMinutes", 11 as Any),
+            ("status", "running" as Any),
+            ("status", "blocked" as Any),
+            ("recordingRevision", "" as Any),
+            ("version", 2 as Any),
+            ("updatedAt", "2000-01-01T00:00:00Z" as Any),
+        ] {
+            var corrupted = try XCTUnwrap(JSONSerialization.jsonObject(with: validManifest) as? [String: Any])
+            corrupted[field] = invalidValue
+            try JSONSerialization.data(withJSONObject: corrupted).write(to: manifestURL, options: .atomic)
+            XCTAssertThrowsError(try store.loadLatest(projectURL: root, projectId: projectId), field)
+        }
+        try validManifest.write(to: manifestURL, options: .atomic)
+        XCTAssertEqual(try store.loadLatest(projectURL: root, projectId: projectId), persisted)
+        var replacement = summary
+        replacement.jobId = "agent-replacement"
+        let oldGeneration = persisted
+        persisted = try store.write(plannedRun: planned, summary: replacement, projectURL: root)
+        XCTAssertNotEqual(persisted, oldGeneration)
+        XCTAssertEqual(try store.loadLatest(projectURL: root, projectId: projectId), persisted)
         let quarantine = try XCTUnwrap(store.quarantineLatest(projectURL: root))
         XCTAssertNil(try store.loadLatest(projectURL: root, projectId: projectId))
         try store.restoreQuarantined(quarantine, projectURL: root)

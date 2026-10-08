@@ -251,7 +251,13 @@
     "use-isnan": "error",
     "valid-typeof": "error",
     "react/exhaustive-deps": "warn",
-    "react/rules-of-hooks": "deny"
+    "react/rules-of-hooks": "deny",
+    "typescript/no-empty-object-type": [
+      "warn",
+      {
+        "allowInterfaces": "with-single-extends"
+      }
+    ]
   },
   "ignorePatterns": [
     "**/node_modules/**",

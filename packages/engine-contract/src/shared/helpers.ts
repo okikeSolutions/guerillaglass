@@ -7,8 +7,9 @@ export const NonEmptyString = Schema.NonEmptyString;
 
 /**
  * ISO-8601 date-time string used for wire-safe timestamps.
+ * The Unicode flag is required for Effect to emit this check as an OpenAPI pattern.
  */
-export const IsoDateTime = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/)).pipe(
+export const IsoDateTime = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/u)).pipe(
   Schema.brand("IsoDateTime"),
 );
 

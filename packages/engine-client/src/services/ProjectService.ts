@@ -3,7 +3,7 @@ import type {
   ProjectState,
 } from "@guerillaglass/engine-contract/domains/project";
 import { Context, Effect, Layer } from "effect";
-import type { EngineClientError } from "../errors";
+import type { EngineClientFailure } from "../errors";
 import { EngineClient, type ProjectOpenRequest, type ProjectSaveRequest } from "../service";
 
 /**
@@ -13,19 +13,19 @@ export type ProjectServiceShape = {
   /**
    * Reads the current project state.
    */
-  readonly current: Effect.Effect<ProjectState, EngineClientError>;
+  readonly current: Effect.Effect<ProjectState, EngineClientFailure>;
   /**
    * Opens a project from disk.
    */
-  readonly open: (request: ProjectOpenRequest) => Effect.Effect<ProjectState, EngineClientError>;
+  readonly open: (request: ProjectOpenRequest) => Effect.Effect<ProjectState, EngineClientFailure>;
   /**
    * Saves current project state.
    */
-  readonly save: (request: ProjectSaveRequest) => Effect.Effect<ProjectState, EngineClientError>;
+  readonly save: (request: ProjectSaveRequest) => Effect.Effect<ProjectState, EngineClientFailure>;
   /**
    * Lists recent projects.
    */
-  readonly recents: (limit?: number) => Effect.Effect<ProjectRecentsResult, EngineClientError>;
+  readonly recents: (limit?: number) => Effect.Effect<ProjectRecentsResult, EngineClientFailure>;
 };
 
 /**
@@ -40,12 +40,19 @@ export class ProjectService extends Context.Service<ProjectService, ProjectServi
  */
 export const layerProjectService: Layer.Layer<ProjectService, never, EngineClient> = Layer.effect(
   ProjectService,
-  Effect.map(EngineClient, (client) =>
-    ProjectService.of({
+  Effect.gen(function* () {
+    const client = yield* EngineClient;
+    return ProjectService.of({
       current: client.projectCurrent,
-      open: client.projectOpen,
-      save: client.projectSave,
-      recents: client.projectRecents,
-    }),
-  ),
+      open: Effect.fn("ProjectService.open")((request: ProjectOpenRequest) =>
+        client.projectOpen(request),
+      ),
+      save: Effect.fn("ProjectService.save")((request: ProjectSaveRequest) =>
+        client.projectSave(request),
+      ),
+      recents: Effect.fn("ProjectService.recents")((limit?: number) =>
+        client.projectRecents(limit),
+      ),
+    });
+  }),
 );

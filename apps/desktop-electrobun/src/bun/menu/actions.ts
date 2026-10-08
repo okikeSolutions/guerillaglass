@@ -4,11 +4,11 @@ import {
 } from "../../shared/bridge/desktopBridgeContract";
 
 const hostCommandPrefix = "host:";
-const hostMenuCommandSet = new Set<HostMenuCommand>(hostMenuCommandList);
+const hostMenuCommandSet = new Set<string>(hostMenuCommandList);
 
 /** Narrows a string to a supported host menu command. */
 export function isHostMenuCommand(value: string): value is HostMenuCommand {
-  return hostMenuCommandSet.has(value as HostMenuCommand);
+  return hostMenuCommandSet.has(value);
 }
 
 /** Encodes a host menu command into the menu action payload format. */
@@ -27,13 +27,13 @@ export function decodeHostMenuAction(action: string): HostMenuCommand | null {
 
 /** Extracts the action string from an Electrobun menu event payload. */
 export function extractMenuAction(event: unknown): string | null {
-  if (typeof event !== "object" || event === null) {
+  if (typeof event !== "object" || event === null || !("data" in event)) {
     return null;
   }
-  const eventData = (event as { data?: unknown }).data;
-  if (typeof eventData !== "object" || eventData === null) {
+  const eventData = event.data;
+  if (typeof eventData !== "object" || eventData === null || !("action" in eventData)) {
     return null;
   }
-  const action = (eventData as { action?: unknown }).action;
+  const action = eventData.action;
   return typeof action === "string" ? action : null;
 }

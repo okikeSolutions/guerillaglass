@@ -4,13 +4,18 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import * as NodeServices from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeServices.js";
+import * as Config from "../apps/desktop-electrobun/node_modules/effect/dist/Config.js";
+import * as Option from "../apps/desktop-electrobun/node_modules/effect/dist/Option.js";
+import * as Schedule from "../apps/desktop-electrobun/node_modules/effect/dist/Schedule.js";
+import * as Deferred from "../apps/desktop-electrobun/node_modules/effect/dist/Deferred.js";
+import type { ChildProcessHandle } from "../apps/desktop-electrobun/node_modules/effect/dist/process/ChildProcessSpawner.js";
 import * as Effect from "../apps/desktop-electrobun/node_modules/effect/dist/Effect.js";
 import * as Exit from "../apps/desktop-electrobun/node_modules/effect/dist/Exit.js";
 import * as ManagedRuntime from "../apps/desktop-electrobun/node_modules/effect/dist/ManagedRuntime.js";
 import * as Scope from "../apps/desktop-electrobun/node_modules/effect/dist/Scope.js";
 import * as Schema from "../apps/desktop-electrobun/node_modules/effect/dist/Schema.js";
 import * as Stream from "../apps/desktop-electrobun/node_modules/effect/dist/Stream.js";
-import * as ChildProcess from "../apps/desktop-electrobun/node_modules/effect/dist/unstable/process/ChildProcess.js";
+import * as ChildProcess from "../apps/desktop-electrobun/node_modules/effect/dist/process/ChildProcess.js";
 import { EngineClient, layerEngineClientBun } from "../packages/engine-client/src/service";
 import { captureBenchmarkWindowTitle } from "../apps/desktop-electrobun/src/shared/captureBenchmark";
 import {
@@ -77,20 +82,13 @@ type DisplaySource = SourceListing["displays"][number];
 
 function createBenchmarkEngineClient(enginePath: string) {
   const runtime = ManagedRuntime.make(layerEngineClientBun({ enginePath }));
-  const run = <A>(effect: Effect.Effect<A, unknown, unknown>) =>
-    runtime.runPromise(effect as Effect.Effect<A, unknown, EngineClient>);
-  const runJson = <S extends Schema.Top>(
+  const run = <A>(effect: Effect.Effect<A, unknown, EngineClient>) => runtime.runPromise(effect);
+  const runJson = <S extends Schema.ConstraintCodec<unknown, unknown>>(
     schema: S,
-    effect: Effect.Effect<unknown, unknown, unknown>,
-  ) =>
-    run(
-      Effect.flatMap(
-        effect,
-        Schema.encodeUnknownEffect(Schema.toCodecJson(schema)),
-      ) as Effect.Effect<Schema.Codec.Encoded<S>, unknown, unknown>,
-    );
-  const runCaptureStatus = (effect: Effect.Effect<unknown, unknown, unknown>) =>
-    runJson(captureStatusResultSchema, effect) as Promise<CaptureStatusResult>;
+    effect: Effect.Effect<unknown, unknown, EngineClient>,
+  ) => run(Effect.flatMap(effect, Schema.decodeUnknownEffect(schema)));
+  const runCaptureStatus = (effect: Effect.Effect<unknown, unknown, EngineClient>) =>
+    runJson(captureStatusResultSchema, effect);
   return {
     stop: () => runtime.dispose(),
     getPermissions: () => run(Effect.flatMap(EngineClient, (engine) => engine.permissionsGet)),
@@ -104,7 +102,7 @@ function createBenchmarkEngineClient(enginePath: string) {
       runJson(
         sourcesResultSchema,
         Effect.flatMap(EngineClient, (engine) => engine.sourcesList),
-      ).then((sources) => sources as SourceListing),
+      ),
     startDisplayCapture: (
       enableMic: boolean,
       captureFps: CaptureFrameRate,
@@ -141,7 +139,9 @@ function createBenchmarkEngineClient(enginePath: string) {
 }
 
 function resolveBenchmarkEnginePath(): string {
-  const explicit = process.env.GG_ENGINE_PATH;
+  const explicit = Option.getOrUndefined(
+    Effect.runSync(Config.option(Config.String("GG_ENGINE_PATH"))),
+  );
   if (explicit && explicit.trim().length > 0) {
     return path.resolve(explicit);
   }
@@ -616,24 +616,50 @@ function parseNonNegativeInteger(rawValue: string, name: string): number {
 }
 
 function sleep(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  return Effect.runPromise(Effect.sleep(milliseconds));
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => {
-      reject(new Error(`${label} timed out after ${timeoutMs} ms`));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
-    }
+class BenchmarkOperationError extends Schema.TaggedError<BenchmarkOperationError>()(
+  "BenchmarkOperationError",
+  {
+    operation: Schema.String,
+    description: Schema.String,
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
+) {
+  get message() {
+    return this.description;
   }
+}
+
+const benchmarkOperation = Effect.fn("Benchmark.operation")(
+  <A>(operation: string, run: () => Promise<A>) =>
+    Effect.tryPromise({
+      try: run,
+      catch: (cause) =>
+        new BenchmarkOperationError({
+          operation,
+          description: `${operation} failed`,
+          cause,
+        }),
+    }),
+);
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return Effect.runPromise(
+    benchmarkOperation(label, () => promise).pipe(
+      Effect.timeoutOrElse({
+        duration: timeoutMs,
+        orElse: () =>
+          Effect.fail(
+            new BenchmarkOperationError({
+              operation: label,
+              description: `${label} timed out after ${timeoutMs} ms`,
+            }),
+          ),
+      }),
+    ),
+  );
 }
 
 async function stopCaptureSession(engine: EngineClientPromise) {
@@ -709,33 +735,50 @@ async function waitForBenchmarkWindow(
   sceneWindow: BenchmarkSceneWindow,
   timeoutMs: number,
 ): Promise<WindowSource> {
-  const deadline = performance.now() + timeoutMs;
-  while (performance.now() < deadline) {
-    const sources = await engine.listSources();
-    const selectedWindow = selectWindowSource(sources, sceneWindow);
-    if (selectedWindow) {
-      return selectedWindow;
-    }
-    await sleep(500);
-  }
-
-  throw new Error(
-    `Timed out waiting for benchmark window "${sceneWindow.titleFragment}" to appear in window sources.`,
+  return await runProcessEffect(
+    Effect.gen(function* () {
+      const selected = yield* benchmarkOperation("list window sources", () =>
+        engine.listSources(),
+      ).pipe(
+        Effect.map((sources) => selectWindowSource(sources, sceneWindow)),
+        Effect.repeat({
+          until: (source) => source !== null,
+          schedule: Schedule.spaced("500 millis"),
+        }),
+        Effect.timeoutOrElse({
+          duration: timeoutMs,
+          orElse: () =>
+            Effect.fail(
+              new BenchmarkOperationError({
+                operation: "wait for window",
+                description: `Timed out waiting for benchmark window "${sceneWindow.titleFragment}" to appear in window sources.`,
+              }),
+            ),
+        }),
+      );
+      if (!selected) {
+        return yield* new BenchmarkOperationError({
+          operation: "wait for window",
+          description: "Benchmark window did not become available.",
+        });
+      }
+      return selected;
+    }).pipe(Effect.withSpan("Benchmark.waitForWindow")),
   );
 }
 
-type BenchmarkProcess = {
-  handle: {
-    exitCode: Effect.Effect<number, unknown, unknown>;
-    kill: (options?: { forceKillAfter?: string }) => Effect.Effect<void, unknown, unknown>;
-    stderr: Stream.Stream<Uint8Array, unknown>;
-    stdout: Stream.Stream<Uint8Array, unknown>;
-  };
-  scope: Scope.Scope;
-};
+type BenchmarkProcess = { handle: ChildProcessHandle; scope: Scope.Closeable };
 
-async function runProcessEffect<A, E, R>(effect: Effect.Effect<A, E, R>) {
-  return await Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)) as never);
+const runProcessEffect = <A, E>(effect: Effect.Effect<A, E, NodeServices.NodeServices>) =>
+  Effect.runPromise(effect.pipe(Effect.provide(NodeServices.layer)));
+
+class BenchmarkReadinessError extends Schema.TaggedError<BenchmarkReadinessError>()(
+  "BenchmarkReadinessError",
+  { description: Schema.String, cause: Schema.optionalKey(Schema.Defect()) },
+) {
+  get message() {
+    return this.description;
+  }
 }
 
 async function spawnBenchmarkProcess(
@@ -762,7 +805,7 @@ async function spawnBenchmarkProcess(
         forceKillAfter: "2 seconds",
       }).pipe(Scope.provide(scope)),
     );
-    return { handle: handle as BenchmarkProcess["handle"], scope };
+    return { handle, scope };
   } catch (error) {
     await Effect.runPromise(Scope.close(scope, Exit.fail(error)).pipe(Effect.ignore));
     throw error;
@@ -803,56 +846,71 @@ async function consumeSubprocessStream(
           sink(line);
         }),
       ),
-      Effect.catch(() => Effect.void),
+      Effect.ignore,
     ),
   );
 }
 
 async function waitForBenchmarkReadySignal(child: BenchmarkProcess, timeoutMs: number) {
-  let resolved = false;
-
-  const readyPromise = new Promise<void>((resolve, reject) => {
-    const handleLine = (line: string) => {
-      if (!resolved && line.includes(benchmarkReadyMessage)) {
-        resolved = true;
-        resolve();
-      }
-    };
-
-    void consumeSubprocessStream(child.handle.stdout, {
-      onLine: handleLine,
-      sink: (line) => console.log(line),
-    }).catch((error) => {
-      if (!resolved) {
-        reject(error);
-      }
-    });
-    void consumeSubprocessStream(child.handle.stderr, {
-      onLine: handleLine,
-      sink: (line) => console.error(line),
-    }).catch((error) => {
-      if (!resolved) {
-        reject(error);
-      }
-    });
-
-    void runProcessEffect(child.handle.exitCode).then((exitCode) => {
-      if (!resolved) {
-        reject(new Error(`Benchmark app exited before readiness signal (exit code ${exitCode}).`));
-      }
-    });
-  });
-
-  const timeoutPromise = new Promise<void>((_, reject) => {
-    const timer = setTimeout(() => {
-      reject(
-        new Error(`Timed out waiting for benchmark renderer readiness after ${timeoutMs} ms.`),
+  await runProcessEffect(
+    Effect.gen(function* () {
+      const ready = yield* Deferred.make<void, BenchmarkReadinessError>();
+      const consume = (stream: ChildProcessHandle["stdout"], sink: (line: string) => void) =>
+        stream.pipe(
+          Stream.decodeText(),
+          Stream.splitLines,
+          Stream.runForEach((line) =>
+            Effect.gen(function* () {
+              yield* Effect.sync(() => sink(line));
+              if (line.includes(benchmarkReadyMessage)) {
+                yield* Deferred.succeed(ready, undefined);
+              }
+            }),
+          ),
+          Effect.catch((error) =>
+            Deferred.fail(
+              ready,
+              new BenchmarkReadinessError({
+                description: "Unable to read benchmark renderer readiness.",
+                cause: error,
+              }),
+            ),
+          ),
+          Effect.forkIn(child.scope),
+        );
+      yield* consume(child.handle.stdout, (line) => console.log(line));
+      yield* consume(child.handle.stderr, (line) => console.error(line));
+      yield* Effect.raceFirst(
+        Deferred.await(ready),
+        child.handle.exitCode.pipe(
+          Effect.mapError(
+            (cause) =>
+              new BenchmarkReadinessError({
+                description: "Unable to observe benchmark process exit.",
+                cause,
+              }),
+          ),
+          Effect.flatMap((exitCode) =>
+            Effect.fail(
+              new BenchmarkReadinessError({
+                description: `Benchmark app exited before readiness signal (exit code ${exitCode}).`,
+              }),
+            ),
+          ),
+        ),
+      ).pipe(
+        Effect.timeoutOrElse({
+          duration: timeoutMs,
+          orElse: () =>
+            Effect.fail(
+              new BenchmarkReadinessError({
+                description: `Timed out waiting for benchmark renderer readiness after ${timeoutMs} ms.`,
+              }),
+            ),
+        }),
       );
-    }, timeoutMs);
-    void readyPromise.finally(() => clearTimeout(timer));
-  });
-
-  await Promise.race([readyPromise, timeoutPromise]);
+    }).pipe(Effect.withSpan("Benchmark.waitForRendererReady")),
+  );
 }
 
 async function runCommandForBenchmark(command: string[]) {
@@ -1436,18 +1494,28 @@ async function runScenarioRun(
     const sampleStart = performance.now();
     const sampleDeadline = sampleStart + options.durationSeconds * 1000;
 
-    while (performance.now() < sampleDeadline) {
-      const status = await engine.captureStatus();
-      finalStatus = status;
-      samples.push({
-        relativeSeconds: (performance.now() - sampleStart) / 1000,
-        telemetry: status.telemetry,
-      });
-      await sleep(options.pollIntervalMs);
-    }
+    await runProcessEffect(
+      Effect.gen(function* () {
+        if (performance.now() >= sampleDeadline) {
+          return;
+        }
+        const status = yield* benchmarkOperation("capture status", () => engine.captureStatus());
+        finalStatus = status;
+        samples.push({
+          relativeSeconds: (performance.now() - sampleStart) / 1000,
+          telemetry: status.telemetry,
+        });
+      }).pipe(
+        Effect.withSpan("Benchmark.sampleTelemetry"),
+        Effect.repeat({
+          schedule: Schedule.spaced(options.pollIntervalMs),
+          while: () => performance.now() < sampleDeadline,
+        }),
+      ),
+    );
 
     finalStatus = await withTimeout(engine.stopRecording(), 15_000, "stopRecording");
-    const recordingStatus = finalStatus!;
+    const recordingStatus = finalStatus;
     await withTimeout(engine.stopCapture(), 15_000, "stopCapture");
     const inputTracking = await loadInputTrackingDiagnostics(recordingStatus.eventsURL ?? null);
 

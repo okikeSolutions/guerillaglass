@@ -30,19 +30,16 @@ export function redactBridgeErrorForRenderer(
     return error;
   }
 
-  const redacted: SerializedBridgeError = {
+  return {
     tag: error.tag,
     message: error.tag === "UnknownError" ? "An unexpected desktop error occurred." : error.message,
     data: redactData(error.data),
+    ...(error.cause ? { cause: redactBridgeErrorForRenderer(error.cause, config) } : {}),
   };
-  if (error.cause) {
-    redacted.cause = redactBridgeErrorForRenderer(error.cause, config);
-  }
-  return redacted;
 }
 
-export function redactBridgeErrorForRendererEffect(
-  error: SerializedBridgeError,
-): Effect.Effect<SerializedBridgeError, never, AppConfig> {
+export const redactBridgeErrorForRendererEffect = Effect.fn(
+  "BridgeErrorRedaction.redactBridgeErrorForRendererEffect",
+)(function (error: SerializedBridgeError): Effect.Effect<SerializedBridgeError, never, AppConfig> {
   return Effect.map(AppConfig, (config) => redactBridgeErrorForRenderer(error, config));
-}
+});

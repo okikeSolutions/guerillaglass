@@ -1,3 +1,4 @@
+import { Option, Schema } from "effect";
 import {
   BridgeInvocationError,
   BridgeRequestLimitError,
@@ -12,14 +13,7 @@ import {
   ReviewBridgeError,
   StudioActionError,
   StudioContextUnavailableError,
-  type BrowserStorageErrorCode,
-  type CapabilityTokenErrorCode,
-  type FileAccessPolicyErrorCode,
-  type MediaServerErrorCode,
-  type PathPickerErrorCode,
-  type ReviewBridgeErrorCode,
   type SerializedBridgeError,
-  type StudioActionReason,
 } from "./desktopErrors";
 import {
   ContractDecodeError,
@@ -29,7 +23,6 @@ import {
   EngineResponseError,
   JsonParseError,
   messageFromUnknownError,
-  type EngineClientErrorCode,
 } from "@guerillaglass/engine-client/errors";
 import {
   isValidationIssue,
@@ -245,7 +238,7 @@ function serializeBridgeErrorInternal(error: unknown, depth: number): Serialized
     };
   }
   if (error instanceof Error) {
-    const { cause, name, stack } = error as Error & { cause?: unknown };
+    const { cause, name, stack } = error;
     return {
       tag: "UnknownError",
       message: messageFromUnknownError(error, "Unknown bridge error."),
@@ -281,6 +274,18 @@ function readSerializedBridgeString(
 ): string {
   const value = readSerializedBridgeField(serialized, key);
   return typeof value === "string" ? value : fallback;
+}
+
+function readSerializedBridgeLiteral<S extends Schema.ConstraintCodec<unknown, unknown>>(
+  schema: S,
+  serialized: SerializedBridgeError,
+  key: string,
+  fallback: S["Type"],
+): S["Type"] {
+  return Option.getOrElse(
+    Schema.decodeUnknownOption(schema)(readSerializedBridgeField(serialized, key)),
+    () => fallback,
+  );
 }
 
 function readSerializedBridgeIssues(serialized: SerializedBridgeError): ValidationIssue[] {
@@ -330,11 +335,12 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "EngineClientError":
       return new EngineClientError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          EngineClientError.fields.code,
           serialized,
           "code",
           "ENGINE_PROCESS_FAILED",
-        ) as EngineClientErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -353,19 +359,21 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "StudioActionError":
       return new StudioActionError({
-        reason: readSerializedBridgeString(
+        reason: readSerializedBridgeLiteral(
+          StudioActionError.fields.reason,
           serialized,
           "reason",
           "screen_permission_required",
-        ) as StudioActionReason,
+        ),
       });
     case "FileAccessPolicyError":
       return new FileAccessPolicyError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          FileAccessPolicyError.fields.code,
           serialized,
           "code",
           "FILE_PATH_REQUIRED",
-        ) as FileAccessPolicyErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -375,11 +383,12 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "MediaServerError":
       return new MediaServerError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          MediaServerError.fields.code,
           serialized,
           "code",
           "MEDIA_PATH_REQUIRED",
-        ) as MediaServerErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -389,11 +398,12 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "PathPickerError":
       return new PathPickerError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          PathPickerError.fields.code,
           serialized,
           "code",
           "PATH_PICKER_REQUEST_FAILED",
-        ) as PathPickerErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -403,11 +413,12 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "BrowserStorageError":
       return new BrowserStorageError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          BrowserStorageError.fields.code,
           serialized,
           "code",
           "BROWSER_STORAGE_UNAVAILABLE",
-        ) as BrowserStorageErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -427,11 +438,12 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "CapabilityTokenError":
       return new CapabilityTokenError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          CapabilityTokenError.fields.code,
           serialized,
           "code",
           "CAPABILITY_TOKEN_INVALID",
-        ) as CapabilityTokenErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -441,11 +453,12 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
       });
     case "ReviewBridgeError":
       return new ReviewBridgeError({
-        code: readSerializedBridgeString(
+        code: readSerializedBridgeLiteral(
+          ReviewBridgeError.fields.code,
           serialized,
           "code",
           "REVIEW_REQUEST_FAILED",
-        ) as ReviewBridgeErrorCode,
+        ),
         description: readSerializedBridgeString(
           serialized,
           "description",
@@ -473,7 +486,7 @@ export function deserializeBridgeError(serialized: SerializedBridgeError): Error
         error.stack = stack;
       }
       if (cause !== undefined) {
-        (error as Error & { cause?: unknown }).cause = cause;
+        error.cause = cause;
       }
       return error;
     }

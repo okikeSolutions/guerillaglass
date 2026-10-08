@@ -203,8 +203,10 @@ describe("studio shell browser smoke", () => {
     await expect.element(page.getByTestId("background-framing-card")).toBeVisible();
 
     const card = document.querySelector<HTMLElement>("[data-testid='background-framing-card']");
-    expect(card).not.toBeNull();
-    const bounds = card!.getBoundingClientRect();
+    if (!card) {
+      throw new Error("Background framing card did not render");
+    }
+    const bounds = card.getBoundingClientRect();
     expect(bounds.height).toBeGreaterThan(bounds.width);
     await expect
       .element(page.getByTestId("background-framing-card"))

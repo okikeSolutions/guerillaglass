@@ -116,8 +116,11 @@ describe("host path picker", () => {
       throw new Error("Expected open dialog failure");
     } catch (error) {
       expect(error).toBeInstanceOf(PathPickerError);
-      expect((error as PathPickerError).code).toBe("PATH_PICKER_OPEN_DIALOG_FAILED");
-      expect((error as Error).message).toBe("open dialog unavailable");
+      if (!(error instanceof PathPickerError)) {
+        throw error;
+      }
+      expect(error.code).toBe("PATH_PICKER_OPEN_DIALOG_FAILED");
+      expect(error.message).toBe("open dialog unavailable");
     }
   });
 });

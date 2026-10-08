@@ -7,9 +7,11 @@
 import { Schema } from "effect";
 
 function greaterThanOrEqualTo(minimum: number) {
-  return Schema.check<Schema.Schema<number>>(Schema.isGreaterThanOrEqualTo(minimum));
+  return <S extends Schema.Top & { readonly Type: number }>(schema: S): S["Rebuild"] =>
+    schema.check(Schema.isGreaterThanOrEqualTo(minimum));
 }
-export const isoDateTimeSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/)).pipe(
+/** Unicode flag keeps the timestamp check in generated JSON Schema. */
+export const isoDateTimeSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}T/u)).pipe(
   Schema.brand("IsoDateTime"),
 );
 export const reviewCommentIdSchema = Schema.NonEmptyString.pipe(Schema.brand("ReviewCommentId"));
@@ -181,28 +183,68 @@ export type ReviewProcessingState = typeof reviewProcessingStateSchema.Type;
 /** Type alias for ReviewPlaybackSource. */
 export type ReviewPlaybackSource = typeof reviewPlaybackSourceSchema.Type;
 /** Type alias for ReviewSharePolicy. */
-export type ReviewSharePolicy = typeof reviewSharePolicySchema.Type;
+export const ReviewSharePolicy = reviewSharePolicySchema;
+/** Validated ReviewSharePolicy record. */
+export interface ReviewSharePolicy extends Schema.Schema.Type<typeof ReviewSharePolicy> {}
 /** Type alias for ReviewPresence. */
-export type ReviewPresence = typeof reviewPresenceSchema.Type;
+export const ReviewPresence = reviewPresenceSchema;
+/** Validated ReviewPresence record. */
+export interface ReviewPresence extends Schema.Schema.Type<typeof ReviewPresence> {}
 /** Type alias for ReviewComment. */
-export type ReviewComment = typeof reviewCommentSchema.Type;
+export const ReviewComment = reviewCommentSchema;
+/** Validated ReviewComment record. */
+export interface ReviewComment extends Schema.Schema.Type<typeof ReviewComment> {}
 /** Type alias for ReviewSessionSnapshot. */
-export type ReviewSessionSnapshot = typeof reviewSessionSnapshotSchema.Type;
+export const ReviewSessionSnapshot = reviewSessionSnapshotSchema;
+/** Validated ReviewSessionSnapshot record. */
+export interface ReviewSessionSnapshot extends Schema.Schema.Type<typeof ReviewSessionSnapshot> {}
 /** Type alias for ReviewSessionSnapshotRequest. */
-export type ReviewSessionSnapshotRequest = typeof reviewSessionSnapshotRequestSchema.Type;
+export const ReviewSessionSnapshotRequest = reviewSessionSnapshotRequestSchema;
+/** Validated ReviewSessionSnapshotRequest record. */
+export interface ReviewSessionSnapshotRequest extends Schema.Schema.Type<
+  typeof ReviewSessionSnapshotRequest
+> {}
 /** Type alias for ReviewCreateCommentRequest. */
-export type ReviewCreateCommentRequest = typeof reviewCreateCommentRequestSchema.Type;
+export const ReviewCreateCommentRequest = reviewCreateCommentRequestSchema;
+/** Validated ReviewCreateCommentRequest record. */
+export interface ReviewCreateCommentRequest extends Schema.Schema.Type<
+  typeof ReviewCreateCommentRequest
+> {}
 /** Type alias for ReviewSetWorkflowStatusRequest. */
-export type ReviewSetWorkflowStatusRequest = typeof reviewSetWorkflowStatusRequestSchema.Type;
+export const ReviewSetWorkflowStatusRequest = reviewSetWorkflowStatusRequestSchema;
+/** Validated ReviewSetWorkflowStatusRequest record. */
+export interface ReviewSetWorkflowStatusRequest extends Schema.Schema.Type<
+  typeof ReviewSetWorkflowStatusRequest
+> {}
 /** Type alias for ReviewSetWorkflowStatusResponse. */
-export type ReviewSetWorkflowStatusResponse = typeof reviewSetWorkflowStatusResponseSchema.Type;
+export const ReviewSetWorkflowStatusResponse = reviewSetWorkflowStatusResponseSchema;
+/** Validated ReviewSetWorkflowStatusResponse record. */
+export interface ReviewSetWorkflowStatusResponse extends Schema.Schema.Type<
+  typeof ReviewSetWorkflowStatusResponse
+> {}
 /** Type alias for ReviewPresenceUpdatedEvent. */
-export type ReviewPresenceUpdatedEvent = typeof reviewPresenceUpdatedEventSchema.Type;
+export const ReviewPresenceUpdatedEvent = reviewPresenceUpdatedEventSchema;
+/** Validated ReviewPresenceUpdatedEvent record. */
+export interface ReviewPresenceUpdatedEvent extends Schema.Schema.Type<
+  typeof ReviewPresenceUpdatedEvent
+> {}
 /** Type alias for ReviewCommentCreatedEvent. */
-export type ReviewCommentCreatedEvent = typeof reviewCommentCreatedEventSchema.Type;
+export const ReviewCommentCreatedEvent = reviewCommentCreatedEventSchema;
+/** Validated ReviewCommentCreatedEvent record. */
+export interface ReviewCommentCreatedEvent extends Schema.Schema.Type<
+  typeof ReviewCommentCreatedEvent
+> {}
 /** Type alias for ReviewStatusChangedEvent. */
-export type ReviewStatusChangedEvent = typeof reviewStatusChangedEventSchema.Type;
+export const ReviewStatusChangedEvent = reviewStatusChangedEventSchema;
+/** Validated ReviewStatusChangedEvent record. */
+export interface ReviewStatusChangedEvent extends Schema.Schema.Type<
+  typeof ReviewStatusChangedEvent
+> {}
 /** Type alias for ReviewPlaybackStateChangedEvent. */
-export type ReviewPlaybackStateChangedEvent = typeof reviewPlaybackStateChangedEventSchema.Type;
+export const ReviewPlaybackStateChangedEvent = reviewPlaybackStateChangedEventSchema;
+/** Validated ReviewPlaybackStateChangedEvent record. */
+export interface ReviewPlaybackStateChangedEvent extends Schema.Schema.Type<
+  typeof ReviewPlaybackStateChangedEvent
+> {}
 /** Type alias for ReviewBridgeEvent. */
 export type ReviewBridgeEvent = typeof reviewBridgeEventSchema.Type;

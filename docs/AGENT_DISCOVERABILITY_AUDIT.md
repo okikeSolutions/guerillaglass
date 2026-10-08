@@ -43,3 +43,21 @@ The implemented path is deliberately narrow:
 - frame-based cut plan retaining the source track's rational minimum-frame duration, with nominal integer FPS only as a fallback.
 
 The audit does not claim a local speech-to-text model, multiple run history, background cancellation, Agent workspace UI, or production media parity on Windows/Linux.
+
+## October 2026 review follow-up
+
+The review from `b0a7e056abf64a5b67468e8300d5bb4b7491d413` repaired implicit
+saves during analysis and stale Agent state across overlapping opens and run
+replacement. Project generations retire pending work on reopen and Save As.
+Status/apply/export resolution revalidates the canonical manifest after media
+inspection. Recovery preserves newer working edits and newer runs.
+
+Ready preflights retain at most four transcript snapshots, prune expired sessions
+before retaining new authority, and report the documented capacity blocker.
+Manifest recovery validates terminal lifecycle state, budget, artifact versions,
+frame-rate fields and QA consistency. Dormant Rust Agent simulation and its tests
+were removed; authenticated HTTP unsupported-operation coverage remains.
+
+The smoke command now uses the scoped Effect engine launcher, schema decoding and
+Effect HTTP/filesystem/path services. OS shutdown interrupts the owning runtime.
+See [review evidence](audits/2026-10-code-review.md) for checks and limits.

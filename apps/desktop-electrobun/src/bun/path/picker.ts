@@ -175,21 +175,32 @@ async function confirmOverwriteIfNeeded(
   return await dependencies.confirmOverwritePath(projectPath);
 }
 
-function confirmOverwriteIfNeededEffect(
+const confirmOverwriteIfNeededEffect = Effect.fn("picker.confirmOverwriteIfNeededEffect")(function (
   projectPath: string,
   dependencies: Pick<FileDialogEffectDependencies, "pathExists" | "confirmOverwritePath">,
-): Effect.Effect<boolean, unknown> {
-  if (!dependencies.pathExists || !dependencies.confirmOverwritePath) {
+): Effect.Effect<boolean, PathPickerError> {
+  const { pathExists, confirmOverwritePath } = dependencies;
+  if (!pathExists || !confirmOverwritePath) {
     return Effect.succeed(true);
   }
   return Effect.gen(function* () {
-    const exists = yield* dependencies.pathExists!(projectPath);
+    const exists = yield* pathExists(projectPath);
     if (!exists) {
       return true;
     }
-    return yield* dependencies.confirmOverwritePath!(projectPath);
-  });
-}
+    return yield* confirmOverwritePath(projectPath);
+  }).pipe(
+    Effect.mapError((cause) =>
+      cause instanceof PathPickerError
+        ? cause
+        : new PathPickerError({
+            code: "PATH_PICKER_OPEN_DIALOG_FAILED",
+            description: "Unable to confirm project overwrite.",
+            cause,
+          }),
+    ),
+  );
+});
 
 async function openFileDialogSafely(
   dependencies: Pick<FileDialogDependencies, "openFileDialog">,
@@ -206,7 +217,7 @@ async function openFileDialogSafely(
   }
 }
 
-function openFileDialogSafelyEffect(
+const openFileDialogSafelyEffect = Effect.fn("picker.openFileDialogSafelyEffect")(function (
   dependencies: Pick<FileDialogEffectDependencies, "openFileDialog">,
   options: OpenFileDialogOptions,
 ): Effect.Effect<string[], PathPickerError> {
@@ -220,7 +231,7 @@ function openFileDialogSafelyEffect(
         }),
     ),
   );
-}
+});
 
 /** Opens the host file/save picker for a workflow mode and returns a resolved path target. */
 export async function pickPathForMode(
@@ -288,10 +299,10 @@ export async function pickPathForMode(
 }
 
 /** Opens the host file/save picker as an Effect for backend services. */
-export function pickPathForModeEffect(
+export const pickPathForModeEffect = Effect.fn("picker.pickPathForModeEffect")(function (
   mode: HostPathPickerMode,
   dependencies: FileDialogEffectDependencies,
-): Effect.Effect<string | null, unknown> {
+): Effect.Effect<string | null, PathPickerError> {
   return Effect.gen(function* () {
     const startingFolder = resolveStartingFolder({
       startingFolder: dependencies.startingFolder,
@@ -350,4 +361,4 @@ export function pickPathForModeEffect(
       }),
     );
   });
-}
+});

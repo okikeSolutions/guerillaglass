@@ -1,50 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-wait_for_gate() {
+cd "$(dirname "$0")/.."
+export GG_GATE_JOBS="${GG_GATE_JOBS:-2}"
+if [[ ! "$GG_GATE_JOBS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "GG_GATE_JOBS must be a positive integer" >&2
+  exit 2
+fi
+export CARGO_BUILD_JOBS="$GG_GATE_JOBS"
+
+mkdir -p .tmp/gate-logs
+log_dir="$(mktemp -d .tmp/gate-logs/run.XXXXXX)"
+printf 'check\tstatus\tseconds\tlog\n' > "$log_dir/summary.tsv"
+echo "==> full gate: $GG_GATE_JOBS workers; logs in $log_dir"
+
+run_check() {
   local label="$1"
-  local pid="$2"
-  set +e
-  wait "$pid"
-  local status=$?
-  set -e
-  if [[ "$status" -eq 0 ]]; then
-    echo "==> $label passed"
-    return 0
+  shift
+  local log="$log_dir/$label.log"
+  local started=$SECONDS
+  local status=0
+  echo "==> $label"
+  "$@" > "$log" 2>&1 || status=$?
+  local elapsed=$((SECONDS - started))
+  printf '%s\t%s\t%s\t%s\n' "$label" "$status" "$elapsed" "$log" >> "$log_dir/summary.tsv"
+  if ((status != 0)); then
+    echo "==> $label failed in ${elapsed}s (status $status); full log: $log" >&2
+    awk '/error:|error TS|FAIL|failed/ { print substr($0, 1, 600) }' "$log" | tail -12 >&2
+    tail -20 "$log" >&2
+    exit "$status"
   fi
-  echo "==> $label failed with status $status" >&2
-  return "$status"
+  echo "==> $label passed in ${elapsed}s"
 }
 
-# These checks are independent and do not mutate source files. Run them concurrently for fast
-# local feedback while still streaming every warning/error to the terminal.
-echo "==> starting full gate checks"
+# Finish inexpensive checks before starting compilers or browser tests.
+run_check typescript-preflight bash Scripts/typescript_gate.sh --preflight
+run_check rust-format cargo fmt --all --check
+run_check swift-format swiftformat --lint .
+run_check swift-lint swiftlint --quiet
 
-Scripts/rust_gate.sh &
-rust_pid=$!
-
-Scripts/typescript_gate.sh &
-typescript_pid=$!
-
-swiftformat --lint . &
-swiftformat_pid=$!
-
-swiftlint --quiet &
-swiftlint_pid=$!
-
-swift test &
-swift_test_pid=$!
-
-failed=0
-wait_for_gate "rust gate" "$rust_pid" || failed=1
-wait_for_gate "typescript gate" "$typescript_pid" || failed=1
-wait_for_gate "swiftformat" "$swiftformat_pid" || failed=1
-wait_for_gate "swiftlint" "$swiftlint_pid" || failed=1
-wait_for_gate "swift test" "$swift_test_pid" || failed=1
-
-if [[ "$failed" -ne 0 ]]; then
-  echo "==> full gate failed" >&2
-  exit 1
-fi
-
-echo "==> full gate passed"
+# Preserve the full gate's test coverage even when this variable is set for focused CI jobs.
+unset SKIP_DESKTOP_TESTS
+run_check typescript bash Scripts/typescript_gate.sh --after-preflight
+run_check rust bash Scripts/rust_gate.sh --after-preflight
+run_check swift-tests swift test -j "$GG_GATE_JOBS" --no-parallel
+echo "==> full gate passed; timings: $log_dir/summary.tsv"

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Stream } from "effect";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
+import * as ChildProcess from "effect/process/ChildProcess";
 import { describe, expect, test } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
@@ -37,10 +37,10 @@ async function runCommand(command: string, args: readonly string[], timeoutMs = 
         });
         return result;
       }).pipe(
-        Effect.timeout(timeoutMs),
-        Effect.catchTag("TimeoutError", () =>
-          Effect.succeed({ exitCode: -1, stderr: "command timed out", stdout: "" }),
-        ),
+        Effect.timeoutOrElse({
+          duration: timeoutMs,
+          orElse: () => Effect.succeed({ exitCode: -1, stderr: "command timed out", stdout: "" }),
+        }),
       ),
     ).pipe(Effect.provide(NodeServices.layer)),
   );

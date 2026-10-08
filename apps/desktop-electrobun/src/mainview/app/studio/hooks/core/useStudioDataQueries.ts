@@ -14,7 +14,7 @@ import type { SourcesResult } from "@guerillaglass/engine-contract/domains/sourc
 import type { CapabilitiesResult, PingResult } from "@guerillaglass/engine-contract/domains/system";
 import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
-import { validateEncodedUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
+import { decodeUnknownWithSchemaSync } from "@guerillaglass/engine-client/schemaContracts";
 import { desktopApi, engineApi, parseInputEventLog } from "@lib/engine";
 
 const emptyProjectRecents: ProjectRecentsResult = { items: [] };
@@ -37,18 +37,20 @@ export const studioQueryKeys = {
 export const studioRecentsLimit = 10;
 
 export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | null {
-  const customEvent = event as CustomEvent<{ captureStatus?: unknown }>;
-  const payload = customEvent.detail?.captureStatus;
+  if (!("detail" in event)) {
+    return null;
+  }
+  const detail = event.detail;
+  if (!detail || typeof detail !== "object" || !("captureStatus" in detail)) {
+    return null;
+  }
+  const payload = detail.captureStatus;
   if (!payload) {
     return null;
   }
 
   try {
-    return validateEncodedUnknownWithSchemaSync(
-      captureStatusResultSchema,
-      payload,
-      "capture status event",
-    ) as CaptureStatusResult;
+    return decodeUnknownWithSchemaSync(captureStatusResultSchema, payload, "capture status event");
   } catch {
     return null;
   }

@@ -4,6 +4,8 @@
   "studio_app_subtitle": "Desktop-Editor-Shell",
   "studio_app_shellState": "Spezifikationskonformer Aufnahme- und Editier-Workflow",
   "studio_notices_refreshFailed": "Aktualisierung des App-Status fehlgeschlagen.",
+  "studio_notices_capturePermissionRequired": "Eine Aufnahmeberechtigung fehlt. Erlaube Guerillaglass in Systemeinstellungen > Datenschutz & Sicherheit die Bildschirmaufnahme und bei Tonaufnahmen den Mikrofonzugriff. Versuche es dann erneut.",
+  "studio_notices_windowSelectionFailed": "Die Fensterauswahl wurde nicht abgeschlossen. Wähle ein Fenster aus und versuche es erneut.",
   "studio_notices_actionFailed": "Aktion fehlgeschlagen.",
   "studio_notices_rpcTimedOut": "RPC-Anfrage hat das Zeitlimit erreicht. Erneut versuchen oder offene Dateidialoge zuerst schließen.",
   "studio_notices_directoryPickerTimedOut": "Der Verzeichnisdialog hat vor Abschluss das Zeitlimit erreicht. Aktion erneut starten, wenn du bereit bist.",

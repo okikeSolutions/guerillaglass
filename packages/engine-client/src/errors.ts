@@ -1,8 +1,8 @@
 import { Schema } from "effect";
-import { formatValidationIssue, type ValidationIssue } from "./validation";
+import { formatValidationIssue } from "./validation";
 
 const validationIssueSchema = Schema.Struct({
-  path: Schema.Array(Schema.Union([Schema.String, Schema.Number])),
+  path: Schema.Array(Schema.Union([Schema.String, Schema.Finite])),
   message: Schema.String,
 });
 
@@ -110,7 +110,7 @@ export class EngineRequestValidationError extends Schema.TaggedError<EngineReque
   },
 ) {
   get message(): string {
-    const details = (this.issues as ReadonlyArray<ValidationIssue>)
+    const details = this.issues
       .slice(0, 3)
       .map((issue) => formatValidationIssue(issue))
       .join("; ");
@@ -144,7 +144,7 @@ export class ContractDecodeError extends Schema.TaggedError<ContractDecodeError>
     if (this.issues.length === 0) {
       return `Invalid ${this.contract} payload.`;
     }
-    const details = (this.issues as ReadonlyArray<ValidationIssue>)
+    const details = this.issues
       .slice(0, 3)
       .map((issue) => formatValidationIssue(issue, this.contract))
       .join("; ");
@@ -185,3 +185,6 @@ export function messageFromUnknownError(error: unknown, fallback: string): strin
   }
   return fallback;
 }
+
+/** Expected transport and engine response failures from client operations. */
+export type EngineClientFailure = EngineClientError | EngineResponseError;

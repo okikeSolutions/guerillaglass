@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect, Exit, Redacted, Scope, Stream } from "effect";
-import * as ChildProcess from "effect/unstable/process/ChildProcess";
-import type { ChildProcessHandle } from "effect/unstable/process/ChildProcessSpawner";
+import * as ChildProcess from "effect/process/ChildProcess";
+import type { ChildProcessHandle } from "effect/process/ChildProcessSpawner";
 import { afterEach, beforeAll, describe, expect, test } from "vitest";
 import { makeEngineHttpProcess } from "@guerillaglass/engine-client/process/launchBun";
 
@@ -30,7 +30,8 @@ type EngineFixture = (typeof fixtures)[number];
 type LaunchedEngine = {
   readonly baseUrl: string;
   readonly handle: ChildProcessHandle;
-  readonly scope: Scope.Scope;
+  readonly scope: Scope.Closeable;
+  readonly temporaryDirectory: string;
   readonly token: string;
 };
 
@@ -99,12 +100,14 @@ async function launchEngine(fixture: EngineFixture): Promise<LaunchedEngine> {
       baseUrl: launched.baseUrl.toString().replace(/\/$/, ""),
       handle: launched.process,
       scope,
+      temporaryDirectory: tempRoot,
       token: Redacted.value(launched.bearerToken),
     };
     launchedProcesses.add(engine);
     return engine;
   } catch (error) {
     await Effect.runPromise(Scope.close(scope, Exit.fail(error)).pipe(Effect.ignore));
+    fs.rmSync(tempRoot, { recursive: true, force: true });
     throw error;
   }
 }
@@ -124,6 +127,7 @@ async function stopEngine(engine: LaunchedEngine): Promise<void> {
       },
     ).pipe(Effect.ignore),
   );
+  fs.rmSync(engine.temporaryDirectory, { recursive: true, force: true });
 }
 
 function authorizedHeaders(token: string, extra?: HeadersInit): HeadersInit {
@@ -134,38 +138,42 @@ function authorizedHeaders(token: string, extra?: HeadersInit): HeadersInit {
 }
 
 async function postOversizedBodyWithCurl(baseUrl: string, token: string): Promise<number> {
-  const tempFile = path.join(
-    fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "gg-body-limit-")),
-    "oversized.json",
+  const temporaryDirectory = fs.mkdtempSync(
+    path.join(fs.realpathSync(os.tmpdir()), "gg-body-limit-"),
   );
-  fs.writeFileSync(
-    tempFile,
-    JSON.stringify({
-      captureFps: 30,
-      displayId: 1,
-      enableMic: true,
-      enablePreview: true,
-      padding: "x".repeat(2 * 1024 * 1024),
-    }),
-  );
-  const result = await runCommand("curl", [
-    "--silent",
-    "--output",
-    "/dev/null",
-    "--write-out",
-    "%{http_code}",
-    "--header",
-    `authorization: Bearer ${token}`,
-    "--header",
-    "content-type: application/json",
-    "--data-binary",
-    `@${tempFile}`,
-    `${baseUrl}/v1/capture/start-display`,
-  ]);
-  if (result.exitCode !== 0) {
-    throw new Error(`curl body-limit request failed: ${result.stderr}`);
+  const tempFile = path.join(temporaryDirectory, "oversized.json");
+  try {
+    fs.writeFileSync(
+      tempFile,
+      JSON.stringify({
+        captureFps: 30,
+        displayId: 1,
+        enableMic: true,
+        enablePreview: true,
+        padding: "x".repeat(2 * 1024 * 1024),
+      }),
+    );
+    const result = await runCommand("curl", [
+      "--silent",
+      "--output",
+      "/dev/null",
+      "--write-out",
+      "%{http_code}",
+      "--header",
+      `authorization: Bearer ${token}`,
+      "--header",
+      "content-type: application/json",
+      "--data-binary",
+      `@${tempFile}`,
+      `${baseUrl}/v1/capture/start-display`,
+    ]);
+    if (result.exitCode !== 0) {
+      throw new Error(`curl body-limit request failed: ${result.stderr}`);
+    }
+    return Number(result.stdout);
+  } finally {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
-  return Number(result.stdout);
 }
 
 beforeAll(buildNativeEngines, 60_000);

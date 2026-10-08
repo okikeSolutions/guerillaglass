@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mode="${1:-all}"
+if (( $# > 1 )) || [[ "$mode" != "all" && "$mode" != "--preflight" && "$mode" != "--after-preflight" ]]; then
+  echo "Usage: $0 [--preflight|--after-preflight]" >&2
+  exit 2
+fi
+jobs="${GG_GATE_JOBS:-2}"
+if [[ ! "$jobs" =~ ^[1-9][0-9]*$ ]]; then
+  echo "GG_GATE_JOBS must be a positive integer" >&2
+  exit 2
+fi
+worker_args=(--maxWorkers "$jobs")
+# Desktop parity/security tests launch Cargo builds without explicit job flags.
+export CARGO_BUILD_JOBS="$jobs"
+
 lock_dir=".tmp/typescript-gate.lock"
 lock_timeout_seconds="${GG_TYPESCRIPT_GATE_LOCK_TIMEOUT_SECONDS:-1800}"
 lock_waited_seconds=0
@@ -56,15 +70,19 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> repository invariants"
-bun run repo:check
-bun run repo:test
-
-echo "==> documentation coverage ratchet"
-bun run docs:check
-
-echo "==> js format check (oxfmt)"
-bun run js:format:check
+if [[ "$mode" != "--after-preflight" ]]; then
+  echo "==> repository invariants"
+  bun run repo:check
+  bun run repo:test
+  echo "==> documentation coverage ratchet"
+  bun run docs:check
+  echo "==> js format check (oxfmt)"
+  bun run js:format:check
+fi
+if [[ "$mode" == "--preflight" ]]; then
+  echo "==> typescript preflight passed"
+  exit 0
+fi
 
 echo "==> i18n compile"
 bun run i18n:compile
@@ -76,16 +94,20 @@ echo "==> React effect-state lint"
 bun run js:lint:react-effects
 
 echo "==> engine contract check"
-(cd packages/engine-contract && bun run check:contract && bun run test)
+(cd packages/engine-contract && bun run check:contract && bun run test -- "${worker_args[@]}")
+echo "==> engine client tests"
+(cd packages/engine-client && bun run test -- "${worker_args[@]}")
+echo "==> review protocol checks"
+(cd packages/review-protocol && bun run typecheck && bun run test -- "${worker_args[@]}")
 
 if [[ "${SKIP_DESKTOP_TESTS:-}" == "1" ]]; then
   echo "==> desktop tests skipped by SKIP_DESKTOP_TESTS=1"
 else
   echo "==> desktop tests"
   if [[ "${CI:-}" == "true" ]]; then
-    (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run --exclude tests/parity-e2e.test.ts --exclude tests/native-http-launch-security.test.ts && bun run test:ui:ci -- --run)
+    (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run "${worker_args[@]}" --exclude tests/parity-e2e.test.ts --exclude tests/native-http-launch-security.test.ts && bun run test:ui:ci -- --run "${worker_args[@]}")
   else
-    (cd apps/desktop-electrobun && bun run test:ci)
+    (cd apps/desktop-electrobun && bun run test:vitest:ci -- --run "${worker_args[@]}" && bun run test:ui:ci -- --run "${worker_args[@]}")
   fi
 fi
 

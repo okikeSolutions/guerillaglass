@@ -29,7 +29,7 @@ final class EngineProtocolTests: XCTestCase {
         let data = try goldenFixtureData("capture-start-display.request.json")
         let payload = try JSONDecoder().decode(Components.Schemas.CaptureStartDisplayPayload.self, from: data)
 
-        XCTAssertEqual(payload.displayId?.value1, 1)
+        XCTAssertEqual(payload.displayId, 1)
         XCTAssertEqual(payload.enableMic, true)
         XCTAssertEqual(payload.enablePreview, true)
         XCTAssertEqual(payload.captureFps, 30)
@@ -44,8 +44,8 @@ final class EngineProtocolTests: XCTestCase {
     func testGeneratedTypesDecodeAndEncodeCaptureStatusResponseFixture() throws {
         let data = try goldenFixtureData("capture-status.response.json")
         let status = try JSONDecoder().decode(Components.Schemas.CaptureStatusResult.self, from: data)
-        XCTAssertEqual(status.captureSessionId?.value1, "capture-session-1")
-        XCTAssertEqual(status.telemetry.achievedFps?.value1, 30)
+        XCTAssertEqual(status.captureSessionId, "capture-session-1")
+        XCTAssertEqual(status.telemetry.achievedFps, 30)
 
         let encoded = try JSONEncoder().encode(status)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
@@ -350,10 +350,10 @@ final class TestServerTransport: ServerTransport {
 struct TestEngineAPI: APIProtocol {
     func system_period_systemPing(_: Operations.system_period_systemPing.Input) async throws -> Operations.system_period_systemPing.Output {
         .ok(.init(body: .json(.init(
-            app: .init(value1: "guerillaglass"),
-            engineVersion: .init(value1: "0.0.0-test"),
-            protocolVersion: .init(value1: "2"),
-            platform: .init(value1: "test")
+            app: "guerillaglass",
+            engineVersion: "0.0.0-test",
+            protocolVersion: "2",
+            platform: "test"
         ))))
     }
 
@@ -361,18 +361,18 @@ struct TestEngineAPI: APIProtocol {
         let payload: Components.Schemas.CaptureStartDisplayPayload = switch input.body {
         case let .json(body): body
         }
-        if payload.displayId?.value1 == 400 {
+        if payload.displayId == 400 {
             return .badRequest(.init(body: .json(.init(
                 code: .invalid_request,
-                message: .init(value1: "Invalid display.")
+                message: "Invalid display."
             ))))
         }
         return .ok(.init(body: .json(.init(
             isRunning: true,
             isRecording: false,
-            captureSessionId: .init(value1: "capture-session-1"),
-            recordingDurationSeconds: .init(value1: 0),
-            telemetry: .init(achievedFps: .init(value1: 30))
+            captureSessionId: "capture-session-1",
+            recordingDurationSeconds: 0,
+            telemetry: .init(achievedFps: 30)
         ))))
     }
 }

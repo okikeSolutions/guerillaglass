@@ -62,14 +62,20 @@ export type CaptureFrameRate = Schema.Schema.Type<typeof captureFrameRateSchema>
 /**
  * Runtime TypeScript type for a display capture source.
  */
-export type DisplaySource = Schema.Schema.Type<typeof displaySourceSchema>;
+export const DisplaySource = displaySourceSchema;
+/** Validated DisplaySource record. */
+export interface DisplaySource extends Schema.Schema.Type<typeof DisplaySource> {}
 
 /**
  * Runtime TypeScript type for a window capture source.
  */
-export type WindowSource = Schema.Schema.Type<typeof windowSourceSchema>;
+export const WindowSource = windowSourceSchema;
+/** Validated WindowSource record. */
+export interface WindowSource extends Schema.Schema.Type<typeof WindowSource> {}
 
 /**
  * Runtime TypeScript type for source-list responses.
  */
-export type SourcesResult = Schema.Schema.Type<typeof sourcesResultSchema>;
+export const SourcesResult = sourcesResultSchema;
+/** Validated SourcesResult record. */
+export interface SourcesResult extends Schema.Schema.Type<typeof SourcesResult> {}

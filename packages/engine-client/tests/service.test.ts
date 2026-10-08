@@ -1,6 +1,8 @@
-import { describe, expect, test } from "vitest";
-import { Effect, Layer, Option, Redacted } from "effect";
-import { HttpClient, HttpClientRequest, Headers } from "effect/unstable/http";
+import { expect, it } from "@effect/vitest";
+import { EngineClientError, EngineResponseError } from "../src/errors";
+import { describe } from "vitest";
+import { Effect, Fiber, Layer, Option, Queue, Redacted } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse, Headers } from "effect/http";
 import {
   agentJobIdSchema,
   agentPreflightTokenSchema,
@@ -11,210 +13,332 @@ import {
   projectPathSchema,
   windowIdSchema,
 } from "@guerillaglass/engine-contract/schema-primitives";
+import { CaptureService, layerCaptureService } from "../src/services/CaptureService";
 import { SystemService, layerSystemService } from "../src/services/SystemService";
 import {
   EngineClient,
   makeBearerHttpClientTransform,
   makeEngineClientService,
+  makeRawEngineHttpApiClient,
   type RawEngineHttpApiClient,
 } from "../src/service";
 
 describe("EngineClient service", () => {
-  test("decorates low-level HTTP requests with bearer auth", async () => {
-    let authorization: unknown;
-    const client = makeBearerHttpClientTransform(Redacted.make("token-123"))(
-      HttpClient.make((request) =>
-        Effect.sync(() => {
-          authorization = Headers.get(request.headers, "authorization");
-        }).pipe(Effect.flatMap(() => Effect.die("stop after request capture"))),
-      ),
-    );
-
-    await Effect.runPromiseExit(
-      client.execute(HttpClientRequest.get("http://127.0.0.1/v1/system/ping")),
-    );
-
-    expect(Option.getOrUndefined(authorization as Option.Option<string>)).toBe("Bearer token-123");
-  });
-
-  test("wraps every generated low-level client endpoint in stable method names", async () => {
-    const calls: Array<{ readonly name: string; readonly request: unknown }> = [];
-    const endpoint = (name: string) => (request: unknown) => {
-      calls.push({ name, request });
-      return Effect.succeed({ endpoint: name, request });
-    };
-    const rawClient = {
-      system: {
-        systemPing: endpoint("system.systemPing"),
-        engineCapabilities: endpoint("system.engineCapabilities"),
-      },
-      agent: {
-        agentPreflight: endpoint("agent.agentPreflight"),
-        agentRun: endpoint("agent.agentRun"),
-        agentStatus: endpoint("agent.agentStatus"),
-        agentApply: endpoint("agent.agentApply"),
-      },
-      permissions: {
-        permissionsGet: endpoint("permissions.permissionsGet"),
-        permissionsRequestScreenRecording: endpoint(
-          "permissions.permissionsRequestScreenRecording",
+  it.effect("decorates low-level HTTP requests with bearer auth", () =>
+    Effect.gen(function* () {
+      let authorization: Option.Option<string> = Option.none();
+      const client = makeBearerHttpClientTransform(Redacted.make("token-123"))(
+        HttpClient.make((request) =>
+          Effect.sync(() => {
+            authorization = Headers.get(request.headers, "authorization");
+          }).pipe(Effect.flatMap(() => Effect.die("stop after request capture"))),
         ),
-        permissionsRequestMicrophone: endpoint("permissions.permissionsRequestMicrophone"),
-        permissionsRequestInputMonitoring: endpoint(
-          "permissions.permissionsRequestInputMonitoring",
-        ),
-        permissionsOpenInputMonitoringSettings: endpoint(
-          "permissions.permissionsOpenInputMonitoringSettings",
-        ),
-      },
-      sources: { sourcesList: endpoint("sources.sourcesList") },
-      capture: {
-        captureStartDisplay: endpoint("capture.captureStartDisplay"),
-        captureStartCurrentWindow: endpoint("capture.captureStartCurrentWindow"),
-        captureStartWindow: endpoint("capture.captureStartWindow"),
-        captureStop: endpoint("capture.captureStop"),
-        captureStatus: endpoint("capture.captureStatus"),
-        capturePreviewFrame: endpoint("capture.capturePreviewFrame"),
-      },
-      recording: {
-        recordingStart: endpoint("recording.recordingStart"),
-        recordingStop: endpoint("recording.recordingStop"),
-      },
-      export: {
-        exportInfo: endpoint("export.exportInfo"),
-        exportRun: endpoint("export.exportRun"),
-        exportRunCutPlan: endpoint("export.exportRunCutPlan"),
-        exportGet: endpoint("export.exportGet"),
-      },
-      project: {
-        projectCurrent: endpoint("project.projectCurrent"),
-        projectOpen: endpoint("project.projectOpen"),
-        projectSave: endpoint("project.projectSave"),
-        projectRecents: endpoint("project.projectRecents"),
-      },
-    } as unknown as RawEngineHttpApiClient;
+      );
 
-    const client = makeEngineClientService(rawClient);
-    await Promise.all([
-      Effect.runPromise(client.systemPing),
-      Effect.runPromise(client.engineCapabilities),
-      Effect.runPromise(client.agentPreflight({})),
-      Effect.runPromise(
+      yield* Effect.exit(client.execute(HttpClientRequest.get("http://127.0.0.1/v1/system/ping")));
+      expect(Option.getOrUndefined(authorization)).toBe("Bearer token-123");
+    }),
+  );
+
+  it.effect("wraps every generated low-level client endpoint in stable method names", () =>
+    Effect.gen(function* () {
+      const calls: Array<{ readonly name: string; readonly request: unknown }> = [];
+      const endpoint = (name: string) => (request: unknown) => {
+        calls.push({ name, request });
+        return Effect.die("endpoint dispatch captured; no response supplied");
+      };
+      const rawClient: RawEngineHttpApiClient = {
+        system: {
+          systemPing: endpoint("system.systemPing"),
+          engineCapabilities: endpoint("system.engineCapabilities"),
+        },
+        agent: {
+          agentPreflight: endpoint("agent.agentPreflight"),
+          agentRun: endpoint("agent.agentRun"),
+          agentStatus: endpoint("agent.agentStatus"),
+          agentApply: endpoint("agent.agentApply"),
+        },
+        permissions: {
+          permissionsGet: endpoint("permissions.permissionsGet"),
+          permissionsRequestScreenRecording: endpoint(
+            "permissions.permissionsRequestScreenRecording",
+          ),
+          permissionsRequestMicrophone: endpoint("permissions.permissionsRequestMicrophone"),
+          permissionsRequestInputMonitoring: endpoint(
+            "permissions.permissionsRequestInputMonitoring",
+          ),
+          permissionsOpenInputMonitoringSettings: endpoint(
+            "permissions.permissionsOpenInputMonitoringSettings",
+          ),
+        },
+        sources: { sourcesList: endpoint("sources.sourcesList") },
+        capture: {
+          captureStartDisplay: endpoint("capture.captureStartDisplay"),
+          captureStartCurrentWindow: endpoint("capture.captureStartCurrentWindow"),
+          captureStartWindow: endpoint("capture.captureStartWindow"),
+          captureStop: endpoint("capture.captureStop"),
+          captureStatus: endpoint("capture.captureStatus"),
+          capturePreviewFrame: endpoint("capture.capturePreviewFrame"),
+        },
+        recording: {
+          recordingStart: endpoint("recording.recordingStart"),
+          recordingStop: endpoint("recording.recordingStop"),
+        },
+        export: {
+          exportInfo: endpoint("export.exportInfo"),
+          exportRun: endpoint("export.exportRun"),
+          exportRunCutPlan: endpoint("export.exportRunCutPlan"),
+          exportGet: endpoint("export.exportGet"),
+        },
+        project: {
+          projectCurrent: endpoint("project.projectCurrent"),
+          projectOpen: endpoint("project.projectOpen"),
+          projectSave: endpoint("project.projectSave"),
+          projectRecents: endpoint("project.projectRecents"),
+        },
+      };
+
+      const client = makeEngineClientService(rawClient);
+      yield* Effect.exit(client.systemPing);
+      yield* Effect.exit(client.engineCapabilities);
+      yield* Effect.exit(client.agentPreflight({}));
+      yield* Effect.exit(
         client.agentRun({ preflightToken: agentPreflightTokenSchema.make("preflight-token") }),
-      ),
-      Effect.runPromise(client.agentStatus(agentJobIdSchema.make("agent-job"))),
-      Effect.runPromise(
+      );
+      yield* Effect.exit(client.agentStatus(agentJobIdSchema.make("agent-job")));
+      yield* Effect.exit(
         client.agentApply(agentJobIdSchema.make("agent-job"), { destructiveIntent: true }),
-      ),
-      Effect.runPromise(client.permissionsGet),
-      Effect.runPromise(client.permissionsRequestScreenRecording),
-      Effect.runPromise(client.permissionsRequestMicrophone),
-      Effect.runPromise(client.permissionsRequestInputMonitoring),
-      Effect.runPromise(client.permissionsOpenInputMonitoringSettings),
-      Effect.runPromise(client.sourcesList),
-      Effect.runPromise(client.captureStartDisplay({ displayId: displayIdSchema.make(1) })),
-      Effect.runPromise(client.captureStartCurrentWindow({})),
-      Effect.runPromise(client.captureStartWindow({ windowId: windowIdSchema.make(2) })),
-      Effect.runPromise(client.captureStop),
-      Effect.runPromise(client.captureStatus),
-      Effect.runPromise(client.capturePreviewFrame),
-      Effect.runPromise(client.recordingStart({ trackInputEvents: true })),
-      Effect.runPromise(client.recordingStop),
-      Effect.runPromise(client.exportInfo),
-      Effect.runPromise(
+      );
+      yield* Effect.exit(client.permissionsGet);
+      yield* Effect.exit(client.permissionsRequestScreenRecording);
+      yield* Effect.exit(client.permissionsRequestMicrophone);
+      yield* Effect.exit(client.permissionsRequestInputMonitoring);
+      yield* Effect.exit(client.permissionsOpenInputMonitoringSettings);
+      yield* Effect.exit(client.sourcesList);
+      yield* Effect.exit(client.captureStartDisplay({ displayId: displayIdSchema.make(1) }));
+      yield* Effect.exit(client.captureStartCurrentWindow({}));
+      yield* Effect.exit(client.captureStartWindow({ windowId: windowIdSchema.make(2) }));
+      yield* Effect.exit(client.captureStop);
+      yield* Effect.exit(client.captureStatus);
+      yield* Effect.exit(client.capturePreviewFrame);
+      yield* Effect.exit(client.recordingStart({ trackInputEvents: true }));
+      yield* Effect.exit(client.recordingStop);
+      yield* Effect.exit(client.exportInfo);
+      yield* Effect.exit(
         client.exportRun({
           outputURL: outputUrlSchema.make("file:///tmp/out.mp4"),
           presetId: exportPresetIdSchema.make("mp4-1080p"),
         }),
-      ),
-      Effect.runPromise(
+      );
+      yield* Effect.exit(
         client.exportRunCutPlan({
           outputURL: outputUrlSchema.make("file:///tmp/cut-plan.mp4"),
           presetId: exportPresetIdSchema.make("mp4-1080p"),
           jobId: agentJobIdSchema.make("agent-job"),
         }),
-      ),
-      Effect.runPromise(client.exportGet(exportJobIdSchema.make("export-job"))),
-      Effect.runPromise(client.projectCurrent),
-      Effect.runPromise(
+      );
+      yield* Effect.exit(client.exportGet(exportJobIdSchema.make("export-job")));
+      yield* Effect.exit(client.projectCurrent);
+      yield* Effect.exit(
         client.projectOpen({ projectPath: projectPathSchema.make("/tmp/project.ggproj") }),
-      ),
-      Effect.runPromise(
+      );
+      yield* Effect.exit(
         client.projectSave({ projectPath: projectPathSchema.make("/tmp/project.ggproj") }),
-      ),
-      Effect.runPromise(client.projectRecents(5)),
-    ]);
+      );
+      yield* Effect.exit(client.projectRecents(5));
 
-    expect(calls).toContainEqual({
-      name: "agent.agentApply",
-      request: { params: { jobId: "agent-job" }, payload: { destructiveIntent: true } },
-    });
-    expect(calls).toContainEqual({
-      name: "export.exportGet",
-      request: { params: { jobId: "export-job" } },
-    });
-    expect(calls).toContainEqual({
-      name: "project.projectRecents",
-      request: { query: { limit: 5 } },
-    });
-    expect(calls.map((call) => call.name)).toContain("permissions.permissionsGet");
-  });
+      expect(calls.map((call) => call.name).sort()).toEqual([
+        "agent.agentApply",
+        "agent.agentPreflight",
+        "agent.agentRun",
+        "agent.agentStatus",
+        "capture.capturePreviewFrame",
+        "capture.captureStartCurrentWindow",
+        "capture.captureStartDisplay",
+        "capture.captureStartWindow",
+        "capture.captureStatus",
+        "capture.captureStop",
+        "export.exportGet",
+        "export.exportInfo",
+        "export.exportRun",
+        "export.exportRunCutPlan",
+        "permissions.permissionsGet",
+        "permissions.permissionsOpenInputMonitoringSettings",
+        "permissions.permissionsRequestInputMonitoring",
+        "permissions.permissionsRequestMicrophone",
+        "permissions.permissionsRequestScreenRecording",
+        "project.projectCurrent",
+        "project.projectOpen",
+        "project.projectRecents",
+        "project.projectSave",
+        "recording.recordingStart",
+        "recording.recordingStop",
+        "sources.sourcesList",
+        "system.engineCapabilities",
+        "system.systemPing",
+      ]);
+      expect(calls).toContainEqual({
+        name: "agent.agentApply",
+        request: { params: { jobId: "agent-job" }, payload: { destructiveIntent: true } },
+      });
+      expect(calls).toContainEqual({
+        name: "export.exportGet",
+        request: { params: { jobId: "export-job" } },
+      });
+      expect(calls).toContainEqual({
+        name: "project.projectRecents",
+        request: { query: { limit: 5 } },
+      });
+    }),
+  );
 
-  test("wraps a generated low-level client in stable method names", async () => {
-    const emptyGroup = new Proxy({}, { get: () => () => Effect.succeed({}) });
-    const rawClient = {
-      system: {
-        systemPing: (request: unknown) =>
-          Effect.succeed({
-            request,
-            app: "guerillaglass",
-            engineVersion: "0.0.0-test",
-            protocolVersion: "2",
-            platform: "test",
-          }),
-        engineCapabilities: () => Effect.succeed({}),
-      },
-      agent: emptyGroup,
-      permissions: emptyGroup,
-      sources: emptyGroup,
-      capture: emptyGroup,
-      recording: emptyGroup,
-      export: emptyGroup,
-      project: emptyGroup,
-    } as unknown as RawEngineHttpApiClient;
-
-    const client = makeEngineClientService(rawClient);
-    const ping = await Effect.runPromise(client.systemPing);
-
-    expect(ping.protocolVersion).toBe("2");
-  });
-
-  test("derives domain services from EngineClient", async () => {
-    const effect = Effect.gen(function* () {
-      const system = yield* SystemService;
-      const ping = yield* system.ping;
-      return ping;
-    });
-
-    const ping = await Effect.runPromise(
-      effect.pipe(
-        Effect.provide(
-          Layer.provide(
-            layerSystemService,
-            Layer.succeed(EngineClient, {
-              systemPing: Effect.succeed({
+  it.effect("wraps a generated low-level client in stable method names", () =>
+    Effect.gen(function* () {
+      const rawClient = yield* makeRawEngineHttpApiClient({
+        baseUrl: new URL("http://127.0.0.1"),
+        bearerToken: Redacted.make("test-token"),
+        requestTimeoutMs: 30_000,
+      });
+      const ping = yield* makeEngineClientService(rawClient).systemPing;
+      expect(ping.protocolVersion).toBe("2");
+    }).pipe(
+      Effect.provideService(
+        HttpClient.HttpClient,
+        HttpClient.make((request) =>
+          Effect.succeed(
+            HttpClientResponse.fromWeb(
+              request,
+              Response.json({
                 app: "guerillaglass",
                 engineVersion: "0.0.0-test",
                 protocolVersion: "2",
                 platform: "test",
               }),
-              engineCapabilities: Effect.die("unused"),
-            } as never),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  it.effect("preserves engine rejection codes as response errors", () =>
+    Effect.gen(function* () {
+      const raw = yield* makeRawEngineHttpApiClient({
+        baseUrl: new URL("http://127.0.0.1"),
+        bearerToken: Redacted.make("test"),
+        requestTimeoutMs: 30_000,
+      });
+      const client = makeEngineClientService(raw);
+      const rejection = yield* Effect.flip(client.systemPing);
+      expect(rejection).toBeInstanceOf(EngineResponseError);
+      expect(rejection.code).toBe("runtime_error");
+    }).pipe(
+      Effect.provideService(
+        HttpClient.HttpClient,
+        HttpClient.make((request) =>
+          Effect.succeed(
+            HttpClientResponse.fromWeb(
+              request,
+              Response.json(
+                { code: "runtime_error", message: "Invalid engine request" },
+                { status: 500 },
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("reports malformed successful responses as client failures", () =>
+    Effect.gen(function* () {
+      const raw = yield* makeRawEngineHttpApiClient({
+        baseUrl: new URL("http://127.0.0.1"),
+        bearerToken: Redacted.make("test"),
+        requestTimeoutMs: 30_000,
+      });
+      const failure = yield* Effect.flip(makeEngineClientService(raw).systemPing);
+      expect(failure).toBeInstanceOf(EngineClientError);
+      expect(failure.code).toBe("ENGINE_HTTP_REQUEST_FAILED");
+    }).pipe(
+      Effect.provideService(
+        HttpClient.HttpClient,
+        HttpClient.make((request) =>
+          Effect.succeed(
+            HttpClientResponse.fromWeb(request, Response.json({ protocolVersion: "2" })),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("derives domain services from EngineClient", () =>
+    Effect.gen(function* () {
+      const system = yield* SystemService;
+      const ping = yield* system.ping;
+      expect(ping.platform).toBe("test");
+    }).pipe(
+      Effect.provide(
+        Layer.provide(
+          layerSystemService,
+          Layer.mock(EngineClient, {
+            systemPing: Effect.succeed({
+              app: "guerillaglass",
+              engineVersion: "0.0.0-test",
+              protocolVersion: "2",
+              platform: "test",
+            }),
+            engineCapabilities: Effect.die("unused"),
+          }),
+        ),
+      ),
+    ),
+  );
+});
+
+it.effect("dismisses an interrupted picker without stopping an interrupted direct capture", () =>
+  Effect.gen(function* () {
+    const started = yield* Queue.unbounded<number>();
+    let stops = 0;
+    const capture = yield* CaptureService.pipe(
+      Effect.provide(
+        layerCaptureService.pipe(
+          Layer.provide(
+            Layer.mock(EngineClient, {
+              captureStartWindow: (request) =>
+                Queue.offer(started, request.windowId).pipe(Effect.andThen(Effect.never)),
+              captureStop: Effect.sync(() => {
+                stops += 1;
+                return {
+                  isRunning: false,
+                  isRecording: false,
+                  recordingDurationSeconds: 0,
+                  telemetry: {
+                    sourceDroppedFrames: 0,
+                    writerDroppedFrames: 0,
+                    writerBackpressureDrops: 0,
+                    achievedFps: 0,
+                    captureCallbackMs: 0,
+                    recordQueueLagMs: 0,
+                    writerAppendMs: 0,
+                  },
+                };
+              }),
+            }),
           ),
         ),
       ),
     );
-
-    expect(ping.platform).toBe("test");
-  });
-});
+    const request = yield* capture
+      .startWindow({ windowId: windowIdSchema.make(0) })
+      .pipe(Effect.forkChild);
+    expect(yield* Queue.take(started)).toBe(0);
+    yield* Fiber.interrupt(request);
+    expect(stops).toBe(1);
+    const directRequest = yield* capture
+      .startWindow({ windowId: windowIdSchema.make(42) })
+      .pipe(Effect.forkChild);
+    expect(yield* Queue.take(started)).toBe(42);
+    yield* Fiber.interrupt(directRequest);
+    expect(stops).toBe(1);
+  }),
+);

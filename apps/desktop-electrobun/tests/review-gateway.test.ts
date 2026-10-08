@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { ConvexHttpClient } from "convex/browser";
 import { describe, expect, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Option } from "effect";
 import {
@@ -19,7 +21,10 @@ function expectReviewBridgeError(
     throw Cause.squash(exit.cause);
   }
   expect(failure.value).toBeInstanceOf(ReviewBridgeError);
-  expect((failure.value as ReviewBridgeError).code).toBe(code);
+  if (!(failure.value instanceof ReviewBridgeError)) {
+    throw new Error("Unexpected error type");
+  }
+  expect(failure.value.code).toBe(code);
 }
 
 describe("review gateway service", () => {
@@ -59,15 +64,14 @@ describe("review gateway service", () => {
     Effect.gen(function* () {
       const gateway = makeReviewGateway({
         resolveConvexUrl: () => "https://example.convex.cloud",
-        createClient: () =>
-          ({
-            query: async () => {
-              throw new Error("network unavailable");
-            },
-            mutation: async () => {
-              throw new Error("network unavailable");
-            },
-          }) as never,
+        createClient: () => ({
+          query: async () => {
+            throw new Error("network unavailable");
+          },
+          mutation: async () => {
+            throw new Error("network unavailable");
+          },
+        }),
       });
 
       const exit = yield* Effect.exit(
@@ -77,6 +81,40 @@ describe("review gateway service", () => {
         }),
       );
       expectReviewBridgeError(exit, "REVIEW_REQUEST_FAILED");
+    }),
+  );
+  it.effect("decodes remote review responses and rejects malformed successes", () =>
+    Effect.gen(function* () {
+      let payload: unknown = JSON.parse(
+        readFileSync(
+          new URL(
+            "../../../packages/review-protocol/fixtures/review-session.snapshot.json",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      const gateway = makeReviewGateway({
+        resolveConvexUrl: () => "https://example.convex.cloud",
+        createClient: (url) =>
+          new ConvexHttpClient(url, {
+            fetch: Object.assign(async () => Response.json({ status: "success", value: payload }), {
+              preconnect: () => undefined,
+            }),
+          }),
+      });
+      const params = {
+        authToken: reviewAuthTokenSchema.make("token"),
+        reviewId: reviewIdSchema.make("review_5d4d3f1f"),
+      };
+      const snapshot = yield* gateway.sessionSnapshot(params);
+      expect(snapshot.reviewId).toBe(params.reviewId);
+      expect(snapshot.comments[0]?.authorName).toBe("Alex");
+      payload = { reviewId: params.reviewId };
+      expectReviewBridgeError(
+        yield* Effect.exit(gateway.sessionSnapshot(params)),
+        "REVIEW_REQUEST_FAILED",
+      );
     }),
   );
 });

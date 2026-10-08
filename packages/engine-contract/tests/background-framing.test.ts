@@ -27,7 +27,7 @@ const legacyProjectState = {
 
 describe("background framing contract", () => {
   it("normalizes valid colors and encodes the complete v1 object", () => {
-    const decoded = Schema.decodeUnknownSync(backgroundFramingSettingsSchema)(validSettings);
+    const decoded = Schema.decodeSync(backgroundFramingSettingsSchema)(validSettings);
     expect(decoded).toEqual({ ...validSettings, backgroundColor: "#A1B2C3" });
     expect(Schema.encodeUnknownSync(backgroundFramingSettingsSchema)(decoded)).toEqual({
       ...validSettings,
@@ -44,9 +44,7 @@ describe("background framing contract", () => {
       { ...validSettings, shadowStrength: 0 },
       { ...validSettings, shadowStrength: 1 },
     ]) {
-      expect(() =>
-        Schema.decodeUnknownSync(backgroundFramingSettingsSchema)(settings),
-      ).not.toThrow();
+      expect(() => Schema.decodeSync(backgroundFramingSettingsSchema)(settings)).not.toThrow();
     }
   });
 
@@ -68,7 +66,7 @@ describe("background framing contract", () => {
   });
 
   it("decodes and encodes the disabled compatibility defaults", () => {
-    const decoded = Schema.decodeUnknownSync(backgroundFramingSettingsSchema)(
+    const decoded = Schema.decodeSync(backgroundFramingSettingsSchema)(
       defaultBackgroundFramingSettings,
     );
     expect(decoded).toEqual(defaultBackgroundFramingSettings);
@@ -87,10 +85,10 @@ describe("background framing contract", () => {
   });
 
   it("accepts explicit normalized save and export payload settings", () => {
-    const save = Schema.decodeUnknownSync(projectSavePayloadSchema)({
+    const save = Schema.decodeSync(projectSavePayloadSchema)({
       backgroundFraming: validSettings,
     });
-    const run = Schema.decodeUnknownSync(exportRunPayloadSchema)({
+    const run = Schema.decodeSync(exportRunPayloadSchema)({
       outputURL: "/tmp/output.mp4",
       presetId: "h264-1080p-30",
       backgroundFraming: validSettings,
@@ -101,9 +99,9 @@ describe("background framing contract", () => {
   });
 
   it("keeps save and export payload fields optional for older clients", () => {
-    expect(Schema.decodeUnknownSync(projectSavePayloadSchema)({})).toEqual({});
+    expect(Schema.decodeSync(projectSavePayloadSchema)({})).toEqual({});
     expect(
-      Schema.decodeUnknownSync(exportRunPayloadSchema)({
+      Schema.decodeSync(exportRunPayloadSchema)({
         outputURL: "/tmp/output.mp4",
         presetId: "h264-1080p-30",
       }).backgroundFraming,

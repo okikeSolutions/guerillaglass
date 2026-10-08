@@ -7,7 +7,11 @@ import {
   PositiveInt,
   between,
 } from "../shared/helpers";
-import { agentJobIdSchema, agentPreflightTokenSchema } from "../schema-primitives";
+import {
+  agentJobIdSchema,
+  agentPreflightTokenSchema,
+  timelineSegmentIdSchema,
+} from "../schema-primitives";
 
 /**
  * Lifecycle states for asynchronous Agent Mode jobs.
@@ -49,32 +53,32 @@ export const agentNarrativeBeatSchema = Schema.Literals(["hook", "action", "payo
 export const agentArtifactReferenceSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("transcript.full.v1"),
-    path: Schema.Literal("analysis/transcript.full.v1.json"),
+    path: Schema.Literal("analysis/transcript.full.v1.json").pipe(Schema.brand("ArtifactPath")),
     sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
   }),
   Schema.Struct({
     kind: Schema.Literal("transcript.words.v1"),
-    path: Schema.Literal("analysis/transcript.words.v1.json"),
+    path: Schema.Literal("analysis/transcript.words.v1.json").pipe(Schema.brand("ArtifactPath")),
     sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
   }),
   Schema.Struct({
     kind: Schema.Literal("beat-map.v1"),
-    path: Schema.Literal("analysis/beat-map.v1.json"),
+    path: Schema.Literal("analysis/beat-map.v1.json").pipe(Schema.brand("ArtifactPath")),
     sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
   }),
   Schema.Struct({
     kind: Schema.Literal("qa-report.v1"),
-    path: Schema.Literal("analysis/qa-report.v1.json"),
+    path: Schema.Literal("analysis/qa-report.v1.json").pipe(Schema.brand("ArtifactPath")),
     sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
   }),
   Schema.Struct({
     kind: Schema.Literal("cut-plan.v1"),
-    path: Schema.Literal("analysis/cut-plan.v1.json"),
+    path: Schema.Literal("analysis/cut-plan.v1.json").pipe(Schema.brand("ArtifactPath")),
     sha256: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))),
   }),
   Schema.Struct({
     kind: Schema.Literal("run-summary.v1"),
-    path: Schema.Literal("analysis/run-summary.v1.json"),
+    path: Schema.Literal("analysis/run-summary.v1.json").pipe(Schema.brand("ArtifactPath")),
   }),
 ]).annotate({ identifier: "AgentArtifactReference" });
 
@@ -90,7 +94,7 @@ export const agentFrameRateSchema = Schema.Struct({
  * End-exclusive frame range selected by a deterministic Agent Mode cut plan.
  */
 const agentCutPlanSegmentWireSchema = Schema.Struct({
-  id: NonEmptyString,
+  id: timelineSegmentIdSchema,
   beat: agentNarrativeBeatSchema,
   startFrame: NonNegativeInt,
   endFrame: PositiveInt,
@@ -149,6 +153,7 @@ export const agentCutPlanSummarySchema = agentCutPlanSummaryWireSchema
  * Reasons that prevent an Agent Mode run from being started.
  */
 export const agentPreflightBlockingReasonSchema = Schema.Literals([
+  "preflight_capacity",
   "missing_project",
   "missing_recording",
   "invalid_runtime_budget",
@@ -215,9 +220,7 @@ export const agentRunSummarySchema = Schema.Struct({
  */
 const agentPreflightReadyResultSchema = Schema.Struct({
   ready: Schema.Literal(true),
-  blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema).check(
-    Schema.isLengthBetween(0, 0),
-  ),
+  blockingReasons: Schema.Array(agentPreflightBlockingReasonSchema).check(Schema.isMaxLength(0)),
   canApplyDestructive: Schema.Boolean,
   transcriptionProvider: transcriptionProviderSchema,
   preflightToken: agentPreflightTokenSchema,
@@ -300,7 +303,9 @@ export type TranscriptionProvider = Schema.Schema.Type<typeof transcriptionProvi
 /**
  * Runtime TypeScript type for Agent Mode preflight responses.
  */
-export type AgentPreflightResult = Schema.Schema.Type<typeof agentPreflightResultSchema>;
+export const AgentPreflightResult = agentPreflightResultSchema;
+/** Validated AgentPreflightResult record. */
+export type AgentPreflightResult = Schema.Schema.Type<typeof AgentPreflightResult>;
 
 /**
  * Runtime TypeScript type for successful Agent Mode apply responses.
@@ -310,7 +315,9 @@ export type AgentApplyResult = Schema.Schema.Type<typeof agentApplyResultSchema>
 /**
  * Runtime TypeScript type for Agent Mode run enqueue responses.
  */
-export type AgentRunResult = Schema.Schema.Type<typeof agentRunResultSchema>;
+export const AgentRunResult = agentRunResultSchema;
+/** Validated AgentRunResult record. */
+export interface AgentRunResult extends Schema.Schema.Type<typeof AgentRunResult> {}
 
 /**
  * Runtime TypeScript type for Agent Mode status polling responses.

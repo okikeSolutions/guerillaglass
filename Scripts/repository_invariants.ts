@@ -36,9 +36,11 @@ checkEffectVersionAlignment();
 checkJavaScriptRuntimePolicy();
 checkTypeScriptToolingPolicy();
 checkEffectPlatformServiceBoundaries();
+checkEffectSourcePractices();
 checkGeneratedRustDependencyOwnership();
 checkLocalizationParity();
 checkMarkdownLinks();
+checkVerificationCommands();
 
 if (failures.length > 0) {
   console.error("Repository invariant check failed:");
@@ -58,9 +60,37 @@ console.log(
 console.log("- Bun is the only package manager and Effect uses the Node platform adapter");
 console.log("- TypeScript 7 uses @effect/tsgo without legacy compiler-API imports");
 console.log("- application services use Effect Path, FileSystem, and Crypto boundaries");
+console.log("- owned Effect sources preserve types, tagged errors, and explicit services");
 console.log("- generated Rust dependency table matches the generator template");
 console.log("- localization keys and placeholders match across supported locales");
 console.log("- inline local Markdown file links resolve");
+console.log("- verification selection table references existing root package scripts");
+
+function checkVerificationCommands(): void {
+  const guidePath = join(root, "docs/CHANGE_MAP.md");
+  if (!existsSync(guidePath)) {
+    return;
+  }
+  const guide = readFileSync(guidePath, "utf8");
+  const section = guide.split("### Local check selection\n")[1]?.split("\n### ")[0];
+  const table = section
+    ?.split("\n")
+    .filter((line) => line.startsWith("|"))
+    .join("\n");
+  const commands = [...(table ?? "").matchAll(/\bbun run ([\w:-]+)/g)].map((match) => match[1]);
+  if (commands.length === 0) {
+    failures.push(
+      "docs/CHANGE_MAP.md must contain a Local check selection table with Bun commands",
+    );
+    return;
+  }
+  const scripts = readJson(join(root, "package.json")).scripts ?? {};
+  for (const command of new Set(commands)) {
+    if (typeof scripts[command] !== "string") {
+      failures.push(`verification table references missing root package script: ${command}`);
+    }
+  }
+}
 
 function checkEffectVersionAlignment(): void {
   const manifestPaths = [
@@ -128,6 +158,13 @@ function checkEffectVersionAlignment(): void {
 }
 
 function checkJavaScriptRuntimePolicy(): void {
+  const protocolGenerator = "Scripts/generate_engine_protocol_v2.sh";
+  if (existsSync(join(root, protocolGenerator))) {
+    const source = readFileSync(join(root, protocolGenerator), "utf8");
+    if (/^\s*(?:npx|npm|pnpm|yarn)\b/m.test(source)) {
+      failures.push(`${protocolGenerator} must invoke JavaScript tools through Bun`);
+    }
+  }
   for (const forbiddenLockfile of ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]) {
     if (existsSync(join(root, forbiddenLockfile))) {
       failures.push(`unsupported package-manager lockfile present: ${forbiddenLockfile}`);
@@ -321,7 +358,7 @@ function astLoadsTypeScriptCompilerApi(rootNode: object): boolean {
 
 function checkEffectPlatformServiceBoundaries(): void {
   const allowedNodePlatformAdapters = new Set([
-    "apps/desktop-electrobun/src/bun/security/fileAccess.ts",
+    "apps/desktop-electrobun/src/bun/security/NoFollowFileIO.ts",
   ]);
   const forbiddenImport =
     /(?:from\s+|import\s*(?:\(\s*)?|require\s*\(\s*)(["'`])node:(?:path|fs(?:\/promises)?|crypto)\1/g;
@@ -352,6 +389,204 @@ function checkEffectPlatformServiceBoundaries(): void {
       forbiddenImport.lastIndex = 0;
     }
   }
+}
+
+function checkEffectSourcePractices(): void {
+  const roots = ["apps", "packages"].flatMap((workspace) => {
+    const directory = join(root, workspace);
+    if (!existsSync(directory)) {
+      return [];
+    }
+    return readdirSync(directory, { withFileTypes: true })
+      .flatMap((entry) =>
+        entry.isDirectory()
+          ? [join(directory, entry.name, "src"), join(directory, entry.name, "convex")]
+          : [],
+      )
+      .filter(existsSync);
+  });
+  if (existsSync(join(root, "Scripts"))) {
+    roots.push(join(root, "Scripts"));
+  }
+  for (const directory of roots) {
+    for (const sourcePath of collectSourceFiles(directory)) {
+      if (
+        sourcePath.endsWith("routeTree.gen.ts") ||
+        /(?:\.test\.[cm]?[jt]sx?$|\/_generated\/|\/generatedSchema\.ts$)/.test(sourcePath)
+      ) {
+        continue;
+      }
+      const source = readFileSync(sourcePath, "utf8");
+      const { program, errors } = parseSync(sourcePath, source);
+      const file = relative(root, sourcePath);
+      if (errors.length > 0) {
+        failures.push(`${file}: cannot inspect Effect practices because parsing failed`);
+        continue;
+      }
+      const effectNamespaces = new Set<string>();
+      const namespaceNames = new Map<string, string>();
+      for (const statement of program.body) {
+        if (
+          statement.type !== "ImportDeclaration" ||
+          !(
+            statement.source.value.startsWith("effect") ||
+            statement.source.value.includes("/effect/dist/")
+          )
+        ) {
+          continue;
+        }
+        for (const specifier of statement.specifiers) {
+          effectNamespaces.add(specifier.local.name);
+          if (specifier.type === "ImportSpecifier") {
+            const imported = specifier.imported;
+            namespaceNames.set(
+              specifier.local.name,
+              imported.type === "Identifier" ? imported.name : String(imported.value),
+            );
+          } else if (statement.source.value.includes("/")) {
+            namespaceNames.set(
+              specifier.local.name,
+              statement.source.value.split("/").at(-1) ?? "",
+            );
+          }
+        }
+      }
+      if (effectNamespaces.size === 0) {
+        continue;
+      }
+      const pending: unknown[] = [program];
+      while (pending.length > 0) {
+        const value = pending.pop();
+        if (!value || typeof value !== "object") {
+          continue;
+        }
+        const node = value as Record<string, unknown>;
+        if (
+          node.type === "TSAsExpression" &&
+          node.typeAnnotation &&
+          typeof node.typeAnnotation === "object"
+        ) {
+          const annotation = node.typeAnnotation as { start: number; end: number; type: string };
+          const target = source.slice(annotation.start, annotation.end);
+          if (
+            annotation.type === "TSAnyKeyword" ||
+            annotation.type === "TSNeverKeyword" ||
+            /\b(?:Effect|Layer)\.(?:Effect|Layer)\s*</.test(target)
+          ) {
+            failures.push(
+              `${file} must preserve Effect success, error, and service types instead of casting to ${target}`,
+            );
+          }
+        }
+        if (node.type === "TSNonNullExpression") {
+          failures.push(
+            `${file} must narrow Effect dependencies instead of using non-null assertions`,
+          );
+        }
+        if (
+          node.type === "MemberExpression" &&
+          node.object &&
+          typeof node.object === "object" &&
+          node.property &&
+          typeof node.property === "object"
+        ) {
+          const object = node.object as { name?: string };
+          const property = node.property as { name?: string };
+          const namespace = namespaceNames.get(object.name ?? "");
+          if (
+            (namespace === "Data" && property.name === "TaggedError") ||
+            (namespace === "Schema" && ["Class", "TaggedClass"].includes(property.name ?? ""))
+          ) {
+            failures.push(`${file} must use Schema.Struct records and Schema.TaggedError failures`);
+          }
+          if (namespace === "Context" && property.name === "Reference") {
+            failures.push(`${file} must expose application dependencies through Context.Service`);
+          }
+          if (namespace === "Effect" && property.name === "catchCause") {
+            failures.push(
+              `${file} must recover typed failures without swallowing defects or interruption`,
+            );
+          }
+          if (
+            object.name === "process" &&
+            property.name === "env" &&
+            ![
+              "packages/engine-client/src/process/launchBun.ts",
+              "Scripts/capture_benchmark.ts",
+            ].includes(file)
+          ) {
+            failures.push(`${file} must read application settings through Config`);
+          }
+        }
+        if (
+          node.type === "CallExpression" &&
+          node.callee &&
+          typeof node.callee === "object" &&
+          node.arguments &&
+          Array.isArray(node.arguments)
+        ) {
+          const callee = node.callee as {
+            type?: string;
+            object?: { name?: string };
+            property?: { name?: string };
+          };
+          const serviceImplementation = node.arguments[0];
+          if (
+            callee.type === "MemberExpression" &&
+            callee.property?.name === "of" &&
+            serviceImplementation &&
+            typeof serviceImplementation === "object" &&
+            (serviceImplementation as { type?: string }).type === "ObjectExpression"
+          ) {
+            const properties =
+              (serviceImplementation as { properties?: Array<{ value?: unknown }> }).properties ??
+              [];
+            for (const property of properties) {
+              if (property.value && isZeroArgumentEffectFn(property.value)) {
+                failures.push(
+                  `${file} must expose zero-argument service operations as lazy Effects instead of functions returning Effects`,
+                );
+              }
+            }
+          }
+        }
+        pending.push(...Object.values(node));
+      }
+    }
+  }
+}
+
+function isZeroArgumentEffectFn(value: unknown): boolean {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const outerCall = value as {
+    type?: string;
+    callee?: unknown;
+    arguments?: Array<unknown>;
+  };
+  if (outerCall.type !== "CallExpression" || !Array.isArray(outerCall.arguments)) {
+    return false;
+  }
+  const effectFnCall = outerCall.callee as
+    | {
+        type?: string;
+        callee?: { type?: string; object?: { name?: string }; property?: { name?: string } };
+      }
+    | undefined;
+  if (
+    effectFnCall?.type !== "CallExpression" ||
+    effectFnCall.callee?.type !== "MemberExpression" ||
+    effectFnCall.callee.object?.name !== "Effect" ||
+    effectFnCall.callee.property?.name !== "fn"
+  ) {
+    return false;
+  }
+  const callback = outerCall.arguments[0] as { type?: string; params?: Array<unknown> } | undefined;
+  return (
+    (callback?.type === "ArrowFunctionExpression" || callback?.type === "FunctionExpression") &&
+    callback.params?.length === 0
+  );
 }
 
 function checkGeneratedRustDependencyOwnership(): void {

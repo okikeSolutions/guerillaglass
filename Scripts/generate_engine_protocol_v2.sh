@@ -22,7 +22,7 @@ SWIFT_OPENAPI_FILE="$ROOT_DIR/engines/protocol-swift/Sources/EngineProtocol/open
 mkdir -p "$(dirname "$SWIFT_OPENAPI_FILE")"
 cp "$OPENAPI_FILE" "$SWIFT_OPENAPI_FILE"
 
-npx --yes @openapitools/openapi-generator-cli generate \
+bunx @openapitools/openapi-generator-cli generate \
   -g rust-axum \
   -i "$OPENAPI_FILE" \
   -o "$ROOT_DIR/engines/protocol-rust" \

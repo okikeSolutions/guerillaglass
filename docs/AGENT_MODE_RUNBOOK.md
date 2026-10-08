@@ -88,7 +88,11 @@ Proceed only when `ready=true`. A ready response includes `preflightToken` and `
 - is single-use;
 - is bound to the current project, recording, timeline baseline, provider, transcript path, and runtime budget.
 
-Blocked responses omit both token fields.
+Blocked responses omit both token fields. The macOS engine retains at most four ready
+preflights, each with at most 10 MiB of validated transcript data. Additional preflights
+return the `preflight_capacity` blocker. Consume an existing token or retry after its
+60-second expiry. Expired sessions are pruned before the engine retains another token;
+issuing a blocked response does not revoke a live token.
 
 ### 2. Run
 
@@ -156,6 +160,7 @@ analysis/run-summary.v1.json
 | `missing_imported_transcript` | Supply the trusted transcript path to preflight and run. |
 | `invalid_imported_transcript` | Validate JSON, non-empty text, and finite increasing timestamps. |
 | `source_too_long` | Use a source within the capability-advertised limit. |
+| `preflight_capacity` | Consume a live token or retry after its advertised expiry. |
 | `source_duration_invalid` | Verify the recording has a readable video track and duration. |
 | HTTP 400 `preflight_expired` | Token expired, was consumed, or is unknown; preflight again. |
 | HTTP 400 `preflight_mismatch` | Run parameters or active project/recording differ from preflight; preflight again. |
@@ -180,6 +185,9 @@ A successful integration proves more than HTTP success:
 - all six artifacts exist and decode;
 - status exposes QA and the exact frame plan;
 - apply returns a positive segment count and the timeline matches the plan;
+- reanalysis preserves unsaved working edits and leaves `project.json` unchanged;
+- four live preflights remain usable while extra preflights report capacity;
+- overlapping status/replacement and project-open requests preserve the latest project-bound run;
 - cut-plan export returns that same count;
 - decoded output duration matches the selected frame ranges;
 - restarting the engine and reopening the project restores status;
