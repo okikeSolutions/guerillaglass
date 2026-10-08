@@ -120,7 +120,6 @@ Keep hosted identity and billing out of local engine contracts. Verify local des
 Active compatibility holds:
 
 - Better Auth stays on `1.6.33` while `@convex-dev/better-auth@0.12.5` requires `better-auth >=1.6.11 <1.7.0`.
-- React and React DOM stay on `19.2.8` while `@react-three/fiber@9.7.0` requires React `>=19 <19.3`; using React `19.3` installs a second React `19.2` runtime for Fiber.
 - The repository and CI use Bun `1.4.1`. Electrobun `2.0.1` controls its packaged Bun runtime and currently embeds Bun `1.4.0`; Electrobun v2 no longer supports an independent `bunVersion` setting. Remove this note when an Electrobun release embeds Bun `1.4.1` or newer.
 
 1. Upgrade direct manifests and regenerate lockfiles.
