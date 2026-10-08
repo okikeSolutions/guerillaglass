@@ -42,6 +42,8 @@ The runner prints its `.tmp/gate-logs/run.*/` directory. Open that run's `summar
 
 [CI](../.github/workflows/full_gate.yml) runs separate TypeScript, Rust, Swift, and protocol-generation jobs, including coverage thresholds, desktop browser tests, packaged runtime smoke, and generated-file freshness. Passing the full local gate does not establish that all CI-only checks passed. Report actual commands run, selected test scope, and checks still pending in CI; reviewers assess whether that scope covers the change.
 
+Swift coverage uses the native SwiftPM build system to aggregate all test targets consistently. Its historical repository thresholds measure owned engine and test sources, excluding generated build output and dependencies. Product-only totals are reported separately; critical production-file thresholds remain enforced. `target/coverage/swift-owned-summary.json` records the weighted counts alongside the original `swift-summary.json`.
+
 ## Engine endpoint or wire-schema change
 
 ```text

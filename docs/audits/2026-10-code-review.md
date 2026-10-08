@@ -84,3 +84,26 @@ fails this test. All 28 foundation tests and Clippy pass. The coverage threshold
 was retained. Both review agents found zero issues in these follow-up changes.
 The machine-readable ledger records the commands in `validation.prHistoryRepair`;
 remote CI must pass before merge.
+
+### Swift coverage ownership
+
+All Swift tests and critical per-file coverage checks passed in the first full
+coverage run. Its global totals were diluted by generated OpenAPI and linked
+dependency sources. The repository metric now sums covered/count values for
+owned engine and test files. It retains the historical 65% line and 70% function
+thresholds and reports product-only totals separately. Empty owned reports fail.
+The aggregation uses the per-file counts from LLVM's
+[JSON coverage export](https://www.llvm.org/docs/CommandGuide/llvm-cov.html#export-command).
+
+The canonical Swift-only check passed all 111 tests with two workers and sequential
+execution. Repository coverage is 68.99% lines and 75.49% functions; product-only
+coverage is 56.83% and 58.71%. Critical production-file thresholds also passed.
+Synthetic weighted, generated/foreign-source and missing/zero-report probes
+passed. Both reviewers found zero issues in this follow-up. CI archives the
+original and owned JSON reports.
+
+The native SwiftPM build system produces a combined test report on local Swift
+6.4, whose default backend otherwise overwrote the summary for each test bundle.
+Swift 6.4 deprecates the native flag; aggregation must be rechecked before moving
+the coverage command to the default backend. This does not change fast local
+verification or production build commands.

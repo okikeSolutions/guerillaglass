@@ -5532,7 +5532,8 @@
       "mergeCommitsIntroduced": 0,
       "ciRepairs": [
         "Extract preflight transcript validation into a private production helper to satisfy SwiftLint function length without suppressing the rule.",
-        "Strengthen the retained Rust export rejection owner with invalid payload/path/framing/directory cases and output/state preservation; retain the existing coverage threshold."
+        "Strengthen the retained Rust export rejection owner with invalid payload/path/framing/directory cases and output/state preservation; retain the existing coverage threshold.",
+        "Swift overall coverage was diluted by newly linked generated bindings and dependencies. Keep the historical engine/test repository metric and thresholds, report product-only metrics separately, retain per-file gates, use bounded native SwiftPM coverage and archive both reports."
       ],
       "commands": {
         "swiftlint --quiet": {
@@ -5556,6 +5557,41 @@
         "cargo clippy -p native-foundation --all-targets -j 2 -- -D warnings": {
           "result": "passed",
           "log": ".tmp/pr-175-rust-clippy.log"
+        },
+        "COVERAGE_SCOPE=swift GG_GATE_JOBS=2 bash Scripts/coverage_check.sh": {
+          "result": "passed",
+          "tests": 111,
+          "log": ".tmp/pr-175-swift-coverage-gate.log",
+          "scope": "Owned engine and test sources, generated output and dependencies excluded",
+          "summary": "target/coverage/swift-owned-summary.json",
+          "metrics": {
+            "repository": {
+              "files": 93,
+              "lines": {
+                "count": 12536,
+                "covered": 8648,
+                "percent": 68.98532227185706
+              },
+              "functions": {
+                "count": 1669,
+                "covered": 1260,
+                "percent": 75.49430796884361
+              }
+            },
+            "product": {
+              "files": 73,
+              "lines": {
+                "count": 8726,
+                "covered": 4959,
+                "percent": 56.83016273206509
+              },
+              "functions": {
+                "count": 959,
+                "covered": 563,
+                "percent": 58.706986444212724
+              }
+            }
+          }
         }
       },
       "redControl": {
@@ -5567,7 +5603,21 @@
         "openStandardsFindings": 0,
         "openSpecFindings": 0
       },
-      "ciStatusAtRepair": "Initial Swift lint and Rust export coverage failures repaired locally; remote CI rerun required before merge."
+      "ciStatusAtRepair": "Initial lint and Rust export coverage failures repaired. All remote checks except Swift passed at e032777; corrected Swift coverage passes locally and requires the next remote CI run.",
+      "coverageMetricProbe": {
+        "result": "passed",
+        "claims": [
+          "weighted counts rather than average percentages",
+          "generated and foreign sources excluded",
+          "missing and zero owned reports rejected",
+          "product metrics reported separately"
+        ],
+        "log": ".tmp/pr-175-swift-coverage-metric.json"
+      },
+      "limits": [
+        "Swift 6.4 warns that the native build system is deprecated; it currently avoids the default backend overwriting coverage summaries per test bundle. Recheck aggregation before changing build systems.",
+        "Repository coverage includes owned tests as in the historical metric; product-only totals are separately disclosed."
+      ]
     }
   }
 }
