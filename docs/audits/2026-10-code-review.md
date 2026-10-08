@@ -2,7 +2,7 @@
 
 Date: 2026-10-08
 
-Comparison: `git diff b0a7e056abf64a5b67468e8300d5bb4b7491d413...HEAD`.
+Historical comparison: `git diff b0a7e056abf64a5b67468e8300d5bb4b7491d413...f1ad748586a07d4763bd4656af35dede900b5e29`.
 Two independent agents reviewed standards and specification, including the
 integrated dependency and Agent Mode changes. They reviewed the repair batches
 again. Final source review has zero open findings on either axis.
@@ -56,3 +56,15 @@ Final commands and retained logs are recorded in that ledger's
 Linux/Windows production media, Agent workspace UI, local speech-to-text,
 notarization and the native ten-minute picker deadline were not accepted by this
 maintenance pass. Existing roadmap limitations remain explicit.
+
+## Linear PR history
+
+GitHub rejected direct publication to `main` because changes require a PR and
+merge commits are forbidden. The original history remains on the local
+`backup/effect-audit-before-pr-2026-10-08` branch. Commit `25958a8` on
+`fix/effect-audit-capture` contains exactly the verified `f1ad748` file tree:
+`8db1013a5e5520a707316dc341349a8c99b4e81e`. It is based on remote main
+`8801ee9`, without the local merge commit.
+
+The following documentation commit retains native screenshots for rendering
+directly in the PR description. The code was unchanged by this history repair.

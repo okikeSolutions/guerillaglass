@@ -181,3 +181,15 @@ Final native screenshots use the `review-final-` prefix in
 `picker-fix/final-media-check.json`. `bun run desktop:acceptance` separately passed
 37 browser tests and packaged runtime smoke. This GUI interaction supplies the
 native screenshot evidence unavailable to that runtime smoke.
+
+### Retained PR screenshots
+
+These are unedited captures from the permissioned Peekaboo bridge. The recording
+screenshot is from the earlier picker selection acceptance; cancellation and
+finished recording are from the final bundle acceptance.
+
+![Packaged app after native picker cancellation](assets/2026-10/picker-cancelled.png)
+
+![Packaged app recording with a live preview](assets/2026-10/picker-recording.png)
+
+![Packaged app after stop and restart acceptance](assets/2026-10/recording-finished.png)
