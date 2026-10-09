@@ -15,7 +15,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-openapi-runtime", exact: "1.12.2"),
         .package(url: "https://github.com/apple/swift-openapi-urlsession", exact: "1.3.1"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", exact: "2.27.0"),
-        .package(url: "https://github.com/swift-server/swift-openapi-hummingbird.git", exact: "2.0.1")
+        .package(url: "https://github.com/swift-server/swift-openapi-hummingbird.git", exact: "2.1.0")
     ],
     targets: [
         .target(
