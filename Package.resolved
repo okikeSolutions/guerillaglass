@@ -222,8 +222,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/swift-openapi-hummingbird.git",
       "state" : {
-        "revision" : "026b50b17e9afe74d4d82c883d9c37154a8b30bf",
-        "version" : "2.0.1"
+        "revision" : "3a7da5097f1e610c5984e422fd2ec5a26f325c02",
+        "version" : "2.1.0"
       }
     },
     {
@@ -240,8 +240,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-openapi-urlsession",
       "state" : {
-        "revision" : "08796d36c99ad2318929bfa1d1e40f82194b65cc",
-        "version" : "1.3.1"
+        "revision" : "77effea09e780f6f3f119ffb8150ff25e31c78b1",
+        "version" : "1.3.2"
       }
     },
     {
