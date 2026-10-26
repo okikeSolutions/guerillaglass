@@ -12,7 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-openapi-generator", exact: "1.14.2"),
-        .package(url: "https://github.com/apple/swift-openapi-runtime", exact: "1.13.0"),
+        .package(url: "https://github.com/apple/swift-openapi-runtime", exact: "1.13.3"),
         .package(url: "https://github.com/apple/swift-openapi-urlsession", exact: "1.3.2"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", exact: "2.27.0"),
         .package(url: "https://github.com/swift-server/swift-openapi-hummingbird.git", exact: "2.1.0")
