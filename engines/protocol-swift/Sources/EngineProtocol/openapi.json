@@ -2029,7 +2029,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "pattern": "^[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
+              "pattern": "^[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[Ee][+-]?\\d+)?$"
             },
             "required": false
           }
@@ -2355,7 +2355,8 @@
                 "properties": {
                   "id": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "maximum": 9007199254740991
                   },
                   "title": {
                     "type": "string"
@@ -2530,15 +2531,18 @@
         "properties": {
           "sourceDroppedFrames": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "writerDroppedFrames": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "writerBackpressureDrops": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "achievedFps": {
             "type": "number",
@@ -2812,7 +2816,8 @@
           },
           "appliedSegments": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -2993,15 +2998,18 @@
           },
           "width": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "height": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "fps": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "fileType": {
             "type": "string",
@@ -3050,7 +3058,8 @@
                 "properties": {
                   "id": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "maximum": 9007199254740991
                   },
                   "title": {
                     "type": "string"
@@ -3160,7 +3169,8 @@
         "properties": {
           "frameId": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "bytesBase64": {
             "type": "string",
@@ -3178,7 +3188,8 @@
         "properties": {
           "windowId": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "enableMic": {
             "type": "boolean"
@@ -3227,7 +3238,8 @@
         "properties": {
           "displayId": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "enableMic": {
             "type": "boolean"
@@ -3274,7 +3286,8 @@
         "properties": {
           "id": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "title": {
             "type": "string"
@@ -3330,7 +3343,8 @@
         "properties": {
           "id": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "displayName": {
             "type": "string",
@@ -3341,11 +3355,13 @@
           },
           "width": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "height": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "pixelScale": {
             "type": "number",
@@ -3443,7 +3459,8 @@
           },
           "appliedSegments": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "projectHasUnsavedChanges": {
             "type": "boolean"
@@ -3487,7 +3504,8 @@
           },
           "runtimeBudgetMinutes": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "qaReport": {
             "$ref": "#/components/schemas/AgentQAReport"
@@ -3545,7 +3563,8 @@
           },
           "sourceFrameCount": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "segments": {
             "type": "array",
@@ -3580,11 +3599,13 @@
           },
           "startFrame": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 9007199254740991
           },
           "endFrame": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -3600,11 +3621,13 @@
         "properties": {
           "numerator": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "denominator": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -4152,7 +4175,8 @@
           },
           "runtimeBudgetMinutes": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "supportedTranscriptionProviders": {
             "type": "array",
@@ -4166,19 +4190,23 @@
           },
           "maxSourceDurationSeconds": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "preflightTokenTtlSeconds": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "artifactVersion": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
           "cutPlanVersion": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         },
         "required": [

@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "effect": "4.0.2"
+    "effect": "4.1.0"
   },
   "devDependencies": {
     "@guerillaglass/typescript-config": "workspace:*",

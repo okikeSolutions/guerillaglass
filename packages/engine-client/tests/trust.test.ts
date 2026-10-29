@@ -1,10 +1,12 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { chmod, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
+import * as Digest from "effect/crypto/Digest";
 import { describe } from "vitest";
 import { validateEngineExecutableTrust } from "../src/process/trust";
 
@@ -34,7 +36,7 @@ describe("engine executable trust validation", () => {
       Effect.gen(function* () {
         yield* validateEngineExecutableTrust("/path/that/does/not/exist", undefined);
         yield* validateEngineExecutableTrust("/path/that/does/not/exist", { enabled: false });
-      }).pipe(Effect.provide(NodeServices.layer)),
+      }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerDigest])),
     ),
   );
 
@@ -49,7 +51,28 @@ describe("engine executable trust validation", () => {
           expectedSha256: `sha256:${digest.toUpperCase()}`,
           requireCurrentUserOwner: true,
         });
-      }).pipe(Effect.provide(NodeServices.layer)),
+      }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerDigest])),
+    ),
+  );
+
+  it.live("reports hashing defects as typed trust failures", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const { enginePath } = yield* executableFixture("hash-failure");
+        yield* expectTrustRejected(
+          validateEngineExecutableTrust(enginePath, {
+            enabled: true,
+            expectedSha256: "0".repeat(64),
+          }),
+        );
+      }).pipe(
+        Effect.provide([
+          NodeServices.layer,
+          Layer.mock(Digest.Digest, {
+            digestHex: () => Effect.die(new Error("Digest unavailable")),
+          }),
+        ]),
+      ),
     ),
   );
 
@@ -63,7 +86,7 @@ describe("engine executable trust validation", () => {
             expectedSha256: "0".repeat(64),
           }),
         );
-      }).pipe(Effect.provide(NodeServices.layer)),
+      }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerDigest])),
     ),
   );
 
@@ -74,7 +97,7 @@ describe("engine executable trust validation", () => {
         const linkPath = join(directory, "engine-link");
         yield* Effect.promise(() => symlink(enginePath, linkPath));
         yield* expectTrustRejected(validateEngineExecutableTrust(linkPath, { enabled: true }));
-      }).pipe(Effect.provide(NodeServices.layer)),
+      }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerDigest])),
     ),
   );
 
@@ -84,7 +107,7 @@ describe("engine executable trust validation", () => {
         const { enginePath } = yield* executableFixture("writable");
         yield* Effect.promise(() => chmod(enginePath, 0o722));
         yield* expectTrustRejected(validateEngineExecutableTrust(enginePath, { enabled: true }));
-      }).pipe(Effect.provide(NodeServices.layer)),
+      }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerDigest])),
     ),
   );
 });

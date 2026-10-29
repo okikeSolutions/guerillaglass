@@ -1,4 +1,5 @@
-import { Clock, Context, Crypto, Effect, Layer, Redacted, Schema } from "effect";
+import * as SecureRandom from "effect/crypto/SecureRandom";
+import { Clock, Context, Effect, Layer, Redacted, Schema } from "effect";
 import { Base64Url } from "effect/encoding";
 import {
   desktopCapabilityTokenSchema,
@@ -82,7 +83,7 @@ function tokenError(description: string): CapabilityTokenError {
 export const makeCapabilityGrantService = Effect.fn("CapabilityGrantService.make")(function* (
   options: { maxEntries?: number } = {},
 ) {
-  const crypto = yield* Crypto.Crypto;
+  const crypto = yield* SecureRandom.SecureRandom;
   const maxEntries = Math.max(1, options.maxEntries ?? 1024);
   const records = new Map<string, CapabilityRecord>();
 
@@ -113,7 +114,9 @@ export const makeCapabilityGrantService = Effect.fn("CapabilityGrantService.make
         Base64Url.encode(
           yield* crypto
             .randomBytes(32)
-            .pipe(Effect.mapError(() => tokenError("Unable to mint capability token."))),
+            .pipe(
+              Effect.catchDefect(() => Effect.fail(tokenError("Unable to mint capability token."))),
+            ),
         ),
       );
       const ttlMs = Math.max(1, params.ttlMs ?? defaultTtlMsByScope[params.scope]);

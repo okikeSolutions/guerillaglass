@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 
+import * as SecureRandom from "../apps/desktop-electrobun/node_modules/effect/dist/crypto/SecureRandom.js";
+import * as Digest from "../apps/desktop-electrobun/node_modules/effect/dist/crypto/Digest.js";
 import * as NodeRuntime from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeRuntime.js";
 import * as NodeServices from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeServices.js";
 import * as NodeHttpClient from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeHttpClient.js";
@@ -686,5 +688,12 @@ const main = Effect.fn("AgentSmoke.main")(function* () {
 }, Effect.scoped);
 
 NodeRuntime.runMain(
-  main().pipe(Effect.provide(NodeHttpClient.layerNodeHttp), Effect.provide(NodeServices.layer)),
+  main().pipe(
+    Effect.provide([
+      NodeHttpClient.layerNodeHttp,
+      NodeServices.layer,
+      SecureRandom.layerWebCrypto,
+      Digest.layerWebCrypto,
+    ]),
+  ),
 );

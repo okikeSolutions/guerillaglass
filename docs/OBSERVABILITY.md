@@ -2,8 +2,8 @@
 
 This document summarizes the desktop observability stack implemented for Guerillaglass. It is based on the installed/vendored Effect v4 APIs:
 
-- `effect@4.0.2`
-- `@effect/platform-node@4.0.2`
+- `effect@4.1.0`
+- `@effect/platform-node@4.1.0`
 - `effect/devtools`
 - `effect/observability` researched but not currently wired
 

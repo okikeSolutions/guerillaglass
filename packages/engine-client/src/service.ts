@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import type {
   AgentApplyResult,
   AgentPreflightResult,
@@ -501,5 +502,10 @@ export function layerEngineClientBun(
       });
       return EngineClient.of(makeEngineClientService(rawClient));
     }),
-  ).pipe(Layer.provide(NodeServices.layer), Layer.provide(NodeHttpClient.layerNodeHttp));
+  ).pipe(
+    Layer.provide(NodeServices.layer),
+    Layer.provide(NodeCrypto.layerSecureRandom),
+    Layer.provide(NodeCrypto.layerDigest),
+    Layer.provide(NodeHttpClient.layerNodeHttp),
+  );
 }

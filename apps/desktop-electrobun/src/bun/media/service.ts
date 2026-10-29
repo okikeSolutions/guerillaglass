@@ -1,6 +1,8 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import { createServer } from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
-import { Context, Crypto, Effect, FileSystem, Layer, Path } from "effect";
+import { Context, Effect, FileSystem, Layer, Path } from "effect";
 import { HttpRouter, HttpServer } from "effect/http";
 import { NetAddress } from "effect/net";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
@@ -47,7 +49,7 @@ export const layerMediaSourceServiceCore = Layer.effect(
   Effect.gen(function* () {
     const registry = yield* MediaRegistry;
     const server = yield* HttpServer.HttpServer;
-    const crypto = yield* Crypto.Crypto;
+    const crypto = yield* SecureRandom.SecureRandom;
     const fs = yield* FileSystem.FileSystem;
     const io = yield* NoFollowFileIO;
     const path = yield* Path.Path;
@@ -57,7 +59,7 @@ export const layerMediaSourceServiceCore = Layer.effect(
     const snapshotMediaFile = Effect.fn("service.snapshotMediaFile")((filePath: string) =>
       Effect.gen(function* () {
         const extension = path.extname(filePath).toLowerCase();
-        const id = yield* crypto.randomUUIDv4;
+        const id = yield* crypto.uuidV4().pipe(Effect.catchDefect(Effect.fail));
         const destinationPath = path.join(tempDirectory.path, `media-${id}${extension}`);
         return yield* copySafeFileSnapshot(filePath, destinationPath).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
@@ -121,4 +123,4 @@ const mediaInfrastructureLayer = layerMediaRegistry.pipe(Layer.provideMerge(laye
 export const layerMediaSourceService = Layer.mergeAll(
   layerMediaSourceServiceCore,
   layerServedMediaRoutes,
-).pipe(Layer.provide(mediaInfrastructureLayer));
+).pipe(Layer.provide(mediaInfrastructureLayer), Layer.provide(NodeCrypto.layerSecureRandom));

@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { layerNoFollowFileIO } from "../src/bun/security/NoFollowFileIO";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -24,6 +25,7 @@ describe("media source service", () => {
         Layer.provideMerge(layerMediaRegistry),
         Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: os.tmpdir() })),
         Layer.provide(NodeServices.layer),
+        Layer.provide(NodeCrypto.layerSecureRandom),
         Layer.provide(layerNoFollowFileIO),
         Layer.provide(
           Layer.succeed(HttpServer.HttpServer, {
@@ -67,6 +69,7 @@ describe("media source service", () => {
             Layer.provideMerge(layerMediaRegistry),
             Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: testDirectory })),
             Layer.provide(NodeServices.layer),
+            Layer.provide(NodeCrypto.layerSecureRandom),
             Layer.provide(layerNoFollowFileIO),
             Layer.provide(
               Layer.succeed(HttpServer.HttpServer, {

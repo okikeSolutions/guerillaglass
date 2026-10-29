@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -92,7 +93,10 @@ async function launchEngine(fixture: EngineFixture): Promise<LaunchedEngine> {
           HOME: tempRoot,
           USERPROFILE: tempRoot,
         },
-      }).pipe(Scope.provide(scope), Effect.provide(NodeServices.layer)),
+      }).pipe(
+        Scope.provide(scope),
+        Effect.provide([NodeServices.layer, NodeCrypto.layerSecureRandom, NodeCrypto.layerDigest]),
+      ),
     );
     expect(launched.address.host).toBe("127.0.0.1");
     expect(launched.address.port).toBeGreaterThan(0);

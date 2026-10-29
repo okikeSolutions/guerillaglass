@@ -1,6 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
-import { Deferred, Effect, Fiber, FileSystem, Result, Sink, Stream } from "effect";
+import { Deferred, Effect, Fiber, Redacted, FileSystem, Result, Sink, Stream } from "effect";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import { describe, expect } from "vitest";
@@ -21,7 +21,12 @@ function fixture(pidResponses: ReadonlyArray<string>, bundleExists = true) {
     }
     commands.push(command);
     const output =
-      command.command === "swift" && ["pid", "ready"].includes(command.args[1] ?? "")
+      command.command === "swift" &&
+      ["pid", "ready"].includes(
+        Redacted.isRedacted(command.args[1])
+          ? Redacted.value(command.args[1])
+          : (command.args[1] ?? ""),
+      )
         ? (pidResponses[nextResponse++] ?? "null")
         : "";
     const stdout = Stream.make(new TextEncoder().encode(output));

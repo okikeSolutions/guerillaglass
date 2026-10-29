@@ -1,15 +1,5 @@
-import {
-  Clock,
-  Context,
-  Crypto,
-  Effect,
-  FileSystem,
-  Layer,
-  Option,
-  Path,
-  Ref,
-  Schema,
-} from "effect";
+import * as SecureRandom from "effect/crypto/SecureRandom";
+import { Clock, Context, Effect, FileSystem, Layer, Option, Path, Ref, Schema } from "effect";
 import type { CapturePreviewFrameResult } from "@guerillaglass/engine-contract/domains/capture";
 import { messageFromUnknownError } from "@guerillaglass/engine-client/errors";
 import { MediaServerError } from "../../shared/errors/desktopErrors";
@@ -137,21 +127,22 @@ const normalizeMediaPath = Effect.fn("MediaRegistry.normalizeMediaPath")(functio
 });
 
 export const makeMediaRegistryService = Effect.gen(function* () {
-  const crypto = yield* Crypto.Crypto;
+  const crypto = yield* SecureRandom.SecureRandom;
   const path = yield* Path.Path;
   const tokensRef = yield* Ref.make(new Map<string, TokenEntry>());
 
   // This map is the authority for issued media leases. Missing tokens cannot be loaded,
   // and successful reads renew idle expiry without changing absolute expiry.
   const insertToken = Effect.fn("MediaRegistry.insertToken")(function* (entry: TokenEntry) {
-    const token = yield* crypto.randomUUIDv4.pipe(
-      Effect.mapError(
-        (cause) =>
+    const token = yield* crypto.uuidV4().pipe(
+      Effect.catchDefect((cause) =>
+        Effect.fail(
           new MediaServerError({
             code: "MEDIA_TOKEN_GENERATION_FAILED",
             description: messageFromUnknownError(cause, "Could not create a media access token."),
             cause,
           }),
+        ),
       ),
     );
     const now = yield* Clock.currentTimeMillis;

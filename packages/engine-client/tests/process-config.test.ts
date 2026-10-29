@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -110,7 +111,11 @@ describe("engine process configuration", () => {
 
         const launched = yield* Effect.scoped(
           makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1000 }).pipe(
-            Effect.provide(NodeServices.layer),
+            Effect.provide([
+              NodeServices.layer,
+              NodeCrypto.layerSecureRandom,
+              NodeCrypto.layerDigest,
+            ]),
           ),
         );
         expect(launched.address).toEqual({ host: "127.0.0.1", port: 49_152 });
@@ -131,7 +136,11 @@ describe("engine process configuration", () => {
         const error = yield* Effect.flip(
           Effect.scoped(
             makeEngineHttpProcess({ enginePath, readinessTimeoutMs: 1000 }).pipe(
-              Effect.provide(NodeServices.layer),
+              Effect.provide([
+                NodeServices.layer,
+                NodeCrypto.layerSecureRandom,
+                NodeCrypto.layerDigest,
+              ]),
             ),
           ),
         );
@@ -144,7 +153,7 @@ describe("engine process configuration", () => {
 
   it.live("creates redacted bearer tokens", () =>
     makeEngineBearerToken.pipe(
-      Effect.provide(NodeServices.layer),
+      Effect.provide(NodeCrypto.layerSecureRandom),
       Effect.tap((token) =>
         Effect.sync(() => {
           expect(Redacted.value(token)).toMatch(/^[a-f0-9]{64}$/);

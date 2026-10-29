@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
 import type { HttpClient } from "effect/http";
 import { layerNoFollowFileIO, type NoFollowFileIO } from "../security/NoFollowFileIO";
@@ -166,6 +167,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   if (options.enableCaptureStatusPolling === false) {
     return servicesLayer.pipe(
       Layer.provide(NodeServices.layer),
+      Layer.provide(NodeCrypto.layerSecureRandom),
       Layer.provide(layerNoFollowFileIO),
       Layer.provide(NodeHttpClient.layerNodeHttp),
     );
@@ -174,6 +176,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   return makeCaptureStatusPollingLayer(options).pipe(
     Layer.provideMerge(servicesLayer),
     Layer.provide(NodeServices.layer),
+    Layer.provide(NodeCrypto.layerSecureRandom),
     Layer.provide(layerNoFollowFileIO),
     Layer.provide(NodeHttpClient.layerNodeHttp),
   );
