@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import { layerNoFollowFileIO } from "../src/bun/security/NoFollowFileIO";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -42,6 +43,7 @@ describe("Node media server integration", () => {
         const sourcePath = path.join(testDirectory, "source.mov");
         yield* Effect.sync(() => writeFileSync(sourcePath, "node-media-server-fixture"));
         const layer = layerMediaSourceService.pipe(
+          Layer.provide(NodeCrypto.layerSecureRandom),
           Layer.provide(layerNoFollowFileIO),
           Layer.provideMerge(Layer.succeed(DesktopTempDirectory, { path: testDirectory })),
           Layer.provide(Layer.succeed(AppConfig, testAppConfig)),

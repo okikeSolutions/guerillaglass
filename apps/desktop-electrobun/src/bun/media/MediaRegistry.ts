@@ -134,17 +134,7 @@ export const makeMediaRegistryService = Effect.gen(function* () {
   // This map is the authority for issued media leases. Missing tokens cannot be loaded,
   // and successful reads renew idle expiry without changing absolute expiry.
   const insertToken = Effect.fn("MediaRegistry.insertToken")(function* (entry: TokenEntry) {
-    const token = yield* crypto.uuidV4().pipe(
-      Effect.catchDefect((cause) =>
-        Effect.fail(
-          new MediaServerError({
-            code: "MEDIA_TOKEN_GENERATION_FAILED",
-            description: messageFromUnknownError(cause, "Could not create a media access token."),
-            cause,
-          }),
-        ),
-      ),
-    );
+    const token = yield* crypto.uuidV4();
     const now = yield* Clock.currentTimeMillis;
     yield* Ref.update(tokensRef, (tokens) => {
       const next = pruneTokenMap(tokens, now);

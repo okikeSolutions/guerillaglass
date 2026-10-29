@@ -1,4 +1,3 @@
-import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import { createServer } from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
@@ -59,7 +58,7 @@ export const layerMediaSourceServiceCore = Layer.effect(
     const snapshotMediaFile = Effect.fn("service.snapshotMediaFile")((filePath: string) =>
       Effect.gen(function* () {
         const extension = path.extname(filePath).toLowerCase();
-        const id = yield* crypto.uuidV4().pipe(Effect.catchDefect(Effect.fail));
+        const id = yield* crypto.uuidV4();
         const destinationPath = path.join(tempDirectory.path, `media-${id}${extension}`);
         return yield* copySafeFileSnapshot(filePath, destinationPath).pipe(
           Effect.provideService(FileSystem.FileSystem, fs),
@@ -123,4 +122,4 @@ const mediaInfrastructureLayer = layerMediaRegistry.pipe(Layer.provideMerge(laye
 export const layerMediaSourceService = Layer.mergeAll(
   layerMediaSourceServiceCore,
   layerServedMediaRoutes,
-).pipe(Layer.provide(mediaInfrastructureLayer), Layer.provide(NodeCrypto.layerSecureRandom));
+).pipe(Layer.provide(mediaInfrastructureLayer));

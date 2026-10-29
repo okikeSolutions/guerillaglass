@@ -344,17 +344,7 @@ export const makeEngineHttpProcess = Effect.fn("launchBun.makeEngineHttpProcess"
       }
     }
     const [command, args] = resolveEngineCommand(enginePath);
-    const bearerToken = yield* makeEngineBearerToken.pipe(
-      Effect.catchDefect((cause) =>
-        Effect.fail(
-          new EngineProcessError({
-            code: "ENGINE_SPAWN_FAILED",
-            message: "Unable to generate an engine bearer token.",
-            cause,
-          }),
-        ),
-      ),
-    );
+    const bearerToken = yield* makeEngineBearerToken;
     yield* Effect.logInfo("spawning engine process").pipe(
       Effect.annotateLogs({
         command: commandText(command, args),

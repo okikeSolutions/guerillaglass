@@ -6,7 +6,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
 import { describe, expect } from "vitest";
-import { Cause, Effect, FileSystem, Layer, Option, Path, PlatformError } from "effect";
+import { Cause, Effect, FileSystem, Layer, Option, Path } from "effect";
 import { HttpPlatform, HttpRouter } from "effect/http";
 import { MediaRegistry, makeMediaRegistryService } from "../src/bun/media/MediaRegistry";
 import { layerMediaHttpRoutes } from "../src/bun/media/MediaHttpRoutes";
@@ -170,31 +170,25 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.live("preserves token-generation failures as typed media errors", () =>
+  it.live("propagates token-generation defects without disguising them as media errors", () =>
     Effect.gen(function* () {
+      const defect = new TypeError("SecureRandom implementation failed");
       const crypto = yield* SecureRandom.SecureRandom;
       const pathService = yield* Path.Path;
       const failingCrypto = {
         ...crypto,
-        uuidV4: () =>
-          Effect.die(
-            PlatformError.systemError({
-              _tag: "PermissionDenied",
-              module: "SecureRandom",
-              method: "uuidV4",
-            }),
-          ),
+        uuidV4: () => Effect.die(defect),
       };
       const registry = yield* makeMediaRegistryService.pipe(
         Effect.provideService(SecureRandom.SecureRandom, failingCrypto),
         Effect.provideService(Path.Path, pathService),
       );
-      const error = yield* Effect.flip(registry.registerCapturePreview(() => Effect.succeed({})));
-      expect(error).toBeInstanceOf(MediaServerError);
-      if (!(error instanceof MediaServerError)) {
-        throw error;
+      const exit = yield* Effect.exit(registry.registerCapturePreview(() => Effect.succeed({})));
+      expect(exit._tag).toBe("Failure");
+      if (exit._tag === "Failure") {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+        expect(Cause.squash(exit.cause)).toBe(defect);
       }
-      expect(error.code).toBe("MEDIA_TOKEN_GENERATION_FAILED");
     }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerSecureRandom])),
   );
 

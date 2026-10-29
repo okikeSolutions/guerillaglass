@@ -111,13 +111,7 @@ export const makeCapabilityGrantService = Effect.fn("CapabilityGrantService.make
       const now = yield* Clock.currentTimeMillis;
       prune(now);
       const token = desktopCapabilityTokenSchema.make(
-        Base64Url.encode(
-          yield* crypto
-            .randomBytes(32)
-            .pipe(
-              Effect.catchDefect(() => Effect.fail(tokenError("Unable to mint capability token."))),
-            ),
-        ),
+        Base64Url.encode(yield* crypto.randomBytes(32)),
       );
       const ttlMs = Math.max(1, params.ttlMs ?? defaultTtlMsByScope[params.scope]);
       const idleTtlMs = Math.max(1, params.idleTtlMs ?? defaultIdleTtlMsByScope[params.scope]);

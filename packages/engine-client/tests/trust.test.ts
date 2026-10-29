@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Cause, Effect, Layer } from "effect";
 import * as Digest from "effect/crypto/Digest";
 import { describe } from "vitest";
 import { validateEngineExecutableTrust } from "../src/process/trust";
@@ -55,24 +55,29 @@ describe("engine executable trust validation", () => {
     ),
   );
 
-  it.live("reports hashing defects as typed trust failures", () =>
+  it.live("propagates hashing defects without disguising them as trust failures", () =>
     Effect.scoped(
       Effect.gen(function* () {
+        const defect = new TypeError("Digest implementation failed");
         const { enginePath } = yield* executableFixture("hash-failure");
-        yield* expectTrustRejected(
+        const exit = yield* Effect.exit(
           validateEngineExecutableTrust(enginePath, {
             enabled: true,
             expectedSha256: "0".repeat(64),
-          }),
+          }).pipe(
+            Effect.provide(
+              Layer.mock(Digest.Digest, {
+                digestHex: () => Effect.die(defect),
+              }),
+            ),
+          ),
         );
-      }).pipe(
-        Effect.provide([
-          NodeServices.layer,
-          Layer.mock(Digest.Digest, {
-            digestHex: () => Effect.die(new Error("Digest unavailable")),
-          }),
-        ]),
-      ),
+        expect(exit._tag).toBe("Failure");
+        if (exit._tag === "Failure") {
+          expect(Cause.hasDies(exit.cause)).toBe(true);
+          expect(Cause.squash(exit.cause)).toBe(defect);
+        }
+      }).pipe(Effect.provide(NodeServices.layer)),
     ),
   );
 

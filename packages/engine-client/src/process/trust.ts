@@ -106,9 +106,7 @@ export const validateEngineExecutableTrust = Effect.fn("trust.validateEngineExec
       const expectedSha256 = policy.expectedSha256?.trim();
       if (expectedSha256) {
         const bytes = yield* fs.readFile(enginePath);
-        const actualSha256 = yield* crypto
-          .digestHex(Digest.sha256, bytes)
-          .pipe(Effect.catchDefect(Effect.fail));
+        const actualSha256 = yield* crypto.digestHex(Digest.sha256, bytes);
         if (!timingSafeEqualHex(actualSha256, expectedSha256)) {
           return yield* new EngineProcessError({
             code: "ENGINE_TRUST_REJECTED",
