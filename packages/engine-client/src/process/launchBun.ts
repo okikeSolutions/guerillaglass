@@ -1,5 +1,6 @@
+import * as Digest from "effect/crypto/Digest";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import {
-  Crypto,
   Deferred,
   Duration,
   Effect,
@@ -67,7 +68,7 @@ export type EngineHttpProcess = {
  * @returns A random bearer token wrapped in `Redacted`.
  */
 export const makeEngineBearerToken = Effect.gen(function* () {
-  const crypto = yield* Crypto.Crypto;
+  const crypto = yield* SecureRandom.SecureRandom;
   const bytes = yield* crypto.randomBytes(32);
   return Redacted.make(Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""), {
     label: "engine-http-bearer-token",
@@ -313,7 +314,11 @@ export const makeEngineHttpProcess = Effect.fn("launchBun.makeEngineHttpProcess"
 ): Effect.Effect<
   EngineHttpProcess,
   EngineProcessError,
-  ChildProcessSpawner | Crypto.Crypto | FileSystem.FileSystem | Scope.Scope
+  | ChildProcessSpawner
+  | SecureRandom.SecureRandom
+  | Digest.Digest
+  | FileSystem.FileSystem
+  | Scope.Scope
 > {
   return Effect.gen(function* () {
     const processConfig = yield* EngineProcessConfig.pipe(
@@ -339,16 +344,7 @@ export const makeEngineHttpProcess = Effect.fn("launchBun.makeEngineHttpProcess"
       }
     }
     const [command, args] = resolveEngineCommand(enginePath);
-    const bearerToken = yield* makeEngineBearerToken.pipe(
-      Effect.mapError(
-        (cause) =>
-          new EngineProcessError({
-            code: "ENGINE_SPAWN_FAILED",
-            message: "Unable to generate an engine bearer token.",
-            cause,
-          }),
-      ),
-    );
+    const bearerToken = yield* makeEngineBearerToken;
     yield* Effect.logInfo("spawning engine process").pipe(
       Effect.annotateLogs({
         command: commandText(command, args),

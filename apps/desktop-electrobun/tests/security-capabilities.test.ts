@@ -1,3 +1,4 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { Effect } from "effect";
 import { expect, it } from "@effect/vitest";
@@ -12,7 +13,11 @@ import {
 } from "@shared/errors/desktopErrorSerialization";
 import { makeCapabilityGrantService } from "../src/bun/security/DesktopCapabilities";
 
-const testServices = Layer.mergeAll(NodeServices.layer, TestClock.layer());
+const testServices = Layer.mergeAll(
+  NodeServices.layer,
+  NodeCrypto.layerSecureRandom,
+  TestClock.layer(),
+);
 
 describe("desktop capability grants", () => {
   it.effect("accepts a valid token for the matching scope and subject", () =>

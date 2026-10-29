@@ -1,4 +1,5 @@
-import { Crypto, Effect, FileSystem, Option, Schema } from "effect";
+import * as Digest from "effect/crypto/Digest";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { EngineProcessError } from "../errors";
 
 /**
@@ -61,14 +62,14 @@ export const validateEngineExecutableTrust = Effect.fn("trust.validateEngineExec
   function (
     enginePath: string,
     policy: EngineExecutableTrustPolicy | undefined,
-  ): Effect.Effect<void, EngineProcessError, Crypto.Crypto | FileSystem.FileSystem> {
+  ): Effect.Effect<void, EngineProcessError, Digest.Digest | FileSystem.FileSystem> {
     if (policy?.enabled !== true) {
       return Effect.void;
     }
 
     return Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const crypto = yield* Crypto.Crypto;
+      const crypto = yield* Digest.Digest;
       const linkTarget = yield* fs.readLink(enginePath).pipe(Effect.option);
       if ((policy.rejectSymlinkExecutable ?? true) && Option.isSome(linkTarget)) {
         return yield* new EngineProcessError({
@@ -105,10 +106,7 @@ export const validateEngineExecutableTrust = Effect.fn("trust.validateEngineExec
       const expectedSha256 = policy.expectedSha256?.trim();
       if (expectedSha256) {
         const bytes = yield* fs.readFile(enginePath);
-        const digest = yield* crypto.digest("SHA-256", bytes);
-        const actualSha256 = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
-          "",
-        );
+        const actualSha256 = yield* crypto.digestHex(Digest.sha256, bytes);
         if (!timingSafeEqualHex(actualSha256, expectedSha256)) {
           return yield* new EngineProcessError({
             code: "ENGINE_TRUST_REJECTED",

@@ -306,6 +306,24 @@ describe("repository invariants", () => {
     expect(runCheck().exitCode).toBe(0);
   });
 
+  test.each(['import { Effect as Fx } from "effect";', 'import * as Fx from "effect/Effect";'])(
+    "rejects defect recovery through Effect aliases: %s",
+    (effectImport) => {
+      writeFixture(
+        "packages/example/src/service.ts",
+        `${effectImport}
+       export const recovered = Fx.die(new TypeError("bug")).pipe(
+         Fx.catchDefect(() => Fx.fail("ordinary failure")),
+       );`,
+      );
+      const result = runCheck();
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(
+        "must recover typed failures without swallowing defects or interruption",
+      );
+    },
+  );
+
   test("fails when source cannot be parsed for Effect inspection", () => {
     writeFixture(
       "packages/example/src/service.ts",

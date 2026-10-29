@@ -1,3 +1,5 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+import type * as SecureRandom from "effect/crypto/SecureRandom";
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
 import type { HttpClient } from "effect/http";
 import { layerNoFollowFileIO, type NoFollowFileIO } from "../security/NoFollowFileIO";
@@ -43,7 +45,7 @@ export type DesktopAppLayerOptions = {
   mediaSourceServiceLayer?: Layer.Layer<
     MediaSourceService,
     never,
-    AppConfig | DesktopTempDirectory | NoFollowFileIO
+    AppConfig | DesktopTempDirectory | NoFollowFileIO | SecureRandom.SecureRandom
   >;
   desktopShellLayer: Layer.Layer<DesktopShell, never, AppConfig | HttpClient.HttpClient>;
   projectSessionLayer: Layer.Layer<
@@ -166,6 +168,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   if (options.enableCaptureStatusPolling === false) {
     return servicesLayer.pipe(
       Layer.provide(NodeServices.layer),
+      Layer.provide(NodeCrypto.layerSecureRandom),
       Layer.provide(layerNoFollowFileIO),
       Layer.provide(NodeHttpClient.layerNodeHttp),
     );
@@ -174,6 +177,7 @@ export function makeLayerDesktopApp(options: DesktopAppLayerOptions) {
   return makeCaptureStatusPollingLayer(options).pipe(
     Layer.provideMerge(servicesLayer),
     Layer.provide(NodeServices.layer),
+    Layer.provide(NodeCrypto.layerSecureRandom),
     Layer.provide(layerNoFollowFileIO),
     Layer.provide(NodeHttpClient.layerNodeHttp),
   );

@@ -101,7 +101,7 @@ pub struct ProjectProjectRecentsQueryParams {
 }
 
 lazy_static::lazy_static! {
-    static ref RE_PROJECTPROJECTRECENTSQUERYPARAMS_LIMIT: regex::Regex = regex::Regex::new("^[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$").unwrap();
+    static ref RE_PROJECTPROJECTRECENTSQUERYPARAMS_LIMIT: regex::Regex = regex::Regex::new("^[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[Ee][+-]?\\d+)?$").unwrap();
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
@@ -414,8 +414,8 @@ pub struct AgentApplyResult {
     pub status: String,
 
     #[serde(rename = "appliedSegments")]
-    #[validate(range(min = 1u32))]
-    pub applied_segments: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub applied_segments: u64,
 
     #[serde(rename = "projectHasUnsavedChanges")]
     pub project_has_unsaved_changes: bool,
@@ -427,7 +427,7 @@ impl AgentApplyResult {
         success: bool,
         job_id: String,
         status: String,
-        applied_segments: u32,
+        applied_segments: u64,
         project_has_unsaved_changes: bool,
     ) -> AgentApplyResult {
         AgentApplyResult {
@@ -485,7 +485,7 @@ impl std::str::FromStr for AgentApplyResult {
             pub message: Vec<String>,
             pub job_id: Vec<String>,
             pub status: Vec<String>,
-            pub applied_segments: Vec<u32>,
+            pub applied_segments: Vec<u64>,
             pub project_has_unsaved_changes: Vec<bool>,
         }
 
@@ -526,7 +526,7 @@ impl std::str::FromStr for AgentApplyResult {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "appliedSegments" => intermediate_rep.applied_segments.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "projectHasUnsavedChanges" => {
@@ -1711,12 +1711,12 @@ pub struct AgentCutPlanSegmentEncoded {
     pub beat: String,
 
     #[serde(rename = "startFrame")]
-    #[validate(range(min = 0u32))]
-    pub start_frame: u32,
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
+    pub start_frame: u64,
 
     #[serde(rename = "endFrame")]
-    #[validate(range(min = 1u32))]
-    pub end_frame: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub end_frame: u64,
 }
 
 impl AgentCutPlanSegmentEncoded {
@@ -1724,8 +1724,8 @@ impl AgentCutPlanSegmentEncoded {
     pub fn new(
         id: String,
         beat: String,
-        start_frame: u32,
-        end_frame: u32,
+        start_frame: u64,
+        end_frame: u64,
     ) -> AgentCutPlanSegmentEncoded {
         AgentCutPlanSegmentEncoded {
             id,
@@ -1773,8 +1773,8 @@ impl std::str::FromStr for AgentCutPlanSegmentEncoded {
         struct IntermediateRep {
             pub id: Vec<String>,
             pub beat: Vec<String>,
-            pub start_frame: Vec<u32>,
-            pub end_frame: Vec<u32>,
+            pub start_frame: Vec<u64>,
+            pub end_frame: Vec<u64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -1806,11 +1806,11 @@ impl std::str::FromStr for AgentCutPlanSegmentEncoded {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "startFrame" => intermediate_rep.start_frame.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "endFrame" => intermediate_rep.end_frame.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     _ => {
                         return std::result::Result::Err(
@@ -1904,8 +1904,8 @@ pub struct AgentCutPlanSummaryEncoded {
     pub source_fps: models::AgentFrameRate,
 
     #[serde(rename = "sourceFrameCount")]
-    #[validate(range(min = 1u32))]
-    pub source_frame_count: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub source_frame_count: u64,
 
     #[serde(rename = "segments")]
     #[validate(nested)]
@@ -1917,7 +1917,7 @@ impl AgentCutPlanSummaryEncoded {
     pub fn new(
         version: f64,
         source_fps: models::AgentFrameRate,
-        source_frame_count: u32,
+        source_frame_count: u64,
         segments: Vec<models::AgentCutPlanSegmentEncoded>,
     ) -> AgentCutPlanSummaryEncoded {
         AgentCutPlanSummaryEncoded {
@@ -1964,7 +1964,7 @@ impl std::str::FromStr for AgentCutPlanSummaryEncoded {
         struct IntermediateRep {
             pub version: Vec<f64>,
             pub source_fps: Vec<models::AgentFrameRate>,
-            pub source_frame_count: Vec<u32>,
+            pub source_frame_count: Vec<u64>,
             pub segments: Vec<Vec<models::AgentCutPlanSegmentEncoded>>,
         }
 
@@ -1992,7 +1992,7 @@ impl std::str::FromStr for AgentCutPlanSummaryEncoded {
                     #[allow(clippy::redundant_clone)]
                     "sourceFps" => intermediate_rep.source_fps.push(<models::AgentFrameRate as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "sourceFrameCount" => intermediate_rep.source_frame_count.push(<u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "sourceFrameCount" => intermediate_rep.source_frame_count.push(<u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     "segments" => return std::result::Result::Err("Parsing a container in this style is not supported in AgentCutPlanSummaryEncoded".to_string()),
                     _ => return std::result::Result::Err("Unexpected key while parsing AgentCutPlanSummaryEncoded".to_string())
                 }
@@ -2076,17 +2076,17 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<AgentCutPlan
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct AgentFrameRate {
     #[serde(rename = "numerator")]
-    #[validate(range(min = 1u32))]
-    pub numerator: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub numerator: u64,
 
     #[serde(rename = "denominator")]
-    #[validate(range(min = 1u32))]
-    pub denominator: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub denominator: u64,
 }
 
 impl AgentFrameRate {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(numerator: u32, denominator: u32) -> AgentFrameRate {
+    pub fn new(numerator: u64, denominator: u64) -> AgentFrameRate {
         AgentFrameRate {
             numerator,
             denominator,
@@ -2125,8 +2125,8 @@ impl std::str::FromStr for AgentFrameRate {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub numerator: Vec<u32>,
-            pub denominator: Vec<u32>,
+            pub numerator: Vec<u64>,
+            pub denominator: Vec<u64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -2150,11 +2150,11 @@ impl std::str::FromStr for AgentFrameRate {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "numerator" => intermediate_rep.numerator.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "denominator" => intermediate_rep.denominator.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     _ => {
                         return std::result::Result::Err(
@@ -3636,8 +3636,8 @@ pub struct AgentRunSummary {
     pub status: String,
 
     #[serde(rename = "runtimeBudgetMinutes")]
-    #[validate(range(min = 1u32))]
-    pub runtime_budget_minutes: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub runtime_budget_minutes: u64,
 
     #[serde(rename = "qaReport")]
     #[validate(nested)]
@@ -3677,7 +3677,7 @@ impl AgentRunSummary {
     pub fn new(
         job_id: String,
         status: String,
-        runtime_budget_minutes: u32,
+        runtime_budget_minutes: u64,
         updated_at: String,
     ) -> AgentRunSummary {
         AgentRunSummary {
@@ -3737,7 +3737,7 @@ impl std::str::FromStr for AgentRunSummary {
         struct IntermediateRep {
             pub job_id: Vec<String>,
             pub status: Vec<String>,
-            pub runtime_budget_minutes: Vec<u32>,
+            pub runtime_budget_minutes: Vec<u64>,
             pub qa_report: Vec<models::AgentQaReport>,
             pub blocking_reason: Vec<String>,
             pub artifacts: Vec<Vec<models::AgentArtifactReference>>,
@@ -3774,7 +3774,7 @@ impl std::str::FromStr for AgentRunSummary {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "qaReport" => intermediate_rep.qa_report.push(
@@ -4321,9 +4321,9 @@ pub struct CapabilitiesAgent {
     pub local_only: Option<bool>,
 
     #[serde(rename = "runtimeBudgetMinutes")]
-    #[validate(range(min = 1u32))]
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime_budget_minutes: Option<u32>,
+    pub runtime_budget_minutes: Option<u64>,
 
     /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "supportedTranscriptionProviders")]
@@ -4332,24 +4332,24 @@ pub struct CapabilitiesAgent {
     pub supported_transcription_providers: Option<Vec<String>>,
 
     #[serde(rename = "maxSourceDurationSeconds")]
-    #[validate(range(min = 1u32))]
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_source_duration_seconds: Option<u32>,
+    pub max_source_duration_seconds: Option<u64>,
 
     #[serde(rename = "preflightTokenTtlSeconds")]
-    #[validate(range(min = 1u32))]
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub preflight_token_ttl_seconds: Option<u32>,
+    pub preflight_token_ttl_seconds: Option<u64>,
 
     #[serde(rename = "artifactVersion")]
-    #[validate(range(min = 1u32))]
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub artifact_version: Option<u32>,
+    pub artifact_version: Option<u64>,
 
     #[serde(rename = "cutPlanVersion")]
-    #[validate(range(min = 1u32))]
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cut_plan_version: Option<u32>,
+    pub cut_plan_version: Option<u64>,
 }
 
 impl CapabilitiesAgent {
@@ -4460,12 +4460,12 @@ impl std::str::FromStr for CapabilitiesAgent {
             pub status: Vec<bool>,
             pub apply: Vec<bool>,
             pub local_only: Vec<bool>,
-            pub runtime_budget_minutes: Vec<u32>,
+            pub runtime_budget_minutes: Vec<u64>,
             pub supported_transcription_providers: Vec<Vec<String>>,
-            pub max_source_duration_seconds: Vec<u32>,
-            pub preflight_token_ttl_seconds: Vec<u32>,
-            pub artifact_version: Vec<u32>,
-            pub cut_plan_version: Vec<u32>,
+            pub max_source_duration_seconds: Vec<u64>,
+            pub preflight_token_ttl_seconds: Vec<u64>,
+            pub artifact_version: Vec<u64>,
+            pub cut_plan_version: Vec<u64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -4509,7 +4509,7 @@ impl std::str::FromStr for CapabilitiesAgent {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "runtimeBudgetMinutes" => intermediate_rep.runtime_budget_minutes.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     "supportedTranscriptionProviders" => return std::result::Result::Err(
                         "Parsing a container in this style is not supported in CapabilitiesAgent"
@@ -4518,22 +4518,22 @@ impl std::str::FromStr for CapabilitiesAgent {
                     #[allow(clippy::redundant_clone)]
                     "maxSourceDurationSeconds" => {
                         intermediate_rep.max_source_duration_seconds.push(
-                            <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                            <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                         )
                     }
                     #[allow(clippy::redundant_clone)]
                     "preflightTokenTtlSeconds" => {
                         intermediate_rep.preflight_token_ttl_seconds.push(
-                            <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                            <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                         )
                     }
                     #[allow(clippy::redundant_clone)]
                     "artifactVersion" => intermediate_rep.artifact_version.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "cutPlanVersion" => intermediate_rep.cut_plan_version.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     _ => {
                         return std::result::Result::Err(
@@ -5528,8 +5528,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<Capabilities
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CapturePreviewFrame {
     #[serde(rename = "frameId")]
-    #[validate(range(min = 0u32))]
-    pub frame_id: u32,
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
+    pub frame_id: u64,
 
     #[serde(rename = "bytesBase64")]
     #[validate(length(min = 1), custom(function = "check_xss_string"))]
@@ -5538,7 +5538,7 @@ pub struct CapturePreviewFrame {
 
 impl CapturePreviewFrame {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(frame_id: u32, bytes_base64: String) -> CapturePreviewFrame {
+    pub fn new(frame_id: u64, bytes_base64: String) -> CapturePreviewFrame {
         CapturePreviewFrame {
             frame_id,
             bytes_base64,
@@ -5577,7 +5577,7 @@ impl std::str::FromStr for CapturePreviewFrame {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub frame_id: Vec<u32>,
+            pub frame_id: Vec<u64>,
             pub bytes_base64: Vec<String>,
         }
 
@@ -5602,7 +5602,7 @@ impl std::str::FromStr for CapturePreviewFrame {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "frameId" => intermediate_rep.frame_id.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "bytesBase64" => intermediate_rep.bytes_base64.push(
@@ -5983,9 +5983,9 @@ impl std::convert::TryFrom<HeaderValue>
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureStartDisplayPayload {
     #[serde(rename = "displayId")]
-    #[validate(range(min = 0u32))]
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_id: Option<u32>,
+    pub display_id: Option<u64>,
 
     #[serde(rename = "enableMic")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -6052,7 +6052,7 @@ impl std::str::FromStr for CaptureStartDisplayPayload {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub display_id: Vec<u32>,
+            pub display_id: Vec<u64>,
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
             pub capture_fps: Vec<f64>,
@@ -6079,7 +6079,7 @@ impl std::str::FromStr for CaptureStartDisplayPayload {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "displayId" => intermediate_rep.display_id.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "enableMic" => intermediate_rep.enable_mic.push(
@@ -6161,8 +6161,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStart
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureStartWindowPayload {
     #[serde(rename = "windowId")]
-    #[validate(range(min = 0u32))]
-    pub window_id: u32,
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
+    pub window_id: u64,
 
     #[serde(rename = "enableMic")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -6180,7 +6180,7 @@ pub struct CaptureStartWindowPayload {
 
 impl CaptureStartWindowPayload {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(window_id: u32) -> CaptureStartWindowPayload {
+    pub fn new(window_id: u64) -> CaptureStartWindowPayload {
         CaptureStartWindowPayload {
             window_id,
             enable_mic: None,
@@ -6228,7 +6228,7 @@ impl std::str::FromStr for CaptureStartWindowPayload {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub window_id: Vec<u32>,
+            pub window_id: Vec<u64>,
             pub enable_mic: Vec<bool>,
             pub enable_preview: Vec<bool>,
             pub capture_fps: Vec<f64>,
@@ -6255,7 +6255,7 @@ impl std::str::FromStr for CaptureStartWindowPayload {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "windowId" => intermediate_rep.window_id.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "enableMic" => intermediate_rep.enable_mic.push(
@@ -6627,19 +6627,19 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureStatu
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct CaptureTelemetry {
     #[serde(rename = "sourceDroppedFrames")]
-    #[validate(range(min = 0u32))]
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source_dropped_frames: Option<u32>,
+    pub source_dropped_frames: Option<u64>,
 
     #[serde(rename = "writerDroppedFrames")]
-    #[validate(range(min = 0u32))]
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub writer_dropped_frames: Option<u32>,
+    pub writer_dropped_frames: Option<u64>,
 
     #[serde(rename = "writerBackpressureDrops")]
-    #[validate(range(min = 0u32))]
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub writer_backpressure_drops: Option<u32>,
+    pub writer_backpressure_drops: Option<u64>,
 
     #[serde(rename = "achievedFps")]
     #[validate(range(min = 0f64))]
@@ -6797,9 +6797,9 @@ impl std::str::FromStr for CaptureTelemetry {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub source_dropped_frames: Vec<u32>,
-            pub writer_dropped_frames: Vec<u32>,
-            pub writer_backpressure_drops: Vec<u32>,
+            pub source_dropped_frames: Vec<u64>,
+            pub writer_dropped_frames: Vec<u64>,
+            pub writer_backpressure_drops: Vec<u64>,
             pub achieved_fps: Vec<f64>,
             pub cpu_percent: Vec<f64>,
             pub memory_bytes: Vec<f64>,
@@ -6831,15 +6831,15 @@ impl std::str::FromStr for CaptureTelemetry {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "sourceDroppedFrames" => intermediate_rep.source_dropped_frames.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "writerDroppedFrames" => intermediate_rep.writer_dropped_frames.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "writerBackpressureDrops" => intermediate_rep.writer_backpressure_drops.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "achievedFps" => intermediate_rep.achieved_fps.push(
@@ -6951,8 +6951,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<CaptureTelem
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct DisplaySource {
     #[serde(rename = "id")]
-    #[validate(range(min = 0u32))]
-    pub id: u32,
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
+    pub id: u64,
 
     #[serde(rename = "displayName")]
     #[validate(length(min = 1), custom(function = "check_xss_string"))]
@@ -6962,12 +6962,12 @@ pub struct DisplaySource {
     pub is_primary: bool,
 
     #[serde(rename = "width")]
-    #[validate(range(min = 1u32))]
-    pub width: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub width: u64,
 
     #[serde(rename = "height")]
-    #[validate(range(min = 1u32))]
-    pub height: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub height: u64,
 
     #[serde(rename = "pixelScale")]
     #[validate(range(min = 0f64))]
@@ -6987,11 +6987,11 @@ pub struct DisplaySource {
 impl DisplaySource {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
-        id: u32,
+        id: u64,
         display_name: String,
         is_primary: bool,
-        width: u32,
-        height: u32,
+        width: u64,
+        height: u64,
         supported_capture_frame_rates: Vec<f64>,
     ) -> DisplaySource {
         DisplaySource {
@@ -7058,11 +7058,11 @@ impl std::str::FromStr for DisplaySource {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<u32>,
+            pub id: Vec<u64>,
             pub display_name: Vec<String>,
             pub is_primary: Vec<bool>,
-            pub width: Vec<u32>,
-            pub height: Vec<u32>,
+            pub width: Vec<u64>,
+            pub height: Vec<u64>,
             pub pixel_scale: Vec<f64>,
             pub refresh_hz: Vec<f64>,
             pub supported_capture_frame_rates: Vec<Vec<f64>>,
@@ -7089,7 +7089,7 @@ impl std::str::FromStr for DisplaySource {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "displayName" => intermediate_rep.display_name.push(
@@ -7101,11 +7101,11 @@ impl std::str::FromStr for DisplaySource {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "width" => intermediate_rep.width.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "height" => intermediate_rep.height.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "pixelScale" => intermediate_rep.pixel_scale.push(
@@ -8431,16 +8431,16 @@ pub struct ExportPreset {
     pub name: String,
 
     #[serde(rename = "width")]
-    #[validate(range(min = 1u32))]
-    pub width: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub width: u64,
 
     #[serde(rename = "height")]
-    #[validate(range(min = 1u32))]
-    pub height: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub height: u64,
 
     #[serde(rename = "fps")]
-    #[validate(range(min = 1u32))]
-    pub fps: u32,
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    pub fps: u64,
 
     /// Note: inline enums are not fully supported by openapi-generator
     #[serde(rename = "fileType")]
@@ -8453,9 +8453,9 @@ impl ExportPreset {
     pub fn new(
         id: String,
         name: String,
-        width: u32,
-        height: u32,
-        fps: u32,
+        width: u64,
+        height: u64,
+        fps: u64,
         file_type: String,
     ) -> ExportPreset {
         ExportPreset {
@@ -8510,9 +8510,9 @@ impl std::str::FromStr for ExportPreset {
         struct IntermediateRep {
             pub id: Vec<String>,
             pub name: Vec<String>,
-            pub width: Vec<u32>,
-            pub height: Vec<u32>,
-            pub fps: Vec<u32>,
+            pub width: Vec<u64>,
+            pub height: Vec<u64>,
+            pub fps: Vec<u64>,
             pub file_type: Vec<String>,
         }
 
@@ -8545,15 +8545,15 @@ impl std::str::FromStr for ExportPreset {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "width" => intermediate_rep.width.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "height" => intermediate_rep.height.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "fps" => intermediate_rep.fps.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "fileType" => intermediate_rep.file_type.push(
@@ -8838,9 +8838,9 @@ pub struct ExportRunCutPlanResult {
     pub output_url: Option<String>,
 
     #[serde(rename = "appliedSegments")]
-    #[validate(range(min = 0u32))]
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub applied_segments: Option<u32>,
+    pub applied_segments: Option<u64>,
 }
 
 impl ExportRunCutPlanResult {
@@ -8895,7 +8895,7 @@ impl std::str::FromStr for ExportRunCutPlanResult {
             pub job_id: Vec<String>,
             pub status: Vec<String>,
             pub output_url: Vec<String>,
-            pub applied_segments: Vec<u32>,
+            pub applied_segments: Vec<u64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -8931,7 +8931,7 @@ impl std::str::FromStr for ExportRunCutPlanResult {
                     ),
                     #[allow(clippy::redundant_clone)]
                     "appliedSegments" => intermediate_rep.applied_segments.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     _ => {
                         return std::result::Result::Err(
@@ -11234,8 +11234,8 @@ impl std::convert::TryFrom<HeaderValue>
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ProjectStateCaptureMetadataWindow {
     #[serde(rename = "id")]
-    #[validate(range(min = 0u32))]
-    pub id: u32,
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
+    pub id: u64,
 
     #[serde(rename = "title")]
     #[validate(custom(function = "check_xss_string"))]
@@ -11248,7 +11248,7 @@ pub struct ProjectStateCaptureMetadataWindow {
 
 impl ProjectStateCaptureMetadataWindow {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(id: u32, title: String, app_name: String) -> ProjectStateCaptureMetadataWindow {
+    pub fn new(id: u64, title: String, app_name: String) -> ProjectStateCaptureMetadataWindow {
         ProjectStateCaptureMetadataWindow {
             id,
             title,
@@ -11290,7 +11290,7 @@ impl std::str::FromStr for ProjectStateCaptureMetadataWindow {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<u32>,
+            pub id: Vec<u64>,
             pub title: Vec<String>,
             pub app_name: Vec<String>,
         }
@@ -11316,7 +11316,7 @@ impl std::str::FromStr for ProjectStateCaptureMetadataWindow {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "title" => intermediate_rep.title.push(
@@ -12320,8 +12320,8 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<SourcesResul
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct WindowSource {
     #[serde(rename = "id")]
-    #[validate(range(min = 0u32))]
-    pub id: u32,
+    #[validate(range(min = 0u64, max = 9007199254740991u64))]
+    pub id: u64,
 
     #[serde(rename = "title")]
     #[validate(custom(function = "check_xss_string"))]
@@ -12360,7 +12360,7 @@ pub struct WindowSource {
 impl WindowSource {
     #[allow(clippy::new_without_default, clippy::too_many_arguments)]
     pub fn new(
-        id: u32,
+        id: u64,
         title: String,
         app_name: String,
         width: f64,
@@ -12435,7 +12435,7 @@ impl std::str::FromStr for WindowSource {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<u32>,
+            pub id: Vec<u64>,
             pub title: Vec<String>,
             pub app_name: Vec<String>,
             pub width: Vec<f64>,
@@ -12467,7 +12467,7 @@ impl std::str::FromStr for WindowSource {
                 match key {
                     #[allow(clippy::redundant_clone)]
                     "id" => intermediate_rep.id.push(
-                        <u32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
                     #[allow(clippy::redundant_clone)]
                     "title" => intermediate_rep.title.push(

@@ -1,10 +1,12 @@
+import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it } from "@effect/vitest";
 import { describe, expect } from "vitest";
-import { Cause, Crypto, Effect, FileSystem, Layer, Option, Path, PlatformError } from "effect";
+import { Cause, Effect, FileSystem, Layer, Option, Path } from "effect";
 import { HttpPlatform, HttpRouter } from "effect/http";
 import { MediaRegistry, makeMediaRegistryService } from "../src/bun/media/MediaRegistry";
 import { layerMediaHttpRoutes } from "../src/bun/media/MediaHttpRoutes";
@@ -29,7 +31,10 @@ function mediaAppLayer(registry: MediaRegistry["Service"]) {
   return Layer.mergeAll(
     layerMediaHttpRoutes,
     Layer.succeed(MediaRegistry, registry),
-    HttpPlatform.layer.pipe(Layer.provide(NodeServices.layer)),
+    HttpPlatform.layer.pipe(
+      Layer.provide(NodeServices.layer),
+      Layer.provide(NodeCrypto.layerSecureRandom),
+    ),
     NodeServices.layer,
   );
 }
@@ -61,9 +66,15 @@ function firstFailure(cause: Cause.Cause<unknown>): unknown {
 
 function livePlatformTest(
   name: string,
-  effect: () => Effect.Effect<void, unknown, FileSystem.FileSystem | Path.Path | Crypto.Crypto>,
+  effect: () => Effect.Effect<
+    void,
+    unknown,
+    FileSystem.FileSystem | Path.Path | SecureRandom.SecureRandom
+  >,
 ): void {
-  it.live(name, () => effect().pipe(Effect.provide(NodeServices.layer)));
+  it.live(name, () =>
+    effect().pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerSecureRandom])),
+  );
 }
 
 describe("media HTTP routes", () => {
@@ -159,31 +170,26 @@ describe("media HTTP routes", () => {
     }),
   );
 
-  it.live("preserves token-generation failures as typed media errors", () =>
+  it.live("propagates token-generation defects without disguising them as media errors", () =>
     Effect.gen(function* () {
-      const crypto = yield* Crypto.Crypto;
+      const defect = new TypeError("SecureRandom implementation failed");
+      const crypto = yield* SecureRandom.SecureRandom;
       const pathService = yield* Path.Path;
       const failingCrypto = {
         ...crypto,
-        randomUUIDv4: Effect.fail(
-          PlatformError.systemError({
-            _tag: "PermissionDenied",
-            module: "Crypto",
-            method: "randomUUIDv4",
-          }),
-        ),
+        uuidV4: () => Effect.die(defect),
       };
       const registry = yield* makeMediaRegistryService.pipe(
-        Effect.provideService(Crypto.Crypto, failingCrypto),
+        Effect.provideService(SecureRandom.SecureRandom, failingCrypto),
         Effect.provideService(Path.Path, pathService),
       );
-      const error = yield* Effect.flip(registry.registerCapturePreview(() => Effect.succeed({})));
-      expect(error).toBeInstanceOf(MediaServerError);
-      if (!(error instanceof MediaServerError)) {
-        throw error;
+      const exit = yield* Effect.exit(registry.registerCapturePreview(() => Effect.succeed({})));
+      expect(exit._tag).toBe("Failure");
+      if (exit._tag === "Failure") {
+        expect(Cause.hasDies(exit.cause)).toBe(true);
+        expect(Cause.squash(exit.cause)).toBe(defect);
       }
-      expect(error.code).toBe("MEDIA_TOKEN_GENERATION_FAILED");
-    }).pipe(Effect.provide(NodeServices.layer)),
+    }).pipe(Effect.provide([NodeServices.layer, NodeCrypto.layerSecureRandom])),
   );
 
   livePlatformTest("returns 404 when a media file is deleted after token minting", () =>

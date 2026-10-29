@@ -502,7 +502,10 @@ function checkEffectSourcePractices(): void {
           if (namespace === "Context" && property.name === "Reference") {
             failures.push(`${file} must expose application dependencies through Context.Service`);
           }
-          if (namespace === "Effect" && property.name === "catchCause") {
+          if (
+            namespace === "Effect" &&
+            ["catchCause", "catchDefect"].includes(property.name ?? "")
+          ) {
             failures.push(
               `${file} must recover typed failures without swallowing defects or interruption`,
             );
