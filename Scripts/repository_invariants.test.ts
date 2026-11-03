@@ -34,10 +34,6 @@ beforeEach(() => {
     }),
   );
   writeFixture(
-    "vendor/effect/packages/effect/package.json",
-    JSON.stringify({ version: "4.0.0-beta.101" }),
-  );
-  writeFixture(
     "engines/protocol-rust/Cargo.toml",
     '[package]\nname = "protocol-rust"\n\n[dependencies]\nbase64 = "0.23"\nserde = "1"\n\n[dev-dependencies]\ntower = "0.5"\n',
   );
@@ -216,23 +212,6 @@ describe("repository invariants", () => {
     expect(result.stderr).toContain("unsafe-side-effect.ts must use Effect Path");
     expect(result.stderr).toContain("unsafe-require.ts must use Effect Path");
     expect(result.stderr).toContain("unsafe-dynamic.ts must use Effect Path");
-  });
-
-  test("reports vendor drift when the Effect submodule is initialized", () => {
-    writeFixture(
-      "vendor/effect/packages/effect/package.json",
-      JSON.stringify({ version: "4.0.0-beta.100" }),
-    );
-    const result = runCheck();
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("does not match vendor/effect 4.0.0-beta.100");
-  });
-
-  test("skips only the vendor comparison when the submodule is absent", () => {
-    rmSync(join(fixtureRoot, "vendor/effect"), { recursive: true, force: true });
-    const result = runCheck();
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("vendor comparison skipped; submodule not initialized");
   });
 
   test("reports generated Rust dependency drift or missing tables", () => {

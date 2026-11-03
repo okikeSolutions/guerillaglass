@@ -270,8 +270,7 @@
     "apps/web/convex/betterAuth/generatedSchema.ts",
     "apps/web/src/routeTree.gen.ts",
     "apps/*/src/paraglide/**",
-    "packages/engine-contract/generated/**",
-    "vendor/**"
+    "packages/engine-contract/generated/**"
   ],
   "options": {
     "typeAware": true,

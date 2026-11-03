@@ -40,7 +40,7 @@ Important boundaries:
 ## Quick Start
 
 ```bash
-# Initialize submodules, install frozen dependencies, compile localization,
+# Install frozen dependencies, compile localization,
 # and verify repository invariants.
 bun run bootstrap
 

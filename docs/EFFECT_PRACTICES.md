@@ -1,6 +1,6 @@
 # Effect practices
 
-Read this when changing TypeScript services, schemas, configuration, polling, SDK adapters, or Effect tests. Use the `$effect` skill with the installed Effect source. Runtime packages and the vendor source must have the same version, which `bun run repo:check` verifies.
+Read this when changing TypeScript services, schemas, configuration, polling, SDK adapters, or Effect tests. Use the `$effect` skill with the installed Effect source. Effect runtime packages must use the same version across workspace manifests, which `bun run repo:check` verifies.
 
 ## Implementation order
 
