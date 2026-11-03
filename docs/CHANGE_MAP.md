@@ -160,7 +160,7 @@ Active compatibility holds:
 - The repository and CI use Bun `1.4.1`. Electrobun `2.0.1` controls its packaged Bun runtime and currently embeds Bun `1.4.0`; Electrobun v2 no longer supports an independent `bunVersion` setting. Remove this note when an Electrobun release embeds Bun `1.4.1` or newer.
 
 1. Upgrade direct manifests and regenerate lockfiles.
-2. Keep all Effect package versions aligned with `vendor/effect/packages/effect/package.json`.
+2. Keep Effect runtime package versions aligned across workspace manifests; `bun run repo:check` verifies this.
 3. For generated Rust dependencies, edit `engines/protocol-rust/openapi-generator-templates/Cargo.mustache`, regenerate, and verify the generated manifest.
 4. Check Swift direct pins and resolved transitive changes.
 5. Run `bun outdated --recursive`, `cargo update --dry-run`, and `swift package show-dependencies`; use release metadata to check whether direct Cargo/Swift manifest pins are current and document intentional compatibility holds.

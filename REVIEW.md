@@ -11,7 +11,7 @@ Use this rubric for human and agent review. Report concrete defects with file/li
 - **Tests:** Tests assert externally meaningful behavior and would fail before the fix.
 - **Documentation:** Active roadmap state and operational guidance match the implementation.
 - **Security:** File paths, bearer tokens, loopback origins, symlinks, and untrusted payloads retain defensive validation.
-- **Dependencies:** Manifest, lockfile, generated templates, and vendor pins remain aligned. Bun remains the only JavaScript package manager, and Effect runtime integrations use `@effect/platform-node` rather than `@effect/platform-bun`.
+- **Dependencies:** Manifests, lockfiles, and generated templates remain aligned. Bun remains the only JavaScript package manager, and Effect runtime integrations use `@effect/platform-node` rather than `@effect/platform-bun`.
 
 ## Desktop and UI
 
@@ -61,7 +61,7 @@ Use this rubric for human and agent review. Report concrete defects with file/li
 
 ## Release and maintenance
 
-- Dependency versions are compatible across workspaces and pinned vendor sources.
+- Dependency versions are compatible across workspaces.
 - Package/release metadata carries the intended version and channel semantics.
 - Signing/notarization secrets are not required for documented unsigned dry runs.
 - Build artifacts are reproducible from committed manifests, templates, and lockfiles.

@@ -111,9 +111,11 @@ jobs:
             https://github.com/nicklockwood/SwiftFormat/releases/download/0.62.1/swiftformat.zip \
             --output /tmp/swiftformat.zip
           unzip -q /tmp/swiftformat.zip -d /tmp/swiftformat
-          sudo install /tmp/swiftformat/swiftformat /usr/local/bin/swiftformat
+          mkdir -p "$RUNNER_TEMP/swiftformat-bin"
+          install /tmp/swiftformat/swiftformat "$RUNNER_TEMP/swiftformat-bin/swiftformat"
+          echo "$RUNNER_TEMP/swiftformat-bin" >> "$GITHUB_PATH"
           brew install swiftlint
-          swiftformat --version
+          "$RUNNER_TEMP/swiftformat-bin/swiftformat" --version
 
       - name: Remove temporary experiments
         run: rm -rf .tmp

@@ -45,7 +45,6 @@ Documents named `ENGINE_CONTRACT_V2_*` and `MIGRATION.md` preserve migration his
 - `engines/protocol-rust`, `engines/protocol-swift`: generated protocol bindings plus explicitly owned helpers/templates.
 - `messages` and `project.inlang`: localization sources.
 - `Scripts`: canonical generation, quality, coverage, and benchmark automation.
-- `vendor`: pinned upstream source; avoid editing unless the task explicitly updates or patches a vendor.
 
 ## Non-negotiable architecture rules
 
@@ -107,7 +106,7 @@ Before declaring work complete:
 - Confirm generated files are current and deterministic for contract changes.
 - Confirm preview/export/persistence parity for editor-model changes.
 - Confirm new UI is localized, keyboard accessible, and covered by reduced-motion/focus conventions.
-- Check `git diff --check` and review the final diff for accidental generated or vendor changes.
+- Check `git diff --check` and review the final diff for accidental generated changes.
 - Before merging a PR, run `bun run pr:check-review-threads -- <PR number>` and require zero unresolved review threads. A passing Greptile check or 5/5 summary does not replace addressing, replying to, and resolving every concrete comment, including outdated threads.
 - Reconcile the roadmap and documentation.
 - Report validation commands and any platform checks that remain for CI.

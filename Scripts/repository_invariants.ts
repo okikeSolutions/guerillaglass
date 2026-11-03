@@ -14,7 +14,6 @@ type PackageManifest = {
 
 const root = resolve(process.env.GG_REPOSITORY_ROOT ?? resolve(import.meta.dir, ".."));
 const failures: Array<string> = [];
-let effectVendorVersionChecked = false;
 
 const requiredGuides = [
   "AGENTS.md",
@@ -52,11 +51,7 @@ if (failures.length > 0) {
 
 console.log("Repository invariant check passed:");
 console.log(`- ${requiredGuides.length} required agent/review guides present`);
-console.log(
-  effectVendorVersionChecked
-    ? "- Effect runtime packages are aligned and match the initialized vendor submodule"
-    : "- Effect runtime packages are aligned (vendor comparison skipped; submodule not initialized)",
-);
+console.log("- Effect runtime packages are aligned across workspace manifests");
 console.log("- Bun is the only package manager and Effect uses the Node platform adapter");
 console.log("- TypeScript 7 uses @effect/tsgo without legacy compiler-API imports");
 console.log("- application services use Effect Path, FileSystem, and Crypto boundaries");
@@ -135,25 +130,6 @@ function checkEffectVersionAlignment(): void {
         .join("; ")}`,
     );
     return;
-  }
-
-  const workspaceVersion = versions.keys().next().value;
-  const vendorManifestPath = "vendor/effect/packages/effect/package.json";
-  if (!existsSync(join(root, vendorManifestPath))) {
-    return;
-  }
-
-  const vendorVersion = readJson(join(root, vendorManifestPath)).version;
-  if (typeof vendorVersion !== "string") {
-    failures.push(`${vendorManifestPath} has no string version`);
-    return;
-  }
-
-  effectVendorVersionChecked = true;
-  if (workspaceVersion !== vendorVersion) {
-    failures.push(
-      `workspace Effect runtime version ${workspaceVersion} does not match vendor/effect ${vendorVersion}`,
-    );
   }
 }
 
@@ -736,14 +712,7 @@ function collectSourceFiles(directory: string): Array<string> {
 }
 
 function collectMarkdownFiles(directory: string): Array<string> {
-  const ignoredDirectories = new Set([
-    ".build",
-    ".git",
-    ".tmp",
-    "node_modules",
-    "target",
-    "vendor",
-  ]);
+  const ignoredDirectories = new Set([".build", ".git", ".tmp", "node_modules", "target"]);
   const files: Array<string> = [];
 
   for (const entry of readdirSync(directory, { withFileTypes: true })) {

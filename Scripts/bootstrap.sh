@@ -17,10 +17,6 @@ elif [[ $# -gt 0 ]]; then
   exit 2
 fi
 
-echo "==> synchronizing the required Effect vendor submodule"
-git submodule sync -- vendor/effect
-git submodule update --init vendor/effect
-
 echo "==> installing JavaScript dependencies"
 bun install --frozen-lockfile
 
