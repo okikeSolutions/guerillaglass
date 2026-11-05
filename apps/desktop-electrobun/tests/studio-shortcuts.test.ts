@@ -4,12 +4,17 @@ import {
   resolveStudioShortcutHotkey,
   sanitizeStudioShortcutOverrides,
   studioHotkeyMenuAccelerator,
+  studioHotkeyDisplayTokens,
   studioShortcutDisplayText,
   studioShortcutDisplayTokens,
   validateStudioShortcutOverride,
 } from "@shared/shortcuts";
 
 describe("studio shortcuts", () => {
+  test("displays modifier-only keys while recording an override", () => {
+    expect(studioHotkeyDisplayTokens("Control+Shift")).toEqual(["Ctrl", "Shift"]);
+    expect(studioHotkeyDisplayTokens("")).toEqual([]);
+  });
   test("resolves platform-aware defaults for menu-exposed shortcuts", () => {
     expect(studioShortcutDisplayText("playPause")).toBe("Space");
     expect(resolveStudioShortcutHotkey("save", { platform: "mac" })).toBe("Meta+S");

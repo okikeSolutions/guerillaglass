@@ -155,7 +155,9 @@ function canonicalizeStudioHotkey(hotkey: string): StudioHotkey {
     parts.push("Shift");
   }
 
-  parts.push(parsed.key);
+  if (parsed.key) {
+    parts.push(parsed.key);
+  }
   return parts.join("+");
 }
 
@@ -175,7 +177,7 @@ function parseStudioHotkey(hotkey: string): ParsedShortcutToken {
     modifiers.push("Shift");
   }
   return {
-    key: parsed.key,
+    key: parsed.key ?? "",
     modifiers,
   };
 }
@@ -349,12 +351,12 @@ export function resolveStudioShortcutBinding(
   const parsed = parseStudioHotkey(hotkey);
   const displayTokens = [
     ...parsed.modifiers.map((modifier) => displayTokenForModifier(modifier, platform)),
-    displayTokenForKey(parsed.key, options?.spaceKeyLabel),
+    ...(parsed.key ? [displayTokenForKey(parsed.key, options?.spaceKeyLabel)] : []),
   ];
 
   return {
     hotkey,
-    key: parsed.key,
+    key: parsed.key ?? "",
     modifiers: parsed.modifiers,
     singleKey: parsed.modifiers.length === 0,
     displayTokens,
@@ -392,7 +394,7 @@ export function studioHotkeyDisplayTokens(
   const parsed = parseStudioHotkey(hotkey);
   return [
     ...parsed.modifiers.map((modifier) => displayTokenForModifier(modifier, platform)),
-    displayTokenForKey(parsed.key, options?.spaceKeyLabel),
+    ...(parsed.key ? [displayTokenForKey(parsed.key, options?.spaceKeyLabel)] : []),
   ];
 }
 

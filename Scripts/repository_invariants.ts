@@ -491,6 +491,8 @@ function checkEffectSourcePractices(): void {
             property.name === "env" &&
             ![
               "packages/engine-client/src/process/launchBun.ts",
+              // Convex cannot evaluate import.meta in Effect's default environment provider.
+              "apps/web/convex/environment.ts",
               "Scripts/capture_benchmark.ts",
             ].includes(file)
           ) {
