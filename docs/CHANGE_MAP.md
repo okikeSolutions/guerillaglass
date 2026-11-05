@@ -156,8 +156,12 @@ Keep hosted identity and billing out of local engine contracts. Verify local des
 
 Active compatibility holds:
 
-- Better Auth stays on `1.6.33` while `@convex-dev/better-auth@0.12.5` requires `better-auth >=1.6.11 <1.7.0`.
-- The repository and CI use Bun `1.4.1`. Electrobun `2.0.1` controls its packaged Bun runtime and currently embeds Bun `1.4.0`; Electrobun v2 no longer supports an independent `bunVersion` setting. Remove this note when an Electrobun release embeds Bun `1.4.1` or newer.
+- Keep Better Auth and `@better-auth/expo` on the same `1.7.x` release. `@convex-dev/better-auth@0.13.0` requires `better-auth >=1.7.16 <1.8.0`. After upgrades, run `bun run --cwd apps/web generate:auth` and commit the regenerated local schema. The local adapter must export `consumeOne` and `incrementOne`.
+- Playwright is on `1.64.1` because the registry advertises `1.65.0` without publishing its required `playwright-core@1.65.0`. This remains a blocker for a clean recursive outdated check.
+
+Security overrides pin `deepmerge` to unaffected `4.1.2` and update `minimatch`, `postcss-selector-parser`, and `seroval` beyond vulnerable transitive ranges. Remove each override when upstream consumers accept patched versions. Validate lint, routing/protocol tests, and packaged builds after changes to these overrides.
+
+The Effect compiler allow-list records the platform, HTTP, and test APIs already used by the application. Review new unstable API use before expanding it.
 
 1. Upgrade direct manifests and regenerate lockfiles.
 2. Keep Effect runtime package versions aligned across workspace manifests; `bun run repo:check` verifies this.

@@ -3,13 +3,12 @@ import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
 import { createClient } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import authConfig from "./auth.config";
+import { convexConfigProvider } from "./environment";
 import { components } from "./_generated/api";
 import { query } from "./_generated/server";
 import type { GenericCtx } from "@convex-dev/better-auth";
 import type { DataModel } from "./_generated/dataModel";
 import authSchema from "./betterAuth/schema";
-
-const siteUrl = Effect.runSync(Config.URL("SITE_URL").pipe(Config.map(String)));
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -20,7 +19,6 @@ export const authComponent = createClient<DataModel, typeof authSchema>(componen
 });
 
 export const authOptions = {
-  baseURL: siteUrl,
   // Configure simple, non-verified email/password to get started
   emailAndPassword: {
     enabled: true,
@@ -38,7 +36,10 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => ({
 });
 
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
-  return betterAuth(createAuthOptions(ctx));
+  const baseURL = Effect.runSync(
+    Config.URL("SITE_URL").pipe(Config.map(String)).parse(convexConfigProvider()),
+  );
+  return betterAuth({ ...createAuthOptions(ctx), baseURL });
 };
 
 // Example function for getting the current user

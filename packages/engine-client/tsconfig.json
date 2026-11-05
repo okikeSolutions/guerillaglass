@@ -6,7 +6,42 @@
     "types": ["bun", "node"],
     "plugins": [
       {
-        "name": "@effect/language-service"
+        "name": "@effect/language-service",
+        "allowedUnstableApis": [
+          "@effect/platform-node-shared/NodeCrypto",
+          "@effect/platform-node/NodeHttpClient",
+          "@effect/platform-node/NodeHttpServer",
+          "@effect/platform-node/NodeRuntime",
+          "@effect/platform-node/NodeServices",
+          "@effect/vitest",
+          "effect/FileSystem",
+          "effect/Logger",
+          "effect/Path",
+          "effect/crypto/Digest",
+          "effect/crypto/SecureRandom",
+          "effect/devtools/DevTools",
+          "effect/http-api/HttpApi",
+          "effect/http-api/HttpApiClient",
+          "effect/http-api/HttpApiEndpoint",
+          "effect/http-api/HttpApiGroup",
+          "effect/http-api/HttpApiMiddleware",
+          "effect/http-api/HttpApiSchema",
+          "effect/http-api/HttpApiSecurity",
+          "effect/http-api/OpenApi",
+          "effect/http/Headers",
+          "effect/http/HttpClient",
+          "effect/http/HttpClientRequest",
+          "effect/http/HttpClientResponse",
+          "effect/http/HttpPlatform",
+          "effect/http/HttpRouter",
+          "effect/http/HttpServer",
+          "effect/http/HttpServerRequest",
+          "effect/http/HttpServerResponse",
+          "effect/net/NetAddress",
+          "effect/persistence/RateLimiter",
+          "effect/process/ChildProcess",
+          "effect/process/ChildProcessSpawner"
+        ]
       }
     ]
   },

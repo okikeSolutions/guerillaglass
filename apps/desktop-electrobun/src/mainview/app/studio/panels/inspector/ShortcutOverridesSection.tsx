@@ -60,6 +60,7 @@ function ShortcutOverrideRow({ shortcutId }: { shortcutId: StudioShortcutId }) {
   });
 
   const recorder = useHotkeyRecorder({
+    recordBy: "key",
     onRecord: (hotkey) => {
       const result = studio.applyShortcutOverride(shortcutId, hotkey);
       if (!result.ok) {

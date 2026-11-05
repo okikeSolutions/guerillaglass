@@ -32,6 +32,20 @@ jobs:
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile
 
+      - name: Audit JavaScript dependencies
+        run: bun audit
+
+      - name: Require current workspace dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun outdated --recursive | tee "$RUNNER_TEMP/bun-outdated.txt"
+          # Bun exits zero even when it prints outdated package rows.
+          if grep -q '^|' "$RUNNER_TEMP/bun-outdated.txt"; then
+            echo "Update all workspace dependencies before merging."
+            exit 1
+          fi
+
       - name: Install Playwright Chromium
         run: cd apps/desktop-electrobun && bun run test:ui:install
 

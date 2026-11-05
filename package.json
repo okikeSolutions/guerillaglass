@@ -63,24 +63,30 @@
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
-    "@better-auth/expo": "~1.6.33",
-    "@convex-dev/better-auth": "^0.12.5",
-    "better-auth": "~1.6.33",
-    "convex": "^1.46.0"
+    "@better-auth/expo": "~1.7.18",
+    "@convex-dev/better-auth": "^0.13.0",
+    "better-auth": "~1.7.18",
+    "convex": "^1.49.0"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.45.0",
-    "@inlang/paraglide-js": "^2.25.4",
+    "@effect/tsgo": "0.67.3",
+    "@inlang/paraglide-js": "^3.1.0",
     "@nkzw/eslint-plugin": "^2.0.0",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.4",
     "eslint-plugin-no-only-tests": "^3.4.0",
-    "eslint-plugin-perfectionist": "^5.11.1",
+    "eslint-plugin-perfectionist": "^5.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-unused-imports": "^4.4.1",
-    "oxc-parser": "^0.150.0",
-    "oxfmt": "^0.68.0",
-    "oxlint": "^1.83.0",
-    "oxlint-tsgolint": "^7.0.2002",
+    "oxc-parser": "^0.157.0",
+    "oxfmt": "^0.76.0",
+    "oxlint": "^1.91.0",
+    "oxlint-tsgolint": "^7.0.2006",
     "typescript": "7.0.2"
+  },
+  "overrides": {
+    "deepmerge": "4.1.2",
+    "minimatch": "11.0.4",
+    "postcss-selector-parser": "7.1.7",
+    "seroval": "1.7.7"
   }
 }

@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth/minimal";
-import { authOptions } from "../auth";
+import type { GenericCtx } from "@convex-dev/better-auth";
+import type { DataModel } from "../_generated/dataModel";
+import { createAuthOptions } from "../auth";
 
-// Schema generation needs auth plugins and options without a live Convex database context.
-export const auth = betterAuth(authOptions);
+// The CLI only inspects the adapter schema; it never calls the database context.
+export const auth = betterAuth(createAuthOptions({} as GenericCtx<DataModel>));
