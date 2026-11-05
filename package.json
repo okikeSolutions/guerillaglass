@@ -70,7 +70,7 @@
   },
   "devDependencies": {
     "@effect/tsgo": "0.67.3",
-    "@inlang/paraglide-js": "^3.1.0",
+    "@inlang/paraglide-js": "^3.2.0",
     "@nkzw/eslint-plugin": "^2.0.0",
     "@types/bun": "^1.4.4",
     "eslint-plugin-no-only-tests": "^3.4.0",
