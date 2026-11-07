@@ -37,6 +37,7 @@ final class EngineService: APIProtocol {
 
     var trackInputEventsWhileRecording = false
     var projectSessionID = UUID()
+    var currentProjectLease: ProjectLease?
     var currentProjectURL: URL?
     var currentProjectDocument = ProjectDocument()
     var currentEventsURL: URL?

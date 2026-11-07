@@ -6,7 +6,7 @@ import * as ChildProcess from "../apps/desktop-electrobun/node_modules/effect/di
 import { EngineClient, layerEngineClientBun } from "../packages/engine-client/src/service";
 import { EngineResponseError } from "../packages/engine-client/src/errors";
 import { EditPlan } from "../packages/engine-contract/src/domains/editPlan";
-import { projectPathSchema } from "../packages/engine-contract/src/schema-primitives";
+import { projectPathSchema, timelineSegmentIdSchema } from "../packages/engine-contract/src/schema-primitives";
 
 class EditSmokeError extends Schema.TaggedError<EditSmokeError>()("EditSmokeError", { message: Schema.String }) {}
 const check = Effect.fn("EditSmoke.check")(function* (valid: boolean, message: string) {
@@ -27,6 +27,9 @@ const workflow = Effect.fn("EditSmoke.workflow")(function* (directory: string) {
   yield* fixture([path.join(projectPath, "recording.mov")]);
   yield* client.projectOpen({ projectPath });
   yield* client.projectSave({ autoZoom: { isEnabled: false, intensity: 1, minimumKeyframeInterval: 0.1 } });
+  const competitor = yield* ChildProcess.make("bun", ["Scripts/edit_project.ts", "review", projectPath], { stdin: "ignore", stderr: "ignore" });
+  const competitorOutput = yield* competitor.stdout.pipe(Stream.decodeText(), Stream.runFold(() => "", (text, part) => text + part));
+  yield* check((yield* competitor.exitCode) !== 0 && competitorOutput.includes("project_busy"), "A competing adapter must fail without terminating the owner");
   const review = yield* client.editReview;
   const plan = yield* Schema.decodeUnknownEffect(EditPlan)({
     version: 1, id: "storyboard-1", baseRevision: review.revision, sourceRevision: review.sourceRevision,
@@ -37,6 +40,12 @@ const workflow = Effect.fn("EditSmoke.workflow")(function* (directory: string) {
     ] },
   });
   yield* client.editValidate(plan);
+  const invalid = { ...plan, timeline: { version: 2 as const, items: [
+    { kind: "clip" as const, id: timelineSegmentIdSchema.make("invalid-scene"), sourceAssetId: "recording" as const,
+      sourceStartSeconds: 0, sourceEndSeconds: review.sourceDurationSeconds + 1 },
+  ] } };
+  const invalidRejected = yield* client.editValidate(invalid).pipe(Effect.match({ onSuccess: () => false, onFailure: (error) => error instanceof EngineResponseError && error.code === "invalid_params" }));
+  yield* check(invalidRejected, "Out-of-source plan was accepted");
   const applied = yield* client.editApply(plan);
   yield* check(applied.revision !== review.revision, "Apply did not advance the editing revision");
   const stale = yield* client.editApply(plan).pipe(Effect.match({ onSuccess: () => false, onFailure: (error) => error instanceof EngineResponseError && error.code === "project_mismatch" }));
