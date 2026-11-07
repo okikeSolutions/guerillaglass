@@ -310,7 +310,7 @@ export function useVideoPlaybackSync({
 
   useEffect(() => {
     const media = mediaRef.current;
-    if (!media) {
+    if (!media || !recordingMediaSource) {
       return;
     }
 
@@ -427,6 +427,7 @@ export function useVideoPlaybackSync({
     };
   }, [
     mediaRef,
+    recordingMediaSource,
     setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
     sourceCardRef,

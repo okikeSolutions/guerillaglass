@@ -43,9 +43,11 @@ const playbackStore = createPlaybackTransportStore({
 function Harness({
   items = timelineItems,
   duration = timelineDuration,
+  recordingMediaSource = "recording",
 }: {
   items?: typeof timelineItems;
   duration?: number;
+  recordingMediaSource?: string | null;
 }) {
   const mediaRef = useRef<HTMLVideoElement>(null);
   const sourceCardRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ function Harness({
     mediaRef,
     sourceCardRef,
     playbackStore,
-    recordingMediaSource: "recording",
+    recordingMediaSource,
     timelineItems: items,
     timelineDuration: duration,
     setTimelinePlaybackActive: (active) => (active ? playbackStore.play() : playbackStore.pause()),
@@ -62,7 +64,7 @@ function Harness({
   });
   return (
     <div ref={sourceCardRef} data-testid="source-card">
-      <video ref={mediaRef} />
+      {recordingMediaSource ? <video key={recordingMediaSource} ref={mediaRef} /> : null}
     </div>
   );
 }
@@ -109,6 +111,28 @@ afterEach(() => {
 });
 
 describe("timeline preview across gaps", () => {
+  test("async source arrival and token refresh rebind native media events", () => {
+    act(() => {
+      root?.render(<Harness recordingMediaSource={null} />);
+      playbackStore.seek(0.75);
+    });
+    expect(document.querySelector("video")).toBeNull();
+
+    for (const source of ["first-token", "refreshed-token"]) {
+      act(() => root?.render(<Harness recordingMediaSource={source} />));
+      const media = document.querySelector("video")!;
+      vi.spyOn(media, "play").mockResolvedValue(undefined);
+      vi.spyOn(media, "pause").mockImplementation(() => {});
+      media.currentTime = 0;
+      act(() => media.dispatchEvent(new Event("loadedmetadata")));
+      expect(media.currentTime).toBeCloseTo(0.25);
+      act(() => media.dispatchEvent(new Event("play")));
+      expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+      act(() => media.dispatchEvent(new Event("pause")));
+      expect(playbackStore.getSnapshot().isPlaying).toBe(false);
+    }
+  });
+
   test("paused seeks into a gap hide the media without remapping source time", () => {
     const media = document.querySelector("video")!;
     media.currentTime = 0.25;
