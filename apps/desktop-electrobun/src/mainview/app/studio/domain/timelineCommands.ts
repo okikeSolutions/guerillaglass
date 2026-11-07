@@ -157,7 +157,9 @@ export function splitTimelineClipAtProgramTime(
     return { timeline, changed: false };
   }
 
+  const camera = target.camera === undefined ? {} : { camera: target.camera };
   const leftClip: TimelineClipItem = {
+    ...camera,
     kind: "clip",
     id: target.id,
     sourceAssetId: target.sourceAssetId,
@@ -165,6 +167,7 @@ export function splitTimelineClipAtProgramTime(
     sourceEndSeconds: splitSeconds,
   };
   const rightClip: TimelineClipItem = {
+    ...camera,
     kind: "clip",
     id: makeTimelineSegmentId(idFactory),
     sourceAssetId: target.sourceAssetId,

@@ -21,7 +21,9 @@ export function useSceneCameraPreview({
   useEffect(() => {
     const media = mediaRef.current;
     const card = sourceCardRef.current;
-    if (!media || !card || !recordingMediaSource) {return;}
+    if (!media || !card || !recordingMediaSource) {
+      return;
+    }
     const clear = () => {
       media.style.removeProperty("transform");
       media.style.removeProperty("transform-origin");
@@ -59,11 +61,20 @@ export function useSceneCameraPreview({
     const unsubscribe = playbackStore.subscribe(update);
     const observer = new ResizeObserver(update);
     observer.observe(card);
+    const stage = card.closest("[data-framing-enabled]");
+    const framingObserver = new MutationObserver(update);
+    if (stage) {
+      framingObserver.observe(stage, {
+        attributes: true,
+        attributeFilter: ["data-framing-enabled"],
+      });
+    }
     media.addEventListener("loadedmetadata", update);
     update();
     return () => {
       unsubscribe();
       observer.disconnect();
+      framingObserver.disconnect();
       media.removeEventListener("loadedmetadata", update);
       clear();
     };

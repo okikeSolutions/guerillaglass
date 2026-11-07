@@ -16,7 +16,7 @@ public final class ProjectLease {
 
         public var errorDescription: String? {
             switch self {
-            case .unsafePath: "Cannot safely open the project directory."
+            case .unsafePath: "project_unsafe_path: Cannot safely open the project directory."
             case .busy: "project_busy: another engine owns this project. Save and close the desktop application before handing it to an agent."
             }
         }

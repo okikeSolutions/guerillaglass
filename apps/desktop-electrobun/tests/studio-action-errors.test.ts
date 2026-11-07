@@ -24,3 +24,27 @@ describe("studio action error notices", () => {
     expect(mapStudioActionErrorMessage(ui, error)).toBe("runtime_error: Something else failed.");
   });
 });
+
+test("localizes project ownership failures in both supported locales", () => {
+  for (const locale of ["en-US", "de-DE"] as const) {
+    const ui = getStudioMessages(locale);
+    expect(
+      mapStudioActionErrorMessage(
+        ui,
+        new EngineResponseError({
+          code: "invalid_request",
+          description: "project_busy: another engine owns this project",
+        }),
+      ),
+    ).toBe(ui.notices.projectBusy);
+    expect(
+      mapStudioActionErrorMessage(
+        ui,
+        new EngineResponseError({
+          code: "invalid_request",
+          description: "project_unsafe_path: unsafe directory",
+        }),
+      ),
+    ).toBe(ui.notices.projectUnsafePath);
+  }
+});

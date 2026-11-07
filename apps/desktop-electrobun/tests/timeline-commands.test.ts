@@ -466,3 +466,26 @@ describe("timeline commands", () => {
     expect(result.timeline).toBe(timeline);
   });
 });
+
+test("splitting a camera scene preserves its source-time curve for save/export", () => {
+  const camera = [
+    { timeSeconds: 0, centerX: 0.25, centerY: 0.5, zoom: 2 },
+    { timeSeconds: 4, centerX: 0.75, centerY: 0.5, zoom: 3 },
+  ];
+  const original = makeTimeline([
+    {
+      kind: "clip",
+      id: "scene",
+      sourceAssetId: "recording",
+      sourceStartSeconds: 0,
+      sourceEndSeconds: 4,
+      camera,
+    },
+  ]);
+  const result = splitTimelineClipAtProgramTime(original, 2, makeIdFactory(["scene-right"]));
+  expect(result.changed).toBe(true);
+  expect(result.timeline.items).toHaveLength(2);
+  for (const item of result.timeline.items) {
+    expect(item.kind === "clip" && item.camera).toEqual(camera);
+  }
+});

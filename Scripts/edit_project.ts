@@ -38,7 +38,13 @@ const main = Effect.fn("EditCLI.main")(function* () {
   );
   let command: EditCommand = EditCommand.Review();
   if (requestFile) {
-    const text = yield* fs.readFileString(path.resolve(requestFile));
+    const inputPath = path.resolve(requestFile);
+    if ((yield* fs.stat(inputPath)).size > 2 * 1024 * 1024) {
+      return yield* new EditAdapterError({
+        message: "Edit request exceeds the engine's 2 MiB request limit.",
+      });
+    }
+    const text = yield* fs.readFileString(inputPath);
     command =
       operation === "export"
         ? EditCommand.Export({

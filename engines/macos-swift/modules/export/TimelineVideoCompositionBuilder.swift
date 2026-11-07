@@ -275,8 +275,8 @@ private func applySceneCameraTransforms(
     layerInstruction.setTransform(transform(times[0]), at: programRange.start)
     for (start, end) in zip(times, times.dropFirst()) {
         let from = sourceSecondsToProgramTime(start, sourceRange: sourceRange, programRange: programRange)
-        let to = sourceSecondsToProgramTime(end, sourceRange: sourceRange, programRange: programRange)
+        let endTime = sourceSecondsToProgramTime(end, sourceRange: sourceRange, programRange: programRange)
         layerInstruction.setTransformRamp(fromStart: transform(start), toEnd: transform(end),
-                                          timeRange: CMTimeRange(start: from, end: to))
+                                          timeRange: CMTimeRange(start: from, end: endTime))
     }
 }

@@ -102,28 +102,11 @@ extension EngineService {
             }
         }
         if let timeline = payload.timeline {
-            guard Int(timeline.version) == 2 else {
-                return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unsupported timeline version."))))
+            do {
+                document.project.timeline = try projectTimeline(from: timeline)
+            } catch {
+                return .badRequest(.init(body: .json(badRequest(.invalid_params, "Invalid timeline document."))))
             }
-            document.project.timeline = TimelineDocument(
-                items: timeline.items.compactMap { item in
-                    if let clip = item.value1 {
-                        return .clip(TimelineClip(
-                            id: clip.id,
-                            sourceStartSeconds: clip.sourceStartSeconds,
-                            sourceEndSeconds: clip.sourceEndSeconds,
-                            camera: clip.camera?.map { .init(timeSeconds: $0.timeSeconds, centerX: $0.centerX, centerY: $0.centerY, zoom: $0.zoom) }
-                        ))
-                    }
-                    if let gap = item.value2 {
-                        return .gap(TimelineGap(
-                            id: gap.id,
-                            durationSeconds: gap.durationSeconds
-                        ))
-                    }
-                    return nil
-                }
-            )
         }
         do {
             let quarantinedAnalysis = isSaveAs

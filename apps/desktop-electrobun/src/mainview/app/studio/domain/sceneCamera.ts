@@ -6,8 +6,12 @@ export function sampleSceneCamera(
   time: number,
 ): SceneCameraKeyframe | null {
   const first = camera[0];
-  if (!first) {return null;}
-  if (time <= first.timeSeconds) {return first;}
+  if (!first) {
+    return null;
+  }
+  if (time <= first.timeSeconds) {
+    return first;
+  }
   let previous = first;
   for (const next of camera.slice(1)) {
     if (time <= next.timeSeconds) {

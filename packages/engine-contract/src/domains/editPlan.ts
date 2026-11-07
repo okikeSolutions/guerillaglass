@@ -34,7 +34,7 @@ export interface EditReview extends Schema.Schema.Type<typeof EditReview> {}
 /** Export of one explicitly identified saved project revision. */
 export const EditExportRequest = Schema.Struct({
   expectedRevision: editRevisionSchema,
-  outputURL: outputUrlSchema,
+  outputURL: outputUrlSchema.check(Schema.isPattern(/^\//u)),
   presetId: exportPresetIdSchema,
 }).annotate({ identifier: "EditExportRequest" });
 export interface EditExportRequest extends Schema.Schema.Type<typeof EditExportRequest> {}

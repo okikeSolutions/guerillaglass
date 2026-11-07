@@ -281,5 +281,7 @@
   "desktopMenu_help": "Hilfe",
   "desktopMenu_documentation": "Guerillaglass-Dokumentation",
   "desktopMenu_quit": "Beenden",
-  "studio_inspector_actions_deleteClipRipple": "Clip löschen (Ripple)"
+  "studio_inspector_actions_deleteClipRipple": "Clip löschen (Ripple)",
+  "studio_notices_projectBusy": "Dieses Projekt ist in einer anderen Anwendung oder bei einem Agenten geöffnet. Speichere und schließe es dort und versuche es erneut.",
+  "studio_notices_projectUnsafePath": "Der Projektordner konnte nicht sicher geöffnet werden. Wähle einen lokalen Projektordner ohne symbolische Verknüpfungen."
 }

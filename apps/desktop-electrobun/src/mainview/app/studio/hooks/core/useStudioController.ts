@@ -132,6 +132,12 @@ export function mapStudioActionErrorMessage(ui: StudioMessages, error: unknown):
     return ui.notices.rpcTimedOut;
   }
   if (error instanceof EngineResponseError) {
+    if (error.description.startsWith("project_busy:")) {
+      return ui.notices.projectBusy;
+    }
+    if (error.description.startsWith("project_unsafe_path:")) {
+      return ui.notices.projectUnsafePath;
+    }
     if (
       error.code === "runtime_error" &&
       /capture did not stabilize quickly enough/i.test(error.description)

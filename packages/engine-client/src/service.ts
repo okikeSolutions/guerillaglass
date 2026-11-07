@@ -516,6 +516,7 @@ export const layerEngineClientFromConfig = Layer.effect(
  * Node-platform-backed layer that launches a scoped native engine process under Bun and provides `EngineClient`.
  *
  * @param options - Native engine process launch options.
+ * @param requestTimeoutMs - Per-request deadline; external editing allows longer media exports.
  * @returns A scoped layer providing {@link EngineClient}.
  */
 export function layerEngineClientBun(

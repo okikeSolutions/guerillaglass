@@ -7239,7 +7239,11 @@ pub struct EditExportRequest {
     pub expected_revision: String,
 
     #[serde(rename = "outputURL")]
-    #[validate(length(min = 1), custom(function = "check_xss_string"))]
+    #[validate(
+            length(min = 1),
+            regex(path = *RE_EDITEXPORTREQUEST_OUTPUT_URL),
+          custom(function = "check_xss_string"),
+    )]
     pub output_url: String,
 
     #[serde(rename = "presetId")]
@@ -7249,6 +7253,9 @@ pub struct EditExportRequest {
 
 lazy_static::lazy_static! {
     static ref RE_EDITEXPORTREQUEST_EXPECTED_REVISION: regex::Regex = regex::Regex::new("^[a-f0-9]{64}$").unwrap();
+}
+lazy_static::lazy_static! {
+    static ref RE_EDITEXPORTREQUEST_OUTPUT_URL: regex::Regex = regex::Regex::new("^/").unwrap();
 }
 
 impl EditExportRequest {

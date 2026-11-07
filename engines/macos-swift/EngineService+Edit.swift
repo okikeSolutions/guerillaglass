@@ -2,6 +2,7 @@ import CryptoKit
 import EngineProtocol
 import Export
 import Foundation
+import InputTracking
 import Project
 
 extension EngineService {
@@ -36,6 +37,11 @@ extension EngineService {
     private func makeEditReview(source: AgentSource) throws -> Components.Schemas.EditReview {
         var data = try editDocumentData(currentProjectDocument)
         data.append(contentsOf: source.revision.utf8)
+        if let eventsURL = projectEventsURL() {
+            try data.append(ProjectStore.makeDefaultEncoder().encode(InputEventLog.load(from: eventsURL)))
+        }
+        data.append(0)
+        data.append(contentsOf: (currentProjectURL?.standardizedFileURL.path ?? "").utf8)
         let revision = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         return .init(
             revision: revision,
@@ -114,7 +120,7 @@ extension EngineService {
                   let recordingURL = availableAgentRecordingURL()
             else { throw EditPlan.ValidationError.invalidPlan }
             let document = currentProjectDocument
-            guard let projectURL = currentProjectURL,
+            guard payload.outputURL.hasPrefix("/"), let projectURL = currentProjectURL,
                   !URL(fileURLWithPath: payload.outputURL).standardizedFileURL.path.hasPrefix(projectURL.standardizedFileURL.path + "/"),
                   URL(fileURLWithPath: payload.outputURL).standardizedFileURL != projectURL.standardizedFileURL
             else { throw EditPlan.ValidationError.invalidPlan }
@@ -134,7 +140,11 @@ extension EngineService {
                 timeline: exportTimeline(from: timeline),
                 backgroundFraming: document.project.backgroundFraming
             )
-            return .ok(.init(body: .json(.init(jobId: "edit-export-\(UUID().uuidString)", status: .succeeded, outputURL: output.path))))
+            let jobId = "edit-export-\(UUID().uuidString)"
+            latestExportJobId = jobId
+            latestExportOutputURL = output
+            latestExportBackgroundFraming = document.project.backgroundFraming
+            return .ok(.init(body: .json(.init(jobId: jobId, status: .succeeded, outputURL: output.path))))
         } catch is CancellationError {
             throw CancellationError()
         } catch is EditSessionError {
