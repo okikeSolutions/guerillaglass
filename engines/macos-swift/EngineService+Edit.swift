@@ -53,6 +53,7 @@ extension EngineService {
     }
 
     private func validateEdit(_ payload: Components.Schemas.EditPlan) async throws -> Components.Schemas.EditReview {
+        guard payload.timeline.version == 2 else { throw EditPlan.ValidationError.invalidPlan }
         let review = try await reviewSavedEdit()
         guard payload.baseRevision == review.revision, payload.sourceRevision == review.sourceRevision else {
             throw EditSessionError.revisionConflict

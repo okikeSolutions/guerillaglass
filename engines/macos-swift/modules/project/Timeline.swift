@@ -150,7 +150,7 @@ public struct TimelineDocument: Codable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        version = (try? container.decode(Int.self, forKey: .version)) ?? 2
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 2
         if container.contains(.items) {
             items = try container.decode([TimelineItem].self, forKey: .items)
             return
