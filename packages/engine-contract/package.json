@@ -19,7 +19,8 @@
     "./openApi": "./src/openApi.ts",
     "./schema-primitives": "./src/schema-primitives.ts",
     "./shared/helpers": "./src/shared/helpers.ts",
-    "./shared/valueObjects": "./src/shared/valueObjects.ts"
+    "./shared/valueObjects": "./src/shared/valueObjects.ts",
+    "./domains/editPlan": "./src/domains/editPlan.ts"
   },
   "scripts": {
     "check:contract": "bun scripts/check-contract.ts",
