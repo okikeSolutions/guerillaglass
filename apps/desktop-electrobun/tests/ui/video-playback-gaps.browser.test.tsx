@@ -150,6 +150,10 @@ describe("timeline preview across gaps", () => {
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(1.5);
     expect(media.style.visibility).toBe("hidden");
 
+    // HTMLMediaElement queues this event after the boundary pause and seek.
+    act(() => media.dispatchEvent(new Event("pause")));
+    expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+
     runFrame(1020);
     runFrame(1020);
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(2.5);
@@ -167,6 +171,16 @@ describe("timeline preview across gaps", () => {
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(1.5);
     expect(playbackStore.getSnapshot().playheadSeconds).not.toBe(timelineDuration);
     expect(media.style.visibility).toBe("hidden");
+  });
+
+  test("pausing the native controls inside a clip stops the program clock", () => {
+    const media = document.querySelector("video")!;
+    act(() => {
+      playbackStore.seek(0.75);
+      playbackStore.play();
+      media.dispatchEvent(new Event("pause"));
+    });
+    expect(playbackStore.getSnapshot().isPlaying).toBe(false);
   });
 
   test("a queued native ended event at an exact gap boundary does not end the program", () => {
@@ -240,6 +254,16 @@ describe("timeline preview across gaps", () => {
 
     expect(media.currentTime).toBeCloseTo(1.25);
     expect(media.style.visibility).toBe("");
+
+    // Loading a source can reset an earlier seek while the program time stays
+    // unchanged. Metadata must restore that seek without a store notification.
+    media.currentTime = 0;
+    act(() => media.dispatchEvent(new Event("loadedmetadata")));
+    expect(media.currentTime).toBeCloseTo(1.25);
+
+    media.currentTime = 0;
+    act(() => playbackStore.play());
+    expect(media.currentTime).toBeCloseTo(1.25);
   });
 
   test("trailing gap advances for its full duration before playback stops", () => {

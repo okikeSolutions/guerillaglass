@@ -136,15 +136,13 @@ const workflow = Effect.fn("EditSmoke.workflow")(function* (directory: string) {
       events: [{ type: "mouseDown", timestamp: 1, position: { x: 10, y: 20 }, button: "left" }],
     }),
   );
-  const changedEvents = yield* client
-    .editValidate(plan)
-    .pipe(
-      Effect.match({
-        onSuccess: () => false,
-        onFailure: (error) =>
-          error instanceof EngineResponseError && error.code === "project_mismatch",
-      }),
-    );
+  const changedEvents = yield* client.editValidate(plan).pipe(
+    Effect.match({
+      onSuccess: () => false,
+      onFailure: (error) =>
+        error instanceof EngineResponseError && error.code === "project_mismatch",
+    }),
+  );
   yield* check(changedEvents, "Changed capture events did not invalidate the project revision");
   yield* fs.writeFileString(eventsFile, JSON.stringify({ schemaVersion: 1, events: [] }));
   const wrongSource = yield* client

@@ -139,12 +139,6 @@ export function EditRoute() {
                                     });
                                   }
                                 }}
-                                onPlay={() => {
-                                  setTimelinePlaybackActive(true);
-                                }}
-                                onPause={() => {
-                                  setTimelinePlaybackActive(false);
-                                }}
                                 onError={handleMediaError}
                               />
                             ) : captureStatusQuery.data?.isRunning ? (
