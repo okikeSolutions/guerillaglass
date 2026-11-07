@@ -96,7 +96,7 @@ describe("EngineHttpApi endpoint and schema coverage", () => {
   const endpoints = reflectEndpoints();
 
   test("every reflected endpoint is emitted into OpenAPI", () => {
-    expect(endpoints).toHaveLength(28);
+    expect(endpoints).toHaveLength(32);
 
     for (const endpoint of endpoints) {
       const operation = findOpenApiOperation(endpoint);

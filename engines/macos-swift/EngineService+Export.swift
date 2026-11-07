@@ -191,7 +191,7 @@ extension EngineService {
         return captureEngine.recordingURL
     }
 
-    private func availableCameraEvents(for autoZoom: AutoZoomSettings) throws -> [InputEvent] {
+    func availableCameraEvents(for autoZoom: AutoZoomSettings) throws -> [InputEvent] {
         guard autoZoom.requiresInputEvents else { return [] }
         guard let eventsURL = projectEventsURL() ?? currentEventsURL,
               FileManager.default.fileExists(atPath: eventsURL.path)
@@ -207,7 +207,7 @@ extension EngineService {
         )
     }
 
-    private func exportTimeline(from timeline: TimelineDocument) -> ExportTimelineDocument? {
+    func exportTimeline(from timeline: TimelineDocument) -> ExportTimelineDocument? {
         guard !timeline.items.isEmpty else { return nil }
         return ExportTimelineDocument(
             version: timeline.version,
@@ -226,7 +226,7 @@ extension EngineService {
         )
     }
 
-    private func exportTimeline(
+    func exportTimeline(
         from timeline: Components.Schemas.ExportRunPayload.timelinePayload?
     ) throws -> ExportTimelineDocument? {
         guard let timeline else { return nil }

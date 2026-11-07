@@ -3,6 +3,7 @@ Cargo.toml
 README.md
 src/apis/agent.rs
 src/apis/capture.rs
+src/apis/edit.rs
 src/apis/export.rs
 src/apis/mod.rs
 src/apis/permissions.rs

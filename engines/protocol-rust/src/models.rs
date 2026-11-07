@@ -7213,6 +7213,637 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<DisplaySourc
     }
 }
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct EditExportRequest {
+    #[serde(rename = "expectedRevision")]
+    #[validate(
+            regex(path = *RE_EDITEXPORTREQUEST_EXPECTED_REVISION),
+          custom(function = "check_xss_string"),
+    )]
+    pub expected_revision: String,
+
+    #[serde(rename = "outputURL")]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
+    pub output_url: String,
+
+    #[serde(rename = "presetId")]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
+    pub preset_id: String,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_EDITEXPORTREQUEST_EXPECTED_REVISION: regex::Regex = regex::Regex::new("^[a-f0-9]{64}$").unwrap();
+}
+
+impl EditExportRequest {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        expected_revision: String,
+        output_url: String,
+        preset_id: String,
+    ) -> EditExportRequest {
+        EditExportRequest {
+            expected_revision,
+            output_url,
+            preset_id,
+        }
+    }
+}
+
+/// Converts the EditExportRequest value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for EditExportRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("expectedRevision".to_string()),
+            Some(self.expected_revision.to_string()),
+            Some("outputURL".to_string()),
+            Some(self.output_url.to_string()),
+            Some("presetId".to_string()),
+            Some(self.preset_id.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a EditExportRequest value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for EditExportRequest {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub expected_revision: Vec<String>,
+            pub output_url: Vec<String>,
+            pub preset_id: Vec<String>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing EditExportRequest".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "expectedRevision" => intermediate_rep.expected_revision.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "outputURL" => intermediate_rep.output_url.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "presetId" => intermediate_rep.preset_id.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing EditExportRequest".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(EditExportRequest {
+            expected_revision: intermediate_rep
+                .expected_revision
+                .into_iter()
+                .next()
+                .ok_or_else(|| "expectedRevision missing in EditExportRequest".to_string())?,
+            output_url: intermediate_rep
+                .output_url
+                .into_iter()
+                .next()
+                .ok_or_else(|| "outputURL missing in EditExportRequest".to_string())?,
+            preset_id: intermediate_rep
+                .preset_id
+                .into_iter()
+                .next()
+                .ok_or_else(|| "presetId missing in EditExportRequest".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<EditExportRequest> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<EditExportRequest>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<EditExportRequest>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for EditExportRequest - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<EditExportRequest> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <EditExportRequest as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into EditExportRequest - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct EditPlan {
+    /// Note: inline enums are not fully supported by openapi-generator
+    #[serde(rename = "version")]
+    pub version: f64,
+
+    #[serde(rename = "id")]
+    #[validate(length(min = 1), custom(function = "check_xss_string"))]
+    pub id: String,
+
+    #[serde(rename = "baseRevision")]
+    #[validate(
+            regex(path = *RE_EDITPLAN_BASE_REVISION),
+          custom(function = "check_xss_string"),
+    )]
+    pub base_revision: String,
+
+    #[serde(rename = "sourceRevision")]
+    #[validate(
+            regex(path = *RE_EDITPLAN_SOURCE_REVISION),
+          custom(function = "check_xss_string"),
+    )]
+    pub source_revision: String,
+
+    #[serde(rename = "timeline")]
+    #[validate(nested)]
+    pub timeline: models::ProjectStateTimeline,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_EDITPLAN_BASE_REVISION: regex::Regex = regex::Regex::new("^[a-f0-9]{64}$").unwrap();
+}
+lazy_static::lazy_static! {
+    static ref RE_EDITPLAN_SOURCE_REVISION: regex::Regex = regex::Regex::new("^[a-f0-9]{64}$").unwrap();
+}
+
+impl EditPlan {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        version: f64,
+        id: String,
+        base_revision: String,
+        source_revision: String,
+        timeline: models::ProjectStateTimeline,
+    ) -> EditPlan {
+        EditPlan {
+            version,
+            id,
+            base_revision,
+            source_revision,
+            timeline,
+        }
+    }
+}
+
+/// Converts the EditPlan value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for EditPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("version".to_string()),
+            Some(self.version.to_string()),
+            Some("id".to_string()),
+            Some(self.id.to_string()),
+            Some("baseRevision".to_string()),
+            Some(self.base_revision.to_string()),
+            Some("sourceRevision".to_string()),
+            Some(self.source_revision.to_string()),
+            // Skipping timeline in query parameter serialization
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a EditPlan value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for EditPlan {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub version: Vec<f64>,
+            pub id: Vec<String>,
+            pub base_revision: Vec<String>,
+            pub source_revision: Vec<String>,
+            pub timeline: Vec<models::ProjectStateTimeline>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing EditPlan".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "version" => intermediate_rep.version.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "id" => intermediate_rep.id.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "baseRevision" => intermediate_rep.base_revision.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sourceRevision" => intermediate_rep.source_revision.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "timeline" => intermediate_rep.timeline.push(
+                        <models::ProjectStateTimeline as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing EditPlan".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(EditPlan {
+            version: intermediate_rep
+                .version
+                .into_iter()
+                .next()
+                .ok_or_else(|| "version missing in EditPlan".to_string())?,
+            id: intermediate_rep
+                .id
+                .into_iter()
+                .next()
+                .ok_or_else(|| "id missing in EditPlan".to_string())?,
+            base_revision: intermediate_rep
+                .base_revision
+                .into_iter()
+                .next()
+                .ok_or_else(|| "baseRevision missing in EditPlan".to_string())?,
+            source_revision: intermediate_rep
+                .source_revision
+                .into_iter()
+                .next()
+                .ok_or_else(|| "sourceRevision missing in EditPlan".to_string())?,
+            timeline: intermediate_rep
+                .timeline
+                .into_iter()
+                .next()
+                .ok_or_else(|| "timeline missing in EditPlan".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<EditPlan> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<EditPlan>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<EditPlan>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for EditPlan - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<EditPlan> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <EditPlan as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into EditPlan - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct EditReview {
+    #[serde(rename = "revision")]
+    #[validate(
+            regex(path = *RE_EDITREVIEW_REVISION),
+          custom(function = "check_xss_string"),
+    )]
+    pub revision: String,
+
+    #[serde(rename = "sourceRevision")]
+    #[validate(
+            regex(path = *RE_EDITREVIEW_SOURCE_REVISION),
+          custom(function = "check_xss_string"),
+    )]
+    pub source_revision: String,
+
+    #[serde(rename = "sourceDurationSeconds")]
+    #[validate(range(min = 0f64))]
+    pub source_duration_seconds: f64,
+
+    #[serde(rename = "sourceFps")]
+    #[validate(nested)]
+    pub source_fps: models::AgentFrameRate,
+
+    #[serde(rename = "project")]
+    #[validate(nested)]
+    pub project: models::ProjectState,
+}
+
+lazy_static::lazy_static! {
+    static ref RE_EDITREVIEW_REVISION: regex::Regex = regex::Regex::new("^[a-f0-9]{64}$").unwrap();
+}
+lazy_static::lazy_static! {
+    static ref RE_EDITREVIEW_SOURCE_REVISION: regex::Regex = regex::Regex::new("^[a-f0-9]{64}$").unwrap();
+}
+
+impl EditReview {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(
+        revision: String,
+        source_revision: String,
+        source_duration_seconds: f64,
+        source_fps: models::AgentFrameRate,
+        project: models::ProjectState,
+    ) -> EditReview {
+        EditReview {
+            revision,
+            source_revision,
+            source_duration_seconds,
+            source_fps,
+            project,
+        }
+    }
+}
+
+/// Converts the EditReview value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for EditReview {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("revision".to_string()),
+            Some(self.revision.to_string()),
+            Some("sourceRevision".to_string()),
+            Some(self.source_revision.to_string()),
+            Some("sourceDurationSeconds".to_string()),
+            Some(self.source_duration_seconds.to_string()),
+            // Skipping sourceFps in query parameter serialization
+
+            // Skipping project in query parameter serialization
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a EditReview value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for EditReview {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub revision: Vec<String>,
+            pub source_revision: Vec<String>,
+            pub source_duration_seconds: Vec<f64>,
+            pub source_fps: Vec<models::AgentFrameRate>,
+            pub project: Vec<models::ProjectState>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing EditReview".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "revision" => intermediate_rep.revision.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sourceRevision" => intermediate_rep.source_revision.push(
+                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sourceDurationSeconds" => intermediate_rep.source_duration_seconds.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "sourceFps" => intermediate_rep.source_fps.push(
+                        <models::AgentFrameRate as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "project" => intermediate_rep.project.push(
+                        <models::ProjectState as std::str::FromStr>::from_str(val)
+                            .map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing EditReview".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(EditReview {
+            revision: intermediate_rep
+                .revision
+                .into_iter()
+                .next()
+                .ok_or_else(|| "revision missing in EditReview".to_string())?,
+            source_revision: intermediate_rep
+                .source_revision
+                .into_iter()
+                .next()
+                .ok_or_else(|| "sourceRevision missing in EditReview".to_string())?,
+            source_duration_seconds: intermediate_rep
+                .source_duration_seconds
+                .into_iter()
+                .next()
+                .ok_or_else(|| "sourceDurationSeconds missing in EditReview".to_string())?,
+            source_fps: intermediate_rep
+                .source_fps
+                .into_iter()
+                .next()
+                .ok_or_else(|| "sourceFps missing in EditReview".to_string())?,
+            project: intermediate_rep
+                .project
+                .into_iter()
+                .next()
+                .ok_or_else(|| "project missing in EditReview".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<EditReview> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<EditReview>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<EditReview>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for EditReview - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<EditReview> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <EditReview as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into EditReview - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
 /// EngineBadRequestError response body.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]

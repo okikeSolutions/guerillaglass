@@ -1,3 +1,4 @@
+import { EditPlan, EditReview, EditExportRequest } from "./domains/editPlan";
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api";
 import { Schema } from "effect";
 import {
@@ -321,6 +322,29 @@ const ProjectGroup = HttpApiGroup.make("project").add(
   }),
 );
 
+/** Saved-project editing operations for external storyboard agents. */
+const EditGroup = HttpApiGroup.make("edit").add(
+  HttpApiEndpoint.get("review", "/v1/edit/review", {
+    success: EditReview,
+    error: [...EngineCommonErrors, EngineConflictError],
+  }),
+  HttpApiEndpoint.post("validate", "/v1/edit/validate", {
+    payload: EditPlan,
+    success: EditReview,
+    error: [...EngineMutationErrors, EngineConflictError],
+  }),
+  HttpApiEndpoint.post("apply", "/v1/edit/apply", {
+    payload: EditPlan,
+    success: EditReview,
+    error: [...EngineMutationErrors, EngineConflictError],
+  }),
+  HttpApiEndpoint.post("exportProject", "/v1/edit/export", {
+    payload: EditExportRequest,
+    success: exportRunResultSchema,
+    error: [...EngineMutationErrors, EngineConflictError],
+  }),
+);
+
 /**
  * Complete Effect HttpApi contract for the native engine v2 HTTP surface.
  *
@@ -331,6 +355,7 @@ const ProjectGroup = HttpApiGroup.make("project").add(
  */
 export const EngineHttpApi = HttpApi.make("EngineHttpApi")
   .add(
+    EditGroup,
     SystemGroup,
     AgentGroup,
     PermissionsGroup,

@@ -26,6 +26,7 @@ where
     I: AsRef<A> + Clone + Send + Sync + 'static,
     A: apis::agent::Agent<E, Claims = C>
         + apis::capture::Capture<E, Claims = C>
+        + apis::edit::Edit<E, Claims = C>
         + apis::export::Export<E, Claims = C>
         + apis::permissions::Permissions<E, Claims = C>
         + apis::project::Project<E, Claims = C>
@@ -75,6 +76,10 @@ where
             get(capture_capture_status::<I, A, E, C>),
         )
         .route("/v1/capture/stop", post(capture_capture_stop::<I, A, E, C>))
+        .route("/v1/edit/apply", post(edit_apply::<I, A, E, C>))
+        .route("/v1/edit/export", post(edit_export_project::<I, A, E, C>))
+        .route("/v1/edit/review", get(edit_review::<I, A, E, C>))
+        .route("/v1/edit/validate", post(edit_validate::<I, A, E, C>))
         .route(
             "/v1/engine/capabilities",
             get(system_engine_capabilities::<I, A, E, C>),
@@ -1902,6 +1907,740 @@ where
                                                     return api_impl.as_ref().handle_error(&method, &host, &cookies, why).await;
                                             },
                                         };
+
+    resp.map_err(|e| {
+        error!(error = ?e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
+}
+
+#[derive(validator::Validate)]
+#[allow(dead_code)]
+struct EditApplyBodyValidator<'a> {
+    #[validate(nested)]
+    body: &'a models::EditPlan,
+}
+
+#[tracing::instrument(skip_all)]
+fn edit_apply_validation(
+    body: models::EditPlan,
+) -> std::result::Result<(models::EditPlan,), ValidationErrors> {
+    let b = EditApplyBodyValidator { body: &body };
+    b.validate()?;
+
+    Ok((body,))
+}
+/// EditApply - POST /v1/edit/apply
+#[tracing::instrument(skip_all)]
+async fn edit_apply<I, A, E, C>(
+    method: Method,
+    TypedHeader(host): TypedHeader<Host>,
+    cookies: CookieJar,
+    headers: HeaderMap,
+    State(api_impl): State<I>,
+    Json(body): Json<models::EditPlan>,
+) -> Result<Response, StatusCode>
+where
+    I: AsRef<A> + Send + Sync,
+    A: apis::edit::Edit<E, Claims = C> + apis::ApiAuthBasic<Claims = C> + Send + Sync,
+    E: std::fmt::Debug + Send + Sync + 'static,
+{
+    // Authentication
+    let claims_in_auth_header = api_impl
+        .as_ref()
+        .extract_claims_from_auth_header(apis::BasicAuthKind::Bearer, &headers, "authorization")
+        .await;
+    let claims = None.or(claims_in_auth_header);
+    let Some(claims) = claims else {
+        return response_with_status_code_only(StatusCode::UNAUTHORIZED);
+    };
+
+    #[allow(clippy::redundant_closure)]
+    let validation = tokio::task::spawn_blocking(move || edit_apply_validation(body))
+        .await
+        .unwrap();
+
+    let Ok((body,)) = validation else {
+        return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST);
+    };
+
+    let result = api_impl
+        .as_ref()
+        .edit_apply(&method, &host, &cookies, &claims, &body)
+        .await;
+
+    let mut response = Response::builder();
+
+    let resp = match result {
+        Ok(rsp) => match rsp {
+            apis::edit::EditApplyResponse::Status200_EditReview(body) => {
+                let mut response = response.status(200);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditApplyResponse::Status400_EngineBadRequestErrorResponseBody(body) => {
+                let mut response = response.status(400);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditApplyResponse::Status401_EngineUnauthorizedErrorResponseBody(body) => {
+                let mut response = response.status(401);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditApplyResponse::Status403_EngineForbiddenErrorResponseBody(body) => {
+                let mut response = response.status(403);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditApplyResponse::Status409_EngineConflictErrorResponseBody(body) => {
+                let mut response = response.status(409);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditApplyResponse::Status500_EngineRuntimeErrorResponseBody(body) => {
+                let mut response = response.status(500);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+        },
+        Err(why) => {
+            // Application code returned an error. This should not happen, as the implementation should
+            // return a valid response.
+            return api_impl
+                .as_ref()
+                .handle_error(&method, &host, &cookies, why)
+                .await;
+        }
+    };
+
+    resp.map_err(|e| {
+        error!(error = ?e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
+}
+
+#[derive(validator::Validate)]
+#[allow(dead_code)]
+struct EditExportProjectBodyValidator<'a> {
+    #[validate(nested)]
+    body: &'a models::EditExportRequest,
+}
+
+#[tracing::instrument(skip_all)]
+fn edit_export_project_validation(
+    body: models::EditExportRequest,
+) -> std::result::Result<(models::EditExportRequest,), ValidationErrors> {
+    let b = EditExportProjectBodyValidator { body: &body };
+    b.validate()?;
+
+    Ok((body,))
+}
+/// EditExportProject - POST /v1/edit/export
+#[tracing::instrument(skip_all)]
+async fn edit_export_project<I, A, E, C>(
+    method: Method,
+    TypedHeader(host): TypedHeader<Host>,
+    cookies: CookieJar,
+    headers: HeaderMap,
+    State(api_impl): State<I>,
+    Json(body): Json<models::EditExportRequest>,
+) -> Result<Response, StatusCode>
+where
+    I: AsRef<A> + Send + Sync,
+    A: apis::edit::Edit<E, Claims = C> + apis::ApiAuthBasic<Claims = C> + Send + Sync,
+    E: std::fmt::Debug + Send + Sync + 'static,
+{
+    // Authentication
+    let claims_in_auth_header = api_impl
+        .as_ref()
+        .extract_claims_from_auth_header(apis::BasicAuthKind::Bearer, &headers, "authorization")
+        .await;
+    let claims = None.or(claims_in_auth_header);
+    let Some(claims) = claims else {
+        return response_with_status_code_only(StatusCode::UNAUTHORIZED);
+    };
+
+    #[allow(clippy::redundant_closure)]
+    let validation = tokio::task::spawn_blocking(move || edit_export_project_validation(body))
+        .await
+        .unwrap();
+
+    let Ok((body,)) = validation else {
+        return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST);
+    };
+
+    let result = api_impl
+        .as_ref()
+        .edit_export_project(&method, &host, &cookies, &claims, &body)
+        .await;
+
+    let mut response = Response::builder();
+
+    let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                apis::edit::EditExportProjectResponse::Status200_ExportRunResult
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::edit::EditExportProjectResponse::Status400_EngineBadRequestErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(400);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::edit::EditExportProjectResponse::Status401_EngineUnauthorizedErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(401);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::edit::EditExportProjectResponse::Status403_EngineForbiddenErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(403);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::edit::EditExportProjectResponse::Status409_EngineConflictErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(409);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::edit::EditExportProjectResponse::Status500_EngineRuntimeErrorResponseBody
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(500);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(why) => {
+                                                    // Application code returned an error. This should not happen, as the implementation should
+                                                    // return a valid response.
+                                                    return api_impl.as_ref().handle_error(&method, &host, &cookies, why).await;
+                                            },
+                                        };
+
+    resp.map_err(|e| {
+        error!(error = ?e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
+}
+
+#[tracing::instrument(skip_all)]
+fn edit_review_validation() -> std::result::Result<(), ValidationErrors> {
+    Ok(())
+}
+/// EditReview - GET /v1/edit/review
+#[tracing::instrument(skip_all)]
+async fn edit_review<I, A, E, C>(
+    method: Method,
+    TypedHeader(host): TypedHeader<Host>,
+    cookies: CookieJar,
+    headers: HeaderMap,
+    State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where
+    I: AsRef<A> + Send + Sync,
+    A: apis::edit::Edit<E, Claims = C> + apis::ApiAuthBasic<Claims = C> + Send + Sync,
+    E: std::fmt::Debug + Send + Sync + 'static,
+{
+    // Authentication
+    let claims_in_auth_header = api_impl
+        .as_ref()
+        .extract_claims_from_auth_header(apis::BasicAuthKind::Bearer, &headers, "authorization")
+        .await;
+    let claims = None.or(claims_in_auth_header);
+    let Some(claims) = claims else {
+        return response_with_status_code_only(StatusCode::UNAUTHORIZED);
+    };
+
+    #[allow(clippy::redundant_closure)]
+    let validation = tokio::task::spawn_blocking(move || edit_review_validation())
+        .await
+        .unwrap();
+
+    let Ok(()) = validation else {
+        return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST);
+    };
+
+    let result = api_impl
+        .as_ref()
+        .edit_review(&method, &host, &cookies, &claims)
+        .await;
+
+    let mut response = Response::builder();
+
+    let resp = match result {
+        Ok(rsp) => match rsp {
+            apis::edit::EditReviewResponse::Status200_EditReview(body) => {
+                let mut response = response.status(200);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditReviewResponse::Status400_EngineBadRequestErrorResponseBody(body) => {
+                let mut response = response.status(400);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditReviewResponse::Status401_EngineUnauthorizedErrorResponseBody(body) => {
+                let mut response = response.status(401);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditReviewResponse::Status403_EngineForbiddenErrorResponseBody(body) => {
+                let mut response = response.status(403);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditReviewResponse::Status409_EngineConflictErrorResponseBody(body) => {
+                let mut response = response.status(409);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditReviewResponse::Status500_EngineRuntimeErrorResponseBody(body) => {
+                let mut response = response.status(500);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+        },
+        Err(why) => {
+            // Application code returned an error. This should not happen, as the implementation should
+            // return a valid response.
+            return api_impl
+                .as_ref()
+                .handle_error(&method, &host, &cookies, why)
+                .await;
+        }
+    };
+
+    resp.map_err(|e| {
+        error!(error = ?e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
+}
+
+#[derive(validator::Validate)]
+#[allow(dead_code)]
+struct EditValidateBodyValidator<'a> {
+    #[validate(nested)]
+    body: &'a models::EditPlan,
+}
+
+#[tracing::instrument(skip_all)]
+fn edit_validate_validation(
+    body: models::EditPlan,
+) -> std::result::Result<(models::EditPlan,), ValidationErrors> {
+    let b = EditValidateBodyValidator { body: &body };
+    b.validate()?;
+
+    Ok((body,))
+}
+/// EditValidate - POST /v1/edit/validate
+#[tracing::instrument(skip_all)]
+async fn edit_validate<I, A, E, C>(
+    method: Method,
+    TypedHeader(host): TypedHeader<Host>,
+    cookies: CookieJar,
+    headers: HeaderMap,
+    State(api_impl): State<I>,
+    Json(body): Json<models::EditPlan>,
+) -> Result<Response, StatusCode>
+where
+    I: AsRef<A> + Send + Sync,
+    A: apis::edit::Edit<E, Claims = C> + apis::ApiAuthBasic<Claims = C> + Send + Sync,
+    E: std::fmt::Debug + Send + Sync + 'static,
+{
+    // Authentication
+    let claims_in_auth_header = api_impl
+        .as_ref()
+        .extract_claims_from_auth_header(apis::BasicAuthKind::Bearer, &headers, "authorization")
+        .await;
+    let claims = None.or(claims_in_auth_header);
+    let Some(claims) = claims else {
+        return response_with_status_code_only(StatusCode::UNAUTHORIZED);
+    };
+
+    #[allow(clippy::redundant_closure)]
+    let validation = tokio::task::spawn_blocking(move || edit_validate_validation(body))
+        .await
+        .unwrap();
+
+    let Ok((body,)) = validation else {
+        return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST);
+    };
+
+    let result = api_impl
+        .as_ref()
+        .edit_validate(&method, &host, &cookies, &claims, &body)
+        .await;
+
+    let mut response = Response::builder();
+
+    let resp = match result {
+        Ok(rsp) => match rsp {
+            apis::edit::EditValidateResponse::Status200_EditReview(body) => {
+                let mut response = response.status(200);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditValidateResponse::Status400_EngineBadRequestErrorResponseBody(body) => {
+                let mut response = response.status(400);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditValidateResponse::Status401_EngineUnauthorizedErrorResponseBody(
+                body,
+            ) => {
+                let mut response = response.status(401);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditValidateResponse::Status403_EngineForbiddenErrorResponseBody(body) => {
+                let mut response = response.status(403);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditValidateResponse::Status409_EngineConflictErrorResponseBody(body) => {
+                let mut response = response.status(409);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+            apis::edit::EditValidateResponse::Status500_EngineRuntimeErrorResponseBody(body) => {
+                let mut response = response.status(500);
+                {
+                    let mut response_headers = response.headers_mut().unwrap();
+                    response_headers
+                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                }
+
+                let body_content = tokio::task::spawn_blocking(move || {
+                    serde_json::to_vec(&body).map_err(|e| {
+                        error!(error = ?e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })
+                })
+                .await
+                .unwrap()?;
+                response.body(Body::from(body_content))
+            }
+        },
+        Err(why) => {
+            // Application code returned an error. This should not happen, as the implementation should
+            // return a valid response.
+            return api_impl
+                .as_ref()
+                .handle_error(&method, &host, &cookies, why)
+                .await;
+        }
+    };
 
     resp.map_err(|e| {
         error!(error = ?e);
