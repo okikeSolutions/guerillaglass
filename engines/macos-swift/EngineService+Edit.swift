@@ -27,7 +27,10 @@ extension EngineService {
     }
 
     private func editDocumentData(_ document: ProjectDocument) throws -> Data {
-        try ProjectStore.makeDefaultEncoder().encode(document)
+        var editable = document
+        // Analysis artifacts are committed independently of the saved editing state.
+        editable.project.agentAnalysis = nil
+        return try ProjectStore.makeDefaultEncoder().encode(editable)
     }
 
     private func makeEditReview(source: AgentSource) throws -> Components.Schemas.EditReview {

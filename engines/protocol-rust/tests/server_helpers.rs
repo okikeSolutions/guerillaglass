@@ -555,7 +555,7 @@ impl apis::edit::Edit<()> for MockApi {
     type Claims = ();
     async fn edit_apply(
         &self,
-        _: &Method,
+        _: &http::Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
@@ -572,7 +572,7 @@ impl apis::edit::Edit<()> for MockApi {
     }
     async fn edit_validate(
         &self,
-        _: &Method,
+        _: &http::Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
@@ -589,7 +589,7 @@ impl apis::edit::Edit<()> for MockApi {
     }
     async fn edit_review(
         &self,
-        _: &Method,
+        _: &http::Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
@@ -605,7 +605,7 @@ impl apis::edit::Edit<()> for MockApi {
     }
     async fn edit_export_project(
         &self,
-        _: &Method,
+        _: &http::Method,
         _: &headers::Host,
         _: &axum_extra::extract::CookieJar,
         _: &Self::Claims,
