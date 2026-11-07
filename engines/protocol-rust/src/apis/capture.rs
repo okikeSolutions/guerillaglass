@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models, types::*};
 
+/// HTTP response variants for the generated CaptureCapturePreviewFrame operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -24,6 +25,7 @@ pub enum CaptureCapturePreviewFrameResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated CaptureCaptureStartCurrentWindow operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -40,6 +42,7 @@ pub enum CaptureCaptureStartCurrentWindowResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated CaptureCaptureStartDisplay operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -56,6 +59,7 @@ pub enum CaptureCaptureStartDisplayResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated CaptureCaptureStartWindow operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -72,6 +76,7 @@ pub enum CaptureCaptureStartWindowResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated CaptureCaptureStatus operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -88,6 +93,7 @@ pub enum CaptureCaptureStatusResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated CaptureCaptureStop operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]

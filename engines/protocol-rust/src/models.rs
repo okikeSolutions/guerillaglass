@@ -4350,6 +4350,11 @@ pub struct CapabilitiesAgent {
     #[validate(range(min = 1u64, max = 9007199254740991u64))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cut_plan_version: Option<u64>,
+
+    #[serde(rename = "editPlanVersion")]
+    #[validate(range(min = 1u64, max = 9007199254740991u64))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edit_plan_version: Option<u64>,
 }
 
 impl CapabilitiesAgent {
@@ -4367,6 +4372,7 @@ impl CapabilitiesAgent {
             preflight_token_ttl_seconds: None,
             artifact_version: None,
             cut_plan_version: None,
+            edit_plan_version: None,
         }
     }
 }
@@ -4434,6 +4440,9 @@ impl std::fmt::Display for CapabilitiesAgent {
             self.cut_plan_version.as_ref().map(|cut_plan_version| {
                 ["cutPlanVersion".to_string(), cut_plan_version.to_string()].join(",")
             }),
+            self.edit_plan_version.as_ref().map(|edit_plan_version| {
+                ["editPlanVersion".to_string(), edit_plan_version.to_string()].join(",")
+            }),
         ];
 
         write!(
@@ -4466,6 +4475,7 @@ impl std::str::FromStr for CapabilitiesAgent {
             pub preflight_token_ttl_seconds: Vec<u64>,
             pub artifact_version: Vec<u64>,
             pub cut_plan_version: Vec<u64>,
+            pub edit_plan_version: Vec<u64>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -4535,6 +4545,10 @@ impl std::str::FromStr for CapabilitiesAgent {
                     "cutPlanVersion" => intermediate_rep.cut_plan_version.push(
                         <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
                     ),
+                    #[allow(clippy::redundant_clone)]
+                    "editPlanVersion" => intermediate_rep.edit_plan_version.push(
+                        <u64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
                     _ => {
                         return std::result::Result::Err(
                             "Unexpected key while parsing CapabilitiesAgent".to_string(),
@@ -4585,6 +4599,7 @@ impl std::str::FromStr for CapabilitiesAgent {
                 .next(),
             artifact_version: intermediate_rep.artifact_version.into_iter().next(),
             cut_plan_version: intermediate_rep.cut_plan_version.into_iter().next(),
+            edit_plan_version: intermediate_rep.edit_plan_version.into_iter().next(),
         })
     }
 }
@@ -12269,6 +12284,11 @@ pub struct ProjectStateTimelineItemsInnerAnyOf {
     #[serde(rename = "sourceEndSeconds")]
     #[validate(range(min = 0f64))]
     pub source_end_seconds: f64,
+
+    #[serde(rename = "camera")]
+    #[validate(length(min = 1, max = 256), nested)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub camera: Option<Vec<models::SceneCameraKeyframe>>,
 }
 
 impl ProjectStateTimelineItemsInnerAnyOf {
@@ -12286,6 +12306,7 @@ impl ProjectStateTimelineItemsInnerAnyOf {
             source_asset_id,
             source_start_seconds,
             source_end_seconds,
+            camera: None,
         }
     }
 }
@@ -12306,6 +12327,7 @@ impl std::fmt::Display for ProjectStateTimelineItemsInnerAnyOf {
             Some(self.source_start_seconds.to_string()),
             Some("sourceEndSeconds".to_string()),
             Some(self.source_end_seconds.to_string()),
+            // Skipping camera in query parameter serialization
         ];
 
         write!(
@@ -12332,6 +12354,7 @@ impl std::str::FromStr for ProjectStateTimelineItemsInnerAnyOf {
             pub source_asset_id: Vec<String>,
             pub source_start_seconds: Vec<f64>,
             pub source_end_seconds: Vec<f64>,
+            pub camera: Vec<Vec<models::SceneCameraKeyframe>>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -12355,31 +12378,17 @@ impl std::str::FromStr for ProjectStateTimelineItemsInnerAnyOf {
                 #[allow(clippy::match_single_binding)]
                 match key {
                     #[allow(clippy::redundant_clone)]
-                    "kind" => intermediate_rep.kind.push(
-                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
+                    "kind" => intermediate_rep.kind.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "id" => intermediate_rep.id.push(
-                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
+                    "id" => intermediate_rep.id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "sourceAssetId" => intermediate_rep.source_asset_id.push(
-                        <String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
+                    "sourceAssetId" => intermediate_rep.source_asset_id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "sourceStartSeconds" => intermediate_rep.source_start_seconds.push(
-                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
+                    "sourceStartSeconds" => intermediate_rep.source_start_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "sourceEndSeconds" => intermediate_rep.source_end_seconds.push(
-                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
-                    ),
-                    _ => {
-                        return std::result::Result::Err(
-                            "Unexpected key while parsing ProjectStateTimelineItemsInnerAnyOf"
-                                .to_string(),
-                        );
-                    }
+                    "sourceEndSeconds" => intermediate_rep.source_end_seconds.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "camera" => return std::result::Result::Err("Parsing a container in this style is not supported in ProjectStateTimelineItemsInnerAnyOf".to_string()),
+                    _ => return std::result::Result::Err("Unexpected key while parsing ProjectStateTimelineItemsInnerAnyOf".to_string())
                 }
             }
 
@@ -12420,6 +12429,7 @@ impl std::str::FromStr for ProjectStateTimelineItemsInnerAnyOf {
                 .ok_or_else(|| {
                     "sourceEndSeconds missing in ProjectStateTimelineItemsInnerAnyOf".to_string()
                 })?,
+            camera: intermediate_rep.camera.into_iter().next(),
         })
     }
 }
@@ -12779,6 +12789,194 @@ impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<RecordingSta
                     }
                     std::result::Result::Err(err) => std::result::Result::Err(format!(
                         r#"Unable to convert header value '{value}' into RecordingStartPayload - {err}"#
+                    )),
+                }
+            }
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Unable to convert header: {hdr_value:?} to string: {e}"#
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+pub struct SceneCameraKeyframe {
+    #[serde(rename = "timeSeconds")]
+    #[validate(range(min = 0f64))]
+    pub time_seconds: f64,
+
+    #[serde(rename = "centerX")]
+    #[validate(range(min = 0f64, max = 1f64))]
+    pub center_x: f64,
+
+    #[serde(rename = "centerY")]
+    #[validate(range(min = 0f64, max = 1f64))]
+    pub center_y: f64,
+
+    #[serde(rename = "zoom")]
+    #[validate(range(min = 1f64, max = 8f64))]
+    pub zoom: f64,
+}
+
+impl SceneCameraKeyframe {
+    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
+    pub fn new(time_seconds: f64, center_x: f64, center_y: f64, zoom: f64) -> SceneCameraKeyframe {
+        SceneCameraKeyframe {
+            time_seconds,
+            center_x,
+            center_y,
+            zoom,
+        }
+    }
+}
+
+/// Converts the SceneCameraKeyframe value to the Query Parameters representation (style=form, explode=false)
+/// specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde serializer
+impl std::fmt::Display for SceneCameraKeyframe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let params: Vec<Option<String>> = vec![
+            Some("timeSeconds".to_string()),
+            Some(self.time_seconds.to_string()),
+            Some("centerX".to_string()),
+            Some(self.center_x.to_string()),
+            Some("centerY".to_string()),
+            Some(self.center_y.to_string()),
+            Some("zoom".to_string()),
+            Some(self.zoom.to_string()),
+        ];
+
+        write!(
+            f,
+            "{}",
+            params.into_iter().flatten().collect::<Vec<_>>().join(",")
+        )
+    }
+}
+
+/// Converts Query Parameters representation (style=form, explode=false) to a SceneCameraKeyframe value
+/// as specified in https://swagger.io/docs/specification/serialization/
+/// Should be implemented in a serde deserializer
+impl std::str::FromStr for SceneCameraKeyframe {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        /// An intermediate representation of the struct to use for parsing.
+        #[derive(Default)]
+        #[allow(dead_code)]
+        struct IntermediateRep {
+            pub time_seconds: Vec<f64>,
+            pub center_x: Vec<f64>,
+            pub center_y: Vec<f64>,
+            pub zoom: Vec<f64>,
+        }
+
+        let mut intermediate_rep = IntermediateRep::default();
+
+        // Parse into intermediate representation
+        let mut string_iter = s.split(',');
+        let mut key_result = string_iter.next();
+
+        while key_result.is_some() {
+            let val = match string_iter.next() {
+                Some(x) => x,
+                None => {
+                    return std::result::Result::Err(
+                        "Missing value while parsing SceneCameraKeyframe".to_string(),
+                    );
+                }
+            };
+
+            if let Some(key) = key_result {
+                #[allow(clippy::match_single_binding)]
+                match key {
+                    #[allow(clippy::redundant_clone)]
+                    "timeSeconds" => intermediate_rep.time_seconds.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "centerX" => intermediate_rep.center_x.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "centerY" => intermediate_rep.center_y.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    #[allow(clippy::redundant_clone)]
+                    "zoom" => intermediate_rep.zoom.push(
+                        <f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?,
+                    ),
+                    _ => {
+                        return std::result::Result::Err(
+                            "Unexpected key while parsing SceneCameraKeyframe".to_string(),
+                        );
+                    }
+                }
+            }
+
+            // Get the next key
+            key_result = string_iter.next();
+        }
+
+        // Use the intermediate representation to return the struct
+        std::result::Result::Ok(SceneCameraKeyframe {
+            time_seconds: intermediate_rep
+                .time_seconds
+                .into_iter()
+                .next()
+                .ok_or_else(|| "timeSeconds missing in SceneCameraKeyframe".to_string())?,
+            center_x: intermediate_rep
+                .center_x
+                .into_iter()
+                .next()
+                .ok_or_else(|| "centerX missing in SceneCameraKeyframe".to_string())?,
+            center_y: intermediate_rep
+                .center_y
+                .into_iter()
+                .next()
+                .ok_or_else(|| "centerY missing in SceneCameraKeyframe".to_string())?,
+            zoom: intermediate_rep
+                .zoom
+                .into_iter()
+                .next()
+                .ok_or_else(|| "zoom missing in SceneCameraKeyframe".to_string())?,
+        })
+    }
+}
+
+// Methods for converting between header::IntoHeaderValue<SceneCameraKeyframe> and HeaderValue
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<header::IntoHeaderValue<SceneCameraKeyframe>> for HeaderValue {
+    type Error = String;
+
+    fn try_from(
+        hdr_value: header::IntoHeaderValue<SceneCameraKeyframe>,
+    ) -> std::result::Result<Self, Self::Error> {
+        let hdr_value = hdr_value.to_string();
+        match HeaderValue::from_str(&hdr_value) {
+            std::result::Result::Ok(value) => std::result::Result::Ok(value),
+            std::result::Result::Err(e) => std::result::Result::Err(format!(
+                r#"Invalid header value for SceneCameraKeyframe - value: {hdr_value} is invalid {e}"#
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<SceneCameraKeyframe> {
+    type Error = String;
+
+    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
+        match hdr_value.to_str() {
+            std::result::Result::Ok(value) => {
+                match <SceneCameraKeyframe as std::str::FromStr>::from_str(value) {
+                    std::result::Result::Ok(value) => {
+                        std::result::Result::Ok(header::IntoHeaderValue(value))
+                    }
+                    std::result::Result::Err(err) => std::result::Result::Err(format!(
+                        r#"Unable to convert header value '{value}' into SceneCameraKeyframe - {err}"#
                     )),
                 }
             }

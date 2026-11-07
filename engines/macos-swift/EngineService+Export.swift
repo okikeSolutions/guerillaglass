@@ -217,7 +217,8 @@ extension EngineService {
                     .clip(ExportTimelineClip(
                         id: clip.id,
                         sourceStartSeconds: clip.sourceStartSeconds,
-                        sourceEndSeconds: clip.sourceEndSeconds
+                        sourceEndSeconds: clip.sourceEndSeconds,
+                        camera: clip.camera
                     ))
                 case let .gap(gap):
                     .gap(ExportTimelineGap(id: gap.id, durationSeconds: gap.durationSeconds))
@@ -240,7 +241,8 @@ extension EngineService {
                 return .clip(ExportTimelineClip(
                     id: clip.id,
                     sourceStartSeconds: clip.sourceStartSeconds,
-                    sourceEndSeconds: clip.sourceEndSeconds
+                    sourceEndSeconds: clip.sourceEndSeconds,
+                    camera: clip.camera?.map { .init(timeSeconds: $0.timeSeconds, centerX: $0.centerX, centerY: $0.centerY, zoom: $0.zoom) }
                 ))
             }
             if let gap = item.value2 {

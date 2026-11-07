@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models, types::*};
 
+/// HTTP response variants for the generated SystemEngineCapabilities operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -20,6 +21,7 @@ pub enum SystemEngineCapabilitiesResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated SystemSystemPing operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]

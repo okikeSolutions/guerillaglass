@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models, types::*};
 
+/// HTTP response variants for the generated RecordingRecordingStart operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -24,6 +25,7 @@ pub enum RecordingRecordingStartResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated RecordingRecordingStop operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]

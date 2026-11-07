@@ -63,7 +63,8 @@ extension EngineService {
                     id: clip.id,
                     sourceAssetId: .recording,
                     sourceStartSeconds: clip.sourceStartSeconds,
-                    sourceEndSeconds: clip.sourceEndSeconds
+                    sourceEndSeconds: clip.sourceEndSeconds,
+                    camera: clip.camera?.map { .init(timeSeconds: $0.timeSeconds, centerX: $0.centerX, centerY: $0.centerY, zoom: $0.zoom) }
                 ))
             case let .gap(gap):
                 ItemPayload(value2: GapPayload(

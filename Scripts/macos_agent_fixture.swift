@@ -5,6 +5,8 @@ import AVFoundation
 import CoreVideo
 import Foundation
 
+private let isPatternedFixture = CommandLine.arguments.contains("--patterned")
+
 func makePixelBuffer(width: Int, height: Int, frameIndex: Int) -> CVPixelBuffer? {
     var pixelBuffer: CVPixelBuffer?
     let status = CVPixelBufferCreate(
@@ -35,9 +37,12 @@ func makePixelBuffer(width: Int, height: Int, frameIndex: Int) -> CVPixelBuffer?
     for row in 0 ..< height {
         for column in 0 ..< width {
             let offset = row * rowBytes + column * 4
-            bytes[offset] = color.2
-            bytes[offset + 1] = color.1
-            bytes[offset + 2] = color.0
+            let pixelColor = isPatternedFixture
+                ? (column < width / 2 ? (UInt8(220), UInt8(30), UInt8(30)) : (UInt8(30), UInt8(30), UInt8(220)))
+                : color
+            bytes[offset] = pixelColor.2
+            bytes[offset + 1] = pixelColor.1
+            bytes[offset + 2] = pixelColor.0
             bytes[offset + 3] = 255
         }
     }
@@ -53,6 +58,8 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--probe" {
     if CommandLine.arguments.count == 4 {
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = .zero
+        generator.requestedTimeToleranceAfter = .zero
         for value in CommandLine.arguments[3].split(separator: ",") {
             guard let seconds = Double(value) else { continue }
             let (image, _) = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600))
@@ -77,12 +84,12 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--probe" {
     exit(0)
 }
 
-guard CommandLine.arguments.count == 2 else {
+guard CommandLine.arguments.count == 2 || (CommandLine.arguments.count == 3 && CommandLine.arguments[1] == "--patterned") else {
     FileHandle.standardError.write(Data("usage: macos_agent_fixture.swift <output.mov> | --probe <media>\n".utf8))
     exit(2)
 }
 
-let outputURL = URL(fileURLWithPath: CommandLine.arguments[1])
+let outputURL = URL(fileURLWithPath: CommandLine.arguments.last ?? "")
 try? FileManager.default.removeItem(at: outputURL)
 let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
 let width = 320

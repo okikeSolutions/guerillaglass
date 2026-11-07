@@ -111,7 +111,8 @@ extension EngineService {
                         return .clip(TimelineClip(
                             id: clip.id,
                             sourceStartSeconds: clip.sourceStartSeconds,
-                            sourceEndSeconds: clip.sourceEndSeconds
+                            sourceEndSeconds: clip.sourceEndSeconds,
+                            camera: clip.camera?.map { .init(timeSeconds: $0.timeSeconds, centerX: $0.centerX, centerY: $0.centerY, zoom: $0.zoom) }
                         ))
                     }
                     if let gap = item.value2 {

@@ -1,4 +1,8 @@
-import type { EditPlan, EditReview, EditExportRequest } from "@guerillaglass/engine-contract/domains/editPlan";
+import type {
+  EditPlan,
+  EditReview,
+  EditExportRequest,
+} from "@guerillaglass/engine-contract/domains/editPlan";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import type {
   AgentApplyResult,
@@ -135,11 +139,17 @@ export type EngineClientService = {
   /** Reviews the current saved project for external editing. */
   readonly editReview: Effect.Effect<EditReview, EngineClientError | EngineResponseError>;
   /** Validates an external plan without modifying the project. */
-  readonly editValidate: (plan: EditPlan) => Effect.Effect<EditReview, EngineClientError | EngineResponseError>;
+  readonly editValidate: (
+    plan: EditPlan,
+  ) => Effect.Effect<EditReview, EngineClientError | EngineResponseError>;
   /** Applies and saves a plan against its expected revision. */
-  readonly editApply: (plan: EditPlan) => Effect.Effect<EditReview, EngineClientError | EngineResponseError>;
+  readonly editApply: (
+    plan: EditPlan,
+  ) => Effect.Effect<EditReview, EngineClientError | EngineResponseError>;
   /** Exports one explicit saved project revision. */
-  readonly editExport: (request: EditExportRequest) => Effect.Effect<ExportRunResult, EngineClientError | EngineResponseError>;
+  readonly editExport: (
+    request: EditExportRequest,
+  ) => Effect.Effect<ExportRunResult, EngineClientError | EngineResponseError>;
 
   /**
    * Calls `GET /v1/system/ping`.
@@ -380,9 +390,15 @@ export function makeEngineClientService(rawClient: RawEngineHttpApiClient): Engi
   const client = rawClient;
   return EngineClient.of({
     editReview: normalizeClientFailure(client.edit.review({})),
-    editValidate: Effect.fn("EngineClient.editValidate")((payload: EditPlan) => normalizeClientFailure(client.edit.validate({ payload }))),
-    editApply: Effect.fn("EngineClient.editApply")((payload: EditPlan) => normalizeClientFailure(client.edit.apply({ payload }))),
-    editExport: Effect.fn("EngineClient.editExport")((payload: EditExportRequest) => normalizeClientFailure(client.edit.exportProject({ payload }))),
+    editValidate: Effect.fn("EngineClient.editValidate")((payload: EditPlan) =>
+      normalizeClientFailure(client.edit.validate({ payload })),
+    ),
+    editApply: Effect.fn("EngineClient.editApply")((payload: EditPlan) =>
+      normalizeClientFailure(client.edit.apply({ payload })),
+    ),
+    editExport: Effect.fn("EngineClient.editExport")((payload: EditExportRequest) =>
+      normalizeClientFailure(client.edit.exportProject({ payload })),
+    ),
     systemPing: normalizeClientFailure(client.system.systemPing({})),
     engineCapabilities: normalizeClientFailure(client.system.engineCapabilities({})),
     agentPreflight: Effect.fn("EngineClient.agentPreflight")(
@@ -504,6 +520,7 @@ export const layerEngineClientFromConfig = Layer.effect(
  */
 export function layerEngineClientBun(
   options?: EngineHttpProcessOptions,
+  requestTimeoutMs = 30_000,
 ): Layer.Layer<EngineClient, EngineProcessError> {
   return Layer.effect(
     EngineClient,
@@ -512,7 +529,7 @@ export function layerEngineClientBun(
       const rawClient = yield* makeRawEngineHttpApiClient({
         baseUrl: engineProcess.baseUrl,
         bearerToken: engineProcess.bearerToken,
-        requestTimeoutMs: 30_000,
+        requestTimeoutMs,
       });
       return EngineClient.of(makeEngineClientService(rawClient));
     }),

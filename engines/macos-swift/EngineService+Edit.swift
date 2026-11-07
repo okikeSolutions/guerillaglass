@@ -58,7 +58,7 @@ extension EngineService {
 
     func edit_period_review(_: Operations.edit_period_review.Input) async throws -> Operations.edit_period_review.Output {
         do {
-            return .ok(.init(body: .json(try await reviewSavedEdit())))
+            return try await .ok(.init(body: .json(reviewSavedEdit())))
         } catch is CancellationError {
             throw CancellationError()
         } catch is EditSessionError {
@@ -71,7 +71,7 @@ extension EngineService {
     func edit_period_validate(_ input: Operations.edit_period_validate.Input) async throws -> Operations.edit_period_validate.Output {
         let payload: Components.Schemas.EditPlan = switch input.body { case let .json(body): body }
         do {
-            return .ok(.init(body: .json(try await validateEdit(payload))))
+            return try await .ok(.init(body: .json(validateEdit(payload))))
         } catch is CancellationError {
             throw CancellationError()
         } catch is EditSessionError {
@@ -91,7 +91,7 @@ extension EngineService {
             document.project.timeline = plan.timeline
             currentProjectDocument = try projectStore.writeProject(document: document, assets: .init(), to: projectURL)
             hasUnsavedProjectChanges = false
-            return .ok(.init(body: .json(try makeEditReview(source: .init(
+            return try .ok(.init(body: .json(makeEditReview(source: .init(
                 duration: review.sourceDurationSeconds,
                 fps: .init(numerator: review.sourceFps.numerator, denominator: review.sourceFps.denominator),
                 revision: review.sourceRevision

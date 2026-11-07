@@ -103,6 +103,14 @@ Reference requirements: `docs/SPEC.md` §7.7
 
 This track turns the existing Agent Mode protocol surface into a first-class desktop workflow inside Creator Studio.
 
+External storyboard editing milestone, explicitly requested before the remaining general editor slices. See `docs/AGENT_EDITING_DESIGN.md` and `docs/AGENT_EDITING_RUNBOOK.md`:
+
+- [x] Accept versioned external edit plans and validate source ranges.
+- [x] Apply/save and explicitly export a checked project revision.
+- [x] Provide a thin authenticated external-agent command adapter.
+- [x] Support saved-project review/revision with sequential native ownership.
+- [x] Persist and render per-scene camera curves in preview and export.
+
 Workspace UX checklist:
 
 - [ ] Add visible Agent Mode entry points in the desktop workspace without creating a separate dashboard shell
@@ -179,7 +187,8 @@ Editing depth checklist:
     - Deliver trim fields are applied as `AVAssetExportSession.timeRange` on the edited program timeline, not the original recording timeline.
     - Export tests cover clip/gap composition duration, program-time trim behavior, camera-plan transforms, strict invalid timeline handling, and black gap rendering.
 - Implementation design reference: `docs/TIMELINE_EDITING_DESIGN.md`
-- [ ] Add per-segment camera/zoom editing with manual keyframe override.
+- [x] Support per-scene manual camera keyframes through external edit plans, project persistence, preview, and native export.
+- [ ] Add inspector controls for authoring per-segment camera/zoom keyframes.
 - [ ] Add crop/reframe/redaction/highlight tools for demo-focused editing.
 - [ ] Add transcript import plus caption editing/export baseline.
 - [ ] Keep Agent Mode supportive of preview/timeline/inspector workflows rather than phase-defining.
@@ -324,7 +333,7 @@ Suggested Phase 2 PR slices:
 3. `phase2/background-framing-contract` — define persisted background framing/effects settings in the project/export contract per `docs/BACKGROUND_FRAMING_DESIGN.md` (implemented).
 4. `phase2/background-framing-renderer` — implement native export rendering for background stage, padding, rounded screen card, and shadow (implemented).
 5. `phase2/vertical-camera-replan` — make camera planning/export aspect-ratio-aware for 9:16 vertical output (implemented).
-6. `phase2/segment-camera-overrides` — add clip-level camera/keyframe override model and inspector controls.
+6. `phase2/segment-camera-overrides` — clip-level camera/keyframe model, external authoring, preview and export implemented; inspector authoring controls remain.
 7. `phase2/crop-reframe-tool` — add deterministic crop/reframe controls with preview/export wiring.
 8. `phase2/redaction-highlight-tools` — add redaction/highlight overlay models and render hooks.
 9. `phase2/transcript-import` — add transcript import UI and persist transcript artifacts in the project package.

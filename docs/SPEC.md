@@ -393,6 +393,18 @@ Artifact contract (project-relative paths):
 - `analysis/cut-plan.v1.json`
 - `analysis/run-summary.v1.json`
 
+### 7.7.1 Externally authored storyboard edits
+
+The external agent editing milestone is specified in [External agent editing design](AGENT_EDITING_DESIGN.md). It is explicitly prioritized by the user and complements the legacy four-beat imported-transcript workflow.
+
+- Agents author versioned clip/gap plans against a saved project revision and source fingerprint.
+- Validation accepts arbitrary scene order and repeated source ranges, rejects invalid source/camera bounds, and leaves state unchanged.
+- Apply saves an editable project only when the expected revision and source still match.
+- Explicit saved-project export renders that revision's timeline/settings, including scene camera overrides.
+- Native project leases enforce sequential ownership across desktop and adapter engine processes.
+- Manual scene camera curves persist with clip IDs and share affine interpolation semantics across preview and export.
+- The first version uses one source recording on macOS. Agent orchestration and LLM providers remain external.
+
 ### 7.8 Deliver, packaging, and hosted review
 
 Goal:

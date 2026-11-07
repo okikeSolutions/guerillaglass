@@ -2,6 +2,8 @@
 
 Agent Mode is a local, project-scoped rough-cut workflow. The supported production path is currently the macOS native engine with an existing saved project/recording and an imported timed transcript.
 
+For externally authored storyboards and general scene edits, use [External agent editing](AGENT_EDITING_RUNBOOK.md). The four-beat imported-transcript workflow below remains a separate supported path.
+
 ## Discover support first
 
 Call `GET /v1/engine/capabilities` before using Agent Mode. A client must require all relevant Agent flags and `export.cutPlan=true`; endpoint presence alone does not imply production support.

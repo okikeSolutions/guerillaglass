@@ -23,6 +23,9 @@ public struct EditPlan: Codable, Equatable {
                       clip.sourceStartSeconds >= 0, clip.sourceEndSeconds > clip.sourceStartSeconds,
                       clip.sourceEndSeconds <= sourceDuration
                 else { throw ValidationError.invalidPlan }
+                if let camera = clip.camera {
+                    try SceneCameraKeyframe.validate(camera, sourceDuration: sourceDuration)
+                }
                 hasClip = true
             case let .gap(gap):
                 guard gap.durationSeconds.isFinite, gap.durationSeconds > 0 else {

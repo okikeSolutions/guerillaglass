@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-// Darwin exposes a conflicting `flock` record type in current Swift toolchains.
+/// Darwin exposes a conflicting `flock` record type in current Swift toolchains.
 @_silgen_name("flock")
 private func projectFlock(_ descriptor: Int32, _ operation: Int32) -> Int32
 

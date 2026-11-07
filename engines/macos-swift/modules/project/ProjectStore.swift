@@ -263,6 +263,11 @@ public final class ProjectStore {
     }
 
     private func validatedDocument(_ document: ProjectDocument) throws -> ProjectDocument {
+        for item in document.project.timeline.items {
+            if case let .clip(clip) = item, let camera = clip.camera {
+                try SceneCameraKeyframe.validate(camera)
+            }
+        }
         var validated = document
         validated.recordingFileName = try validatedAssetFileName(document.recordingFileName)
         if let systemAudioFileName = document.systemAudioFileName {

@@ -10,17 +10,20 @@ public struct TimelineClip: Codable, Equatable {
     public var sourceAssetId: SourceAssetID
     public var sourceStartSeconds: Double
     public var sourceEndSeconds: Double
+    public var camera: [SceneCameraKeyframe]?
 
     public init(
         id: String,
         sourceAssetId: SourceAssetID = .recording,
         sourceStartSeconds: Double,
-        sourceEndSeconds: Double
+        sourceEndSeconds: Double,
+        camera: [SceneCameraKeyframe]? = nil
     ) {
         self.id = id
         self.sourceAssetId = sourceAssetId
         self.sourceStartSeconds = sourceStartSeconds
         self.sourceEndSeconds = sourceEndSeconds
+        self.camera = camera
     }
 }
 
@@ -60,6 +63,7 @@ extension TimelineItem: Codable {
         case sourceAssetId
         case sourceStartSeconds
         case sourceEndSeconds
+        case camera
         case durationSeconds
     }
 
@@ -77,7 +81,8 @@ extension TimelineItem: Codable {
                     id: container.decode(String.self, forKey: .id),
                     sourceAssetId: container.decode(TimelineClip.SourceAssetID.self, forKey: .sourceAssetId),
                     sourceStartSeconds: container.decode(Double.self, forKey: .sourceStartSeconds),
-                    sourceEndSeconds: container.decode(Double.self, forKey: .sourceEndSeconds)
+                    sourceEndSeconds: container.decode(Double.self, forKey: .sourceEndSeconds),
+                    camera: container.decodeIfPresent([SceneCameraKeyframe].self, forKey: .camera)
                 )
             )
         case .gap:
@@ -99,6 +104,7 @@ extension TimelineItem: Codable {
             try container.encode(clip.sourceAssetId, forKey: .sourceAssetId)
             try container.encode(clip.sourceStartSeconds, forKey: .sourceStartSeconds)
             try container.encode(clip.sourceEndSeconds, forKey: .sourceEndSeconds)
+            try container.encodeIfPresent(clip.camera, forKey: .camera)
         case let .gap(gap):
             try container.encode(Kind.gap, forKey: .kind)
             try container.encode(gap.id, forKey: .id)
@@ -145,8 +151,8 @@ public struct TimelineDocument: Codable, Equatable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = (try? container.decode(Int.self, forKey: .version)) ?? 2
-        if let items = try? container.decode([TimelineItem].self, forKey: .items) {
-            self.items = items
+        if container.contains(.items) {
+            items = try container.decode([TimelineItem].self, forKey: .items)
             return
         }
         if let legacySegments = try? container.decode([TimelineClip].self, forKey: .segments) {

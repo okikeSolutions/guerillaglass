@@ -24,6 +24,7 @@ const capabilitiesAgentSchema = Schema.Struct({
   preflightTokenTtlSeconds: Schema.optionalKey(PositiveInt),
   artifactVersion: Schema.optionalKey(PositiveInt),
   cutPlanVersion: Schema.optionalKey(PositiveInt),
+  editPlanVersion: Schema.optionalKey(PositiveInt),
 }).annotate({ identifier: "CapabilitiesAgent" });
 
 /**

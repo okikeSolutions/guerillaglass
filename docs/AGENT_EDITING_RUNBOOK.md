@@ -55,7 +55,7 @@ Create `export.json` with `expectedRevision` from the apply/review result, a pre
 ```json
 {
   "expectedRevision": "COPY revision FROM applied.json",
-  "presetId": "mp4-1080p",
+  "presetId": "h264-1080p-30",
   "outputURL": "/absolute/demo.mp4"
 }
 ```
@@ -79,3 +79,15 @@ bun run agent:edit:smoke
 ```
 
 The probe creates synthetic media and checks arbitrary scene order, plan validation, stale revision rejection, saved-project reopen, a second edit preserving scene IDs, and export duration.
+
+## Scene camera overrides
+
+A clip may include a `camera` array of 1–256 keyframes. Each keyframe has `timeSeconds` in source time, normalized oriented-source `centerX` and `centerY` in 0–1, and `zoom` in 1–8. Times must strictly increase and stay inside the source recording. The camera holds its first and last keyframes outside their interval. Between keys, the affine transform interpolates linearly, matching native export. Zoom changes therefore interpolate the zoom-weighted focus position, not the focus independently.
+
+For example, add this field to a clip to hold a 2× zoom centered on the source's right half:
+
+```json
+"camera": [{ "timeSeconds": 0, "centerX": 0.75, "centerY": 0.5, "zoom": 2 }]
+```
+
+Camera overrides belong to the scene ID, so repeated footage can have different camera directions. Omit `camera` to retain the automatic camera settings. Splitting a scene preserves its source-time camera curve in both resulting clips. Manual transforms use aspect-fit source geometry within the framing card. Normalized coordinates use the oriented image's top-left origin. Keyframes can extend beyond the clip's selected range so trims and splits preserve interpolation.

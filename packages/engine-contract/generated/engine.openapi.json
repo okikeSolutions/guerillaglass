@@ -2631,6 +2631,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [
@@ -2792,6 +2800,37 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
           }
         },
+        "additionalProperties": false
+      },
+      "SceneCameraKeyframe": {
+        "type": "object",
+        "properties": {
+          "timeSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "centerX": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "centerY": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 8
+          }
+        },
+        "required": [
+          "timeSeconds",
+          "centerX",
+          "centerY",
+          "zoom"
+        ],
         "additionalProperties": false
       },
       "BackgroundFramingSettings": {
@@ -2965,6 +3004,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [
@@ -3241,6 +3288,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [
@@ -4541,6 +4596,11 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991
+          },
+          "editPlanVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -4693,6 +4753,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [

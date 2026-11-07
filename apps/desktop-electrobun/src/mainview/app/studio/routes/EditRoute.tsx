@@ -1,3 +1,4 @@
+import { useSceneCameraPreview } from "../hooks/useSceneCameraPreview";
 import { useRef, useState } from "react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
 import {
@@ -63,6 +64,14 @@ export function EditRoute() {
     windowLabel: ui.labels.window,
     untitledLabel: ui.values.untitled,
     formatInteger,
+  });
+
+  useSceneCameraPreview({
+    mediaRef,
+    sourceCardRef,
+    playbackStore,
+    timelineItems,
+    recordingMediaSource,
   });
 
   useVideoPlaybackSync({
