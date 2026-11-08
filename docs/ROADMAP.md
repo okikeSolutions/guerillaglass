@@ -6,6 +6,12 @@
 - `docs/ROADMAP.md` is the execution tracker for milestone sequencing, task checklists, and implementation backlog.
 - Roadmap tasks should reference relevant spec sections when requirements context is needed.
 
+### UI review follow-up
+
+The 2026-11-08 review of the merged editor is tracked in the [UI review ledger](UI_REVIEW_LEDGER.md), with a [screen/component coverage inventory](UI_REVIEW_INVENTORY.md) and native/browser evidence. It records 40 open findings, including controls whose UI exists but whose preview/export behavior is incomplete. Shell checkboxes below describe implementation presence; they do not certify those interactions as polished or complete.
+
+The requested UI pass should address trust/recovery and workflow orientation first, then editing/delivery, shared visual conventions and the public website. Use the ledger's acceptance criteria and stable IDs in fixing PRs. This baseline review does not complete the later Phase 2 performance/accessibility/polish gate or the outstanding editor features.
+
 ---
 
 ## 2) Creator Studio shell execution tracking
