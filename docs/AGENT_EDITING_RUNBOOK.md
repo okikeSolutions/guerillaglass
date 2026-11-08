@@ -143,6 +143,7 @@ The render workspace contains `render.mp4`, an exact revision receipt in `render
 {
   "version": 1,
   "revision": "COPY snapshot.revision FROM render.json",
+  "renderId": "COPY renderId FROM render.json",
   "verdict": "changes_requested",
   "summary": "The result is clear; the setup needs a tighter crop.",
   "findings": [{ "sceneId": "show-result", "note": "Move the camera toward the control and hold the result longer." }]
@@ -153,6 +154,6 @@ The render workspace contains `render.mp4`, an exact revision receipt in `render
 bun run agent:workflow record-review /absolute/render-pass-1 feedback.json
 ```
 
-Feedback must match the rendered revision and reference scenes in that render. Approval requires no outstanding findings; requested changes require at least one finding. The incomplete template cannot pass validation. Feedback is saved once as `feedback.json` in the render workspace.
+Feedback must match the rendered revision and unique render ID, and reference scenes in that render. A second export of the same edit receives a different render ID. Approval requires no outstanding findings; requested changes require at least one finding. The incomplete template cannot pass validation. Feedback is saved once as `feedback.json` in the render workspace.
 
 For plain-language revisions such as "shorten the intro and zoom into settings", prepare a fresh source workspace with that request as `brief.md`. Give the new snapshot, previous storyboard and feedback to the storyboard agent. Retain unaffected scene IDs and camera curves, compile a new proposal, then apply/render/review again. This keeps each proposal and render inspectable without overwriting the previous pass.

@@ -281,7 +281,7 @@ export const engineApi = {
   async validateProposal(storyboard: EditStoryboard): Promise<EditProposalBaseline> {
     return await invokeBridgeContract("ggEditProposalValidate", "proposal validation", storyboard);
   },
-  async applyProposal(storyboard: EditStoryboard): Promise<ProjectState> {
+  async applyProposal(storyboard: EditStoryboard): Promise<EditProposalBaseline> {
     return await invokeBridgeContract("ggEditProposalApply", "applied proposal", storyboard);
   },
   async projectCurrent(): Promise<ProjectState> {

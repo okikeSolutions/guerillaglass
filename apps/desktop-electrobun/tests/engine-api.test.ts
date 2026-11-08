@@ -733,7 +733,7 @@ test("localizes picker failures while preserving direct-window transport errors"
 test("proposal bridge validates through the native service, excludes media paths, and preserves stale apply failures", async () => {
   const { Schema } = await import("effect");
   const { EditReview } = await import("@guerillaglass/engine-contract/domains/editPlan");
-  const { EditStoryboard, compileStoryboard } =
+  const { EditStoryboard, compileStoryboard, materializeReviewTimeline } =
     await import("@guerillaglass/engine-contract/domains/editWorkflow");
   const storyboard = Schema.decodeUnknownSync(EditStoryboard)({
     version: 1,
@@ -768,7 +768,13 @@ test("proposal bridge validates through the native service, excludes media paths
       timeline: { version: 2, items: [] },
     },
   });
+  const appliedReview = Schema.decodeUnknownSync(EditReview)({
+    ...review,
+    revision: "c".repeat(64),
+    project: { ...review.project, timeline: compileStoryboard(storyboard).timeline },
+  });
   let validated: unknown = null;
+  let applyAttempts = 0;
   const runtime = await makeDesktopAppRuntime({
     desktopShellLayer: Layer.succeed(DesktopShell, {
       start: () => Effect.void,
@@ -791,12 +797,14 @@ test("proposal bridge validates through the native service, excludes media paths
             return review;
           }),
         applyEdit: () =>
-          Effect.fail(
-            new EngineResponseError({
-              code: "project_mismatch",
-              description: "The saved revision changed.",
-            }),
-          ),
+          ++applyAttempts === 1
+            ? Effect.succeed(appliedReview)
+            : Effect.fail(
+                new EngineResponseError({
+                  code: "project_mismatch",
+                  description: "The saved revision changed.",
+                }),
+              ),
       }),
       Layer.mock(RecordingService, {}),
       Layer.mock(SourcesService, {}),
@@ -810,10 +818,19 @@ test("proposal bridge validates through the native service, excludes media paths
     const response = await handlers.ggEditProposalValidate(storyboard);
     expect(response).toEqual({
       ok: true,
-      data: { revision: review.revision, timeline: review.project.timeline },
+      data: {
+        revision: review.revision,
+        timeline: materializeReviewTimeline(review.project.timeline, review.sourceDurationSeconds),
+      },
     });
     expect(JSON.stringify(response)).not.toContain("/private");
     expect(validated).toEqual(compileStoryboard(storyboard));
+    const applied = await handlers.ggEditProposalApply(storyboard);
+    expect(applied).toEqual({
+      ok: true,
+      data: { revision: appliedReview.revision, timeline: appliedReview.project.timeline },
+    });
+    expect(JSON.stringify(applied)).not.toContain("/private");
     const stale = await handlers.ggEditProposalApply(storyboard);
     expect(stale.ok).toBe(false);
     if (!stale.ok) {

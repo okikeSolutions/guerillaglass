@@ -409,9 +409,9 @@ export const bridgeRequestDefinitions = {
   >((storyboard) => storyboard, EditStoryboard, EditProposalBaseline),
   ggEditProposalApply: defineValidatedBridgeRequest<
     EditStoryboard,
-    ProjectState,
+    EditProposalBaseline,
     [storyboard: EditStoryboard]
-  >((storyboard) => storyboard, EditStoryboard, projectStateSchema),
+  >((storyboard) => storyboard, EditStoryboard, EditProposalBaseline),
   ggEnginePing: defineValidatedBridgeRequest<undefined, PingResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,

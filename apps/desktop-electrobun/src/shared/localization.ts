@@ -402,6 +402,8 @@ export function getAgentProposalMessages() {
     changed: m.agent_proposal_changed(),
     save_first: m.agent_proposal_save_first(),
     no_project: m.agent_proposal_no_project(),
+    unsupported: m.agent_proposal_unsupported(),
+    no_source: m.agent_proposal_no_source(),
     confirm: m.agent_proposal_confirm(),
     apply: m.agent_proposal_apply(),
     applying: m.agent_proposal_applying(),

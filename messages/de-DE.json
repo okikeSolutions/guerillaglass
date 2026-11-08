@@ -314,5 +314,7 @@
   "agent_proposal_gap": "Lücke",
   "agent_proposal_camera": "Kamera-Schlüsselbilder",
   "agent_proposal_brief": "Kreativbriefing",
-  "agent_proposal_import": "Storyboard importieren"
+  "agent_proposal_import": "Storyboard importieren",
+  "agent_proposal_unsupported": "Diese Engine unterstützt keine externen Schnittvorschläge.",
+  "agent_proposal_no_source": "Dieses gespeicherte Projekt enthält keine Aufnahme zum Bearbeiten."
 }

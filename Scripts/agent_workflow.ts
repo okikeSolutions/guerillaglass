@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import * as SecureRandom from "../apps/desktop-electrobun/node_modules/effect/dist/crypto/SecureRandom.js";
 import * as NodeRuntime from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeRuntime.js";
 import * as NodeServices from "../apps/desktop-electrobun/node_modules/@effect/platform-node/dist/NodeServices.js";
 import {
@@ -16,6 +17,9 @@ import {
   EditRenderReview,
   compileStoryboard,
   describeSceneChanges,
+  materializeReviewTimeline,
+  EditRenderReceipt,
+  EditRenderReviewBinding,
 } from "../packages/engine-contract/src/domains/editWorkflow";
 import { projectPathSchema } from "../packages/engine-contract/src/schema-primitives";
 import { EngineClient, layerEngineClientBun } from "../packages/engine-client/src/service";
@@ -25,13 +29,6 @@ import {
   runSavedProjectCommand,
 } from "../packages/engine-client/src/editing";
 
-const RenderReceipt = Schema.Struct({
-  version: Schema.Literal(1),
-  snapshot: EditReview,
-  outputFile: Schema.String,
-  programDurationSeconds: Schema.Finite,
-  sceneIds: Schema.Array(Schema.String),
-});
 const readJson = <S extends Schema.Top>(schema: S, file: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -142,17 +139,12 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
   }
   if (operation === "record-review") {
     const directory = path.resolve(first);
-    const receipt = yield* readJson(RenderReceipt, path.join(directory, "render.json"));
+    const receipt = yield* readJson(EditRenderReceipt, path.join(directory, "render.json"));
     const feedback = yield* readJson(EditRenderReview, path.resolve(second));
-    yield* check(
-      receipt.snapshot.revision === feedback.revision,
-      "Feedback belongs to another rendered revision.",
-    );
-    const ids = new Set(receipt.sceneIds);
-    yield* check(
-      feedback.findings.every((finding) => ids.has(finding.sceneId)),
-      "Feedback refers to a scene absent from the rendered revision.",
-    );
+    yield* Schema.decodeUnknownEffect(EditRenderReviewBinding)({
+      render: receipt,
+      review: feedback,
+    });
     yield* writeJson(path.join(directory, "feedback.json"), feedback);
     return { workspace: directory, verdict: feedback.verdict, revision: feedback.revision };
   }
@@ -205,7 +197,10 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
       yield* writeJson(path.join(directory, "plan.json"), plan);
       yield* writeJson(
         path.join(directory, "changes.json"),
-        describeSceneChanges(snapshot.project.timeline, plan.timeline),
+        describeSceneChanges(
+          materializeReviewTimeline(snapshot.project.timeline, snapshot.sourceDurationSeconds),
+          plan.timeline,
+        ),
       );
       return { workspace: directory, validated: true, revision: snapshot.revision };
     }
@@ -218,6 +213,8 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
       presetId,
     });
     yield* client.editExport(request);
+    const crypto = yield* SecureRandom.SecureRandom;
+    const renderId = yield* crypto.uuidV4();
     const timeline = snapshot.project.timeline.items.length
       ? snapshot.project.timeline.items
       : [
@@ -242,6 +239,7 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
     yield* writeJson(path.join(directory, "render.json"), {
       version: 1,
       snapshot,
+      renderId,
       outputFile,
       programDurationSeconds: elapsed,
       sceneIds: times.map((sample) => sample.sceneId),
@@ -249,6 +247,7 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
     yield* writeJson(path.join(directory, "review-template.json"), {
       version: 1,
       revision: snapshot.revision,
+      renderId,
       verdict: "changes_requested",
       summary: "Inspect render.mp4 before completing this review.",
       findings: [],
@@ -282,6 +281,7 @@ NodeRuntime.runMain(
     ),
     Effect.scoped,
     Effect.provide(NodeServices.layer),
+    Effect.provide(SecureRandom.layerWebCrypto),
     Effect.provide(Logger.layer([Logger.withConsoleError(Logger.formatLogFmt)])),
   ),
 );

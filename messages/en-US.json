@@ -314,5 +314,7 @@
   "agent_proposal_gap": "Gap",
   "agent_proposal_camera": "camera keys",
   "agent_proposal_brief": "Creative brief",
-  "agent_proposal_import": "Import storyboard"
+  "agent_proposal_import": "Import storyboard",
+  "agent_proposal_unsupported": "This engine does not support external edit proposals.",
+  "agent_proposal_no_source": "This saved project has no recording to edit."
 }

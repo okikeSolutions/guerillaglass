@@ -23,6 +23,7 @@ const emptySourceDisplays: SourcesResult["displays"] = [];
 const emptySourceWindows: SourcesResult["windows"] = [];
 
 export const studioQueryKeys = {
+  agentProposal: () => ["studio", "agentProposal"] as const,
   ping: () => ["studio", "ping"] as const,
   capabilities: () => ["studio", "capabilities"] as const,
   permissions: () => ["studio", "permissions"] as const,

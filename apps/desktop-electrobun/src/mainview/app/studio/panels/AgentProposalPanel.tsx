@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useStore } from "@tanstack/react-form";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Schema, Result } from "effect";
 import {
   EditStoryboard,
@@ -28,6 +28,7 @@ const decodeStoryboard = Schema.decodeUnknownResult(Schema.fromJsonString(EditSt
 
 type ProposalReviewProps = {
   available: boolean;
+  unavailableMessage?: string;
   busy: boolean;
   dirty: boolean;
   editorSignature: string;
@@ -38,6 +39,7 @@ type ProposalReviewProps = {
 /** Proposal review keeps validation tied to the exact editor and text snapshot. */
 export function AgentProposalReview({
   available,
+  unavailableMessage,
   busy,
   dirty,
   editorSignature,
@@ -79,7 +81,7 @@ export function AgentProposalReview({
       ? "—"
       : item.kind === "gap"
         ? `${labels.gap} ${item.durationSeconds.toFixed(2)} s`
-        : `${item.sourceStartSeconds.toFixed(2)}–${item.sourceEndSeconds.toFixed(2)} s${item.camera ? ` · ${item.camera.length} ${labels.camera}` : ""}`;
+        : `${item.sourceStartSeconds.toFixed(2)}–${item.sourceEndSeconds.toFixed(2)} s${item.camera ? ` · ${labels.camera}: ${item.camera.length}` : ""}`;
 
   const renderItem = (item: TimelineItem | undefined) => (
     <div>
@@ -167,7 +169,7 @@ export function AgentProposalReview({
             <DialogTitle>{labels.entry}</DialogTitle>
             <DialogDescription>{labels.help}</DialogDescription>
           </DialogHeader>
-          {!available ? <p role="status">{labels.no_project}</p> : null}
+          {!available ? <p role="status">{unavailableMessage ?? labels.no_project}</p> : null}
           {dirty ? <p role="status">{labels.save_first}</p> : null}
           <div>
             <Button
@@ -325,6 +327,26 @@ export function AgentProposalPanel() {
   const studio = useStudio();
   const queryClient = useQueryClient();
   const values = useStore(studio.settingsForm.store, (state) => state.values);
+  const validateMutation = useMutation({
+    mutationKey: studioQueryKeys.agentProposal(),
+    mutationFn: engineApi.validateProposal,
+  });
+  const applyMutation = useMutation({
+    mutationKey: studioQueryKeys.agentProposal(),
+    mutationFn: async (storyboard: EditStoryboard) => {
+      const saved = await engineApi.applyProposal(storyboard);
+      studio.playbackStore.pause();
+      studio.playbackStore.seek(0);
+      studio.clearInspectorSelection();
+      queryClient.setQueryData<ProjectState>(studioQueryKeys.projectCurrent(), (current) => {
+        if (!current || current.projectPath !== studio.projectQuery.data?.projectPath) {
+          return current;
+        }
+        return { ...current, timeline: saved.timeline };
+      });
+    },
+  });
+
   const project = studio.projectQuery.data;
   const dirty = Boolean(
     project &&
@@ -346,17 +368,18 @@ export function AgentProposalPanel() {
         studio.recordingURL &&
         studio.capabilitiesQuery.data?.agent?.editPlanVersion === 1,
       )}
+      unavailableMessage={
+        !project?.projectPath
+          ? getAgentProposalMessages().no_project
+          : !studio.recordingURL
+            ? getAgentProposalMessages().no_source
+            : getAgentProposalMessages().unsupported
+      }
       busy={studio.isRunningAction || Boolean(studio.captureStatusQuery.data?.isRecording)}
       dirty={dirty}
       editorSignature={editorSignature}
-      validate={engineApi.validateProposal}
-      apply={async (storyboard) => {
-        const saved: ProjectState = await engineApi.applyProposal(storyboard);
-        studio.playbackStore.pause();
-        studio.playbackStore.seek(0);
-        studio.clearInspectorSelection();
-        queryClient.setQueryData(studioQueryKeys.projectCurrent(), saved);
-      }}
+      validate={validateMutation.mutateAsync}
+      apply={applyMutation.mutateAsync}
     />
   );
 }

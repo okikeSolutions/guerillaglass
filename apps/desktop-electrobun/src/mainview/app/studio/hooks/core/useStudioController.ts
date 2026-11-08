@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useIsMutating } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ExportPreset } from "@guerillaglass/engine-contract/domains/export";
 import {
@@ -69,7 +69,7 @@ import {
 import { useStudioHotkeys } from "./useStudioHotkeys";
 import { useStudioLayoutController } from "./useStudioLayoutController";
 import { useStudioMutations, type ExportFormApi, type SettingsFormApi } from "./useStudioMutations";
-import { studioRecentsLimit, useStudioDataQueries } from "./useStudioDataQueries";
+import { studioRecentsLimit, useStudioDataQueries, studioQueryKeys } from "./useStudioDataQueries";
 import { useStudioTimeline } from "../timeline/useStudioTimeline";
 
 export type CaptureSourceMode = "display" | "window";
@@ -816,7 +816,7 @@ export function useStudioController() {
   const {
     exportMutation,
     isRefreshing,
-    isRunningAction,
+    isRunningAction: hasRunningMutation,
     openProjectMutation,
     openRecentProjectMutation,
     refreshAll,
@@ -853,6 +853,9 @@ export function useStudioController() {
     projectRecentsQuery,
     eventsQuery,
   });
+
+  const proposalActionCount = useIsMutating({ mutationKey: studioQueryKeys.agentProposal() });
+  const isRunningAction = hasRunningMutation || proposalActionCount > 0;
 
   const recordingRequiredNotice = ui.helper.recordToEnableAction;
 
@@ -918,7 +921,7 @@ export function useStudioController() {
     [presets],
   );
 
-  const runHostCommand = useMemo(
+  const runHostCommandUncoordinated = useMemo(
     () =>
       createHostCommandRunnerFromHandlers({
         appRefresh: () => {
@@ -995,6 +998,16 @@ export function useStudioController() {
       toggleTimelineCollapsed,
       toggleTimelinePlayback,
     ],
+  );
+
+  const runHostCommand = useCallback(
+    (command: HostMenuCommand) => {
+      if (queryClient.isMutating({ mutationKey: studioQueryKeys.agentProposal() }) > 0) {
+        return;
+      }
+      runHostCommandUncoordinated(command);
+    },
+    [queryClient, runHostCommandUncoordinated],
   );
 
   const clearNotice = useCallback(() => {

@@ -613,3 +613,38 @@ describe("editor timeline export integration", () => {
     ]);
   });
 });
+
+test("proposal operations block native menu and shortcut saves until they settle", async () => {
+  await waitFor(() => expect(currentStudio().isRunningAction).toBe(false));
+  if (!queryClient) {
+    throw new Error("Query client unavailable");
+  }
+  const signal: { resolve?: () => void } = {};
+  const suspended = new Promise<void>((resolve) => {
+    signal.resolve = resolve;
+  });
+  const mutation = queryClient.getMutationCache().build(queryClient, {
+    mutationKey: studioQueryKeys.agentProposal(),
+    mutationFn: () => suspended,
+  });
+  if (!signal.resolve) {
+    throw new Error("Proposal not started");
+  }
+  const release = signal.resolve;
+  const running = mutation.execute(undefined);
+  try {
+    await waitFor(() => expect(currentStudio().isRunningAction).toBe(true));
+    await applyStudioAction((studio) => studio.runHostCommand("file.saveProject"));
+    expect(capturedSaveParams).toBeNull();
+    window.dispatchEvent(
+      new CustomEvent("gg-host-menu-command", { detail: { command: "file.saveProject" } }),
+    );
+    expect(capturedSaveParams).toBeNull();
+  } finally {
+    release();
+    await running;
+  }
+  await waitFor(() => expect(currentStudio().isRunningAction).toBe(false));
+  await applyStudioAction((studio) => studio.runHostCommand("file.saveProject"));
+  await waitFor(() => expect(capturedSaveParams).not.toBeNull());
+});

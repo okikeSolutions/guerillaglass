@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { EditPlan, editPlanIdSchema, editRevisionSchema } from "./editPlan";
+import { EditPlan, EditReview, editPlanIdSchema, editRevisionSchema } from "./editPlan";
 import {
   timelineItemSchema,
   timelineDocumentSchema,
@@ -75,6 +75,7 @@ export function describeSceneChanges(before: TimelineDocument, after: TimelineDo
 export const EditRenderReview = Schema.Struct({
   version: Schema.Literal(1),
   revision: editRevisionSchema,
+  renderId: Schema.NonEmptyString.pipe(Schema.brand("EditRenderId")),
   verdict: Schema.Literals(["approved", "changes_requested"]),
   summary: shortText,
   findings: Schema.Array(
@@ -98,3 +99,56 @@ export const EditProposalBaseline = Schema.Struct({
   timeline: timelineDocumentSchema,
 });
 export interface EditProposalBaseline extends Schema.Schema.Type<typeof EditProposalBaseline> {}
+
+/** Materializes legacy full-source playback for an honest proposal comparison. */
+export function materializeReviewTimeline(
+  timeline: TimelineDocument,
+  sourceDurationSeconds: number,
+): TimelineDocument {
+  if (timeline.items.length > 0 || sourceDurationSeconds <= 0) {
+    return timeline;
+  }
+  return {
+    version: 2,
+    items: [
+      {
+        kind: "clip",
+        id: timelineSegmentIdSchema.make("full-source"),
+        sourceAssetId: "recording",
+        sourceStartSeconds: 0,
+        sourceEndSeconds: sourceDurationSeconds,
+      },
+    ],
+  };
+}
+
+/** Local render evidence identifying one export independently of its saved edit. */
+export const EditRenderReceipt = Schema.Struct({
+  version: Schema.Literal(1),
+  snapshot: EditReview,
+  renderId: EditRenderReview.fields.renderId,
+  outputFile: Schema.NonEmptyString,
+  programDurationSeconds: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0)),
+  sceneIds: Schema.Array(timelineSegmentIdSchema),
+});
+export interface EditRenderReceipt extends Schema.Schema.Type<typeof EditRenderReceipt> {}
+
+/** Validates feedback against the exact export and scenes that were inspected. */
+export const EditRenderReviewBinding = Schema.Struct({
+  render: EditRenderReceipt,
+  review: EditRenderReview,
+}).check(
+  Schema.makeFilter(({ render, review }) => {
+    if (render.snapshot.revision !== review.revision) {
+      return "Feedback belongs to another rendered revision.";
+    }
+    if (render.renderId !== review.renderId) {
+      return "Feedback belongs to another render.";
+    }
+    const ids = new Set(render.sceneIds);
+    return (
+      review.findings.every((finding) => ids.has(finding.sceneId)) ||
+      "Feedback refers to a scene absent from the rendered revision."
+    );
+  }),
+);
