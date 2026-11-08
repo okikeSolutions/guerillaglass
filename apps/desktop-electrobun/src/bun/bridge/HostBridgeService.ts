@@ -1,3 +1,7 @@
+import {
+  compileStoryboard,
+  materializeReviewTimeline,
+} from "@guerillaglass/engine-contract/domains/editWorkflow";
 import { Context, Effect, Layer, Schema, type Config } from "effect";
 import {
   isoDateTimeSchema,
@@ -154,6 +158,28 @@ export const layerHostBridgeService = Layer.effect(
       BridgeRequestName,
       (raw: unknown) => Effect.Effect<unknown, HostBridgeFailure, ProjectService>
     > = {
+      ggEditProposalValidate: Effect.fn("HostBridge.ggEditProposalValidate")(function* (
+        raw: unknown,
+      ) {
+        const storyboard = yield* Schema.decodeUnknownEffect(
+          bridgeDefinitionsByName.ggEditProposalValidate.paramsSchema,
+        )(raw);
+        const review = yield* projectService.validateEdit(compileStoryboard(storyboard));
+        return {
+          revision: review.revision,
+          timeline: materializeReviewTimeline(
+            review.project.timeline,
+            review.sourceDurationSeconds,
+          ),
+        };
+      }),
+      ggEditProposalApply: Effect.fn("HostBridge.ggEditProposalApply")(function* (raw: unknown) {
+        const storyboard = yield* Schema.decodeUnknownEffect(
+          bridgeDefinitionsByName.ggEditProposalApply.paramsSchema,
+        )(raw);
+        const review = yield* projectService.applyEdit(compileStoryboard(storyboard));
+        return { revision: review.revision, timeline: review.project.timeline };
+      }),
       ggEnginePing: Effect.fn("HostBridge.ggEnginePing")(function* (raw: unknown) {
         yield* Schema.decodeUnknownEffect(bridgeDefinitionsByName.ggEnginePing.paramsSchema)(raw);
         return yield* system.ping;

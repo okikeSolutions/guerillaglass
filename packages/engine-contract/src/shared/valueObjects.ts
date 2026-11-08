@@ -96,6 +96,34 @@ export const inputEventLogSchema = Schema.Struct({
   events: Schema.Array(inputEventSchema),
 });
 
+/** Source-time camera keyframe with normalized oriented-source focus coordinates. */
+export const SceneCameraKeyframe = Schema.Struct({
+  timeSeconds: NonNegativeNumber,
+  centerX: Schema.Finite.pipe(between(0, 1)),
+  centerY: Schema.Finite.pipe(between(0, 1)),
+  zoom: Schema.Finite.pipe(between(1, 8)),
+}).annotate({ identifier: "SceneCameraKeyframe" });
+export interface SceneCameraKeyframe extends Schema.Schema.Type<typeof SceneCameraKeyframe> {}
+
+/** Ordered per-scene keyframes. Omission retains automatic camera behavior. */
+const sceneCameraWireSchema = Schema.Array(SceneCameraKeyframe).check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(256),
+);
+export const sceneCameraSchema = sceneCameraWireSchema.pipe(
+  Schema.decodeTo(
+    sceneCameraWireSchema.check(
+      Schema.makeFilter((camera) =>
+        camera.every(
+          (key, index) => index === 0 || key.timeSeconds > (camera[index - 1]?.timeSeconds ?? 0),
+        )
+          ? undefined
+          : "Camera keyframes must have strictly increasing source times",
+      ),
+    ),
+  ),
+);
+
 /**
  * Time-bounded timeline segment used by cut plans and project timelines.
  */
@@ -105,6 +133,7 @@ export const timelineClipItemSchema = Schema.Struct({
   sourceAssetId: Schema.Literal("recording"),
   sourceStartSeconds: NonNegativeNumber,
   sourceEndSeconds: NonNegativeNumber,
+  camera: Schema.optionalKey(sceneCameraSchema),
 });
 
 /**

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models, types::*};
 
+/// HTTP response variants for the generated ExportExportGet operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -26,6 +27,7 @@ pub enum ExportExportGetResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated ExportExportInfo operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -42,6 +44,7 @@ pub enum ExportExportInfoResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated ExportExportRun operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -58,6 +61,7 @@ pub enum ExportExportRunResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated ExportExportRunCutPlan operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]

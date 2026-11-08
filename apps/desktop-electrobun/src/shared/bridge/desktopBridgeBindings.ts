@@ -43,6 +43,8 @@ export function createWindowBridgeBindings(
     };
   }
   return {
+    ggEditProposalValidate: createBinding("ggEditProposalValidate"),
+    ggEditProposalApply: createBinding("ggEditProposalApply"),
     ggEnginePing: createBinding("ggEnginePing"),
     ggEngineCapabilities: createBinding("ggEngineCapabilities"),
     ggEngineGetPermissions: createBinding("ggEngineGetPermissions"),
@@ -124,6 +126,8 @@ export function createBunBridgeHandlers(
     };
   }
   return {
+    ggEditProposalValidate: wrap("ggEditProposalValidate"),
+    ggEditProposalApply: wrap("ggEditProposalApply"),
     ggEnginePing: wrap("ggEnginePing"),
     ggEngineCapabilities: wrap("ggEngineCapabilities"),
     ggEngineGetPermissions: wrap("ggEngineGetPermissions"),

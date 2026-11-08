@@ -393,6 +393,27 @@ Artifact contract (project-relative paths):
 - `analysis/cut-plan.v1.json`
 - `analysis/run-summary.v1.json`
 
+### 7.7.1 Externally authored storyboard edits
+
+The external agent editing milestone is specified in [External agent editing design](AGENT_EDITING_DESIGN.md). It is explicitly prioritized by the user and complements the legacy four-beat imported-transcript workflow.
+
+- Agents author versioned clip/gap plans against a saved project revision and source fingerprint.
+- Validation accepts arbitrary scene order and repeated source ranges, rejects invalid source/camera bounds, and leaves state unchanged.
+- Apply saves an editable project only when the expected revision and source still match.
+- Explicit saved-project export renders that revision's timeline/settings, including scene camera overrides.
+- Native project leases enforce sequential ownership across desktop and adapter engine processes.
+- Manual scene camera curves persist with clip IDs and share affine interpolation semantics across preview and export.
+- The first version uses one source recording on macOS. Agent orchestration and LLM providers remain external.
+
+### 7.7.2 Storyboard handoff and revision review
+
+- Separate external storyboard and editing agents use a versioned handoff containing the brief, scene intent, stable IDs and exact timeline items.
+- Source preparation supplies a saved revision and timestamped evidence. Each pass preserves earlier proposal and render artifacts.
+- Render receipts identify both the saved edit revision and a unique export. Structured scene feedback must match both and refer only to scenes in that render. Approval requires inspection rather than encoding success alone.
+- Plain-language corrections are handed to the storyboard agent with a fresh saved snapshot and prior feedback; unaffected scene identities and camera curves remain intact.
+- The Edit workspace imports storyboards, displays before/after changes including implicit full-source playback, validates source/revision state and requires explicit confirmation before apply/save.
+- Unsaved or changed editor state blocks stale approval. Proposal operations share the editor action gate so concurrent saves cannot replace the applied proposal. New proposal bridge responses expose no media paths.
+
 ### 7.8 Deliver, packaging, and hosted review
 
 Goal:

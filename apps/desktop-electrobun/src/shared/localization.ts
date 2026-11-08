@@ -40,6 +40,8 @@ export function getStudioMessages(locale: string | null | undefined) {
       recordingFinished: m.studio_notices_recordingFinished(undefined, options),
       capturePermissionRequired: m.studio_notices_capturePermissionRequired(undefined, options),
       windowSelectionFailed: m.studio_notices_windowSelectionFailed(undefined, options),
+      projectBusy: m.studio_notices_projectBusy(undefined, options),
+      projectUnsafePath: m.studio_notices_projectUnsafePath(undefined, options),
       recordingStartNotReady: m.studio_notices_recordingStartNotReady(undefined, options),
       exportMissingRecording: m.studio_notices_exportMissingRecording(undefined, options),
       exportMissingPreset: m.studio_notices_exportMissingPreset(undefined, options),
@@ -382,3 +384,42 @@ export function getDesktopMenuMessages(locale: string | null | undefined) {
 export type DesktopMenuMessages = ReturnType<typeof getDesktopMenuMessages>;
 export const enUS = getStudioMessages("en-US");
 export const deDE = getStudioMessages("de-DE");
+
+/** Localized proposal-review controls shared by the desktop and browser proof. */
+export function getAgentProposalMessages() {
+  return {
+    entry: m.agent_proposal_entry(),
+    import: m.agent_proposal_import(),
+    help: m.agent_proposal_help(),
+    input: m.agent_proposal_input(),
+    input_help: m.agent_proposal_input_help(),
+    validate: m.agent_proposal_validate(),
+    validating: m.agent_proposal_validating(),
+    valid: m.agent_proposal_valid(),
+    invalid: m.agent_proposal_invalid(),
+    failed: m.agent_proposal_failed(),
+    apply_failed: m.agent_proposal_apply_failed(),
+    changed: m.agent_proposal_changed(),
+    save_first: m.agent_proposal_save_first(),
+    no_project: m.agent_proposal_no_project(),
+    unsupported: m.agent_proposal_unsupported(),
+    no_source: m.agent_proposal_no_source(),
+    confirm: m.agent_proposal_confirm(),
+    apply: m.agent_proposal_apply(),
+    applying: m.agent_proposal_applying(),
+    applied: m.agent_proposal_applied(),
+    close: m.agent_proposal_close(),
+    scene: m.agent_proposal_scene(),
+    before: m.agent_proposal_before(),
+    after: m.agent_proposal_after(),
+    changes: m.agent_proposal_changes(),
+    added: m.agent_proposal_added(),
+    removed: m.agent_proposal_removed(),
+    modified: m.agent_proposal_modified(),
+    moved: m.agent_proposal_moved(),
+    unchanged: m.agent_proposal_unchanged(),
+    gap: m.agent_proposal_gap(),
+    camera: m.agent_proposal_camera(),
+    brief: m.agent_proposal_brief(),
+  };
+}

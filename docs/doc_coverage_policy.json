@@ -2,36 +2,56 @@
   "typescript": [
     {
       "name": "desktop-bridge-public-api",
-      "roots": ["apps/desktop-electrobun/src/bun"],
-      "extensions": [".ts"],
+      "roots": [
+        "apps/desktop-electrobun/src/bun"
+      ],
+      "extensions": [
+        ".ts"
+      ],
       "minimumCoverage": 0.4479166666666667
     }
   ],
   "swift": [
     {
       "name": "protocol-swift-public-surface",
-      "roots": ["engines/protocol-swift"],
-      "extensions": [".swift"],
+      "roots": [
+        "engines/protocol-swift"
+      ],
+      "extensions": [
+        ".swift"
+      ],
       "minimumCoverage": 1
     },
     {
       "name": "macos-engine-public-surface",
-      "roots": ["engines/macos-swift"],
-      "extensions": [".swift"],
-      "minimumCoverage": 0.9066666666666666
+      "roots": [
+        "engines/macos-swift"
+      ],
+      "extensions": [
+        ".swift"
+      ],
+      "minimumCoverage": 0.9270833333333334
     }
   ],
   "rust": [
     {
       "name": "protocol-rust-public-api",
-      "roots": ["engines/protocol-rust/src"],
-      "extensions": [".rs"],
-      "minimumCoverage": 0.16666666666666666
+      "roots": [
+        "engines/protocol-rust/src"
+      ],
+      "extensions": [
+        ".rs"
+      ],
+      "minimumCoverage": 0.38095238095238093
     },
     {
       "name": "native-foundation-public-api",
-      "roots": ["engines/native-foundation/src"],
-      "extensions": [".rs"],
+      "roots": [
+        "engines/native-foundation/src"
+      ],
+      "extensions": [
+        ".rs"
+      ],
       "minimumCoverage": 0.6
     }
   ]

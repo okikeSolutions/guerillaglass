@@ -1,5 +1,6 @@
 import Automation
 import CoreGraphics
+import Project
 
 /// Canonical source-orientation, aspect-fit, and camera transforms shared by render paths.
 public enum VideoGeometryTransforms {
@@ -45,6 +46,22 @@ public enum VideoGeometryTransforms {
             y: -bounds.minY
         )
         return preferredTransform.concatenating(destinationTransform)
+    }
+
+    /// Maps normalized oriented-source focus into an aspect-fit card, then zooms.
+    public static func sceneCameraTransform(
+        naturalSize: CGSize,
+        preferredTransform: CGAffineTransform,
+        cardRect: CGRect,
+        keyframe: SceneCameraKeyframe
+    ) -> CGAffineTransform {
+        let bounds = orientedBounds(naturalSize: naturalSize, preferredTransform: preferredTransform)
+        let scale = min(cardRect.width / bounds.width, cardRect.height / bounds.height) * keyframe.zoom
+        let transform = CGAffineTransform(
+            translationX: cardRect.midX - keyframe.centerX * bounds.width * scale,
+            y: cardRect.midY - keyframe.centerY * bounds.height * scale
+        ).scaledBy(x: scale, y: scale).translatedBy(x: -bounds.minX, y: -bounds.minY)
+        return preferredTransform.concatenating(transform)
     }
 
     public static func cameraTransform(

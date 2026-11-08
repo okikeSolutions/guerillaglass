@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{models, types::*};
 
+/// HTTP response variants for the generated AgentAgentApply operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -30,6 +31,7 @@ pub enum AgentAgentApplyResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated AgentAgentPreflight operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -46,6 +48,7 @@ pub enum AgentAgentPreflightResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated AgentAgentRun operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
@@ -66,6 +69,7 @@ pub enum AgentAgentRunResponse {
     Status500_EngineRuntimeErrorResponseBody(models::EngineRuntimeError),
 }
 
+/// HTTP response variants for the generated AgentAgentStatus operation.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]

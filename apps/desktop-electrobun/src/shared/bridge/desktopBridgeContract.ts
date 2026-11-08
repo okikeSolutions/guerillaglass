@@ -1,4 +1,8 @@
 import {
+  EditStoryboard,
+  EditProposalBaseline,
+} from "@guerillaglass/engine-contract/domains/editWorkflow";
+import {
   agentApplyResultSchema,
   agentPreflightResultSchema,
   type AgentApplyResult,
@@ -398,6 +402,16 @@ function defineValidatedBridgeRequest<Params, Response, Args extends readonly un
  * runtime schemas used to validate transport inputs and outputs at the bridge boundary.
  */
 export const bridgeRequestDefinitions = {
+  ggEditProposalValidate: defineValidatedBridgeRequest<
+    EditStoryboard,
+    EditProposalBaseline,
+    [storyboard: EditStoryboard]
+  >((storyboard) => storyboard, EditStoryboard, EditProposalBaseline),
+  ggEditProposalApply: defineValidatedBridgeRequest<
+    EditStoryboard,
+    EditProposalBaseline,
+    [storyboard: EditStoryboard]
+  >((storyboard) => storyboard, EditStoryboard, EditProposalBaseline),
   ggEnginePing: defineValidatedBridgeRequest<undefined, PingResult, []>(
     () => undefined,
     undefinedBridgeParamsSchema,

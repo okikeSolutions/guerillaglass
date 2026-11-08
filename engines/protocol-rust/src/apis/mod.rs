@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod capture;
+pub mod edit;
 pub mod export;
 pub mod permissions;
 pub mod project;

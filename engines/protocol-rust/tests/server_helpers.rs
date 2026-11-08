@@ -549,3 +549,75 @@ async fn generated_server_reports_unsupported_method() {
     .await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
+
+#[async_trait]
+impl apis::edit::Edit<()> for MockApi {
+    type Claims = ();
+    async fn edit_apply(
+        &self,
+        _: &http::Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+        _: &models::EditPlan,
+    ) -> Result<apis::edit::EditApplyResponse, ()> {
+        Ok(
+            apis::edit::EditApplyResponse::Status400_EngineBadRequestErrorResponseBody(
+                models::EngineBadRequestError::new(
+                    "unsupported_method".into(),
+                    "Unsupported test operation".into(),
+                ),
+            ),
+        )
+    }
+    async fn edit_validate(
+        &self,
+        _: &http::Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+        _: &models::EditPlan,
+    ) -> Result<apis::edit::EditValidateResponse, ()> {
+        Ok(
+            apis::edit::EditValidateResponse::Status400_EngineBadRequestErrorResponseBody(
+                models::EngineBadRequestError::new(
+                    "unsupported_method".into(),
+                    "Unsupported test operation".into(),
+                ),
+            ),
+        )
+    }
+    async fn edit_review(
+        &self,
+        _: &http::Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+    ) -> Result<apis::edit::EditReviewResponse, ()> {
+        Ok(
+            apis::edit::EditReviewResponse::Status400_EngineBadRequestErrorResponseBody(
+                models::EngineBadRequestError::new(
+                    "unsupported_method".into(),
+                    "Unsupported test operation".into(),
+                ),
+            ),
+        )
+    }
+    async fn edit_export_project(
+        &self,
+        _: &http::Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+        _: &models::EditExportRequest,
+    ) -> Result<apis::edit::EditExportProjectResponse, ()> {
+        Ok(
+            apis::edit::EditExportProjectResponse::Status400_EngineBadRequestErrorResponseBody(
+                models::EngineBadRequestError::new(
+                    "unsupported_method".into(),
+                    "Unsupported test operation".into(),
+                ),
+            ),
+        )
+    }
+}

@@ -5,6 +5,20 @@ import XCTest
 
 final class EngineAgentContextTests: XCTestCase {
     @MainActor
+    func testExternalEditRejectsFractionalTimelineVersionBeforeInspectingProject() async throws {
+        let service = EngineService()
+        let payload = Components.Schemas.EditPlan(
+            version: 1, id: "invalid-version", baseRevision: String(repeating: "a", count: 64),
+            sourceRevision: String(repeating: "b", count: 64), timeline: .init(version: 2.5, items: [])
+        )
+        let result = try await service.edit_period_validate(.init(body: .json(payload)))
+        guard case let .badRequest(response) = result, case let .json(error) = response.body else {
+            return XCTFail("Fractional timeline versions must fail validation before source inspection")
+        }
+        XCTAssertEqual(error.code.rawValue, "invalid_params")
+    }
+
+    @MainActor
     func testProjectReopenInvalidatesSamePathAgentContext() async throws {
         let projectURL = URL(fileURLWithPath: "/private\(FileManager.default.temporaryDirectory.path)", isDirectory: true)
             .appendingPathComponent("gg-agent-context-\(UUID().uuidString).gglassproj", isDirectory: true)

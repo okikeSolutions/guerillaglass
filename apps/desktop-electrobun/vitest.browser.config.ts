@@ -7,6 +7,7 @@ const resolvePath = (path: string) => fileURLToPath(new URL(path, import.meta.ur
 
 export default defineConfig({
   plugins: [tailwindcss()],
+  optimizeDeps: { include: ["@base-ui/react/dialog"] },
   resolve: {
     alias: {
       "@": resolvePath("./src/mainview"),

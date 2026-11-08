@@ -43,9 +43,11 @@ const playbackStore = createPlaybackTransportStore({
 function Harness({
   items = timelineItems,
   duration = timelineDuration,
+  recordingMediaSource = "recording",
 }: {
   items?: typeof timelineItems;
   duration?: number;
+  recordingMediaSource?: string | null;
 }) {
   const mediaRef = useRef<HTMLVideoElement>(null);
   const sourceCardRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ function Harness({
     mediaRef,
     sourceCardRef,
     playbackStore,
-    recordingMediaSource: "recording",
+    recordingMediaSource,
     timelineItems: items,
     timelineDuration: duration,
     setTimelinePlaybackActive: (active) => (active ? playbackStore.play() : playbackStore.pause()),
@@ -62,7 +64,7 @@ function Harness({
   });
   return (
     <div ref={sourceCardRef} data-testid="source-card">
-      <video ref={mediaRef} />
+      {recordingMediaSource ? <video key={recordingMediaSource} ref={mediaRef} /> : null}
     </div>
   );
 }
@@ -109,6 +111,28 @@ afterEach(() => {
 });
 
 describe("timeline preview across gaps", () => {
+  test("async source arrival and token refresh rebind native media events", () => {
+    act(() => {
+      root?.render(<Harness recordingMediaSource={null} />);
+      playbackStore.seek(0.75);
+    });
+    expect(document.querySelector("video")).toBeNull();
+
+    for (const source of ["first-token", "refreshed-token"]) {
+      act(() => root?.render(<Harness recordingMediaSource={source} />));
+      const media = document.querySelector("video")!;
+      vi.spyOn(media, "play").mockResolvedValue(undefined);
+      vi.spyOn(media, "pause").mockImplementation(() => {});
+      media.currentTime = 0;
+      act(() => media.dispatchEvent(new Event("loadedmetadata")));
+      expect(media.currentTime).toBeCloseTo(0.25);
+      act(() => media.dispatchEvent(new Event("play")));
+      expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+      act(() => media.dispatchEvent(new Event("pause")));
+      expect(playbackStore.getSnapshot().isPlaying).toBe(false);
+    }
+  });
+
   test("paused seeks into a gap hide the media without remapping source time", () => {
     const media = document.querySelector("video")!;
     media.currentTime = 0.25;
@@ -150,6 +174,10 @@ describe("timeline preview across gaps", () => {
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(1.5);
     expect(media.style.visibility).toBe("hidden");
 
+    // HTMLMediaElement queues this event after the boundary pause and seek.
+    act(() => media.dispatchEvent(new Event("pause")));
+    expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+
     runFrame(1020);
     runFrame(1020);
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(2.5);
@@ -167,6 +195,16 @@ describe("timeline preview across gaps", () => {
     expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(1.5);
     expect(playbackStore.getSnapshot().playheadSeconds).not.toBe(timelineDuration);
     expect(media.style.visibility).toBe("hidden");
+  });
+
+  test("pausing the native controls inside a clip stops the program clock", () => {
+    const media = document.querySelector("video")!;
+    act(() => {
+      playbackStore.seek(0.75);
+      playbackStore.play();
+      media.dispatchEvent(new Event("pause"));
+    });
+    expect(playbackStore.getSnapshot().isPlaying).toBe(false);
   });
 
   test("a queued native ended event at an exact gap boundary does not end the program", () => {
@@ -240,6 +278,16 @@ describe("timeline preview across gaps", () => {
 
     expect(media.currentTime).toBeCloseTo(1.25);
     expect(media.style.visibility).toBe("");
+
+    // Loading a source can reset an earlier seek while the program time stays
+    // unchanged. Metadata must restore that seek without a store notification.
+    media.currentTime = 0;
+    act(() => media.dispatchEvent(new Event("loadedmetadata")));
+    expect(media.currentTime).toBeCloseTo(1.25);
+
+    media.currentTime = 0;
+    act(() => playbackStore.play());
+    expect(media.currentTime).toBeCloseTo(1.25);
   });
 
   test("trailing gap advances for its full duration before playback stops", () => {

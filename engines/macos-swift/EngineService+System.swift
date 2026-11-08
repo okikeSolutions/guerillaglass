@@ -35,7 +35,8 @@ extension EngineService {
                 maxSourceDurationSeconds: 600,
                 preflightTokenTtlSeconds: 60,
                 artifactVersion: 1,
-                cutPlanVersion: 1
+                cutPlanVersion: 1,
+                editPlanVersion: 1
             )
         ))))
     }

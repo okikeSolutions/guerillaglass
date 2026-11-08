@@ -21,7 +21,8 @@
     "./services/ProjectService": "./src/services/ProjectService.ts",
     "./services/RecordingService": "./src/services/RecordingService.ts",
     "./services/SourcesService": "./src/services/SourcesService.ts",
-    "./services/SystemService": "./src/services/SystemService.ts"
+    "./services/SystemService": "./src/services/SystemService.ts",
+    "./editing": "./src/editing.ts"
   },
   "scripts": {
     "test": "vitest run",

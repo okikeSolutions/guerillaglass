@@ -694,7 +694,7 @@ extension EngineService {
         }
     }
 
-    private func availableAgentRecordingURL() -> URL? {
+    func availableAgentRecordingURL() -> URL? {
         if let projectURL = projectRecordingURL(), FileManager.default.fileExists(atPath: projectURL.path) {
             return projectURL
         }

@@ -62,8 +62,8 @@ for (const [path, pathItem] of Object.entries(openApi.paths)) {
   }
 }
 
-if (operationIds.size !== 28) {
-  failures.push(`expected 28 OpenAPI operations, found ${operationIds.size}`);
+if (operationIds.size !== 32) {
+  failures.push(`expected 32 OpenAPI operations, found ${operationIds.size}`);
 }
 
 if (failures.length > 0) {

@@ -1,15 +1,18 @@
 import AVFoundation
 import CoreGraphics
+import Project
 
 public struct ExportTimelineClip: Equatable, Sendable {
     public var id: String
     public var sourceStartSeconds: Double
     public var sourceEndSeconds: Double
+    public var camera: [SceneCameraKeyframe]?
 
-    public init(id: String, sourceStartSeconds: Double, sourceEndSeconds: Double) {
+    public init(id: String, sourceStartSeconds: Double, sourceEndSeconds: Double, camera: [SceneCameraKeyframe]? = nil) {
         self.id = id
         self.sourceStartSeconds = sourceStartSeconds
         self.sourceEndSeconds = sourceEndSeconds
+        self.camera = camera
     }
 }
 
@@ -68,6 +71,7 @@ public struct ExportTimelineComposition {
     public let sourceNaturalSize: CGSize?
     public let sourcePreferredTransform: CGAffineTransform?
     public let items: [CompiledExportTimelineItem]
+    public let cameras: [String: [SceneCameraKeyframe]]
 }
 
 enum TimelineCompositionBuilder {
@@ -96,11 +100,17 @@ enum TimelineCompositionBuilder {
             compositionVideoTrack.preferredTransform = sourcePreferredTransform
         }
 
+        var cameras: [String: [SceneCameraKeyframe]] = [:]
         var cursor = CMTime.zero
         var compiledItems: [CompiledExportTimelineItem] = []
         for item in timeline.items {
             switch item {
             case let .clip(clip):
+                if let camera = clip.camera {
+                    try SceneCameraKeyframe.validate(camera, sourceDuration: assetDuration.seconds)
+                    guard cameras[clip.id] == nil else { throw ExportPipeline.ExportError.invalidTimeline("Duplicate camera scene ID") }
+                    cameras[clip.id] = camera
+                }
                 guard clip.sourceStartSeconds.isFinite, clip.sourceEndSeconds.isFinite else {
                     throw ExportPipeline.ExportError.invalidTimeline("Timeline clip \(clip.id) has non-finite bounds.")
                 }
@@ -150,7 +160,8 @@ enum TimelineCompositionBuilder {
             videoTrack: compositionVideoTrack,
             sourceNaturalSize: sourceNaturalSize,
             sourcePreferredTransform: sourcePreferredTransform,
-            items: compiledItems
+            items: compiledItems,
+            cameras: cameras
         )
     }
 

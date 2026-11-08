@@ -5,6 +5,340 @@
     "version": "0.0.1"
   },
   "paths": {
+    "/v1/edit/review": {
+      "get": {
+        "tags": [
+          "edit"
+        ],
+        "operationId": "edit.review",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "EditReview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditReview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/edit/validate": {
+      "post": {
+        "tags": [
+          "edit"
+        ],
+        "operationId": "edit.validate",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "EditReview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditReview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditPlan"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/edit/apply": {
+      "post": {
+        "tags": [
+          "edit"
+        ],
+        "operationId": "edit.apply",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "EditReview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditReview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditPlan"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/v1/edit/export": {
+      "post": {
+        "tags": [
+          "edit"
+        ],
+        "operationId": "edit.exportProject",
+        "parameters": [],
+        "security": [
+          {
+            "EngineBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ExportRunResult",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportRunResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "EngineBadRequestError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineBadRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "EngineUnauthorizedError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineUnauthorizedError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "EngineForbiddenError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineForbiddenError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "EngineConflictError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineConflictError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "EngineRuntimeError response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRuntimeError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditExportRequest"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/v1/system/ping": {
       "get": {
         "tags": [
@@ -2297,6 +2631,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [
@@ -2458,6 +2800,37 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
           }
         },
+        "additionalProperties": false
+      },
+      "SceneCameraKeyframe": {
+        "type": "object",
+        "properties": {
+          "timeSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "centerX": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "centerY": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 8
+          }
+        },
+        "required": [
+          "timeSeconds",
+          "centerX",
+          "centerY",
+          "zoom"
+        ],
         "additionalProperties": false
       },
       "BackgroundFramingSettings": {
@@ -2631,6 +3004,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [
@@ -2907,6 +3288,14 @@
                         "sourceEndSeconds": {
                           "type": "number",
                           "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
                         }
                       },
                       "required": [
@@ -4207,6 +4596,11 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 9007199254740991
+          },
+          "editPlanVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         },
         "required": [
@@ -4244,6 +4638,189 @@
           "platform"
         ],
         "additionalProperties": false
+      },
+      "EditExportRequest": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "outputURL": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^\\/"
+          },
+          "presetId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "expectedRevision",
+          "outputURL",
+          "presetId"
+        ],
+        "additionalProperties": false
+      },
+      "EditReview": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sourceDurationSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "sourceFps": {
+            "$ref": "#/components/schemas/AgentFrameRate"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectState"
+          }
+        },
+        "required": [
+          "revision",
+          "sourceRevision",
+          "sourceDurationSeconds",
+          "sourceFps",
+          "project"
+        ],
+        "additionalProperties": false
+      },
+      "EditPlan": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "baseRevision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "timeline": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "number",
+                "enum": [
+                  2
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "clip"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "sourceAssetId": {
+                          "type": "string",
+                          "enum": [
+                            "recording"
+                          ]
+                        },
+                        "sourceStartSeconds": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "sourceEndSeconds": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "camera": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SceneCameraKeyframe"
+                          },
+                          "minItems": 1,
+                          "maxItems": 256
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "sourceAssetId",
+                        "sourceStartSeconds",
+                        "sourceEndSeconds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "gap"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "durationSeconds": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id",
+                        "durationSeconds"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "updatedAt": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T"
+              }
+            },
+            "required": [
+              "version",
+              "items"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "version",
+          "id",
+          "baseRevision",
+          "sourceRevision",
+          "timeline"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": {
@@ -4256,6 +4833,9 @@
   },
   "security": [],
   "tags": [
+    {
+      "name": "edit"
+    },
     {
       "name": "system"
     },

@@ -3,6 +3,15 @@ import Foundation
 import Project
 
 extension EngineService {
+    func projectTimeline(from payload: Components.Schemas.ProjectSavePayload.timelinePayload) throws -> TimelineDocument {
+        guard payload.version == 2 else { throw EditPlan.ValidationError.invalidPlan }
+        return try JSONDecoder().decode(TimelineDocument.self, from: JSONEncoder().encode(payload))
+    }
+
+    func projectSceneCamera(from camera: [Components.Schemas.SceneCameraKeyframe]?) -> [SceneCameraKeyframe]? {
+        camera?.map { .init(timeSeconds: $0.timeSeconds, centerX: $0.centerX, centerY: $0.centerY, zoom: $0.zoom) }
+    }
+
     func badRequest(_ code: Components.Schemas.EngineBadRequestError.codePayload, _ message: String) -> Components.Schemas.EngineBadRequestError {
         .init(code: code, message: message)
     }
@@ -63,7 +72,8 @@ extension EngineService {
                     id: clip.id,
                     sourceAssetId: .recording,
                     sourceStartSeconds: clip.sourceStartSeconds,
-                    sourceEndSeconds: clip.sourceEndSeconds
+                    sourceEndSeconds: clip.sourceEndSeconds,
+                    camera: clip.camera?.map { .init(timeSeconds: $0.timeSeconds, centerX: $0.centerX, centerY: $0.centerY, zoom: $0.zoom) }
                 ))
             case let .gap(gap):
                 ItemPayload(value2: GapPayload(

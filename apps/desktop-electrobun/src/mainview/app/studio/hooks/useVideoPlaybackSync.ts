@@ -79,6 +79,23 @@ export function useVideoPlaybackSync({
       return;
     }
 
+    const playCurrentClip = () => {
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      if (resolution.kind !== "clip") {
+        return;
+      }
+      try {
+        if (Math.abs(media.currentTime - resolution.sourceSeconds) > 0.08) {
+          media.currentTime = resolution.sourceSeconds;
+        }
+        void media.play().catch(() => setTimelinePlaybackActive(false));
+      } catch {
+        setTimelinePlaybackActive(false);
+      }
+    };
     let lastIsPlaying = isTimelinePlayingRef.current;
     const syncPlaybackActive = () => {
       if (isTimelinePlayingRef.current === lastIsPlaying) {
@@ -86,30 +103,14 @@ export function useVideoPlaybackSync({
       }
       lastIsPlaying = isTimelinePlayingRef.current;
       if (isTimelinePlayingRef.current) {
-        const resolution = resolveTimelinePlaybackAtProgramTime(
-          timelineItems,
-          playheadSecondsRef.current,
-        );
-        if (resolution.kind === "clip") {
-          void media.play().catch(() => {
-            setTimelinePlaybackActive(false);
-          });
-        }
+        playCurrentClip();
         return;
       }
       media.pause();
     };
 
     if (lastIsPlaying) {
-      const resolution = resolveTimelinePlaybackAtProgramTime(
-        timelineItems,
-        playheadSecondsRef.current,
-      );
-      if (resolution.kind === "clip") {
-        void media.play().catch(() => {
-          setTimelinePlaybackActive(false);
-        });
-      }
+      playCurrentClip();
     } else {
       media.pause();
     }
@@ -309,10 +310,22 @@ export function useVideoPlaybackSync({
 
   useEffect(() => {
     const media = mediaRef.current;
-    if (!media) {
+    if (!media || !recordingMediaSource) {
       return;
     }
 
+    const handlePlay = () => setTimelinePlaybackActive(true);
+    const handlePause = () => {
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      // Gaps pause the source while the program clock keeps running. Native
+      // source-end pauses are handled by handleEnded, which may queue a clip.
+      if (resolution.kind === "clip" && media.paused && !media.ended) {
+        setTimelinePlaybackActive(false);
+      }
+    };
     const handleSeeked = () => {
       const resolution = resolveTimelinePlaybackAtProgramTime(
         timelineItems,
@@ -390,19 +403,31 @@ export function useVideoPlaybackSync({
       if (duration > 0) {
         setPlayheadSecondsFromMedia(Math.min(playheadSecondsRef.current, duration));
       }
+      const resolution = resolveTimelinePlaybackAtProgramTime(
+        timelineItems,
+        playheadSecondsRef.current,
+      );
+      if (!isTimelinePlayingRef.current && resolution.kind === "clip") {
+        media.currentTime = resolution.sourceSeconds;
+      }
     };
 
+    media.addEventListener("play", handlePlay);
+    media.addEventListener("pause", handlePause);
     media.addEventListener("seeked", handleSeeked);
     media.addEventListener("ended", handleEnded);
     media.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
+      media.removeEventListener("play", handlePlay);
+      media.removeEventListener("pause", handlePause);
       media.removeEventListener("seeked", handleSeeked);
       media.removeEventListener("ended", handleEnded);
       media.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
   }, [
     mediaRef,
+    recordingMediaSource,
     setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,
     sourceCardRef,

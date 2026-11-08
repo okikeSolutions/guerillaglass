@@ -53,15 +53,20 @@ public enum TimelineVideoCompositionBuilder {
                 hex: backgroundFraming.enabled ? backgroundFraming.backgroundColor : "#000000"
             )?.cgColor
             switch item {
-            case let .clip(_, sourceRange, programRange):
+            case let .clip(id, sourceRange, programRange):
                 let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack)
-                applyTimelineClipTransforms(
-                    layerInstruction: layerInstruction,
-                    cameraContext: cameraContext,
-                    sourceRange: sourceRange,
-                    programRange: programRange,
-                    keyframes: sortedKeyframes
-                )
+                if let camera = timelineComposition.cameras[id] {
+                    applySceneCameraTransforms(layerInstruction: layerInstruction, context: cameraContext,
+                                               sourceRange: sourceRange, programRange: programRange, camera: camera)
+                } else {
+                    applyTimelineClipTransforms(
+                        layerInstruction: layerInstruction,
+                        cameraContext: cameraContext,
+                        sourceRange: sourceRange,
+                        programRange: programRange,
+                        keyframes: sortedKeyframes
+                    )
+                }
                 instruction.layerInstructions = [layerInstruction]
             case .gap:
                 instruction.layerInstructions = []
@@ -248,4 +253,30 @@ private func timelineClipTransform(
         keyframe: keyframe,
         outputAspectRatio: outputAspectRatio
     )
+}
+
+private func applySceneCameraTransforms(
+    layerInstruction: AVMutableVideoCompositionLayerInstruction,
+    context: TimelineCameraTransformContext,
+    sourceRange: CMTimeRange,
+    programRange: CMTimeRange,
+    camera: [SceneCameraKeyframe]
+) {
+    let times = [sourceRange.start.seconds] + camera.map(\.timeSeconds).filter {
+        $0 > sourceRange.start.seconds && $0 < sourceRange.end.seconds
+    } + [sourceRange.end.seconds]
+    func transform(_ time: Double) -> CGAffineTransform {
+        guard let sample = SceneCameraKeyframe.sample(camera, at: time) else { return context.baseTransform }
+        return VideoGeometryTransforms.sceneCameraTransform(
+            naturalSize: context.naturalSize, preferredTransform: context.preferredTransform,
+            cardRect: context.cardRect, keyframe: sample
+        )
+    }
+    layerInstruction.setTransform(transform(times[0]), at: programRange.start)
+    for (start, end) in zip(times, times.dropFirst()) {
+        let from = sourceSecondsToProgramTime(start, sourceRange: sourceRange, programRange: programRange)
+        let endTime = sourceSecondsToProgramTime(end, sourceRange: sourceRange, programRange: programRange)
+        layerInstruction.setTransformRamp(fromStart: transform(start), toEnd: transform(end),
+                                          timeRange: CMTimeRange(start: from, end: endTime))
+    }
 }

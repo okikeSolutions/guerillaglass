@@ -632,6 +632,78 @@ async fn run_http_engine(
     Ok(())
 }
 
+#[async_trait]
+impl apis::edit::Edit<()> for NativeFoundationApi {
+    type Claims = ();
+    async fn edit_apply(
+        &self,
+        _: &Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+        _: &models::EditPlan,
+    ) -> Result<apis::edit::EditApplyResponse, ()> {
+        Ok(
+            apis::edit::EditApplyResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "External editing requires the macOS production engine",
+                ),
+            ),
+        )
+    }
+    async fn edit_validate(
+        &self,
+        _: &Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+        _: &models::EditPlan,
+    ) -> Result<apis::edit::EditValidateResponse, ()> {
+        Ok(
+            apis::edit::EditValidateResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "External editing requires the macOS production engine",
+                ),
+            ),
+        )
+    }
+    async fn edit_review(
+        &self,
+        _: &Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+    ) -> Result<apis::edit::EditReviewResponse, ()> {
+        Ok(
+            apis::edit::EditReviewResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "External editing requires the macOS production engine",
+                ),
+            ),
+        )
+    }
+    async fn edit_export_project(
+        &self,
+        _: &Method,
+        _: &headers::Host,
+        _: &axum_extra::extract::CookieJar,
+        _: &Self::Claims,
+        _: &models::EditExportRequest,
+    ) -> Result<apis::edit::EditExportProjectResponse, ()> {
+        Ok(
+            apis::edit::EditExportProjectResponse::Status400_EngineBadRequestErrorResponseBody(
+                bad_request(
+                    "unsupported_method",
+                    "External editing requires the macOS production engine",
+                ),
+            ),
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

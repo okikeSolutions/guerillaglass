@@ -3,6 +3,13 @@ import Foundation
 import Project
 
 extension EngineService {
+    func leaseProject(at url: URL) throws -> ProjectLease {
+        if let lease = currentProjectLease, lease.url.path == url.path {
+            return lease
+        }
+        return try ProjectLease(url: url)
+    }
+
     func project_period_projectCurrent(
         _: Operations.project_period_projectCurrent.Input
     ) async throws -> Operations.project_period_projectCurrent.Output {
@@ -14,6 +21,12 @@ extension EngineService {
     ) async throws -> Operations.project_period_projectOpen.Output {
         let payload: Components.Schemas.ProjectOpenPayload = switch input.body { case let .json(body): body }
         let projectURL = URL(fileURLWithPath: payload.projectPath, isDirectory: true)
+        let lease: ProjectLease
+        do {
+            lease = try leaseProject(at: projectURL)
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+        }
         let sessionID = UUID()
         projectSessionID = sessionID
         preflightSessions.removeAll()
@@ -35,6 +48,7 @@ extension EngineService {
                     to: projectURL
                 )
             }
+            currentProjectLease = lease
             currentProjectURL = openedURL
             currentProjectDocument = openedDocument
             hasUnsavedProjectChanges = false
@@ -65,6 +79,12 @@ extension EngineService {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, "projectPath is required before saving."))))
         }
 
+        let lease: ProjectLease
+        do {
+            lease = try leaseProject(at: projectURL)
+        } catch {
+            return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
+        }
         let isSaveAs = currentProjectURL?.standardizedFileURL != projectURL.standardizedFileURL
         var document = currentProjectDocument
         if isSaveAs {
@@ -82,27 +102,11 @@ extension EngineService {
             }
         }
         if let timeline = payload.timeline {
-            guard Int(timeline.version) == 2 else {
-                return .badRequest(.init(body: .json(badRequest(.invalid_params, "Unsupported timeline version."))))
+            do {
+                document.project.timeline = try projectTimeline(from: timeline)
+            } catch {
+                return .badRequest(.init(body: .json(badRequest(.invalid_params, "Invalid timeline document."))))
             }
-            document.project.timeline = TimelineDocument(
-                items: timeline.items.compactMap { item in
-                    if let clip = item.value1 {
-                        return .clip(TimelineClip(
-                            id: clip.id,
-                            sourceStartSeconds: clip.sourceStartSeconds,
-                            sourceEndSeconds: clip.sourceEndSeconds
-                        ))
-                    }
-                    if let gap = item.value2 {
-                        return .gap(TimelineGap(
-                            id: gap.id,
-                            durationSeconds: gap.durationSeconds
-                        ))
-                    }
-                    return nil
-                }
-            )
         }
         do {
             let quarantinedAnalysis = isSaveAs
@@ -133,6 +137,7 @@ extension EngineService {
                     projectURL: projectURL
                 )
             }
+            currentProjectLease = lease
             currentProjectURL = projectURL
             currentProjectDocument = savedDocument
             if isSaveAs {

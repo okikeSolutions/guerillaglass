@@ -1,0 +1,11 @@
+{
+  "camera": [
+    { "timeSeconds": 1, "centerX": 0.25, "centerY": 0.5, "zoom": 1 },
+    { "timeSeconds": 3, "centerX": 0.75, "centerY": 0.25, "zoom": 3 }
+  ],
+  "samples": [
+    { "timeSeconds": 0, "centerX": 0.25, "centerY": 0.5, "zoom": 1 },
+    { "timeSeconds": 2, "centerX": 0.625, "centerY": 0.3125, "zoom": 2 },
+    { "timeSeconds": 4, "centerX": 0.75, "centerY": 0.25, "zoom": 3 }
+  ]
+}

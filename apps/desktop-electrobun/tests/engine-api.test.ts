@@ -729,3 +729,114 @@ test("localizes picker failures while preserving direct-window transport errors"
   });
   await expect(engineApi.startWindowCapture(0, false)).rejects.toBeInstanceOf(EngineResponseError);
 });
+
+test("proposal bridge validates through the native service, excludes media paths, and preserves stale apply failures", async () => {
+  const { Schema } = await import("effect");
+  const { EditReview } = await import("@guerillaglass/engine-contract/domains/editPlan");
+  const { EditStoryboard, compileStoryboard, materializeReviewTimeline } =
+    await import("@guerillaglass/engine-contract/domains/editWorkflow");
+  const storyboard = Schema.decodeUnknownSync(EditStoryboard)({
+    version: 1,
+    id: "proposal",
+    baseRevision: "a".repeat(64),
+    sourceRevision: "b".repeat(64),
+    brief: "Show the result",
+    scenes: [
+      {
+        title: "Result",
+        purpose: "Explain the outcome",
+        item: {
+          kind: "clip",
+          id: "result",
+          sourceAssetId: "recording",
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 1,
+        },
+      },
+    ],
+  });
+  const review = Schema.decodeUnknownSync(EditReview)({
+    revision: storyboard.baseRevision,
+    sourceRevision: storyboard.sourceRevision,
+    sourceDurationSeconds: 2,
+    sourceFps: { numerator: 30, denominator: 1 },
+    project: {
+      projectPath: "/private/demo.gglassproj",
+      recordingURL: "/private/demo.gglassproj/recording.mov",
+      autoZoom: { isEnabled: false, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+      backgroundFraming: defaultBackgroundFramingSettings,
+      timeline: { version: 2, items: [] },
+    },
+  });
+  const appliedReview = Schema.decodeUnknownSync(EditReview)({
+    ...review,
+    revision: "c".repeat(64),
+    project: { ...review.project, timeline: compileStoryboard(storyboard).timeline },
+  });
+  let validated: unknown = null;
+  let applyAttempts = 0;
+  const runtime = await makeDesktopAppRuntime({
+    desktopShellLayer: Layer.succeed(DesktopShell, {
+      start: () => Effect.void,
+      publishCaptureStatus: () => Effect.void,
+      publishReviewEvent: () => Effect.void,
+      dispose: Effect.void,
+    }),
+    enableCaptureStatusPolling: false,
+    projectSessionLayer: Layer.mock(ProjectSession, {}),
+    desktopTempDirectoryLayer: Layer.succeed(DesktopTempDirectory, { path: "/tmp" }),
+    engineDomainServicesLayer: Layer.mergeAll(
+      Layer.mock(CaptureService, {}),
+      Layer.mock(AgentService, {}),
+      Layer.mock(ExportService, {}),
+      Layer.mock(PermissionsService, {}),
+      Layer.mock(ProjectService, {
+        validateEdit: (plan) =>
+          Effect.sync(() => {
+            validated = plan;
+            return review;
+          }),
+        applyEdit: () =>
+          ++applyAttempts === 1
+            ? Effect.succeed(appliedReview)
+            : Effect.fail(
+                new EngineResponseError({
+                  code: "project_mismatch",
+                  description: "The saved revision changed.",
+                }),
+              ),
+      }),
+      Layer.mock(RecordingService, {}),
+      Layer.mock(SourcesService, {}),
+      Layer.mock(SystemService, {}),
+    ),
+    reviewGatewayLayer: makeLayerReviewGateway({ resolveConvexUrl: () => undefined }),
+    mediaSourceServiceLayer: Layer.mock(MediaSourceService, {}),
+  });
+  try {
+    const handlers = createEngineBridgeHandlers({ runtime });
+    const response = await handlers.ggEditProposalValidate(storyboard);
+    expect(response).toEqual({
+      ok: true,
+      data: {
+        revision: review.revision,
+        timeline: materializeReviewTimeline(review.project.timeline, review.sourceDurationSeconds),
+      },
+    });
+    expect(JSON.stringify(response)).not.toContain("/private");
+    expect(validated).toEqual(compileStoryboard(storyboard));
+    const applied = await handlers.ggEditProposalApply(storyboard);
+    expect(applied).toEqual({
+      ok: true,
+      data: { revision: appliedReview.revision, timeline: appliedReview.project.timeline },
+    });
+    expect(JSON.stringify(applied)).not.toContain("/private");
+    const stale = await handlers.ggEditProposalApply(storyboard);
+    expect(stale.ok).toBe(false);
+    if (!stale.ok) {
+      expect(stale.error.data?.code).toBe("project_mismatch");
+    }
+  } finally {
+    await runtime.dispose();
+  }
+});

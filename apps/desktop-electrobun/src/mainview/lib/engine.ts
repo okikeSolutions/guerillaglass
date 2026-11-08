@@ -1,4 +1,8 @@
 import type {
+  EditStoryboard,
+  EditProposalBaseline,
+} from "@guerillaglass/engine-contract/domains/editWorkflow";
+import type {
   CapturePreviewFrameResult,
   CaptureStatusResult,
 } from "@guerillaglass/engine-contract/domains/capture";
@@ -274,6 +278,12 @@ export const engineApi = {
     return await invokeBridgeContract("ggEngineRunCutPlanExport", "cut plan export result", params);
   },
 
+  async validateProposal(storyboard: EditStoryboard): Promise<EditProposalBaseline> {
+    return await invokeBridgeContract("ggEditProposalValidate", "proposal validation", storyboard);
+  },
+  async applyProposal(storyboard: EditStoryboard): Promise<EditProposalBaseline> {
+    return await invokeBridgeContract("ggEditProposalApply", "applied proposal", storyboard);
+  },
   async projectCurrent(): Promise<ProjectState> {
     return await invokeProjectState("ggEngineProjectCurrent", "project state");
   },

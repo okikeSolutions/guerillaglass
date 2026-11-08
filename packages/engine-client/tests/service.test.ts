@@ -1,7 +1,8 @@
+import { EditPlan, EditExportRequest } from "@guerillaglass/engine-contract/domains/editPlan";
 import { expect, it } from "@effect/vitest";
 import { EngineClientError, EngineResponseError } from "../src/errors";
 import { describe } from "vitest";
-import { Effect, Fiber, Layer, Option, Queue, Redacted } from "effect";
+import { Schema, Effect, Fiber, Layer, Option, Queue, Redacted } from "effect";
 import { HttpClient, HttpClientRequest, HttpClientResponse, Headers } from "effect/http";
 import {
   agentJobIdSchema,
@@ -48,6 +49,12 @@ describe("EngineClient service", () => {
         return Effect.die("endpoint dispatch captured; no response supplied");
       };
       const rawClient: RawEngineHttpApiClient = {
+        edit: {
+          review: endpoint("edit.review"),
+          validate: endpoint("edit.validate"),
+          apply: endpoint("edit.apply"),
+          exportProject: endpoint("edit.exportProject"),
+        },
         system: {
           systemPing: endpoint("system.systemPing"),
           engineCapabilities: endpoint("system.engineCapabilities"),
@@ -99,6 +106,25 @@ describe("EngineClient service", () => {
       };
 
       const client = makeEngineClientService(rawClient);
+      const plan = yield* Schema.decodeUnknownEffect(EditPlan)({
+        version: 1,
+        id: "demo",
+        baseRevision: "a".repeat(64),
+        sourceRevision: "b".repeat(64),
+        timeline: { version: 2, items: [] },
+      });
+      yield* Effect.exit(client.editReview);
+      yield* Effect.exit(client.editValidate(plan));
+      yield* Effect.exit(client.editApply(plan));
+      yield* Effect.exit(
+        client.editExport(
+          yield* Schema.decodeUnknownEffect(EditExportRequest)({
+            expectedRevision: "a".repeat(64),
+            outputURL: "/tmp/demo.mp4",
+            presetId: "mp4-1080p",
+          }),
+        ),
+      );
       yield* Effect.exit(client.systemPing);
       yield* Effect.exit(client.engineCapabilities);
       yield* Effect.exit(client.agentPreflight({}));
@@ -158,6 +184,10 @@ describe("EngineClient service", () => {
         "capture.captureStartWindow",
         "capture.captureStatus",
         "capture.captureStop",
+        "edit.apply",
+        "edit.exportProject",
+        "edit.review",
+        "edit.validate",
         "export.exportGet",
         "export.exportInfo",
         "export.exportRun",
