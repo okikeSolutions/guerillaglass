@@ -1,3 +1,4 @@
+import { AgentProposalPanel } from "../panels/AgentProposalPanel";
 import { useSceneCameraPreview } from "../hooks/useSceneCameraPreview";
 import { useRef, useState } from "react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
@@ -98,6 +99,9 @@ export function EditRoute() {
           <StudioPaneHeader>
             <StudioPaneTitle>{ui.workspace.editStageTitle}</StudioPaneTitle>
             <StudioPaneSubtitle>{ui.helper.activePreviewBody}</StudioPaneSubtitle>
+            <div className="mt-2">
+              <AgentProposalPanel />
+            </div>
           </StudioPaneHeader>
           <StudioPaneBody className="flex min-h-0 flex-col gap-4">
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">

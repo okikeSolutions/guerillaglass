@@ -31,6 +31,8 @@ Normative product requirements live in `docs/SPEC.md`. Execution status and sequ
 
 Documents named `ENGINE_CONTRACT_V2_*` and `MIGRATION.md` preserve migration history. They are useful rationale, but are not the active backlog unless `docs/ROADMAP.md` references them.
 
+For external agent editing or demo revisions, use the [storyboard and editing workflow skill](.agents/skills/guerilla-editing/SKILL.md).
+
 ## Repository map
 
 - `apps/desktop-electrobun`: Electrobun Bun host and React Creator Studio.

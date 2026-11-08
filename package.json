@@ -62,7 +62,8 @@
     "postinstall": "cd apps/desktop-electrobun && bun run electrobun:sync",
     "prepare": "effect-tsgo patch",
     "agent:edit": "bun ./Scripts/edit_project.ts",
-    "agent:edit:smoke": "bun ./Scripts/edit_plan_smoke.ts"
+    "agent:edit:smoke": "bun ./Scripts/edit_plan_smoke.ts",
+    "agent:workflow": "bun ./Scripts/agent_workflow.ts"
   },
   "dependencies": {
     "@better-auth/expo": "~1.7.18",

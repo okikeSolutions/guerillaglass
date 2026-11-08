@@ -1,3 +1,4 @@
+import type { EditPlan, EditReview } from "@guerillaglass/engine-contract/domains/editPlan";
 import type {
   ProjectRecentsResult,
   ProjectState,
@@ -10,6 +11,10 @@ import { EngineClient, type ProjectOpenRequest, type ProjectSaveRequest } from "
  * Domain service for project state operations.
  */
 export type ProjectServiceShape = {
+  /** Validates an external proposal against the saved source and revision. */
+  readonly validateEdit: (plan: EditPlan) => Effect.Effect<EditReview, EngineClientFailure>;
+  /** Applies and saves an external proposal after optimistic revision checks. */
+  readonly applyEdit: (plan: EditPlan) => Effect.Effect<EditReview, EngineClientFailure>;
   /**
    * Reads the current project state.
    */
@@ -43,6 +48,10 @@ export const layerProjectService: Layer.Layer<ProjectService, never, EngineClien
   Effect.gen(function* () {
     const client = yield* EngineClient;
     return ProjectService.of({
+      validateEdit: Effect.fn("ProjectService.validateEdit")((plan: EditPlan) =>
+        client.editValidate(plan),
+      ),
+      applyEdit: Effect.fn("ProjectService.applyEdit")((plan: EditPlan) => client.editApply(plan)),
       current: client.projectCurrent,
       open: Effect.fn("ProjectService.open")((request: ProjectOpenRequest) =>
         client.projectOpen(request),

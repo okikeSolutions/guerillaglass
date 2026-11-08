@@ -21,3 +21,13 @@ This is the implementation and review specification for the five-step milestone 
 ## First-version scope
 
 One recording per project, macOS production media, ordered clip/gap timelines, project-global framing and auto-zoom, and scene camera overrides. Captions, overlays, extra audio tracks, multiple source assets, built-in agent orchestration, and hosted collaboration are outside this milestone.
+
+## Follow-up requested for the same PR
+
+The 2026-11-08 follow-up adds a reusable two-agent workflow, a rendered review/revision loop, and visible desktop proposal review before applying:
+
+- A versioned storyboard carries brief, scene titles, intent, stable timeline IDs, source ranges and camera curves. Compilation preserves authored edits; native validation remains authoritative.
+- Source preparation produces an exact saved snapshot and bounded timestamped images. Rendering produces a saved-revision receipt, video, scene samples and an incomplete review template. Structured feedback binds to that render and scene IDs. Subsequent passes use fresh snapshots and preserve retained identities.
+- External agent instructions separate storyboard authorship from editing/rendering. Agents inspect full footage where samples are insufficient and review rendered video before approval. Providers and orchestration remain external.
+- The Edit workspace exposes Agent proposal. It shows intent, before/after source ranges and camera details, removed/added/edited/reordered scenes, validation state and explicit replacement confirmation. Unsaved edits, changed editor state, invalid proposals and stale revisions prevent apply. Applying uses the existing native revision checks and updates the editor's saved baseline.
+- Proof covers schema boundaries, unsafe/stale proposal paths, an apply/render/feedback/revision workflow, browser interaction, and the affected packaged-app state. Synthetic footage demonstrates mechanics; it does not establish editorial quality on a user's production recording.

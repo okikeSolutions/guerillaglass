@@ -50,6 +50,8 @@ export function createEngineBridgeHandlers({
       );
   }
   const handlers = createBunBridgeHandlers({
+    ggEditProposalValidate: createHandler("ggEditProposalValidate"),
+    ggEditProposalApply: createHandler("ggEditProposalApply"),
     ggEnginePing: createHandler("ggEnginePing"),
     ggEngineCapabilities: createHandler("ggEngineCapabilities"),
     ggEngineGetPermissions: createHandler("ggEngineGetPermissions"),
@@ -124,6 +126,8 @@ export function createEngineBridgeHandlers({
     };
   }
   return {
+    ggEditProposalValidate: instrument("ggEditProposalValidate"),
+    ggEditProposalApply: instrument("ggEditProposalApply"),
     ggEnginePing: instrument("ggEnginePing"),
     ggEngineCapabilities: instrument("ggEngineCapabilities"),
     ggEngineGetPermissions: instrument("ggEngineGetPermissions"),

@@ -111,6 +111,8 @@ External storyboard editing milestone, explicitly requested before the remaining
 - [x] Support saved-project review/revision with sequential native ownership.
 - [x] Persist and render per-scene camera curves in preview and export.
 
+Follow-up in the same PR: reusable storyboard/editing agent instructions, source/render evidence workspaces, scene-based feedback, and desktop proposal validation/confirmation.
+
 Workspace UX checklist:
 
 - [ ] Add visible Agent Mode entry points in the desktop workspace without creating a separate dashboard shell

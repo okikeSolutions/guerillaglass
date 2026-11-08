@@ -20,7 +20,8 @@
     "./schema-primitives": "./src/schema-primitives.ts",
     "./shared/helpers": "./src/shared/helpers.ts",
     "./shared/valueObjects": "./src/shared/valueObjects.ts",
-    "./domains/editPlan": "./src/domains/editPlan.ts"
+    "./domains/editPlan": "./src/domains/editPlan.ts",
+    "./domains/editWorkflow": "./src/domains/editWorkflow.ts"
   },
   "scripts": {
     "check:contract": "bun scripts/check-contract.ts",

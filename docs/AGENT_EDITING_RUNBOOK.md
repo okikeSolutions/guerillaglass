@@ -91,3 +91,68 @@ For example, add this field to a clip to hold a 2× zoom centered on the source'
 ```
 
 Camera overrides belong to the scene ID, so repeated footage can have different camera directions. Omit `camera` to retain the automatic camera settings. Splitting a scene preserves its source-time camera curve in both resulting clips. Manual transforms use aspect-fit source geometry within the framing card. Normalized coordinates use the oriented image's top-left origin. Keyframes can extend beyond the clip's selected range so trims and splits preserve interpolation.
+
+## Storyboard, editing, and rendered review workflow
+
+The reusable agent instructions live in [.agents/skills/guerilla-editing/SKILL.md](../.agents/skills/guerilla-editing/SKILL.md). Use separate storyboard and editing agents. The host agent or user supplies the brief and inspects the rendered result. No model provider runs inside the application.
+
+Install FFmpeg for source/render samples, or set `GG_FFMPEG_PATH` to an existing executable. Each pass creates a new workspace whose parent directory already exists. Existing workspaces and feedback files are preserved. Keep workspaces outside project packages. They contain local media and should remain local unless explicitly shared.
+
+```bash
+bun run agent:workflow prepare /absolute/Demo.gglassproj brief.md /absolute/source-pass-1
+```
+
+The workspace contains `review.json`, `brief.md`, `frames.json`, and up to 12 timestamped source frames. Give it to the storyboard agent. A storyboard has this shape:
+
+```json
+{
+  "version": 1,
+  "id": "demo-proposal-1",
+  "baseRevision": "COPY revision FROM review.json",
+  "sourceRevision": "COPY sourceRevision FROM review.json",
+  "brief": "Show the result, then explain the setup.",
+  "scenes": [
+    {
+      "title": "Result",
+      "purpose": "Lead with the visible outcome.",
+      "item": { "kind": "clip", "id": "show-result", "sourceAssetId": "recording", "sourceStartSeconds": 6, "sourceEndSeconds": 7 }
+    }
+  ]
+}
+```
+
+Each scene wraps a timeline item with editorial intent. Clip/gap/camera semantics match the edit-plan format above. `EditStoryboard` and `EditRenderReview` in `packages/engine-contract/src/domains/editWorkflow.ts` own these handoff formats. Storyboard revisions retain unchanged scene IDs; title and purpose do not change native render output.
+
+The editing agent validates and compiles the complete proposal without changing the project:
+
+```bash
+bun run agent:workflow propose /absolute/Demo.gglassproj storyboard.json /absolute/proposal-pass-1
+```
+
+Inspect `changes.json`, `storyboard.json`, and `plan.json`. For an authorized automated edit, apply the plan with `agent:edit apply`. For desktop approval, reopen the saved project, choose **Agent proposal** in Edit, and import the storyboard file or paste its JSON. The panel displays intent and source-range/camera changes, validates against the source and saved revision, and requires explicit confirmation before applying and saving. Save existing edits first. Changing the editor or proposal invalidates a prior validation; stale native revisions are rejected again when applying.
+
+After applying, close the desktop and render the saved revision:
+
+```bash
+bun run agent:workflow render /absolute/Demo.gglassproj /absolute/render-pass-1 h264-1080p-30
+```
+
+The render workspace contains `render.mp4`, an exact revision receipt in `render.json`, up to 24 scene-midpoint samples, and an incomplete `review-template.json`. Review the full video against the brief, including transitions, audio, pacing and camera framing. Samples do not establish whole-video quality. Record approval only after inspection, or request scene-specific changes:
+
+```json
+{
+  "version": 1,
+  "revision": "COPY snapshot.revision FROM render.json",
+  "verdict": "changes_requested",
+  "summary": "The result is clear; the setup needs a tighter crop.",
+  "findings": [{ "sceneId": "show-result", "note": "Move the camera toward the control and hold the result longer." }]
+}
+```
+
+```bash
+bun run agent:workflow record-review /absolute/render-pass-1 feedback.json
+```
+
+Feedback must match the rendered revision and reference scenes in that render. Approval requires no outstanding findings; requested changes require at least one finding. The incomplete template cannot pass validation. Feedback is saved once as `feedback.json` in the render workspace.
+
+For plain-language revisions such as "shorten the intro and zoom into settings", prepare a fresh source workspace with that request as `brief.md`. Give the new snapshot, previous storyboard and feedback to the storyboard agent. Retain unaffected scene IDs and camera curves, compile a new proposal, then apply/render/review again. This keeps each proposal and render inspectable without overwriting the previous pass.

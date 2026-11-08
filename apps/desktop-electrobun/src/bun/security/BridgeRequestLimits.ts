@@ -21,6 +21,8 @@ const defaultBridgeLimitRule: BridgeLimitRule = {
 };
 
 const bridgeLimitRules: Partial<Record<BridgeRequestName, BridgeLimitRule>> = {
+  ggEditProposalValidate: { maxRequests: 12, windowMs: 60_000, maxConcurrent: 1 },
+  ggEditProposalApply: { maxRequests: 6, windowMs: 60_000, maxConcurrent: 1 },
   ggEngineRunExport: { maxRequests: 4, windowMs: 60_000, maxConcurrent: 1 },
   ggEngineRunCutPlanExport: { maxRequests: 4, windowMs: 60_000, maxConcurrent: 1 },
   ggEngineAgentRun: { maxRequests: 6, windowMs: 60_000, maxConcurrent: 1 },

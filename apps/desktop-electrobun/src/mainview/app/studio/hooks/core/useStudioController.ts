@@ -1208,6 +1208,7 @@ export function useStudioController() {
     timelineDuration,
     timelineLanes,
     timelineDocument,
+    hasUnsavedTimelineEdits: JSON.stringify(timelineDocument) !== baselineTimelineSignature,
     timelineItems,
     timelineSegments,
     toggleRecordingMutation,
