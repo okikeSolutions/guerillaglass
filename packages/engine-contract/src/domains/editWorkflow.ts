@@ -5,7 +5,7 @@ import {
   timelineDocumentSchema,
   type TimelineDocument,
 } from "../shared/valueObjects";
-import { timelineSegmentIdSchema } from "../schema-primitives";
+import { timelineSegmentIdSchema, filePathSchema } from "../schema-primitives";
 
 const shortText = Schema.NonEmptyString.check(Schema.isMaxLength(2000));
 /** A storyboard scene carries editorial intent alongside its exact source edit. */
@@ -127,7 +127,7 @@ export const EditRenderReceipt = Schema.Struct({
   version: Schema.Literal(1),
   snapshot: EditReview,
   renderId: EditRenderReview.fields.renderId,
-  outputFile: Schema.NonEmptyString,
+  outputFile: filePathSchema,
   programDurationSeconds: Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0)),
   sceneIds: Schema.Array(timelineSegmentIdSchema),
 });
@@ -152,3 +152,6 @@ export const EditRenderReviewBinding = Schema.Struct({
     );
   }),
 );
+export interface EditRenderReviewBinding extends Schema.Schema.Type<
+  typeof EditRenderReviewBinding
+> {}

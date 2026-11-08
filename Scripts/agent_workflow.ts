@@ -236,7 +236,7 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
       return { seconds, sceneId: item.id };
     });
     yield* makeFrames(outputFile, directory, times.slice(0, 24));
-    yield* writeJson(path.join(directory, "render.json"), {
+    const receipt = yield* Schema.decodeUnknownEffect(EditRenderReceipt)({
       version: 1,
       snapshot,
       renderId,
@@ -244,6 +244,7 @@ const main = Effect.fn("AgentWorkflow.main")(function* () {
       programDurationSeconds: elapsed,
       sceneIds: times.map((sample) => sample.sceneId),
     });
+    yield* writeJson(path.join(directory, "render.json"), receipt);
     yield* writeJson(path.join(directory, "review-template.json"), {
       version: 1,
       revision: snapshot.revision,

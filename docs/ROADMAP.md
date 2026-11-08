@@ -111,7 +111,14 @@ External storyboard editing milestone, explicitly requested before the remaining
 - [x] Support saved-project review/revision with sequential native ownership.
 - [x] Persist and render per-scene camera curves in preview and export.
 
-Follow-up in the same PR: reusable storyboard/editing agent instructions, source/render evidence workspaces, scene-based feedback, and desktop proposal validation/confirmation.
+Follow-up in the same PR:
+
+- [x] Reusable separate storyboard/editing agent workflow with source evidence workspaces.
+- [x] Saved-revision renders, unique render receipts, and scene-bound feedback for revision passes.
+- [x] Desktop storyboard import, validation, before/after scene review, and explicit apply/save confirmation.
+- [x] Exercise a two-agent proposal and a retained-ID correction pass through the packaged editor and native renderer.
+
+The proof uses synthetic footage for deterministic edit/camera checks. Production editorial quality still requires inspecting a real recording's complete render.
 
 Workspace UX checklist:
 
