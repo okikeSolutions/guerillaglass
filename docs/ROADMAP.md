@@ -12,6 +12,8 @@ The 2026-11-08 review of the merged editor is tracked in the [UI review ledger](
 
 The requested UI pass should address trust/recovery and workflow orientation first, then editing/delivery, shared visual conventions and the public website. Use the ledger's acceptance criteria and stable IDs in fixing PRs. This baseline review does not complete the later Phase 2 performance/accessibility/polish gate or the outstanding editor features.
 
+The [UI improvement research](UI_IMPROVEMENT_RESEARCH.md) adds primary-source competitor analysis, [Emil Kowalski guidance](audits/2026-11-08-emil-kowalski-ui-guidance.md), proposed screen/component behavior and five UI work slices mapped to every finding. These are recommendations for the UI pass, not completed features or a replacement for the Phase 2 feature sequence below.
+
 ---
 
 ## 2) Creator Studio shell execution tracking

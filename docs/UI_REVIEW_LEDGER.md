@@ -71,6 +71,8 @@ Native active recording, granted-source picking, VoiceOver, smaller native windo
 
 ## Recommended implementation order
 
+The [UI improvement research](UI_IMPROVEMENT_RESEARCH.md) maps official competitor patterns and [Emil Kowalski's guidance](audits/2026-11-08-emil-kowalski-ui-guidance.md) to all 40 findings. It proposes screen behavior, component rules and focused implementation slices. Research does not change finding status; the acceptance criteria below still require implementation and dated proof.
+
 1. **Trust and recovery.** Permission state, real audio/waveform behavior, program/source duration, unsaved-work protection, undo and stable playback controls. Resolve the ruler/trim inconsistencies in the same editor workstream.
 2. **The main workflow.** Labeled Capture/Edit/Deliver, explicit Record/Stop, exposed source setup and project entry, clear empty states, usable persisted layouts and task-oriented copy.
 3. **Editing and delivery.** Scene identity, inspector continuity, inspectable cameras, visual proposal review, one coherent export configuration, progress and completion actions.
