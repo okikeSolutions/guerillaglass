@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import nativeManifest from "../../../Package.swift?raw";
+import specification from "../../../docs/SPEC.md?raw";
+import setupGuide from "../../../README.md?raw";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { Hero } from "../src/components/Hero";
@@ -44,11 +46,20 @@ afterEach(() => {
 });
 
 describe("public website", () => {
-  it("keeps both public platform answers aligned with the native deployment target", () => {
+  it("keeps public answers and authoritative guidance aligned with the native deployment target", () => {
     const minimum = nativeManifest.match(/\.macOS\(\.v(\d+)\)/)?.[1];
     expect(minimum).toBeDefined();
     for (const locale of ["en-US", "de-DE"] as const) {
       expect(m.web_ui_faq_platform_a(undefined, { locale })).toContain(`macOS ${minimum}`);
+    }
+    expect(setupGuide).toContain(`macOS ${minimum}+ for the full macOS capture/export path`);
+    expect(specification).toContain(`macOS ${minimum}.0+ for full native capture/export path`);
+    const captureRows = specification
+      .split("\n")
+      .filter((line) => /\|\s*(Display|Window) capture\s*\|/.test(line));
+    expect(captureRows).toHaveLength(2);
+    for (const row of captureRows) {
+      expect(row).toContain(`Production (${minimum}+)`);
     }
   });
   it("loads the real home route without a configured hosted service or auth request", async () => {

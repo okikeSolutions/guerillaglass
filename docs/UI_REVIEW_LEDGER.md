@@ -760,3 +760,7 @@ Commit `7adcc9b` received 9.3 correctness, 9.6 standards and 9.4 product. Only s
 ### Fourth frozen review follow-up
 
 Commit `a7c5357` received 9.6 correctness, 9.4 standards and 9.6 product. Standards failed, so PR preparation remained blocked by the user's gate. [Correctness](audits/2026-11-09-ui-round4-correctness-review.md), [standards](audits/2026-11-09-ui-round4-standards-review.md) and [product](audits/2026-11-09-ui-round4-product-review.md) reports are retained. UI-031/UI-032 now match the native macOS 14 deployment target with a drift regression; UI-021/UI-039 use localized task/code-based proposal recovery without raw English engine descriptions in normal notices. Fresh ratings must all exceed 9.5 before PR preparation.
+
+### Fifth frozen review follow-up
+
+Commit `aaa61bc` received 9.6 correctness, 9.6 standards and 9.5 product. Exactly 9.5 fails the strict gate. [Correctness](audits/2026-11-09-ui-round5-correctness-review.md), [standards](audits/2026-11-09-ui-round5-standards-review.md) and [product](audits/2026-11-09-ui-round5-product-review.md) reports are retained. The remaining SPEC capability-matrix OS claims are corrected and covered by the manifest consistency test. The accessibility guide now names global Preferences. App behavior is unchanged from the fifth freeze. UI-039 retains optional consolidation of direct generated-message imports through the desktop localization facade; translations themselves work in both locales.

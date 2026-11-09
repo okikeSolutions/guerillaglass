@@ -130,8 +130,8 @@ Guerilla Glass should feel like a professional creator tool:
 
 | Capability                         | macOS (`macos-swift`)                       | Windows (`windows-native`) | Linux (`linux-native`)     | Stub engines      |
 | ---------------------------------- | ------------------------------------------- | -------------------------- | -------------------------- | ----------------- |
-| Display capture                    | Production (13+)                            | In progress                | In progress                | Simulated         |
-| Window capture                     | Production (13+)                            | In progress                | In progress                | Simulated         |
+| Display capture                    | Production (14+)                            | In progress                | In progress                | Simulated         |
+| Window capture                     | Production (14+)                            | In progress                | In progress                | Simulated         |
 | System audio capture               | Supported where SCStream source supports it | Planned                    | Planned                    | Simulated         |
 | Microphone capture                 | Production (AVFoundation)                   | In progress                | In progress                | Simulated         |
 | Cursor/click event tracking        | Production (Input Monitoring-gated)         | Planned parity             | Planned parity             | Simulated         |
