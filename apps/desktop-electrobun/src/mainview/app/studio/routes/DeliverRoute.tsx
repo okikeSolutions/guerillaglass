@@ -75,11 +75,6 @@ export function DeliverRoute() {
             <p className="gg-numeric">
               {studio.ui.labels.duration}: {studio.formatDuration(Math.max(0, end - start))}
             </p>
-            {invalidRange && studio.recordingURL ? (
-              <p role="alert" className="text-xs text-destructive">
-                {m.ui_workflow_invalid_range(undefined, { locale: studio.locale })}
-              </p>
-            ) : null}
             <studio.exportForm.Field name="presetId">
               {(field) => (
                 <Field>
@@ -130,6 +125,10 @@ export function DeliverRoute() {
                   <FieldContent>
                     <Input
                       id="export-start"
+                      aria-invalid={Boolean(invalidRange && studio.recordingURL)}
+                      aria-describedby={
+                        invalidRange && studio.recordingURL ? "export-range-error" : undefined
+                      }
                       type="number"
                       step="any"
                       max={duration}
@@ -150,6 +149,10 @@ export function DeliverRoute() {
                   <FieldContent>
                     <Input
                       id="export-end"
+                      aria-invalid={Boolean(invalidRange && studio.recordingURL)}
+                      aria-describedby={
+                        invalidRange && studio.recordingURL ? "export-range-error" : undefined
+                      }
                       type="number"
                       step="any"
                       max={duration}
@@ -162,8 +165,15 @@ export function DeliverRoute() {
                 </Field>
               )}
             </studio.exportForm.Field>
-
+          </StudioPaneBody>
+          <div className="shrink-0 space-y-3 border-t px-3.5 py-3">
+            {invalidRange && studio.recordingURL ? (
+              <p id="export-range-error" role="alert" className="text-xs text-destructive">
+                {m.ui_workflow_invalid_range(undefined, { locale: studio.locale })}
+              </p>
+            ) : null}
             <Button
+              className="w-full"
               onClick={() => void studio.exportMutation.mutateAsync()}
               disabled={studio.isRunningAction || !studio.recordingURL || invalidRange}
               title={exportDisabledReason}
@@ -208,7 +218,7 @@ export function DeliverRoute() {
             {!studio.recordingURL ? (
               <p className="text-xs text-muted-foreground">{studio.recordingRequiredNotice}</p>
             ) : null}
-          </StudioPaneBody>
+          </div>
         </StudioPane>
       }
       bottomPane={<TimelineDock />}

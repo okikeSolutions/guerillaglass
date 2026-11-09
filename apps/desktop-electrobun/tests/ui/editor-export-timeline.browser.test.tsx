@@ -1,3 +1,4 @@
+import { ReplacementConfirmation } from "../../src/mainview/app/studio/layout/ReplacementConfirmation";
 import { studioShortcutDisplayTokens } from "../../src/shared/shortcuts";
 import {
   defaultStudioLayoutState,
@@ -8,7 +9,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   defaultBackgroundFramingSettings,
@@ -52,6 +53,8 @@ let updateInspectorMode: ((mode: StudioMode) => void) | null = null;
 let updatePreviewRoute: ((route: "capture" | "edit" | null) => void) | null = null;
 let capturedExportParams: unknown = null;
 let capturedSaveParams: unknown = null;
+let replacementDecision: "discard" | "keep" | null = null;
+let replacementPromptCount = 0;
 let bridgeSnapshot = new Map<string, unknown>();
 
 function reverseObjectKeys(value: unknown): unknown {
@@ -212,6 +215,7 @@ function StudioHarness({ onStudio }: { onStudio: (studio: StudioController) => v
   }, []);
   return (
     <StudioProvider value={studio}>
+      <ReplacementConfirmation />
       <div style={{ height: 800, display: "flex", flexDirection: "column" }}>
         <StudioPreferences />
         {previewRoute === "capture" ? (
@@ -245,12 +249,51 @@ function waitFor(assertion: () => void, timeoutMs = 2000): Promise<void> {
   });
 }
 
-async function applyStudioAction(action: (studio: StudioController) => void | Promise<void>) {
+async function decideReplacement(decision: "discard" | "keep") {
+  const dialog = page.getByTestId("replacement-confirmation");
+  await expect.element(dialog).toBeVisible();
+  replacementPromptCount += 1;
+  await expect
+    .element(dialog.getByRole("button", { name: "Keep editing", exact: true }))
+    .toHaveFocus();
+  const label =
+    decision === "keep"
+      ? "Keep editing"
+      : currentStudio().replacementConfirmation.kind === "recording"
+        ? "Start new recording"
+        : "Discard edits and open";
+  await dialog.getByRole("button", { name: label, exact: true }).click();
+}
+
+async function applyStudioAction(action: (studio: StudioController) => void | Promise<unknown>) {
+  let pending: Promise<unknown> = Promise.resolve();
+  let settled = false;
   await act(async () => {
     if (!latestStudio) {
       throw new Error("Studio controller has not rendered.");
     }
-    await action(latestStudio);
+    pending = Promise.resolve(action(latestStudio));
+    void pending.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+  });
+  if (replacementDecision !== null) {
+    await waitFor(() =>
+      expect(
+        settled || document.querySelector('[data-testid="replacement-confirmation"]') !== null,
+      ).toBe(true),
+    );
+    if (!settled) {
+      await decideReplacement(replacementDecision);
+    }
+  }
+  await act(async () => {
+    await pending;
   });
 }
 
@@ -277,6 +320,8 @@ beforeEach(() => {
   updatePreviewRoute = null;
   capturedExportParams = null;
   capturedSaveParams = null;
+  replacementDecision = null;
+  replacementPromptCount = 0;
   latestStudio = null;
   updateInspectorMode = null;
   installMockBridge();
@@ -555,6 +600,21 @@ describe("editor timeline export integration", () => {
   test("starting a recording adopts its fresh native project and resets draft history", async () => {
     await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
     await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
+    const configuredAutoZoom = {
+      ...currentStudio().settingsForm.state.values.autoZoom,
+      isEnabled: false,
+      intensity: 0.35,
+    };
+    const configuredFraming = {
+      ...defaultBackgroundFramingSettings,
+      enabled: true,
+      paddingFraction: 0.2,
+      backgroundColor: "#113355",
+    };
+    await applyStudioAction((studio) => {
+      studio.settingsForm.setFieldValue("autoZoom", configuredAutoZoom);
+      studio.settingsForm.setFieldValue("backgroundFraming", configuredFraming);
+    });
     await applyStudioAction((studio) => studio.setLastRoute("/capture"));
     const bridge = window as unknown as Record<string, unknown>;
     const status = {
@@ -568,8 +628,8 @@ describe("editor timeline export integration", () => {
     bridge.ggEngineCaptureStatus = async () => status;
     bridge.ggEngineProjectCurrent = async () => ({
       recordingURL: "/tmp/new-take.mov",
-      autoZoom: currentStudio().settingsForm.state.values.autoZoom,
-      backgroundFraming: currentStudio().settingsForm.state.values.backgroundFraming,
+      autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+      backgroundFraming: defaultBackgroundFramingSettings,
       timeline: { version: 2, items: [] },
     });
     await act(async () => {
@@ -579,8 +639,8 @@ describe("editor timeline export integration", () => {
         isRecording: false,
       });
     });
-    const originalConfirm = window.confirm;
-    window.confirm = () => true;
+    const originalDecision = replacementDecision;
+    replacementDecision = "discard";
     try {
       await applyStudioAction(async (studio) => {
         await studio.toggleRecordingMutation.mutateAsync(undefined);
@@ -590,9 +650,13 @@ describe("editor timeline export integration", () => {
         expect(currentStudio().projectQuery.data?.projectPath).toBeUndefined();
         expect(currentStudio().timelineDocument.items).toHaveLength(0);
         expect(currentStudio().canUndoTimeline).toBe(false);
+        expect(currentStudio().settingsForm.state.values.autoZoom).toEqual(configuredAutoZoom);
+        expect(currentStudio().settingsForm.state.values.backgroundFraming).toEqual(
+          configuredFraming,
+        );
       });
     } finally {
-      window.confirm = originalConfirm;
+      replacementDecision = originalDecision;
     }
   });
 
@@ -1187,27 +1251,23 @@ test("settings-only edits immediately protect replacement without another input"
     }),
   );
   await waitFor(() => expect(currentStudio().hasUnsavedProjectEdits).toBe(true));
-  const originalConfirm = window.confirm;
-  let prompts = 0;
+  const originalDecision = replacementDecision;
   let opened = false;
   const bridge = window as unknown as Record<string, unknown>;
   bridge.ggEngineProjectOpen = async () => {
     opened = true;
     return currentStudio().projectQuery.data;
   };
-  window.confirm = () => {
-    prompts += 1;
-    return false;
-  };
+  replacementDecision = "keep";
   try {
     await applyStudioAction(async (studio) => {
       await studio.openRecentProjectMutation.mutateAsync("/tmp/other.gglassproj");
     });
-    expect(prompts).toBe(1);
+    expect(replacementPromptCount).toBe(1);
     expect(opened).toBe(false);
     expect(currentStudio().settingsForm.state.values.backgroundFraming.enabled).toBe(true);
   } finally {
-    window.confirm = originalConfirm;
+    replacementDecision = originalDecision;
   }
 });
 
@@ -1220,12 +1280,8 @@ test("a fresh unsaved recording requires a decision before replacement", async (
     }),
   );
   await waitFor(() => expect(currentStudio().hasUnsavedProjectEdits).toBe(true));
-  const originalConfirm = window.confirm;
-  let prompts = 0;
-  window.confirm = () => {
-    prompts += 1;
-    return false;
-  };
+  const originalDecision = replacementDecision;
+  replacementDecision = "keep";
   try {
     await applyStudioAction(async (studio) => {
       await studio.openProjectMutation.mutateAsync();
@@ -1233,10 +1289,10 @@ test("a fresh unsaved recording requires a decision before replacement", async (
     await applyStudioAction(async (studio) => {
       await studio.toggleRecordingMutation.mutateAsync(undefined);
     });
-    expect(prompts).toBe(2);
+    expect(replacementPromptCount).toBe(2);
     expect(currentStudio().recordingURL).toBe("/tmp/recording.mov");
   } finally {
-    window.confirm = originalConfirm;
+    replacementDecision = originalDecision;
   }
 });
 
@@ -1318,4 +1374,617 @@ describe("media preview lease recovery", () => {
       }, 5000);
     });
   }
+});
+
+for (const openKind of ["open", "recent"] as const) {
+  test(`discarding edits while reopening the same package through ${openKind} restores the saved document`, async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    const saved = currentStudio().projectQuery.data!;
+    await applyStudioAction((studio) => {
+      studio.settingsForm.setFieldValue("backgroundFraming", {
+        ...defaultBackgroundFramingSettings,
+        enabled: true,
+      });
+      studio.selectTimelineClip({
+        laneId: "video",
+        clipId: "segment-0",
+        startSeconds: 0,
+        endSeconds: 4,
+      });
+      studio.setPlayheadSeconds(2);
+      studio.splitSelectedTimelineClipAtPlayhead();
+    });
+    await waitFor(() => expect(currentStudio().hasUnsavedProjectEdits).toBe(true));
+    expect(currentStudio().canUndoTimeline).toBe(true);
+    const originalDecision = replacementDecision;
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggPickPath = async () => saved.projectPath;
+    bridge.ggEngineProjectOpen = async () => saved;
+    replacementDecision = "discard";
+    try {
+      await applyStudioAction(async (studio) => {
+        if (openKind === "open") {
+          await studio.openProjectMutation.mutateAsync();
+        } else {
+          await studio.openRecentProjectMutation.mutateAsync(saved.projectPath!);
+        }
+      });
+      await waitFor(() => {
+        expect(currentStudio().timelineDocument).toEqual(initialTimeline);
+        expect(currentStudio().settingsForm.state.values.backgroundFraming).toEqual(
+          saved.backgroundFraming,
+        );
+        expect(currentStudio().hasUnsavedProjectEdits).toBe(false);
+        expect(currentStudio().canUndoTimeline).toBe(false);
+        expect(currentStudio().canRedoTimeline).toBe(false);
+        expect(currentStudio().playbackStore.getSnapshot().playheadSeconds).toBe(0);
+      });
+      await applyStudioAction(async (studio) => {
+        await studio.saveProjectMutation.mutateAsync(false);
+      });
+      expect(capturedSaveParams).toMatchObject({
+        timeline: initialTimeline,
+        backgroundFraming: saved.backgroundFraming,
+      });
+    } finally {
+      replacementDecision = originalDecision;
+    }
+  });
+}
+
+for (const outcome of ["picker-cancel", "native-failure"] as const) {
+  test(`${outcome} while reopening keeps the draft and its undo history`, async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    await applyStudioAction((studio) =>
+      studio.settingsForm.setFieldValue("backgroundFraming", {
+        ...defaultBackgroundFramingSettings,
+        enabled: true,
+      }),
+    );
+    const originalDecision = replacementDecision;
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggPickPath = async () =>
+      outcome === "picker-cancel" ? null : "/tmp/project.gglassproj";
+    bridge.ggEngineProjectOpen = async () => {
+      throw new Error("Project could not open");
+    };
+    replacementDecision = "discard";
+    try {
+      await applyStudioAction(async (studio) => {
+        const opening = studio.openProjectMutation.mutateAsync();
+        if (outcome === "native-failure") {
+          await expect(opening).rejects.toThrow();
+        } else {
+          await opening;
+        }
+      });
+      expect(currentStudio().hasUnsavedProjectEdits).toBe(true);
+      expect(currentStudio().canUndoTimeline).toBe(true);
+      expect(currentStudio().settingsForm.state.values.backgroundFraming.enabled).toBe(true);
+      await applyStudioAction((studio) => studio.undoTimeline());
+      expect(currentStudio().settingsForm.state.values.backgroundFraming).toEqual(
+        defaultBackgroundFramingSettings,
+      );
+    } finally {
+      replacementDecision = originalDecision;
+    }
+  });
+}
+
+test("a successful project open adopts the saved document even when capture status refresh fails", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  const saved = currentStudio().projectQuery.data!;
+  await applyStudioAction((studio) =>
+    studio.settingsForm.setFieldValue("backgroundFraming", {
+      ...defaultBackgroundFramingSettings,
+      enabled: true,
+    }),
+  );
+  const originalDecision = replacementDecision;
+  const bridge = window as unknown as Record<string, unknown>;
+  bridge.ggPickPath = async () => saved.projectPath;
+  bridge.ggEngineProjectOpen = async () => saved;
+  bridge.ggEngineCaptureStatus = async () => {
+    throw new Error("Status refresh unavailable");
+  };
+  replacementDecision = "discard";
+  try {
+    await applyStudioAction(async (studio) => {
+      await studio.openProjectMutation.mutateAsync();
+    });
+    await waitFor(() => {
+      expect(currentStudio().hasUnsavedProjectEdits).toBe(false);
+      expect(currentStudio().canUndoTimeline).toBe(false);
+      expect(currentStudio().settingsForm.state.values.backgroundFraming).toEqual(
+        saved.backgroundFraming,
+      );
+      expect(currentStudio().notice?.message).toContain(
+        "Project opened. Capture status could not refresh.",
+      );
+    });
+  } finally {
+    replacementDecision = originalDecision;
+  }
+});
+
+test("an explicit static scene camera is named and can return to project settings through the inspector", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  await setInspectorMode("edit");
+  const first = initialTimeline.items[0]!;
+  if (first.kind !== "clip") {
+    throw new Error("Expected clip");
+  }
+  const staticTimeline: TimelineDocument = {
+    ...initialTimeline,
+    items: [{ ...first, camera: [] }],
+  };
+  await act(async () => {
+    queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
+      ...currentStudio().projectQuery.data,
+      timeline: staticTimeline,
+    });
+  });
+  await applyStudioAction((studio) =>
+    studio.selectTimelineClip({
+      laneId: "video",
+      clipId: first.id,
+      startSeconds: 0,
+      endSeconds: 4,
+    }),
+  );
+  await expect
+    .element(page.getByText("Static scene camera override", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText("Uses project camera settings", { exact: true }))
+    .not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Reset scene camera", exact: true }).click();
+  await expect
+    .element(page.getByText("Uses project camera settings", { exact: true }))
+    .toBeVisible();
+  await applyStudioAction((studio) => studio.undoTimeline());
+  await expect
+    .element(page.getByText("Static scene camera override", { exact: true }))
+    .toBeVisible();
+});
+
+async function prepareCapture() {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
+  await applyStudioAction((studio) => studio.setTrimEndSeconds(2));
+  await applyStudioAction((studio) => studio.setLastRoute("/capture"));
+  await act(async () => {
+    queryClient?.setQueryData(studioQueryKeys.captureStatus(), {
+      ...currentStudio().captureStatusQuery.data,
+      isRunning: true,
+      isRecording: false,
+    });
+  });
+}
+
+describe("recording transition reconciliation", () => {
+  test("successful native start retires the old project even if both follow-up queries fail", async () => {
+    await prepareCapture();
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggEngineStartRecording = async () => ({
+      isRunning: true,
+      isRecording: true,
+      recordingDurationSeconds: 0,
+      recordingURL: "/tmp/refresh-failed.mov",
+      telemetry: {},
+    });
+    bridge.ggEngineCaptureStatus = async () => {
+      throw new Error("Status unavailable");
+    };
+    bridge.ggEngineProjectCurrent = async () => {
+      throw new Error("Project refresh unavailable");
+    };
+    const originalDecision = replacementDecision;
+    replacementDecision = "discard";
+    try {
+      await applyStudioAction(async (studio) => {
+        await studio.toggleRecordingMutation.mutateAsync(undefined);
+      });
+      await waitFor(() => {
+        expect(currentStudio().recordingURL).toBe("/tmp/refresh-failed.mov");
+        expect(currentStudio().projectQuery.data?.projectPath).toBeUndefined();
+        expect(currentStudio().captureStatusQuery.data?.isRecording).toBe(true);
+        expect(currentStudio().canUndoTimeline).toBe(false);
+        expect(currentStudio().exportForm.state.values.rangeMode).toBe("full");
+        expect(currentStudio().notice).toMatchObject({ kind: "info" });
+      });
+    } finally {
+      replacementDecision = originalDecision;
+    }
+  });
+
+  test("true native start failure preserves the saved project and its unsaved draft", async () => {
+    await prepareCapture();
+    const original = currentStudio().timelineDocument;
+    const originalProject = currentStudio().projectQuery.data;
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggEngineStartRecording = async () => {
+      throw new Error("Recorder failed to start");
+    };
+    const originalDecision = replacementDecision;
+    replacementDecision = "discard";
+    try {
+      await expect(
+        applyStudioAction(async (studio) => {
+          await studio.toggleRecordingMutation.mutateAsync(undefined);
+        }),
+      ).rejects.toThrow();
+      expect(currentStudio().timelineDocument).toEqual(original);
+      expect(currentStudio().projectQuery.data).toEqual(originalProject);
+      expect(currentStudio().canUndoTimeline).toBe(true);
+    } finally {
+      replacementDecision = originalDecision;
+    }
+  });
+
+  test("duplicate recording commands during reconciliation do not start or stop another take", async () => {
+    await prepareCapture();
+    const bridge = window as unknown as Record<string, unknown>;
+    const status = {
+      isRunning: true,
+      isRecording: true,
+      recordingDurationSeconds: 0,
+      recordingURL: "/tmp/one-take.mov",
+      telemetry: {},
+    };
+    let starts = 0;
+    let stops = 0;
+    let release: ((value: unknown) => void) | undefined;
+    bridge.ggEngineStartRecording = async () => {
+      starts += 1;
+      return status;
+    };
+    bridge.ggEngineStopRecording = async () => {
+      stops += 1;
+      return status;
+    };
+    bridge.ggEngineCaptureStatus = () =>
+      new Promise((resolve) => {
+        release = resolve;
+      });
+    bridge.ggEngineProjectCurrent = async () => ({
+      recordingURL: "/tmp/one-take.mov",
+      autoZoom: currentStudio().settingsForm.state.values.autoZoom,
+      backgroundFraming: currentStudio().settingsForm.state.values.backgroundFraming,
+      timeline: { version: 2, items: [] },
+    });
+    const originalDecision = replacementDecision;
+    replacementDecision = "discard";
+    try {
+      let first: Promise<unknown> | undefined;
+      await act(async () => {
+        first = currentStudio().toggleRecordingMutation.mutateAsync(undefined);
+      });
+      await decideReplacement("discard");
+      await waitFor(() => expect(currentStudio().recordingURL).toBe("/tmp/one-take.mov"));
+      await applyStudioAction(async (studio) => {
+        await studio.toggleRecordingMutation.mutateAsync(undefined);
+      });
+      expect(starts).toBe(1);
+      expect(stops).toBe(0);
+      if (!release || !first) {
+        throw new Error("Recording reconciliation did not start");
+      }
+      await act(async () => {
+        release?.(status);
+        await first;
+      });
+    } finally {
+      replacementDecision = originalDecision;
+    }
+  });
+});
+
+test("one visual slider gesture is one undo step and preserves earlier scene edits", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  const original = currentStudio().settingsForm.state.values.autoZoom;
+  await applyStudioAction((studio) => {
+    studio.selectTimelineClip({
+      laneId: "video",
+      clipId: "segment-0",
+      startSeconds: 0,
+      endSeconds: 4,
+    });
+    studio.setPlayheadSeconds(2);
+    studio.splitSelectedTimelineClipAtPlayhead();
+  });
+  const splitTimeline = currentStudio().timelineDocument;
+  await applyStudioAction((studio) => studio.beginVisualEdit());
+  for (const intensity of [0.95, 0.9, 0.85, 0.8, 0.75]) {
+    await applyStudioAction((studio) =>
+      studio.settingsForm.setFieldValue("autoZoom", { ...original, intensity }),
+    );
+  }
+  await applyStudioAction((studio) => studio.commitVisualEdit());
+  expect(currentStudio().settingsForm.state.values.autoZoom.intensity).toBe(0.75);
+  await applyStudioAction((studio) => studio.undoTimeline());
+  expect(currentStudio().settingsForm.state.values.autoZoom).toEqual(original);
+  expect(currentStudio().timelineDocument).toEqual(splitTimeline);
+  await applyStudioAction((studio) => studio.undoTimeline());
+  expect(currentStudio().timelineDocument).toEqual(initialTimeline);
+  await applyStudioAction((studio) => studio.redoTimeline());
+  await applyStudioAction((studio) => studio.redoTimeline());
+  expect(currentStudio().settingsForm.state.values.autoZoom.intensity).toBe(0.75);
+});
+
+test("a finished recording remains authoritative when stopping the live preview fails", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  const saved = currentStudio().projectQuery.data!;
+  const project = {
+    recordingURL: saved.recordingURL,
+    autoZoom: saved.autoZoom,
+    backgroundFraming: saved.backgroundFraming,
+    timeline: saved.timeline,
+  };
+  const stopped = {
+    isRunning: true,
+    isRecording: false,
+    recordingDurationSeconds: 4,
+    recordingURL: "/tmp/recording.mov",
+    telemetry: {},
+  };
+  const bridge = window as unknown as Record<string, unknown>;
+  bridge.ggEngineStopRecording = async () => stopped;
+  bridge.ggEngineStopCapture = async () => {
+    throw new Error("Preview cleanup unavailable");
+  };
+  bridge.ggEngineCaptureStatus = async () => stopped;
+  bridge.ggEngineProjectCurrent = async () => project;
+  await act(async () => {
+    queryClient?.setQueryData(studioQueryKeys.projectCurrent(), project);
+    queryClient?.setQueryData(studioQueryKeys.captureStatus(), { ...stopped, isRecording: true });
+  });
+  await applyStudioAction(async (studio) => {
+    await studio.toggleRecordingMutation.mutateAsync(undefined);
+  });
+  await waitFor(() => {
+    expect(currentStudio().captureStatusQuery.data?.isRecording).toBe(false);
+    expect(currentStudio().recordingURL).toBe(stopped.recordingURL);
+    expect(currentStudio().notice?.message).toContain(
+      "Recording finished. The live preview could not stop.",
+    );
+  });
+});
+
+test("preview audio controls work by keyboard, survive Edit/Deliver remount and never edit export audio", async () => {
+  await waitFor(() => expect(currentStudio().recordingURL).toBeTruthy());
+  const bridge = window as unknown as Record<string, unknown>;
+  bridge.ggResolveMediaSourceURL = async () =>
+    new URL(healthyMediaSource, window.location.href).href;
+  await act(async () => {
+    currentStudio().setLastRoute("/edit");
+    updatePreviewRoute?.("edit");
+  });
+  await waitFor(
+    () => expect(document.querySelector("video")?.readyState).toBeGreaterThanOrEqual(2),
+    5000,
+  );
+  const original = {
+    timeline: currentStudio().timelineDocument,
+    autoZoom: currentStudio().settingsForm.state.values.autoZoom,
+    backgroundFraming: currentStudio().settingsForm.state.values.backgroundFraming,
+  };
+  const dirty = currentStudio().hasUnsavedProjectEdits;
+  const volume = document.querySelector<HTMLInputElement>('input[aria-label="Preview volume"]')!;
+  volume.focus();
+  await userEvent.keyboard("{Home}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}");
+  await waitFor(() => expect(document.querySelector("video")?.volume).toBeCloseTo(0.25));
+  await page.getByRole("button", { name: "Mute preview", exact: true }).click();
+  await waitFor(() => expect(document.querySelector("video")?.muted).toBe(true));
+  await act(async () => {
+    updatePreviewRoute?.(null);
+  });
+  await act(async () => {
+    currentStudio().setLastRoute("/deliver");
+    updatePreviewRoute?.("edit");
+  });
+  await waitFor(() => {
+    const video = document.querySelector("video");
+    expect(video?.readyState).toBeGreaterThanOrEqual(2);
+    expect(video?.volume).toBeCloseTo(0.25);
+    expect(video?.muted).toBe(true);
+  }, 5000);
+  expect(currentStudio().hasUnsavedProjectEdits).toBe(dirty);
+  expect(currentStudio().timelineDocument).toEqual(original.timeline);
+  expect(currentStudio().settingsForm.state.values.autoZoom).toEqual(original.autoZoom);
+  expect(currentStudio().settingsForm.state.values.backgroundFraming).toEqual(
+    original.backgroundFraming,
+  );
+  await applyStudioAction(async (studio) => {
+    await studio.exportMutation.mutateAsync();
+  });
+  expect(capturedExportParams).toMatchObject(original);
+  expect(capturedExportParams).not.toHaveProperty("previewAudio");
+  expect(capturedExportParams).not.toHaveProperty("volume");
+});
+
+test("preview fullscreen targets the composed frame and transport, and reports a denied request", async () => {
+  await waitFor(() => expect(currentStudio().recordingURL).toBeTruthy());
+  const bridge = window as unknown as Record<string, unknown>;
+  bridge.ggResolveMediaSourceURL = async () =>
+    new URL(healthyMediaSource, window.location.href).href;
+  await act(async () => {
+    updatePreviewRoute?.("edit");
+  });
+  await waitFor(
+    () => expect(document.querySelector("video")?.readyState).toBeGreaterThanOrEqual(2),
+    5000,
+  );
+  const target = document.querySelector<HTMLDivElement>(
+    '[data-testid="program-preview-fullscreen"]',
+  )!;
+  expect(target.querySelector('[data-testid="background-framing-stage"]')).not.toBeNull();
+  expect(target.querySelector('input[aria-label="Preview volume"]')).not.toBeNull();
+  try {
+    await page.getByRole("button", { name: "Fullscreen preview", exact: true }).click();
+    await waitFor(() => expect(document.fullscreenElement).toBe(target));
+    await page.getByRole("button", { name: "Exit fullscreen", exact: true }).click();
+    await waitFor(() => expect(document.fullscreenElement).toBeNull());
+    Object.defineProperty(target, "requestFullscreen", {
+      configurable: true,
+      value: async () => {
+        throw new DOMException("Denied", "NotAllowedError");
+      },
+    });
+    await page.getByRole("button", { name: "Fullscreen preview", exact: true }).click();
+    await expect
+      .element(page.getByRole("alert"))
+      .toHaveTextContent("Fullscreen is unavailable in this window.");
+  } finally {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  }
+});
+
+async function beginReplacement(action: (studio: StudioController) => Promise<unknown>) {
+  let pending: Promise<unknown> = Promise.resolve();
+  await act(async () => {
+    pending = action(currentStudio());
+    void pending.catch(() => {});
+  });
+  const dialog = page.getByTestId("replacement-confirmation");
+  await expect.element(dialog).toBeVisible();
+  return { pending, dialog };
+}
+
+describe("replacement confirmation interaction", () => {
+  test("Escape keeps an edited project and selected export range without opening a picker", async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    await applyStudioAction((studio) => {
+      studio.settingsForm.setFieldValue("autoZoom", {
+        ...studio.settingsForm.state.values.autoZoom,
+        isEnabled: false,
+      });
+      studio.setTrimEndSeconds(2);
+    });
+    let picks = 0;
+    (window as unknown as Record<string, unknown>).ggPickPath = async () => {
+      picks += 1;
+      return "/tmp/project.gglassproj";
+    };
+    const { pending, dialog } = await beginReplacement((studio) =>
+      studio.openProjectMutation.mutateAsync(),
+    );
+    await expect
+      .element(dialog.getByRole("button", { name: "Keep editing", exact: true }))
+      .toHaveFocus();
+    await act(() => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          code: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    await pending;
+    expect(picks).toBe(0);
+    expect(currentStudio().settingsForm.state.values.autoZoom.isEnabled).toBe(false);
+    expect(currentStudio().exportForm.state.values).toMatchObject({
+      rangeMode: "selected",
+      trimEndSeconds: 2,
+    });
+  });
+
+  test("closing confirmation cancels, and another pending replacement cannot share approval", async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
+    const { pending, dialog } = await beginReplacement((studio) =>
+      studio.openProjectMutation.mutateAsync(),
+    );
+    await applyStudioAction(async (studio) => {
+      await studio.openRecentProjectMutation.mutateAsync("/tmp/other.gglassproj");
+    });
+    await expect.element(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await pending;
+    expect(currentStudio().timelineDocument.items).toHaveLength(2);
+    expect(currentStudio().canUndoTimeline).toBe(true);
+  });
+
+  test("confirmed same-package Open resets selected export range to Full program", async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    const saved = currentStudio().projectQuery.data!;
+    await applyStudioAction((studio) => {
+      studio.splitTimelineClipAtSeconds(1);
+      studio.setTrimEndSeconds(2);
+    });
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggPickPath = async () => saved.projectPath;
+    bridge.ggEngineProjectOpen = async () => saved;
+    const { pending, dialog } = await beginReplacement((studio) =>
+      studio.openProjectMutation.mutateAsync(),
+    );
+    await dialog.getByRole("button", { name: "Discard edits and open", exact: true }).click();
+    await pending;
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    expect(currentStudio().exportForm.state.values).toMatchObject({
+      rangeMode: "full",
+      trimStartSeconds: 0,
+      trimEndSeconds: 0,
+    });
+    expect(currentStudio().canUndoTimeline).toBe(false);
+  });
+
+  test("bare pre-record appearance setup carries into the first take without a replacement prompt", async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    const bridge = window as unknown as Record<string, unknown>;
+    const empty = {
+      autoZoom: currentStudio().settingsForm.state.values.autoZoom,
+      backgroundFraming: defaultBackgroundFramingSettings,
+      timeline: { version: 2, items: [] },
+    };
+    const ready = {
+      isRunning: true,
+      isRecording: false,
+      recordingDurationSeconds: 0,
+      telemetry: {},
+    };
+    await act(async () => {
+      queryClient?.setQueryData(studioQueryKeys.projectCurrent(), empty);
+      queryClient?.setQueryData(studioQueryKeys.captureStatus(), ready);
+    });
+    await applyStudioAction((studio) => studio.setLastRoute("/capture"));
+    await waitFor(() => expect(currentStudio().recordingURL).toBeNull());
+    await applyStudioAction((studio) =>
+      studio.settingsForm.setFieldValue("autoZoom", {
+        ...studio.settingsForm.state.values.autoZoom,
+        isEnabled: false,
+      }),
+    );
+    const recording = { ...ready, isRecording: true, recordingURL: "/tmp/first-take.mov" };
+    bridge.ggEngineStartRecording = async () => recording;
+    bridge.ggEngineCaptureStatus = async () => recording;
+    bridge.ggEngineProjectCurrent = async () => ({ ...empty, recordingURL: "/tmp/first-take.mov" });
+    await applyStudioAction(async (studio) => {
+      await studio.toggleRecordingMutation.mutateAsync(undefined);
+    });
+    await expect.element(page.getByTestId("replacement-confirmation")).not.toBeInTheDocument();
+    expect(currentStudio().recordingURL).toBe("/tmp/first-take.mov");
+    expect(currentStudio().settingsForm.state.values.autoZoom.isEnabled).toBe(false);
+  });
+});
+
+test("unmounting a pending replacement cancels before native project IO", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(1));
+  let picks = 0;
+  (window as unknown as Record<string, unknown>).ggPickPath = async () => {
+    picks += 1;
+    return "/tmp/project.gglassproj";
+  };
+  const { pending } = await beginReplacement((studio) => studio.openProjectMutation.mutateAsync());
+  await act(async () => {
+    root?.unmount();
+    root = undefined;
+  });
+  expect(await pending).toBeNull();
+  expect(picks).toBe(0);
 });

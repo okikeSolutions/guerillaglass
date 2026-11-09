@@ -1,13 +1,11 @@
 import {
   ArrowLeft,
   ArrowRight,
-  FolderOpen,
   Magnet,
   Minus,
   MousePointer,
   Plus,
   RotateCcw,
-  Save,
   Scissors,
   SplitSquareVertical,
   Waves,
@@ -30,6 +28,7 @@ import { normalizeShortcutDisplayPlatform, studioShortcutDisplayTokens } from "@
 import { useStudio, useStudioPlaybackValue } from "../state/StudioProvider";
 import { studioToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 import { TimelineSurface } from "./TimelineSurface";
+import * as m from "../../../../paraglide/messages.js";
 import { useRecordingMediaSourceLease } from "../hooks/useRecordingMediaSource";
 
 function TimelineIconAction({
@@ -95,9 +94,6 @@ export function TimelineDock() {
   const trimEnd = rangeIsSelected
     ? studio.exportForm.state.values.trimEndSeconds
     : (studio.timelineItems.slice(-1)[0]?.programEndSeconds ?? 0);
-  const recordingActionDisabledReason = studio.recordingURL
-    ? undefined
-    : studio.recordingRequiredNotice;
   const shortcutPlatform = normalizeShortcutDisplayPlatform(
     typeof navigator === "undefined"
       ? undefined
@@ -139,58 +135,62 @@ export function TimelineDock() {
                 <TimelineToolbarDivider />
               </>
             ) : null}
-            <ButtonGroup className="shrink-0 gap-1">
-              <TimelineIconAction
-                label={studio.ui.actions.timelineToolSelect}
-                aria-pressed={studio.timelineTool === "select"}
-                tone={studio.timelineTool === "select" ? "selected" : "neutral"}
-                onClick={() => studio.setTimelineTool("select")}
-              >
-                <MousePointer className="h-4 w-4" />
-              </TimelineIconAction>
-              {trimEnabled ? (
-                <TimelineIconAction
-                  label={studio.ui.actions.timelineToolTrim}
-                  aria-pressed={studio.timelineTool === "trim"}
-                  tone={studio.timelineTool === "trim" ? "selected" : "neutral"}
-                  onClick={() => studio.setTimelineTool("trim")}
-                >
-                  <Scissors className="h-4 w-4" />
-                </TimelineIconAction>
-              ) : null}
-              <TimelineIconAction
-                label={studio.ui.actions.timelineToolBlade}
-                shortcutKeys={studioShortcutDisplayTokens("timelineBlade", {
-                  platform: shortcutPlatform,
-                  overrides: studio.shortcutOverrides,
-                })}
-                aria-pressed={studio.timelineTool === "blade"}
-                tone={studio.timelineTool === "blade" ? "selected" : "neutral"}
-                onClick={() => studio.setTimelineTool("blade")}
-              >
-                <SplitSquareVertical className="h-4 w-4" />
-              </TimelineIconAction>
-            </ButtonGroup>
-            <TimelineToolbarDivider />
-            <ButtonGroup className="shrink-0 gap-1">
-              <TimelineIconAction
-                label={studio.ui.labels.timelineSnap}
-                aria-pressed={studio.timelineSnapEnabled}
-                tone={studio.timelineSnapEnabled ? "selectedAlt" : "neutral"}
-                onClick={studio.toggleTimelineSnap}
-              >
-                <Magnet className="h-4 w-4" />
-              </TimelineIconAction>
-              <TimelineIconAction
-                label={studio.ui.labels.timelineRipple}
-                aria-pressed={studio.timelineRippleEnabled}
-                tone={studio.timelineRippleEnabled ? "selectedAlt" : "neutral"}
-                onClick={studio.toggleTimelineRipple}
-              >
-                <Waves className="h-4 w-4" />
-              </TimelineIconAction>
-            </ButtonGroup>
-            <TimelineToolbarDivider />
+            {studio.activeMode === "edit" ? (
+              <>
+                <ButtonGroup className="shrink-0 gap-1">
+                  <TimelineIconAction
+                    label={studio.ui.actions.timelineToolSelect}
+                    aria-pressed={studio.timelineTool === "select"}
+                    tone={studio.timelineTool === "select" ? "selected" : "neutral"}
+                    onClick={() => studio.setTimelineTool("select")}
+                  >
+                    <MousePointer className="h-4 w-4" />
+                  </TimelineIconAction>
+                  {trimEnabled ? (
+                    <TimelineIconAction
+                      label={studio.ui.actions.timelineToolTrim}
+                      aria-pressed={studio.timelineTool === "trim"}
+                      tone={studio.timelineTool === "trim" ? "selected" : "neutral"}
+                      onClick={() => studio.setTimelineTool("trim")}
+                    >
+                      <Scissors className="h-4 w-4" />
+                    </TimelineIconAction>
+                  ) : null}
+                  <TimelineIconAction
+                    label={studio.ui.actions.timelineToolBlade}
+                    shortcutKeys={studioShortcutDisplayTokens("timelineBlade", {
+                      platform: shortcutPlatform,
+                      overrides: studio.shortcutOverrides,
+                    })}
+                    aria-pressed={studio.timelineTool === "blade"}
+                    tone={studio.timelineTool === "blade" ? "selected" : "neutral"}
+                    onClick={() => studio.setTimelineTool("blade")}
+                  >
+                    <SplitSquareVertical className="h-4 w-4" />
+                  </TimelineIconAction>
+                </ButtonGroup>
+                <TimelineToolbarDivider />
+                <ButtonGroup className="shrink-0 gap-1">
+                  <TimelineIconAction
+                    label={studio.ui.labels.timelineSnap}
+                    aria-pressed={studio.timelineSnapEnabled}
+                    tone={studio.timelineSnapEnabled ? "selectedAlt" : "neutral"}
+                    onClick={studio.toggleTimelineSnap}
+                  >
+                    <Magnet className="h-4 w-4" />
+                  </TimelineIconAction>
+                  <TimelineIconAction
+                    label={studio.ui.labels.timelineRipple}
+                    aria-pressed={studio.timelineRippleEnabled}
+                    tone={studio.timelineRippleEnabled ? "selectedAlt" : "neutral"}
+                    onClick={studio.toggleTimelineRipple}
+                  >
+                    <Waves className="h-4 w-4" />
+                  </TimelineIconAction>
+                </ButtonGroup>
+                <TimelineToolbarDivider />
+              </>
+            ) : null}
             <ButtonGroup className="shrink-0 gap-1">
               <TimelineIconAction
                 label={studio.ui.actions.timelineZoomOut}
@@ -213,27 +213,6 @@ export function TimelineDock() {
             </ButtonGroup>
             <TimelineToolbarDivider />
             <span className="gg-copy-meta gg-numeric ml-auto shrink-0">{`${studio.ui.labels.timelineZoom}: ${studio.timelineZoomPercent}%`}</span>
-            <TimelineIconAction
-              label={studio.ui.actions.openProject}
-              onClick={() => void studio.openProjectMutation.mutateAsync()}
-              disabled={studio.isRunningAction}
-              className="shrink-0"
-            >
-              <FolderOpen className="h-4 w-4" />
-            </TimelineIconAction>
-            <TimelineIconAction
-              label={studio.ui.actions.saveProjectAs}
-              shortcutKeys={studioShortcutDisplayTokens("saveAs", {
-                platform: shortcutPlatform,
-                overrides: studio.shortcutOverrides,
-              })}
-              onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
-              disabled={studio.isRunningAction || !studio.recordingURL}
-              title={recordingActionDisabledReason}
-              className="shrink-0"
-            >
-              <Save className="h-4 w-4" />
-            </TimelineIconAction>
             <Label className="sr-only" htmlFor="timeline-playback-rate-select">
               {studio.ui.labels.playbackRate}
             </Label>
@@ -258,6 +237,18 @@ export function TimelineDock() {
           <div className="min-h-0 flex-1 overflow-auto">
             <TimelineSurface
               mediaSource={thumbnailSource}
+              audioStatusText={
+                studio.sourceAudioPresentation.status === "loading"
+                  ? m.ui_audio_loading(undefined, { locale: studio.locale })
+                  : studio.sourceAudioPresentation.status === "no-audio"
+                    ? m.ui_audio_none(undefined, { locale: studio.locale })
+                    : studio.sourceAudioPresentation.status === "silent"
+                      ? m.ui_audio_silent(undefined, { locale: studio.locale })
+                      : studio.sourceAudioPresentation.status === "idle"
+                        ? m.ui_audio_empty(undefined, { locale: studio.locale })
+                        : m.ui_audio_unavailable(undefined, { locale: studio.locale })
+              }
+              audioScopeText={m.ui_audio_scope(undefined, { locale: studio.locale })}
               durationSeconds={studio.timelineDuration}
               playheadSeconds={playheadSeconds}
               trimEnabled={trimEnabled}
@@ -266,7 +257,7 @@ export function TimelineDock() {
               lanes={studio.timelineLanes}
               laneControls={studio.timelineLaneControlState}
               labels={studio.ui.labels}
-              timelineTool={studio.timelineTool}
+              timelineTool={studio.activeMode === "edit" ? studio.timelineTool : "select"}
               timelineSnapEnabled={studio.timelineSnapEnabled}
               timelineRippleEnabled={studio.timelineRippleEnabled}
               zoomPercent={studio.timelineZoomPercent}
@@ -274,8 +265,12 @@ export function TimelineDock() {
               onSetTrimStartSeconds={trimEnabled ? studio.setTrimStartSeconds : undefined}
               onSetTrimEndSeconds={trimEnabled ? studio.setTrimEndSeconds : undefined}
               onNudgePlayheadSeconds={studio.nudgePlayheadSeconds}
-              onBladeClipAtSeconds={studio.splitTimelineClipAtSeconds}
-              onMoveClipDrop={studio.moveTimelineClipByDrop}
+              onBladeClipAtSeconds={
+                studio.activeMode === "edit" ? studio.splitTimelineClipAtSeconds : undefined
+              }
+              onMoveClipDrop={
+                studio.activeMode === "edit" ? studio.moveTimelineClipByDrop : undefined
+              }
               onToggleLaneLocked={(laneId) => studio.toggleLaneControl(laneId, "locked")}
               onClearSelection={studio.clearInspectorSelection}
               selectedClip={

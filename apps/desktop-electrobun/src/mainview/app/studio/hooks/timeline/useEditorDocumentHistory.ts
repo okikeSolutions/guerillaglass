@@ -59,6 +59,7 @@ export function useEditorDocumentHistory({
     setPendingSave(null);
   }
   const historyRef = useRef(currentHistory);
+  const visualGestureStart = useRef<EditorDocumentHistory | null>(null);
   const restoring = useRef(false);
   const restoreVisuals = useCallback(
     (document: EditorDocument) => {
@@ -94,6 +95,9 @@ export function useEditorDocumentHistory({
     historyRef.current = currentHistory;
     restoreVisuals(currentHistory.present);
   }, [currentHistory, restoreVisuals]);
+  useLayoutEffect(() => {
+    visualGestureStart.current = null;
+  }, [projectIdentity, sourceSignature]);
   useLayoutEffect(
     () =>
       settings.subscribe(() => {
@@ -106,10 +110,13 @@ export function useEditorDocumentHistory({
           autoZoom: values.autoZoom,
           backgroundFraming: values.backgroundFraming,
         };
-        const history = recordEditorDocumentEdit(historyRef.current, next);
-        if (history === historyRef.current) {
+        if (editorDocumentSignature(historyRef.current.present) === editorDocumentSignature(next)) {
           return;
         }
+        const history = recordEditorDocumentEdit(
+          visualGestureStart.current ?? historyRef.current,
+          next,
+        );
         if (!canEdit()) {
           restoreVisuals(historyRef.current.present);
           return;
@@ -123,6 +130,7 @@ export function useEditorDocumentHistory({
       if (!canEdit()) {
         return;
       }
+      visualGestureStart.current = null;
       const present = historyRef.current.present;
       commit(
         recordEditorDocumentEdit(historyRef.current, {
@@ -134,16 +142,19 @@ export function useEditorDocumentHistory({
     [canEdit, commit],
   );
   const undoTimeline = useCallback(() => {
+    visualGestureStart.current = null;
     if (canEdit()) {
       commit(undoEditorDocumentEdit(historyRef.current));
     }
   }, [canEdit, commit]);
   const redoTimeline = useCallback(() => {
+    visualGestureStart.current = null;
     if (canEdit()) {
       commit(redoEditorDocumentEdit(historyRef.current));
     }
   }, [canEdit, commit]);
   const markSaved = useCallback((identity: string, document: EditorDocument) => {
+    visualGestureStart.current = null;
     // The query cache publishes the new source/path separately. Preserve history
     // only when that exact explicit save snapshot arrives, never on arbitrary IO.
     setPendingSave({
@@ -153,8 +164,17 @@ export function useEditorDocumentHistory({
     });
   }, []);
   const reset = useCallback(() => {
+    visualGestureStart.current = null;
     setPendingSave(null);
     setDraft(null);
+  }, []);
+  const beginVisualEdit = useCallback(() => {
+    if (canEdit() && !visualGestureStart.current) {
+      visualGestureStart.current = historyRef.current;
+    }
+  }, [canEdit]);
+  const commitVisualEdit = useCallback(() => {
+    visualGestureStart.current = null;
   }, []);
   return {
     currentHistory,
@@ -164,5 +184,7 @@ export function useEditorDocumentHistory({
     redoTimeline,
     markSaved,
     reset,
+    beginVisualEdit,
+    commitVisualEdit,
   };
 }

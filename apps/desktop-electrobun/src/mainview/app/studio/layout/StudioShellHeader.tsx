@@ -1,3 +1,4 @@
+import { capturePermissionState } from "../view-model/capturePermissionState";
 import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
 import {
   Dialog,
@@ -9,19 +10,15 @@ import {
 import { Checkbox } from "@guerillaglass/ui/components/checkbox";
 import { ShortcutOverridesSection } from "../panels/inspector/ShortcutOverridesSection";
 import {
-  AlertTriangle,
   Settings,
   Undo2,
   Redo2,
   ChevronDown,
   HardDriveDownload,
   LayoutPanelTop,
-  Pause,
   PanelLeftClose,
   PanelRightClose,
-  Play,
   RefreshCcw,
-  Save,
   Scissors,
   ShieldAlert,
   ShieldCheck,
@@ -40,21 +37,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@guerillaglass/ui/components/dropdown-menu";
-import { ShortcutHint } from "@guerillaglass/ui/desktop/shortcut-hint";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@guerillaglass/ui/components/tooltip";
-import {
-  detectStudioShortcutPlatform,
-  type ShortcutDisplayPlatform,
-  type StudioShortcutOverrides,
-  studioShortcutDisplayTokens,
-} from "@shared/shortcuts";
+import type { StudioShortcutOverrides } from "@shared/shortcuts";
 import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
-import { useStudio, useStudioPlaybackValue } from "../state/StudioProvider";
+import { useStudio } from "../state/StudioProvider";
 import type { StudioLayoutRoute, StudioLocalizedRouteTarget } from "../contracts/studioLayoutModel";
 import {
   studioBadgeToneClass,
@@ -103,52 +94,6 @@ function modeIconClass(isActive: boolean): string {
     : "gg-button-tone gg-tone-neutral inline-flex h-8 items-center justify-center gap-1.5 px-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/80";
 }
 
-function resolveShortcutPlatform(): ShortcutDisplayPlatform | undefined {
-  if (typeof navigator === "undefined") {
-    return undefined;
-  }
-  return detectStudioShortcutPlatform();
-}
-
-function HeaderIconButton({
-  onClick,
-  disabled,
-  title,
-  srLabel,
-  tooltip,
-  icon,
-  showLabel = false,
-}: {
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-  srLabel: string;
-  tooltip: ReactNode;
-  icon: ReactNode;
-  showLabel?: boolean;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            size={showLabel ? "sm" : "icon-sm"}
-            variant="outline"
-            className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
-            onClick={onClick}
-            disabled={disabled}
-            title={title}
-          />
-        }
-      >
-        {icon}
-        <span className={showLabel ? undefined : "sr-only"}>{srLabel}</span>
-      </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function buildModeItems(studio: HeaderStudio, activeRoute: StudioLayoutRoute): ModeItem[] {
   return [
     {
@@ -177,13 +122,8 @@ export function buildModeItems(studio: HeaderStudio, activeRoute: StudioLayoutRo
 
 export function buildUtilityActions(
   studio: HeaderStudio,
-  shortcutPlatform: ShortcutDisplayPlatform | undefined,
   activeRoute: StudioLayoutRoute,
 ): HeaderIconButtonModel[] {
-  const recordingActionDisabledReason = studio.recordingURL
-    ? undefined
-    : studio.recordingRequiredNotice;
-
   const actions: HeaderIconButtonModel[] = [
     {
       id: "refresh",
@@ -193,43 +133,7 @@ export function buildUtilityActions(
       tooltip: studio.ui.actions.refresh,
       icon: <RefreshCcw className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
     },
-    {
-      id: "save",
-      onClick: () => void studio.saveProjectMutation.mutateAsync(false),
-      disabled: studio.isRunningAction || !studio.recordingURL,
-      title: recordingActionDisabledReason,
-      srLabel: studio.ui.actions.saveProject,
-      tooltip: (
-        <ShortcutHint
-          label={studio.ui.actions.saveProject}
-          keys={studioShortcutDisplayTokens("save", {
-            platform: shortcutPlatform,
-            overrides: studio.shortcutOverrides,
-          })}
-        />
-      ),
-      icon: <Save className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
-    },
-    {
-      id: "export",
-      onClick: () => void studio.exportMutation.mutateAsync(),
-      disabled:
-        studio.isRunningAction ||
-        !studio.recordingURL ||
-        studio.timelineDocument?.items.length === 0,
-      title: recordingActionDisabledReason,
-      srLabel: studio.ui.actions.exportNow,
-      tooltip: (
-        <ShortcutHint
-          label={studio.ui.actions.exportNow}
-          keys={studioShortcutDisplayTokens("export", {
-            platform: shortcutPlatform,
-            overrides: studio.shortcutOverrides,
-          })}
-        />
-      ),
-      icon: <HardDriveDownload className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />,
-    },
+
     {
       id: "toggle-left-pane",
       onClick: studio.toggleLeftPaneCollapsed,
@@ -254,7 +158,7 @@ export function buildUtilityActions(
   ];
 
   if (activeRoute !== "/capture") {
-    actions.splice(5, 0, {
+    actions.splice(3, 0, {
       id: "toggle-timeline",
       onClick: studio.toggleTimelineCollapsed,
       srLabel: studio.ui.actions.toggleTimeline,
@@ -279,64 +183,45 @@ export function StudioShellHeader({
   activeRoute: StudioLayoutRoute;
 }) {
   const studio = useStudio();
-  useStudioRenderDiagnostics("StudioShellHeader", {
-    route: activeRoute,
-  });
-  const shortcutPlatform = resolveShortcutPlatform();
+  useStudioRenderDiagnostics("StudioShellHeader", { route: activeRoute });
   const modeItems = buildModeItems(studio, activeRoute);
-  const utilityActions = buildUtilityActions(studio, shortcutPlatform, activeRoute);
-  const isTimelinePlaying = useStudioPlaybackValue((snapshot) => snapshot.isPlaying);
+  const utilityActions = buildUtilityActions(studio, activeRoute);
   const isRecording = Boolean(studio.captureStatusQuery.data?.isRecording);
-  const permissionTone = !studio.permissionsQuery.data
-    ? "neutral"
-    : studio.permissionsQuery.data.screenRecordingGranted
+  const captureMode = activeRoute === "/capture";
+  const permissionState = capturePermissionState(studio.permissionsQuery);
+  const permissionLabel =
+    permissionState === "checking"
+      ? m.ui_capture_permission_checking(undefined, { locale: studio.locale })
+      : permissionState === "failed"
+        ? m.ui_capture_permission_check_failed(undefined, { locale: studio.locale })
+        : permissionState === "unknown"
+          ? m.ui_capture_permission_unknown(undefined, { locale: studio.locale })
+          : permissionState === "granted"
+            ? studio.ui.labels.permissionReady
+            : studio.ui.labels.permissionRequired;
+  const permissionTone =
+    permissionState === "granted"
       ? "live"
-      : "error";
-  const permissionLabel = !studio.permissionsQuery.data
-    ? studio.ui.values.unknown
-    : studio.permissionsQuery.data.screenRecordingGranted
-      ? studio.ui.labels.permissionReady
-      : studio.ui.labels.permissionRequired;
-  const isCaptureActionDisabled = studio.isRunningAction;
-  const activeCaptureSourceLabel =
-    studio.settingsForm.state.values.captureSource === "display"
-      ? studio.ui.labels.display
-      : studio.ui.labels.window;
-  const startConfiguredRecording = () => {
-    studio.toggleRecordingMutation.mutate(
-      resolveConfiguredRecordingOptions(studio.settingsForm.state.values.captureSource),
-    );
+      : permissionState === "denied" || permissionState === "failed"
+        ? "error"
+        : "neutral";
+  const captureBlocked =
+    studio.isRunningAction || permissionState === "checking" || permissionState === "failed";
+  const blocked = studio.isRunningAction || isRecording;
+  const record = (options: {
+    captureSourceOverride: "display" | "window";
+    preferCurrentWindow?: true;
+    preferWindowPicker?: true;
+  }) => {
+    studio.settingsForm.setFieldValue("captureSource", options.captureSourceOverride);
+    studio.toggleRecordingMutation.mutate(options);
   };
-
-  const startDisplayRecording = () => {
-    studio.settingsForm.setFieldValue("captureSource", "display");
-    studio.toggleRecordingMutation.mutate({
-      captureSourceOverride: "display",
-    });
-  };
-
-  const startCurrentWindowRecording = () => {
-    studio.settingsForm.setFieldValue("captureSource", "window");
-    studio.toggleRecordingMutation.mutate({
-      captureSourceOverride: "window",
-      preferCurrentWindow: true,
-    });
-  };
-
-  const startRecordingWithWindowPicker = () => {
-    studio.settingsForm.setFieldValue("captureSource", "window");
-    studio.toggleRecordingMutation.mutate({
-      captureSourceOverride: "window",
-      preferWindowPicker: true,
-    });
-  };
-
   return (
     <header className="gg-shell-header px-4 py-2">
       <TooltipProvider delay={500}>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <div className="flex shrink-0 items-center gap-3">
-            <div className="mr-2 min-w-0 max-w-52">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <div className="min-w-0 max-w-52">
               <h1
                 className="truncate text-sm font-medium"
                 title={studio.projectQuery.data?.projectPath ?? undefined}
@@ -355,255 +240,180 @@ export function StudioShellHeader({
                     : studio.ui.labels.notSaved}
               </p>
             </div>
-            <ButtonGroup className="gg-toolbar-group gap-1 rounded-lg border p-1">
+            <nav className="flex items-center gap-1" aria-label={studio.ui.app.title}>
               {modeItems.map((item) => (
-                <Tooltip key={item.route}>
-                  <TooltipTrigger
-                    render={
-                      <Link
-                        to={item.to}
-                        params={{ locale: activeLocale }}
-                        className={modeIconClass(item.active)}
-                        aria-current={item.active ? "page" : undefined}
-                        onClick={() => studio.setLastRoute(item.route)}
-                      />
-                    }
-                  >
-                    <item.icon
-                      className={`h-3.5 w-3.5 ${studioIconToneClass(item.active ? "selected" : "neutral")}`}
-                    />
-                    <span>{item.label}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{item.label}</TooltipContent>
-                </Tooltip>
-              ))}
-            </ButtonGroup>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5">
-            <ButtonGroup className="gg-capture-button-group gg-toolbar-group gap-1 rounded-lg border p-1">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="icon-sm"
-                      variant="outline"
-                      className={studioButtonToneClass("neutral")}
-                      onClick={studio.toggleTimelinePlayback}
-                      disabled={
-                        !studio.recordingURL ||
-                        studio.timelineDuration <= 0 ||
-                        studio.isRunningAction
-                      }
-                    />
-                  }
+                <Link
+                  key={item.route}
+                  to={item.to}
+                  params={{ locale: activeLocale }}
+                  className={modeIconClass(item.active)}
+                  aria-current={item.active ? "page" : undefined}
+                  onClick={() => studio.setLastRoute(item.route)}
                 >
-                  {isTimelinePlaying ? (
-                    <Pause className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                  ) : (
-                    <Play className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                  )}
-                  <span className="sr-only">{studio.ui.actions.playPause}</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <ShortcutHint
-                    label={studio.ui.actions.playPause}
-                    keys={studioShortcutDisplayTokens("playPause", {
-                      platform: shortcutPlatform,
-                      overrides: studio.shortcutOverrides,
-                      spaceKeyLabel: studio.ui.shortcuts.playPause,
-                    })}
-                  />
-                </TooltipContent>
-              </Tooltip>
-
-              {isRecording ? (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={studioButtonToneClass("record")}
-                        onClick={() => studio.toggleRecordingMutation.mutate(undefined)}
-                        disabled={isCaptureActionDisabled}
-                      />
-                    }
+                  <item.icon className="size-3.5" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {captureMode || isRecording ? (
+              <ButtonGroup>
+                {isRecording ? (
+                  <Button
+                    size="sm"
+                    className={studioButtonToneClass("record")}
+                    disabled={studio.isRunningAction}
+                    onClick={() => studio.toggleRecordingMutation.mutate(undefined)}
                   >
-                    <Video className={`h-4 w-4 ${studioIconToneClass("record")}`} />
-                    <span>{studio.ui.actions.stopRecording}</span>
+                    <Video className="size-4" />
+                    {studio.ui.actions.stopRecording}
                     <span className="gg-numeric">
                       {studio.formatDuration(
                         studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
                       )}
                     </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <ShortcutHint
-                      label={studio.ui.actions.stopRecording}
-                      keys={studioShortcutDisplayTokens("record", {
-                        platform: shortcutPlatform,
-                        overrides: studio.shortcutOverrides,
-                      })}
-                    />
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <DropdownMenu>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={studioButtonToneClass("neutral")}
-                          onClick={startConfiguredRecording}
-                          disabled={isCaptureActionDisabled}
-                          aria-label={`${studio.ui.actions.startRecording} ${activeCaptureSourceLabel}`}
-                        />
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      disabled={captureBlocked}
+                      onClick={() =>
+                        record(
+                          resolveConfiguredRecordingOptions(
+                            studio.settingsForm.state.values.captureSource,
+                          ),
+                        )
                       }
                     >
-                      <Video className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                      <span>{studio.ui.actions.startRecording}</span>
-                      <span className="sr-only">{studio.ui.actions.startRecording}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <ShortcutHint
-                        label={`${studio.ui.actions.startRecording} (${activeCaptureSourceLabel})`}
-                        keys={studioShortcutDisplayTokens("record", {
-                          platform: shortcutPlatform,
-                          overrides: studio.shortcutOverrides,
-                        })}
-                      />
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="outline"
-                        className={studioButtonToneClass("neutral")}
-                        disabled={isCaptureActionDisabled}
-                        aria-label={studio.ui.actions.startRecording}
-                      />
-                    }
-                  >
-                    <ChevronDown className={`h-3 w-3 ${studioIconToneClass("neutral")}`} />
-                    <span className="sr-only">{studio.ui.actions.startRecording}</span>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent align="center" sideOffset={6} className="w-auto min-w-30">
-                    <DropdownMenuItem
-                      onClick={startDisplayRecording}
-                      disabled={isCaptureActionDisabled}
-                    >
-                      {studio.ui.actions.recordDisplay}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={startCurrentWindowRecording}
-                      disabled={isCaptureActionDisabled}
-                    >
-                      {studio.ui.actions.recordCurrentWindow}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={startRecordingWithWindowPicker}
-                      disabled={isCaptureActionDisabled}
-                    >
-                      {studio.ui.actions.recordChooseWindow}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </ButtonGroup>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-end">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Badge
-                    className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass(permissionTone)}`}
-                    variant="outline"
-                  />
-                }
-              >
-                {studio.permissionsQuery.data?.screenRecordingGranted ? (
-                  <ShieldCheck className={`h-3.5 w-3.5 ${studioIconToneClass(permissionTone)}`} />
-                ) : (
-                  <ShieldAlert className={`h-3.5 w-3.5 ${studioIconToneClass(permissionTone)}`} />
+                      <Video className="size-4" />
+                      {studio.ui.actions.startRecording}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            size="icon-sm"
+                            variant="outline"
+                            aria-label={studio.ui.labels.captureSource}
+                            disabled={captureBlocked}
+                          />
+                        }
+                      >
+                        <ChevronDown className="size-3" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={() => record({ captureSourceOverride: "display" })}
+                        >
+                          {studio.ui.actions.recordDisplay}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            record({ captureSourceOverride: "window", preferCurrentWindow: true })
+                          }
+                        >
+                          {studio.ui.actions.recordCurrentWindow}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            record({ captureSourceOverride: "window", preferWindowPicker: true })
+                          }
+                        >
+                          {studio.ui.actions.recordChooseWindow}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
                 )}
-                <span className="sr-only">{permissionLabel}</span>
-              </TooltipTrigger>
-              <TooltipContent>{permissionLabel}</TooltipContent>
-            </Tooltip>
-
-            {studio.inputMonitoringDenied && studio.settingsForm.state.values.trackInputEvents ? (
+              </ButtonGroup>
+            ) : null}
+            {captureMode || isRecording ? (
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Badge
-                      className={`gg-header-icon-badge h-7 w-7 justify-center p-0 ${studioBadgeToneClass("error")}`}
-                      variant="outline"
-                    />
+                    <Badge variant="outline" className={studioBadgeToneClass(permissionTone)} />
                   }
                 >
-                  <AlertTriangle className={`h-3.5 w-3.5 ${studioIconToneClass("error")}`} />
-                  <span className="sr-only">{studio.ui.helper.degradedModeTitle}</span>
+                  <span className="sr-only">{permissionLabel}</span>
+                  {studio.permissionsQuery.isSuccess &&
+                  studio.permissionsQuery.data.screenRecordingGranted ? (
+                    <ShieldCheck className="size-4" />
+                  ) : (
+                    <ShieldAlert className="size-4" />
+                  )}
                 </TooltipTrigger>
-                <TooltipContent>{studio.ui.helper.degradedModeTitle}</TooltipContent>
+                <TooltipContent>{permissionLabel}</TooltipContent>
               </Tooltip>
             ) : null}
-
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={studio.isRunningAction}
-              onClick={() => void studio.openProjectMutation.mutateAsync()}
-            >
-              {studio.ui.actions.openProject}
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label={m.ui_workflow_undo(undefined, { locale: studio.locale })}
-              title={m.ui_workflow_undo(undefined, { locale: studio.locale })}
-              disabled={
-                !studio.canUndoTimeline ||
-                studio.isRunningAction ||
-                Boolean(studio.captureStatusQuery.data?.isRecording)
-              }
-              onClick={studio.undoTimeline}
-            >
-              <Undo2 className="size-4" />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label={m.ui_workflow_redo(undefined, { locale: studio.locale })}
-              title={m.ui_workflow_redo(undefined, { locale: studio.locale })}
-              disabled={
-                !studio.canRedoTimeline ||
-                studio.isRunningAction ||
-                Boolean(studio.captureStatusQuery.data?.isRecording)
-              }
-              onClick={studio.redoTimeline}
-            >
-              <Redo2 className="size-4" />
-            </Button>
+            {!captureMode ? (
+              <>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={m.ui_workflow_undo(undefined, { locale: studio.locale })}
+                  title={m.ui_workflow_undo(undefined, { locale: studio.locale })}
+                  disabled={!studio.canUndoTimeline || blocked}
+                  onClick={studio.undoTimeline}
+                >
+                  <Undo2 className="size-4" />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={m.ui_workflow_redo(undefined, { locale: studio.locale })}
+                  title={m.ui_workflow_redo(undefined, { locale: studio.locale })}
+                  disabled={!studio.canRedoTimeline || blocked}
+                  onClick={studio.redoTimeline}
+                >
+                  <Redo2 className="size-4" />
+                </Button>
+              </>
+            ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
+                {m.ui_workflow_project_files(undefined, { locale: studio.locale })}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={blocked}
+                  onClick={() => void studio.openProjectMutation.mutateAsync()}
+                >
+                  {studio.ui.actions.openProject}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={blocked || !studio.recordingURL}
+                  onClick={() => void studio.saveProjectMutation.mutateAsync(false)}
+                >
+                  {studio.ui.actions.saveProject}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={blocked || !studio.recordingURL}
+                  onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
+                >
+                  {studio.ui.actions.saveProjectAs}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button size="sm" variant="ghost" />}>
+                {m.ui_workflow_view(undefined, { locale: studio.locale })}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {utilityActions.map((action) => (
+                  <DropdownMenuItem
+                    key={action.id}
+                    disabled={action.disabled}
+                    onClick={action.onClick}
+                  >
+                    {action.icon}
+                    {action.srLabel}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <StudioPreferences />
-            {utilityActions.map((action) => (
-              <HeaderIconButton
-                key={action.id}
-                showLabel={action.id === "save" || action.id === "export"}
-                onClick={action.onClick}
-                disabled={action.disabled}
-                title={action.title}
-                srLabel={action.srLabel}
-                tooltip={action.tooltip}
-                icon={action.icon}
-              />
-            ))}
           </div>
         </div>
       </TooltipProvider>

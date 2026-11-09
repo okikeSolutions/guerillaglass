@@ -14,7 +14,7 @@ export const makeExportResultActions = Effect.fn("ExportResultActions.make")(
         const output = yield* Ref.get(completedOutput);
         if (!output) {
           return yield* new PathPickerError({
-            code: "PATH_PICKER_REQUEST_FAILED",
+            code: "EXPORT_RESULT_UNAVAILABLE",
             description: "No completed export is available.",
           });
         }
@@ -24,7 +24,7 @@ export const makeExportResultActions = Effect.fn("ExportResultActions.make")(
           const opened = yield* dependencies.open(output);
           if (!opened) {
             return yield* new PathPickerError({
-              code: "PATH_PICKER_REQUEST_FAILED",
+              code: "EXPORT_RESULT_OPEN_FAILED",
               description: "The exported file could not be opened.",
             });
           }

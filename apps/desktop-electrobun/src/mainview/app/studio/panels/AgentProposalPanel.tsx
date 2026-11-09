@@ -82,6 +82,7 @@ export function AgentProposalReview({
     signature: string;
   } | null>(null);
   const operation = useRef(false);
+  const previewSection = useRef<HTMLElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const current = Boolean(
     validation && validation.text === text && validation.signature === editorSignature && !dirty,
@@ -186,6 +187,12 @@ export function AgentProposalReview({
       ? previous.get(previewId)
       : scenes.get(previewId)?.item
     : undefined;
+  const previewSceneIndex =
+    validation?.baseline.timeline.items.findIndex((item) => item.id === previewId) ?? -1;
+  const previewTitle = previewId
+    ? (scenes.get(previewId)?.title ??
+      m.ui_timeline_scene({ index: previewSceneIndex + 1 }, options))
+    : "";
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
@@ -287,7 +294,13 @@ export function AgentProposalReview({
                 {totalDuration(compileStoryboard(validation.storyboard).timeline.items)} s
               </p>
               {previewItem && renderScenePreview ? (
-                <section className="grid gap-3" aria-label={m.ui_agent_preview(undefined, options)}>
+                <section
+                  ref={previewSection}
+                  tabIndex={-1}
+                  className="grid gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+                  aria-label={`${previewTitle} · ${previewVersion === "before" ? labels.before : labels.after}`}
+                >
+                  <h3 className="font-medium">{`${previewTitle} · ${previewVersion === "before" ? labels.before : labels.after}`}</h3>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -335,7 +348,10 @@ export function AgentProposalReview({
                           .filter(Boolean)
                           .join(", ") || labels.unchanged;
                       return (
-                        <tr key={change.id}>
+                        <tr
+                          key={change.id}
+                          className={previewId === change.id ? "bg-accent/50" : undefined}
+                        >
                           <td className="max-w-64 border-b p-2">
                             <div className="font-medium">{scene?.title ?? change.id}</div>
                             <details>
@@ -346,9 +362,17 @@ export function AgentProposalReview({
                               <Button
                                 variant="outline"
                                 size="sm"
+                                aria-pressed={previewId === change.id}
                                 onClick={() => {
                                   setPreviewId(change.id);
                                   setPreviewVersion(scene ? "after" : "before");
+                                  requestAnimationFrame(() => {
+                                    previewSection.current?.focus();
+                                    previewSection.current?.scrollIntoView({
+                                      block: "nearest",
+                                      behavior: "instant",
+                                    });
+                                  });
                                 }}
                               >
                                 {m.ui_agent_preview(undefined, options)}

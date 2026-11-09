@@ -7,6 +7,8 @@ import App from "../../src/mainview/App";
 import { appRouter } from "../../src/mainview/app/navigation/router";
 
 let backgroundFramingSupported = true;
+let permissionScenario: "granted" | "denied" | "failed" | "pending" = "granted";
+let finishPermissionCheck: (() => void) | undefined;
 
 const captureStatus = {
   isRunning: false,
@@ -32,11 +34,21 @@ function installMockBridge() {
     export: { presets: true, cutPlan: true, backgroundFraming: backgroundFramingSupported },
     project: { openSave: true },
   });
-  windowWithBridge.ggEngineGetPermissions = async () => ({
-    screenRecordingGranted: true,
-    microphoneGranted: true,
-    inputMonitoring: "granted",
-  });
+  windowWithBridge.ggEngineGetPermissions = async () => {
+    if (permissionScenario === "failed") {
+      throw new Error("Engine permission check unavailable");
+    }
+    if (permissionScenario === "pending") {
+      await new Promise<void>((resolve) => {
+        finishPermissionCheck = resolve;
+      });
+    }
+    return {
+      screenRecordingGranted: permissionScenario !== "denied",
+      microphoneGranted: true,
+      inputMonitoring: "granted",
+    };
+  };
   windowWithBridge.ggEngineRequestScreenRecordingPermission = async () => ({ success: true });
   windowWithBridge.ggEngineRequestMicrophonePermission = async () => ({ success: true });
   windowWithBridge.ggEngineRequestInputMonitoringPermission = async () => ({ success: true });
@@ -152,6 +164,8 @@ let root: Root | undefined;
 
 beforeEach(async () => {
   backgroundFramingSupported = true;
+  permissionScenario = "granted";
+  finishPermissionCheck = undefined;
   localStorage.clear();
   installMockBridge();
   document.body.innerHTML = '<div id="root"></div>';
@@ -166,7 +180,95 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+async function remountForPermissions(scenario: typeof permissionScenario) {
+  root?.unmount();
+  permissionScenario = scenario;
+  document.body.innerHTML = '<div id="root"></div>';
+  root = createRoot(document.getElementById("root")!);
+  root.render(<App />);
+  await appRouter.navigate({ to: "/$locale/capture", params: { locale: "en-US" }, replace: true });
+}
+
 describe("studio shell browser smoke", () => {
+  test("permission checking and failure do not show OS-denied instructions, and Retry recovers", async () => {
+    await remountForPermissions("pending");
+    await expect.element(page.getByText("Checking recording permission…").first()).toBeVisible();
+    await expect
+      .element(
+        page.getByText(
+          "Allow Screen Recording in system settings, then refresh. You can still open a saved project.",
+        ),
+      )
+      .not.toBeInTheDocument();
+    await expect.poll(() => typeof finishPermissionCheck).toBe("function");
+    finishPermissionCheck?.();
+    await expect
+      .element(page.getByRole("button", { name: "Start Recording", exact: true }))
+      .toBeEnabled();
+    await remountForPermissions("failed");
+    await expect
+      .element(page.getByText("Could not check recording permission.").first())
+      .toBeVisible();
+    await expect
+      .element(
+        page.getByText(
+          "Allow Screen Recording in system settings, then refresh. You can still open a saved project.",
+        ),
+      )
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Start Recording", exact: true }))
+      .toBeDisabled();
+    permissionScenario = "granted";
+    await page.getByRole("button", { name: "Check permission again", exact: true }).first().click();
+    await expect
+      .element(page.getByRole("button", { name: "Start Recording", exact: true }))
+      .toBeEnabled();
+    await expect
+      .element(page.getByText("Could not check recording permission."))
+      .not.toBeInTheDocument();
+  });
+
+  test("checked denial explains OS permission while capture setup stays visible", async () => {
+    await remountForPermissions("denied");
+    await expect
+      .element(
+        page.getByText(
+          "Allow Screen Recording in system settings, then refresh. You can still open a saved project.",
+        ),
+      )
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("radiogroup", { name: "Capture Source", exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Check permission again" }))
+      .not.toBeInTheDocument();
+  });
+
+  test("route toolbars reserve recording for Capture and group utilities under View", async () => {
+    await expect
+      .element(page.getByRole("button", { name: "Start Recording", exact: true }))
+      .toBeVisible();
+    await page.getByRole("link", { name: "Edit", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Start Recording", exact: true }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Open Project", exact: true }))
+      .toBeVisible();
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    await expect
+      .element(page.getByRole("menuitem", { name: "Reset Layout", exact: true }))
+      .toBeVisible();
+    await page.getByRole("menuitem", { name: "Reset Layout", exact: true }).click();
+    await page.getByRole("link", { name: "Deliver", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Start Recording", exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: "Export", exact: true })).toBeVisible();
+  });
+
   test("background framing controls update the real preview stage", async () => {
     await expect.element(page.getByTestId("background-framing-stage")).toBeVisible();
     const framingToggle = page.getByRole("checkbox", { name: "Background framing" });

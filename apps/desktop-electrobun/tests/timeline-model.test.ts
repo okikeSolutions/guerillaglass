@@ -81,8 +81,12 @@ describe("timeline model", () => {
       hasCameraOverride: false,
       waveform: null,
     });
-    expect(lanes[1]?.clips[0]?.id).toBe("segment-0");
-    expect(lanes[1]?.clips[0]?.waveform).toBeNull();
+    expect(lanes[1]?.clips).toEqual([]);
+    const audio = lanes.find((lane) => lane.id === "audio");
+    if (!audio || audio.id === "events") {
+      throw new Error("Audio lane missing");
+    }
+    expect(audio.audioStatus).toBe("unavailable");
     expect(lanes[2]?.markers.length).toBe(1);
   });
 
@@ -102,8 +106,8 @@ describe("timeline model", () => {
         timeline,
         events: [],
         audioWaveform: { ...decoded, source: "events" },
-      })[1]?.clips[0]?.waveform,
-    ).toBeNull();
+      })[1]?.clips,
+    ).toEqual([]);
   });
 
   test("scene camera indicators reflect explicit overrides, including static overrides", () => {

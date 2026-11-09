@@ -1,3 +1,4 @@
+import type { SourceAudioStatus } from "./sourceAudioPresentation";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import type {
   InputEvent,
@@ -62,6 +63,7 @@ export type TimelineEventMarker = {
 export type TimelineLane =
   | {
       id: "video" | "audio";
+      audioStatus?: SourceAudioStatus;
       label: string;
       clips: TimelineClip[];
       markers: [];
@@ -390,6 +392,7 @@ export function buildTimelineLanes(params: {
   timeline: TimelineDocument;
   events: InputEvent[];
   audioWaveform?: TimelineWaveform | null;
+  audioStatus?: SourceAudioStatus;
   labels?: TimelineLaneLabels;
 }): TimelineLane[] {
   const compiledSegments = compileTimelineSegments(params.timeline);
@@ -435,7 +438,8 @@ export function buildTimelineLanes(params: {
     {
       id: "audio",
       label: labels.audio,
-      clips: compiledItems.map((item) =>
+      audioStatus: params.audioStatus ?? (fallbackWaveform ? "decoded" : "unavailable"),
+      clips: (fallbackWaveform ? compiledItems : []).map((item) =>
         item.kind === "gap"
           ? {
               id: item.id,

@@ -81,6 +81,8 @@ export function InspectorSliderField({
   max,
   step,
   onValueChange,
+  onValueChangeStart,
+  onValueCommitted,
   className,
 }: {
   icon?: ReactNode;
@@ -91,6 +93,8 @@ export function InspectorSliderField({
   max: number;
   step?: number;
   onValueChange: (value: number) => void;
+  onValueChangeStart?: () => void;
+  onValueCommitted?: () => void;
   className?: string;
 }) {
   return (
@@ -111,7 +115,11 @@ export function InspectorSliderField({
             max={max}
             step={step}
             value={[value]}
-            onValueChange={(nextValue) => onValueChange(readSliderValue(nextValue))}
+            onValueChange={(nextValue) => {
+              onValueChangeStart?.();
+              onValueChange(readSliderValue(nextValue));
+            }}
+            onValueCommitted={onValueCommitted}
           />
         </FieldContent>
       </Field>

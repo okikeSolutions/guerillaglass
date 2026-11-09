@@ -22,7 +22,7 @@ export function EditRoute() {
       }
       centerPane={
         <StudioPane side="center">
-          <StudioPaneHeader>
+          <StudioPaneHeader className="flex flex-row items-center justify-between gap-3">
             <StudioPaneTitle>{studio.ui.workspace.editStageTitle}</StudioPaneTitle>
             <AgentProposalPanel />
           </StudioPaneHeader>

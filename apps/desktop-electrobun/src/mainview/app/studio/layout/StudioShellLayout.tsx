@@ -1,3 +1,4 @@
+import { ReplacementConfirmation } from "./ReplacementConfirmation";
 import { Button } from "@guerillaglass/ui/components/button";
 import * as m from "../../../../paraglide/messages.js";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -65,6 +66,7 @@ export function StudioShellLayout() {
         className="gg-shell-frame flex h-full w-full flex-col overflow-hidden"
         data-density={studio.densityMode}
       >
+        <ReplacementConfirmation />
         <StudioShellHeader activeLocale={activeLocale} activeRoute={activeRoute} />
         <StudioTechnicalFeedbackStrip />
 

@@ -130,10 +130,12 @@ export function SelectionDetailsTimelineClip({
             </ul>
           ) : (
             <p className="text-muted-foreground">
-              {m.ui_workflow_camera_none(undefined, { locale: studio.locale })}
+              {camera !== undefined
+                ? m.ui_workflow_camera_static(undefined, { locale: studio.locale })
+                : m.ui_workflow_camera_none(undefined, { locale: studio.locale })}
             </p>
           )}
-          {camera?.length ? (
+          {camera !== undefined ? (
             <Button size="sm" variant="outline" onClick={() => studio.resetSelectedSceneCamera()}>
               {m.ui_workflow_reset_scene_camera(undefined, { locale: studio.locale })}
             </Button>

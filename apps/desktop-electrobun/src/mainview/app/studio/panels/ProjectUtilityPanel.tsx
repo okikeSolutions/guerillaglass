@@ -1,9 +1,8 @@
 import { useEffect, useRef } from "react";
 import * as m from "../../../../paraglide/messages.js";
 import { formatCaptureTargetLabelFromMetadata } from "../view-model/captureTargetLabelFormatter";
-import { FolderClock, FolderOpen, Save } from "lucide-react";
+import { FolderClock, FolderOpen } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
-import { ButtonGroup } from "@guerillaglass/ui/components/button-group";
 import { DesktopPanelCard, DesktopPanelDetailRows } from "@guerillaglass/ui/desktop/panel-detail";
 import { DesktopPanelSection } from "@guerillaglass/ui/desktop/panel-section";
 import {
@@ -105,33 +104,6 @@ export function ProjectUtilityPanel() {
               },
             ]}
           />
-
-          <ButtonGroup className="flex-wrap gap-1.5 pt-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void studio.openProjectMutation.mutateAsync()}
-              disabled={studio.isRunningAction}
-            >
-              <FolderOpen className="mr-2 h-4 w-4" /> {studio.ui.actions.openProject}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void studio.saveProjectMutation.mutateAsync(false)}
-              disabled={studio.isRunningAction || !studio.recordingURL}
-            >
-              <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProject}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void studio.saveProjectMutation.mutateAsync(true)}
-              disabled={studio.isRunningAction || !studio.recordingURL}
-            >
-              <Save className="mr-2 h-4 w-4" /> {studio.ui.actions.saveProjectAs}
-            </Button>
-          </ButtonGroup>
         </div>
         <DesktopPanelSection title={studio.ui.inspectorTabs.advanced}>
           <DesktopPanelDetailRows

@@ -43,7 +43,11 @@ afterEach(async () => {
 });
 
 async function mount(
-  options: { dirty?: boolean; validate?: () => Promise<EditProposalBaseline> } = {},
+  options: {
+    dirty?: boolean;
+    validate?: () => Promise<EditProposalBaseline>;
+    preview?: boolean;
+  } = {},
 ) {
   setLocale("en-US", { reload: false });
   const container = document.createElement("div");
@@ -58,6 +62,7 @@ async function mount(
     editorSignature: "initial",
     validate,
     apply,
+    ...(options.preview ? { renderScenePreview: () => <div>Isolated preview fixture</div> } : {}),
   };
   await act(async () => root?.render(<AgentProposalReview {...props} />));
   await page.getByRole("button", { name: "Agent proposal", exact: true }).click();
@@ -138,4 +143,19 @@ test("unsaved edits block proposal validation", async () => {
     .element(page.getByRole("button", { name: "Validate proposal", exact: true }))
     .toBeDisabled();
   expect(validate).not.toHaveBeenCalled();
+});
+
+test("scene preview names the selected scene and version and receives keyboard focus", async () => {
+  await mount({ preview: true });
+  await page.getByRole("button", { name: "Validate proposal", exact: true }).click();
+  await page.getByRole("button", { name: "Preview scene", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Result · Proposed", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Preview scene", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() => document.activeElement?.getAttribute("aria-label"))
+    .toBe("Result · Proposed");
 });

@@ -75,7 +75,7 @@ export const layerProjectSession = Layer.effect(
           try: () => Utils.openPath(path),
           catch: (cause) =>
             new PathPickerError({
-              code: "PATH_PICKER_REQUEST_FAILED",
+              code: "EXPORT_RESULT_OPEN_FAILED",
               description: "Unable to open the exported file.",
               cause,
             }),
@@ -87,7 +87,7 @@ export const layerProjectSession = Layer.effect(
           },
           catch: (cause) =>
             new PathPickerError({
-              code: "PATH_PICKER_REQUEST_FAILED",
+              code: "EXPORT_RESULT_REVEAL_FAILED",
               description: "Unable to reveal the exported file.",
               cause,
             }),
@@ -202,7 +202,7 @@ export const layerProjectSession = Layer.effect(
                   }),
                 catch: (error) =>
                   new PathPickerError({
-                    code: "PATH_PICKER_OPEN_DIALOG_FAILED",
+                    code: "PATH_PICKER_OVERWRITE_FAILED",
                     description: "Overwrite confirmation failed.",
                     cause: error,
                   }),
@@ -250,7 +250,8 @@ export const layerProjectSession = Layer.effect(
             cause instanceof PathPickerError
               ? cause
               : new PathPickerError({
-                  code: "PATH_PICKER_REQUEST_FAILED",
+                  code:
+                    action === "open" ? "EXPORT_RESULT_OPEN_FAILED" : "EXPORT_RESULT_REVEAL_FAILED",
                   description: "Unable to open the exported file.",
                   cause,
                 }),

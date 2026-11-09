@@ -60,6 +60,8 @@ type MoveTimelineClipDropParams =
   | { clipId: string; destinationGapId: string; destinationOffsetSeconds: number };
 
 type TimelineSurfaceProps = {
+  audioStatusText?: string;
+  audioScopeText?: string;
   mediaSource?: string | null;
   durationSeconds: number;
   playheadSeconds: number;
@@ -118,6 +120,8 @@ type TimelineClipDropTarget =
 type TrimDragMode = Exclude<DragMode, "playhead">;
 
 type TimelineLanesLayerProps = {
+  audioStatusText?: string;
+  audioScopeText?: string;
   thumbnails: ReadonlyMap<string, string>;
   durationSeconds: number;
   lanes: TimelineLane[];
@@ -787,6 +791,8 @@ function TimelineOverlay({
 }
 
 const TimelineLanesLayer = memo(function TimelineLanesLayer({
+  audioStatusText,
+  audioScopeText,
   thumbnails,
   durationSeconds,
   lanes,
@@ -819,7 +825,13 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
       {lanes.map((lane) => (
         <div key={lane.id} className="gg-timeline-lane-row">
           <div className="gg-timeline-lane-label-group">
-            <div className="gg-timeline-lane-label">{lane.label}</div>
+            <div
+              className="gg-timeline-lane-label"
+              title={lane.id === "audio" ? audioScopeText : undefined}
+            >
+              {lane.label}
+              {lane.id === "audio" ? <span className="sr-only">{audioScopeText}</span> : null}
+            </div>
             {lane.id === "video" || lane.id === "audio" ? (
               <div className="gg-timeline-lane-controls">
                 {laneControlDefinitions.map((definition) => {
@@ -855,6 +867,14 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
             ) : null}
           </div>
           <div className={`gg-timeline-lane-track${getLaneTrackClass(lane.id, laneControls)}`}>
+            {lane.id === "audio" && lane.clips.length === 0 ? (
+              <div
+                className="flex h-full items-center px-3 text-xs text-muted-foreground"
+                role="status"
+              >
+                {audioStatusText}
+              </div>
+            ) : null}
             {lane.id === "video" || lane.id === "audio"
               ? lane.clips.map((clip) => {
                   const left = toPercent(clip.startSeconds, durationSeconds);
@@ -1141,6 +1161,8 @@ function TimelineClipDropAffordance({
 }
 
 export function TimelineSurface({
+  audioStatusText,
+  audioScopeText,
   mediaSource = null,
   durationSeconds,
   playheadSeconds,
@@ -1267,6 +1289,8 @@ export function TimelineSurface({
             onPointerCancel={onSurfacePointerCancel}
           >
             <TimelineLanesLayer
+              audioStatusText={audioStatusText}
+              audioScopeText={audioScopeText}
               thumbnails={thumbnails}
               durationSeconds={durationSeconds}
               lanes={lanes}

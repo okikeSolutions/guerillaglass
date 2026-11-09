@@ -1,5 +1,6 @@
+import type { ReplacementKind } from "../useReplacementConfirmation";
 import * as m from "../../../../../paraglide/messages.js";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
@@ -121,6 +122,8 @@ type UseStudioActionsOptions = {
   recordingURL: string | null;
   timelineDocument: TimelineDocument;
   hasUnsavedProjectEdits?: boolean;
+  requestReplacementConfirmation: (kind: ReplacementKind) => Promise<boolean>;
+  onProjectOpened?: () => void;
   onProjectSaved?: (project: ProjectState) => void;
   onRecordingStarted?: () => void;
   selectedPreset: ExportPreset | undefined;
@@ -167,6 +170,8 @@ export function useStudioMutations({
   recordingURL,
   timelineDocument,
   hasUnsavedProjectEdits = false,
+  requestReplacementConfirmation,
+  onProjectOpened,
   onProjectSaved,
   onRecordingStarted,
   selectedPreset,
@@ -183,8 +188,23 @@ export function useStudioMutations({
   eventsQuery,
 }: UseStudioActionsOptions) {
   const confirmReplacement = useCallback(
-    () => !hasUnsavedProjectEdits || window.confirm(m.ui_safety_discard(undefined, { locale })),
-    [hasUnsavedProjectEdits, locale],
+    async (kind: ReplacementKind) => {
+      if (queryClient.isMutating() > 1) {
+        return false;
+      }
+      const existingWork = Boolean(recordingURL || projectQuery.data?.projectPath);
+      if (!hasUnsavedProjectEdits || (kind === "recording" && !existingWork)) {
+        return true;
+      }
+      return await requestReplacementConfirmation(kind);
+    },
+    [
+      hasUnsavedProjectEdits,
+      recordingURL,
+      projectQuery.data?.projectPath,
+      queryClient,
+      requestReplacementConfirmation,
+    ],
   );
 
   const reconcileSourcesAndSelection = useCallback(
@@ -450,107 +470,151 @@ export function useStudioMutations({
     },
   });
 
+  const recordingTransitionActive = useRef(false);
   const toggleRecordingMutation = useMutation({
     mutationFn: async (options?: ToggleRecordingOptions) => {
-      let status = captureStatusQuery.data;
-      if (!status?.isRecording && !confirmReplacement()) {
+      if (recordingTransitionActive.current) {
         return null;
       }
-      if (!status?.isRunning) {
-        status = await startCaptureInternal({
-          captureSourceOverride: options?.captureSourceOverride,
-          preferWindowPicker:
-            options?.preferWindowPicker ??
-            (settingsForm.getValues().captureSource === "window" && selectedWindowId === 0),
-          preferCurrentWindow: options?.preferCurrentWindow,
-        });
-      }
-
-      if (status?.isRecording) {
-        const recordingStopStatus = await engineApi.stopRecording();
-        const stoppedStatus = mergeFinishedCaptureStatus(
-          await engineApi.stopCapture(),
-          recordingStopStatus,
-        );
-        return {
-          nextStatus: stoppedStatus,
-          recordingStopStatus,
-          finished: true,
+      recordingTransitionActive.current = true;
+      try {
+        let status = captureStatusQuery.data;
+        if (!status?.isRecording && !(await confirmReplacement("recording"))) {
+          recordingTransitionActive.current = false;
+          return null;
+        }
+        const visualSettings = {
+          autoZoom: settingsForm.getValues().autoZoom,
+          backgroundFraming: settingsForm.getValues().backgroundFraming,
         };
+        if (!status?.isRunning) {
+          status = await startCaptureInternal({
+            captureSourceOverride: options?.captureSourceOverride,
+            preferWindowPicker:
+              options?.preferWindowPicker ??
+              (settingsForm.getValues().captureSource === "window" && selectedWindowId === 0),
+            preferCurrentWindow: options?.preferCurrentWindow,
+          });
+        }
+        if (status?.isRecording) {
+          const recordingStopStatus = await engineApi.stopRecording();
+          // The take is finished even if stopping the live preview fails.
+          queryClient.setQueryData(studioQueryKeys.captureStatus(), recordingStopStatus);
+          let stoppedStatus = recordingStopStatus;
+          let previewStopFailed = false;
+          try {
+            stoppedStatus = mergeFinishedCaptureStatus(
+              await engineApi.stopCapture(),
+              recordingStopStatus,
+            );
+          } catch {
+            previewStopFailed = true;
+          }
+          return {
+            nextStatus: stoppedStatus,
+            recordingStopStatus,
+            finished: true as const,
+            visualSettings,
+            previewStopFailed,
+          };
+        }
+        const recordingStatus = await engineApi.startRecording(
+          settingsForm.getValues().trackInputEvents,
+        );
+        return { nextStatus: recordingStatus, finished: false as const, visualSettings };
+      } catch (error) {
+        recordingTransitionActive.current = false;
+        throw error;
       }
-
-      const recordingStatus = await engineApi.startRecording(
-        settingsForm.getValues().trackInputEvents,
-      );
-      return {
-        nextStatus: recordingStatus,
-        finished: false,
-      };
     },
     onSuccess: async (data) => {
       if (!data) {
         return;
       }
-      const { nextStatus, recordingStopStatus, finished } = data;
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-      await syncCaptureStatus({ expectRunning: !finished });
-
-      if (finished) {
-        const refreshedProject = await engineApi.projectCurrent().catch(() => null);
-        const completedRecordingTelemetry = resolveCompletedRecordingTelemetry(
-          recordingStopStatus ?? nextStatus,
-          refreshedProject,
-        );
-        queryClient.setQueryData(
-          studioQueryKeys.projectCurrent(),
-          refreshedProject ??
-            ((current: ProjectState | undefined) => {
-              if (!current) {
-                return current;
-              }
-              return {
-                ...current,
-                recordingURL: nextStatus.recordingURL,
-                eventsURL: nextStatus.eventsURL,
-                captureMetadata: nextStatus.captureMetadata,
-                lastRecordingTelemetry: completedRecordingTelemetry,
-              };
-            }),
-        );
-        setTimelinePlayback(false);
-        clearInspectorSelection();
-        setNotice(
-          completedRecordingTelemetry
-            ? null
-            : { kind: "success", message: ui.notices.recordingFinished },
-        );
-        return;
-      }
-
-      // Drop the previous project immediately, even if refreshing the native
-      // project fails after recording has already started.
-      queryClient.setQueryData<ProjectState>(studioQueryKeys.projectCurrent(), {
-        ...(nextStatus.recordingURL ? { recordingURL: nextStatus.recordingURL } : {}),
-        ...(nextStatus.eventsURL ? { eventsURL: nextStatus.eventsURL } : {}),
-        ...(nextStatus.captureMetadata ? { captureMetadata: nextStatus.captureMetadata } : {}),
-        autoZoom: settingsForm.getValues().autoZoom,
-        backgroundFraming: settingsForm.getValues().backgroundFraming,
-        timeline: { version: 2, items: [] },
-      });
-      onRecordingStarted?.();
-      clearInspectorSelection();
-      setTimelinePlayback(false);
-      exportForm.setRangeMode("full");
-      exportForm.setTrimStartSeconds(0);
-      exportForm.setTrimEndSeconds(0);
-      resetPlayhead();
-      const newProject = await engineApi.projectCurrent();
-      queryClient.setQueryData(studioQueryKeys.projectCurrent(), newProject);
-
-      if (settingsForm.getValues().trackInputEvents && inputMonitoringDenied) {
-        setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
-      } else {
-        setNotice({ kind: "success", message: ui.notices.recordingStarted });
+      try {
+        const { nextStatus, finished, visualSettings } = data;
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
+        // The successful native result establishes new ownership. Commit it
+        // before any status/project reconciliation can fail or block.
+        if (!finished) {
+          queryClient.setQueryData<ProjectState>(studioQueryKeys.projectCurrent(), {
+            ...(nextStatus.recordingURL ? { recordingURL: nextStatus.recordingURL } : {}),
+            ...(nextStatus.eventsURL ? { eventsURL: nextStatus.eventsURL } : {}),
+            ...(nextStatus.captureMetadata ? { captureMetadata: nextStatus.captureMetadata } : {}),
+            ...visualSettings,
+            timeline: { version: 2, items: [] },
+          });
+          onRecordingStarted?.();
+          clearInspectorSelection();
+          setTimelinePlayback(false);
+          exportForm.setRangeMode("full");
+          exportForm.setTrimStartSeconds(0);
+          exportForm.setTrimEndSeconds(0);
+          resetPlayhead();
+        }
+        const [statusRefresh, projectRefresh] = await Promise.allSettled([
+          syncCaptureStatus({ expectRunning: !finished }),
+          engineApi.projectCurrent(),
+        ]);
+        const refreshedProject =
+          projectRefresh.status === "fulfilled"
+            ? { ...projectRefresh.value, ...visualSettings }
+            : null;
+        if (refreshedProject) {
+          queryClient.setQueryData(studioQueryKeys.projectCurrent(), refreshedProject);
+        }
+        if (finished) {
+          const completedRecordingTelemetry = resolveCompletedRecordingTelemetry(
+            data.recordingStopStatus ?? nextStatus,
+            refreshedProject,
+          );
+          if (!refreshedProject) {
+            queryClient.setQueryData(
+              studioQueryKeys.projectCurrent(),
+              (current: ProjectState | undefined) =>
+                current
+                  ? {
+                      ...current,
+                      ...visualSettings,
+                      recordingURL: nextStatus.recordingURL,
+                      eventsURL: nextStatus.eventsURL,
+                      captureMetadata: nextStatus.captureMetadata,
+                      lastRecordingTelemetry: completedRecordingTelemetry,
+                    }
+                  : current,
+            );
+          }
+          setTimelinePlayback(false);
+          clearInspectorSelection();
+          setNotice(
+            data.previewStopFailed
+              ? {
+                  kind: "info",
+                  message: m.ui_capture_finished_preview_failed(undefined, { locale }),
+                }
+              : statusRefresh.status === "rejected" || projectRefresh.status === "rejected"
+                ? {
+                    kind: "info",
+                    message: m.ui_capture_finished_refresh_failed(undefined, { locale }),
+                  }
+                : completedRecordingTelemetry
+                  ? null
+                  : { kind: "success", message: ui.notices.recordingFinished },
+          );
+          return;
+        }
+        if (statusRefresh.status === "rejected" || projectRefresh.status === "rejected") {
+          setNotice({
+            kind: "info",
+            message: m.ui_capture_started_refresh_failed(undefined, { locale }),
+          });
+        } else if (settingsForm.getValues().trackInputEvents && inputMonitoringDenied) {
+          setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
+        } else {
+          setNotice({ kind: "success", message: ui.notices.recordingStarted });
+        }
+      } finally {
+        recordingTransitionActive.current = false;
       }
     },
     onError: (error) => {
@@ -560,13 +624,15 @@ export function useStudioMutations({
 
   const openProjectAtPath = useCallback(async (projectPath: string) => {
     const nextProject = await engineApi.projectOpen(projectPath);
-    const nextStatus = await engineApi.captureStatus();
+    // Project Open already committed. A failed status poll must not hide that
+    // authoritative document or leave the replaced draft attached to it.
+    const nextStatus = await engineApi.captureStatus().catch(() => null);
     return { nextProject, nextStatus };
   }, []);
 
   const openProjectMutation = useMutation({
     mutationFn: async () => {
-      if (!confirmReplacement()) {
+      if (!(await confirmReplacement("project"))) {
         return null;
       }
       const pickedPath = await pickPathSafely({
@@ -582,13 +648,28 @@ export function useStudioMutations({
       if (!data) {
         return;
       }
+      onProjectOpened?.();
+      exportForm.setRangeMode("full");
+      exportForm.setTrimStartSeconds(0);
+      exportForm.setTrimEndSeconds(0);
+      setTimelinePlayback(false);
+      resetPlayhead();
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      if (data.nextStatus) {
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      } else {
+        void queryClient.invalidateQueries({ queryKey: studioQueryKeys.captureStatus() });
+      }
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
       clearInspectorSelection();
-      setNotice({ kind: "success", message: ui.notices.projectOpened });
+      setNotice({
+        kind: data.nextStatus ? "success" : "info",
+        message: data.nextStatus
+          ? ui.notices.projectOpened
+          : m.ui_project_opened_status_unavailable(undefined, { locale }),
+      });
     },
     onError: (error) => {
       setNotice({ kind: "error", message: mapActionErrorMessage(error) });
@@ -597,7 +678,7 @@ export function useStudioMutations({
 
   const openRecentProjectMutation = useMutation({
     mutationFn: async (projectPath: string) => {
-      if (!confirmReplacement()) {
+      if (!(await confirmReplacement("project"))) {
         return null;
       }
       // Recent metadata is not filesystem authority. A native picker must grant
@@ -609,13 +690,28 @@ export function useStudioMutations({
       if (!data) {
         return;
       }
+      onProjectOpened?.();
+      exportForm.setRangeMode("full");
+      exportForm.setTrimStartSeconds(0);
+      exportForm.setTrimEndSeconds(0);
+      setTimelinePlayback(false);
+      resetPlayhead();
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      if (data.nextStatus) {
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      } else {
+        void queryClient.invalidateQueries({ queryKey: studioQueryKeys.captureStatus() });
+      }
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
       clearInspectorSelection();
-      setNotice({ kind: "success", message: ui.notices.projectOpened });
+      setNotice({
+        kind: data.nextStatus ? "success" : "info",
+        message: data.nextStatus
+          ? ui.notices.projectOpened
+          : m.ui_project_opened_status_unavailable(undefined, { locale }),
+      });
     },
     onError: (error) => {
       setNotice({ kind: "error", message: mapActionErrorMessage(error) });

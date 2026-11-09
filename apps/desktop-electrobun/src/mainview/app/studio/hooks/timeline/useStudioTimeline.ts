@@ -71,6 +71,7 @@ type UseStudioTimelineOptions = {
   activeMode: "capture" | "edit" | "deliver";
   recordingURL: string | null;
   recordingDurationSeconds: number;
+  embeddedAudioTrackCount?: number | null;
   timelineDocument: TimelineDocument;
   timelineFrameRate?: number;
   timelineEvents: InputEvent[];
@@ -85,6 +86,7 @@ export function useStudioTimeline({
   activeMode,
   recordingURL,
   recordingDurationSeconds,
+  embeddedAudioTrackCount,
   timelineDocument,
   timelineFrameRate = defaultTimelineFrameRate,
   timelineEvents,
@@ -129,7 +131,8 @@ export function useStudioTimeline({
     }
     return Math.max(recordingDurationSeconds, 0);
   }, [recordingDurationSeconds, recordingURL]);
-  const audioWaveform = useTimelineWaveform({
+  const sourceAudioPresentation = useTimelineWaveform({
+    embeddedAudioTrackCount,
     recordingURL,
     recordingDurationSeconds: sourceRecordingDurationSeconds,
     timelineEvents,
@@ -139,10 +142,17 @@ export function useStudioTimeline({
       buildTimelineLanes({
         timeline: timelineDocument,
         events: timelineEvents,
-        audioWaveform,
+        audioWaveform: sourceAudioPresentation.waveform,
+        audioStatus: sourceAudioPresentation.status,
         labels: laneLabels,
       }),
-    [audioWaveform, laneLabels, timelineDocument, timelineEvents],
+    [
+      sourceAudioPresentation.waveform,
+      sourceAudioPresentation.status,
+      laneLabels,
+      timelineDocument,
+      timelineEvents,
+    ],
   );
 
   useEffect(() => {
@@ -325,6 +335,7 @@ export function useStudioTimeline({
   }, [playbackTransport, setTimelinePlaybackActive]);
 
   return {
+    sourceAudioPresentation,
     audioMixer,
     playbackStore: playbackTransport,
     nudgePlayheadSeconds,

@@ -26,16 +26,21 @@ Native active recording, granted-source picking, VoiceOver, smaller native windo
 
 ## Implementation pass, 2026-11-08 and 2026-11-09
 
-The current pass implements the [research direction](UI_IMPROVEMENT_RESEARCH.md). The [implementation evidence](UI_IMPLEMENTATION_EVIDENCE.md) records current fixes, packaged/browser proof and remaining acceptance limits for every ID. Findings are Ready for verification where implementation has matching evidence. The final pass added complete visual-setting history and explicit native quit protection. Remaining acceptance limits stay visible in the proof matrix. No finding is Verified solely because its source changed or a test passed. The final three-reviewer gate remains pending.
+The current pass implements the [research direction](UI_IMPROVEMENT_RESEARCH.md). The [implementation evidence](UI_IMPLEMENTATION_EVIDENCE.md) records current fixes, packaged/browser proof and remaining acceptance limits for every ID. Findings are Ready for verification where implementation has matching evidence. The follow-up includes gesture-grouped visual history, asynchronous application replacement confirmation, successful-open session reset and explicit native quit protection. Remaining acceptance limits stay visible in the proof matrix. No finding is Verified solely because its source changed or a test passed. Fresh independent frozen reviews must meet the user's strictly-greater-than-9.5 threshold before PR preparation.
 
 - Desktop work includes visible workflow/actions and project state, timeline Undo/Redo, replacement protection, truthful audio presentation, shared ruler/track geometry, scene/camera inspection, isolated proposal preview, consolidated output configuration and explicit export ranges.
 - The website now renders independently of hosted auth, uses static contrast-safe styling, exposes honest source-build actions, removes unshipped paid claims, and uses accessible native navigation/FAQ controls. Its exported example uses browser source, not proof of native capture permissions.
-- Three initial independent reviews scored the moving implementation 6.8, 7.0 and 7.1 out of 10. All failed the user's strictly-greater-than-9.5 PR gate. Their findings are being fixed. Final ratings must identify a frozen source revision and its verification evidence; no PR is prepared before all three pass.
+- The first frozen commit `0131236` failed all three ratings: [correctness 8.7](audits/2026-11-09-ui-correctness-review.md), [standards 9.0](audits/2026-11-09-ui-standards-review.md), [product 8.4](audits/2026-11-09-ui-product-review.md). Follow-up fixes cover successful-open session reset, recording reconciliation, static camera overrides, permission failures, localized host errors, truthful audio states, external preview controls and task-specific toolbar priorities. These changes require a new frozen review; the scores above do not authorize a PR.
+- Three initial independent reviews scored the moving implementation 6.8, 7.0 and 7.1 out of 10. All failed the user's strictly-greater-than-9.5 PR gate. Their ratings remain historical failures. Each subsequent rating must identify a frozen source revision and its verification evidence; PR preparation requires all three to pass.
 - Native testing exposed an additional UI-019 data-safety blocker: Save As of a reopened project omitted its source assets. The fix also protects in-place Save and preflights missing sidecars before replacing destination files. Closing UI-019 requires native reopen/export proof, not just the new filename panel.
 - Recent-project metadata does not grant filesystem access. Opening a recent package now requests a native picker grant for that host session instead of failing after the click or silently expanding authority.
 - Saving an empty timeline is blocked because the existing persisted/native legacy format interprets an empty timeline as full source. Undo restores the draft. Export rejects empty and invalid ranges before opening the destination picker.
+- Native same-package replacement is now proven through the real application dialog and native picker. Escape retains the unsaved Auto zoom change; explicit Discard and native Open of the same package restores saved settings, disabled Undo and Full program range 0..12. Cancelled picker selection preserves the draft by design.
+- Native fullscreen includes the camera and external controls; preview-only volume/mute survive Edit/Deliver while Saved remains true. The silent demo shows a known No audio state. This does not certify audible native playback.
+- The 1100x760 native Deliver state shows all three lanes and its Export footer. Edit Events-lane wheel scrolling was not established, so UI-023 retains that manual check and the broader pane/height matrix.
+- Integrated follow-up checks record 103 browser acceptance tests and runtime proof plus 159 focused unit tests. Finding status remains Ready for verification; these counts do not replace each acceptance limit.
 
-Validation, screenshots, render receipts and final review records will be reconciled here before PR preparation. Active native capture remains limited by the engine app's missing Screen Recording permission; the Peekaboo GUI bridge has its own granted observation/input permissions.
+The implementation evidence records validation, screenshots, render receipts and historical reviews; fresh frozen review reports must be added before PR preparation. Active native capture remains limited by the engine app's missing Screen Recording permission; the Peekaboo GUI bridge has its own granted observation/input permissions.
 
 ## Findings index
 
@@ -110,7 +115,7 @@ Native + source. Source: [StudioShellHeader.tsx:85](../apps/desktop-electrobun/s
 
 **Acceptance:** A first-time user can identify the current step and reach the next one without hovering.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-002"></a>
 
@@ -126,7 +131,7 @@ Native + source. Source: [StudioShellHeader.tsx:287](../apps/desktop-electrobun/
 
 **Acceptance:** Source selection does not start recording; Record and Stop have explicit visible labels and distinct states.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-003"></a>
 
@@ -142,7 +147,7 @@ Native + source. Source: [studioLayoutModel.ts:113](../apps/desktop-electrobun/s
 
 **Acceptance:** Fresh launch and Reset Layout expose source setup or Record/Open actions. A collapsed pane has a labeled restore affordance at its edge.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-004"></a>
 
@@ -158,7 +163,7 @@ Native + source. Source: [StudioShellHeader.tsx:491](../apps/desktop-electrobun/
 
 **Acceptance:** Badge, source list and permission panel agree; screen-reader text matches the visible state; failed checks offer Retry without pretending a permission decision occurred.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-005"></a>
 
@@ -174,7 +179,7 @@ Native + source. Source: [en-US.json:39](../messages/en-US.json). Screenshot: [d
 
 **Acceptance:** Every empty state offers a working action; saved-project copy describes editing; no production UI says type-safe, validation-ready, scaffold or native engine.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-006"></a>
 
@@ -190,7 +195,7 @@ Source; identity also native. Source: [useStudioMutations.ts:536](../apps/deskto
 
 **Acceptance:** Modify a clip or visual setting, then open another project or quit. Save preserves the edit, Discard is explicit, Cancel keeps the current workspace. Opening is tested separately from overwriting a destination.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-007"></a>
 
@@ -206,7 +211,7 @@ Source. Source: [useStudioController.ts:365](../apps/desktop-electrobun/src/main
 
 **Acceptance:** Split, move, lift, delete and effect changes can each be undone and redone with matching preview and persisted output. Disabled history actions accurately reflect availability.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-008"></a>
 
@@ -222,7 +227,7 @@ Native control inspection + source trace. Source: [useStudioTimeline.ts:99](../a
 
 **Acceptance:** An audible fixture proves each supported gain/mute/solo operation in preview and exported audio after reopening. Unsupported controls cannot appear functional.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-009"></a>
 
@@ -238,7 +243,7 @@ Source. Source: [useTimelineWaveform.ts:175](../apps/desktop-electrobun/src/main
 
 **Acceptance:** Silent, audio-free, undecodable and audible fixtures are visually distinguishable. An Audio waveform always derives from decoded audio.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-010"></a>
 
@@ -254,7 +259,7 @@ Native + source. Source: [EditRoute.tsx:178](../apps/desktop-electrobun/src/main
 
 **Acceptance:** Reopen a reordered/trimmed project. All program-duration readouts agree with the timeline and export; source duration stays distinct and never silently becomes zero.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-011"></a>
 
@@ -270,7 +275,7 @@ Native + source. Source: [useSceneCameraPreview.ts:55](../apps/desktop-electrobu
 
 **Acceptance:** Play, pause, seek, volume and fullscreen remain visible and usable for every camera key and aspect ratio, including at 3x zoom and across cuts/gaps.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-012"></a>
 
@@ -286,7 +291,7 @@ Native + source. Source: [TimelineSurface.tsx:1117](../apps/desktop-electrobun/s
 
 **Acceptance:** At 100%, 200% and 300%, known boundaries align with ruler ticks before and after horizontal scrolling. Zero is fully visible and seeking matches the labeled time.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-013"></a>
 
@@ -302,7 +307,7 @@ Native + source. Source: [TimelineSurface.tsx:882](../apps/desktop-electrobun/sr
 
 **Acceptance:** A user can locate a named proposed scene and an intentional pause without memorizing durations. Camera overrides are indicated; labels remain legible at supported zoom levels.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-014"></a>
 
@@ -318,7 +323,7 @@ Native + source. Source: [InspectorPanel.tsx:32](../apps/desktop-electrobun/src/
 
 **Acceptance:** Select video, audio, marker and preset states, then navigate modes. Current selection is named, global settings remain discoverable, and Deliver opens relevant delivery controls.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-015"></a>
 
@@ -334,7 +339,7 @@ Native + source; planned authoring gap. Source: [SelectionDetails.tsx:44](../app
 
 **Acceptance:** Select scenes with different cameras and verify readable values, preview correspondence, reset behavior and persistence. No manual-authoring completion is claimed until controls exist.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-016"></a>
 
@@ -350,7 +355,7 @@ Native + source. Source: [useStudioMutations.ts:651](../apps/desktop-electrobun/
 
 **Acceptance:** A default export visibly states the whole program. In/out ordering is validated inline. Handles, fields, keyboard actions, duration and the resulting file agree.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-017"></a>
 
@@ -366,7 +371,7 @@ Native + source. Source: [DeliverRoute.tsx:20](../apps/desktop-electrobun/src/ma
 
 **Acceptance:** Changing 16:9 to 9:16 shows the resulting composition before export. Each setting has one editing location; summaries carry distinct useful information.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-018"></a>
 
@@ -382,7 +387,7 @@ Native + source. Source: [useStudioMutations.ts:623](../apps/desktop-electrobun/
 
 **Acceptance:** A longer export clearly shows running/success/failure states. Users can locate or open the output and retry a failure without re-entering settings.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-019"></a>
 
@@ -398,7 +403,7 @@ Native export/open + source Save As. Source: [picker.ts:263](../apps/desktop-ele
 
 **Acceptance:** Save As lets the user name a new project and see the full intended target before committing. Cancel and overwrite behave predictably; export destination selection is unmistakable.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-020"></a>
 
@@ -414,7 +419,7 @@ Native + source. Source: [StudioShellLayout.tsx:70](../apps/desktop-electrobun/s
 
 **Acceptance:** Opening, saving and exporting do not unexpectedly resize preview/timeline. Errors retain recovery actions and success can be dismissed or expires accessibly.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-021"></a>
 
@@ -430,7 +435,7 @@ Native invalid state + source. Source: [AgentProposalPanel.tsx:126](../apps/desk
 
 **Acceptance:** Bad JSON, unsupported version, duplicate scene, out-of-range source, stale revision and busy project each explain a specific recovery step.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-022"></a>
 
@@ -446,7 +451,7 @@ Native validated state + source. Source: [AgentProposalPanel.tsx:245](../apps/de
 
 **Acceptance:** A user can review one changed scene visually, identify additions/removals/reorders, see total duration change and apply only the validated proposal.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-023"></a>
 
@@ -462,7 +467,7 @@ Native at default window + source. Source: [EditorWorkspace.tsx:21](../apps/desk
 
 **Acceptance:** Repeated Capture/Edit/Deliver navigation, hide/show and reset keep all lanes and required controls reachable at the documented minimum window size and at 1320x860.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-024"></a>
 
@@ -478,7 +483,7 @@ Native + source. Source: [index.css:329](../apps/desktop-electrobun/src/mainview
 
 **Acceptance:** Capture, selected clip, effects, proposal and Deliver use the same documented type/spacing/control scale. Essential labels remain readable in comfortable mode without opening every section.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-025"></a>
 
@@ -494,7 +499,7 @@ Native AX + source. Source: [InspectorPrimitives.tsx:195](../apps/desktop-electr
 
 **Acceptance:** Keyboard and VoiceOver identify every field, active tool, snap/ripple state and lane control unambiguously. Errors are associated with their fields. Selection and focus remain distinguishable.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-026"></a>
 
@@ -510,7 +515,7 @@ Native + source. Source: [ShortcutOverridesSection.tsx:52](../apps/desktop-elect
 
 **Acceptance:** From Edit or Deliver, users can find shortcut/language/density settings without switching into recording. Conflict, cancel, reset and the current/default binding are clear.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-027"></a>
 
@@ -526,7 +531,7 @@ Source. Source: [useRecordingMediaSource.ts:26](../apps/desktop-electrobun/src/m
 
 **Acceptance:** A saved project with missing or unreadable media explains the failure without asking the user to record again. A successful retry clears the error and preserves the document.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-028"></a>
 
@@ -542,7 +547,7 @@ Native + fixture + source. Source: [theme-provider.tsx:29](../packages/ui/src/de
 
 **Acceptance:** Product names are consistent. Each supported theme has a defined owner, persisted preference and tested live system-change behavior.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-029"></a>
 
@@ -558,7 +563,7 @@ Web route failure + source. Source: [__root.tsx:56](../apps/web/src/routes/__roo
 
 **Acceptance:** With the auth service offline, /, /about and a missing route still render useful public content and navigation.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-030"></a>
 
@@ -574,7 +579,7 @@ Fixture click + source. Source: [Pricing.tsx:147](../apps/web/src/components/Pri
 
 **Acceptance:** Every CTA has an observable, intended outcome, accessible pending/error feedback where applicable, and a valid back path.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-031"></a>
 
@@ -590,7 +595,7 @@ Fixture link inspection + source. Source: [Hero.tsx:15](../apps/web/src/componen
 
 **Acceptance:** Download for macOS reaches a usable release or explicit installation guide. Unsupported machines receive clear guidance before download.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-032"></a>
 
@@ -606,7 +611,7 @@ Source + fixture. Source: [Pricing.tsx:17](../apps/web/src/components/Pricing.ts
 
 **Acceptance:** Every available-feature claim maps to a working user journey. Planned features and prices cannot be mistaken for purchasable current functionality.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-033"></a>
 
@@ -622,7 +627,7 @@ Fixture + source. Source: [Features.tsx:24](../apps/web/src/components/Features.
 
 **Acceptance:** Within one screen and one short demo, a visitor can see what Guerilla Glass does, how the editor works and what its output looks like.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-034"></a>
 
@@ -638,7 +643,7 @@ Fixture at 1280x800 and 390x844 + source. Source: [Hero.tsx:186](../apps/web/src
 
 **Acceptance:** At common desktop and 390 px mobile sizes, product identity, a clear benefit, proof and the main action are visible without scrolling through a wall of headline.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-035"></a>
 
@@ -654,7 +659,7 @@ Source; normal-motion fixture inspected. Source: [timeline-animation.tsx:31](../
 
 **Acceptance:** With reduced motion, content and actions render immediately with no shader/slide/scale sequence. Normal motion never delays interaction or hides required information.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-036"></a>
 
@@ -670,7 +675,7 @@ Fixture interaction + source. Source: [motion-drawer.tsx:199](../apps/web/src/co
 
 **Acceptance:** Keyboard and screen-reader users can open, navigate and close the menu. Escape closes it, focus returns to the trigger, and link selection reveals the destination.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-037"></a>
 
@@ -686,7 +691,7 @@ Fixture + source. Source: [FAQ.tsx:90](../apps/web/src/components/FAQ.tsx). Scre
 
 **Acceptance:** Activating any mobile question reveals its answer next to the question. Focus does not jump unexpectedly; the current answer is announced and navigation remains usable.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-038"></a>
 
@@ -702,7 +707,7 @@ Source; normal routes blocked by auth outage. Source: [about.tsx:13](../apps/web
 
 **Acceptance:** About and 404 render correctly in light/dark and narrow layouts, explain the product or recovery path, and offer working navigation.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-039"></a>
 
@@ -718,7 +723,7 @@ Source. Source: [dialog.tsx:65](../packages/ui/src/components/dialog.tsx).
 
 **Acceptance:** German/English passes cover the complete shipped flow, including dialogs, accessible names, errors and expanded layouts. No generated Paraglide files are edited by hand.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 <a id="ui-040"></a>
 
@@ -734,7 +739,7 @@ Fixture fallback + source. Source: [Hero.tsx:74](../apps/web/src/components/Hero
 
 **Acceptance:** With WebGL disabled/unavailable and external imagery blocked, all body and control text meets its contrast target in both themes. Verify actual composited colors rather than tokens alone.
 
-Owner: UI improvement pass. Fix PR: not prepared, three-reviewer gate pending. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
+Owner: UI improvement pass. PR preparation requires the three-reviewer gate. Verification: [2026-11-09 implementation evidence and remaining limits](UI_IMPLEMENTATION_EVIDENCE.md#finding-by-finding-proof).
 
 ## Keep what already works
 

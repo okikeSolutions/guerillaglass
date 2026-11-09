@@ -34,6 +34,8 @@ type InspectorModeStudio = Pick<
   | "ui"
   | "locale"
   | "timelineItems"
+  | "beginVisualEdit"
+  | "commitVisualEdit"
 >;
 
 type AutoZoomSectionProps = {
@@ -70,6 +72,8 @@ function AutoZoomSection({
           />
 
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             icon={headingIcon}
             label={studio.ui.labels.autoZoomIntensity(
               Math.round(field.state.value.intensity * 100),
@@ -127,6 +131,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
             }
           />
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             label={studio.ui.labels.backgroundPadding}
             value={field.state.value.paddingFraction}
             displayValue={`${Math.round(field.state.value.paddingFraction * 100)}%`}
@@ -138,6 +144,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
             }
           />
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             label={studio.ui.labels.cornerRoundness}
             value={field.state.value.cornerRadiusFraction}
             displayValue={`${Math.round(field.state.value.cornerRadiusFraction * 1000) / 10}%`}
@@ -149,6 +157,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
             }
           />
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             label={studio.ui.labels.shadowStrength}
             value={field.state.value.shadowStrength}
             displayValue={`${Math.round(field.state.value.shadowStrength * 100)}%`}

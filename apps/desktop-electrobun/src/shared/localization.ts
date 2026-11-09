@@ -30,6 +30,13 @@ export function getStudioMessages(locale: string | null | undefined) {
     notices: {
       refreshFailed: m.studio_notices_refreshFailed(undefined, options),
       actionFailed: m.studio_notices_actionFailed(undefined, options),
+      pathPickerOpenFailed: m.studio_notices_pathPickerOpenFailed(undefined, options),
+      pathPickerSaveFailed: m.studio_notices_pathPickerSaveFailed(undefined, options),
+      pathPickerRequestFailed: m.studio_notices_pathPickerRequestFailed(undefined, options),
+      pathPickerOverwriteFailed: m.studio_notices_pathPickerOverwriteFailed(undefined, options),
+      exportResultUnavailable: m.studio_notices_exportResultUnavailable(undefined, options),
+      exportResultOpenFailed: m.studio_notices_exportResultOpenFailed(undefined, options),
+      exportResultRevealFailed: m.studio_notices_exportResultRevealFailed(undefined, options),
       rpcTimedOut: m.studio_notices_rpcTimedOut(undefined, options),
       directoryPickerTimedOut: m.studio_notices_directoryPickerTimedOut(undefined, options),
       permissionsRefreshed: m.studio_notices_permissionsRefreshed(undefined, options),

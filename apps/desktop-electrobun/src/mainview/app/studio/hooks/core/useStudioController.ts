@@ -1,3 +1,5 @@
+import { useReplacementConfirmation } from "../useReplacementConfirmation";
+import { fileActionErrorMessage } from "../../view-model/fileActionErrorMessage";
 import { editorStateSignature, timelineContentSignature } from "../../domain/editorStateSignature";
 import { useForm, useStore } from "@tanstack/react-form";
 import { useQueryClient, useIsMutating, useMutation } from "@tanstack/react-query";
@@ -21,7 +23,6 @@ import { hostBridgeEventNames } from "@shared/bridge/desktopBridgeContract";
 import {
   BridgeInvocationError,
   BridgeUnavailableError,
-  PathPickerError,
   StudioActionError,
 } from "@shared/errors/desktopErrors";
 import {
@@ -120,6 +121,10 @@ export function formatAspectRatio(width: number, height: number): string {
 }
 
 export function mapStudioActionErrorMessage(ui: StudioMessages, error: unknown): string {
+  const fileActionMessage = fileActionErrorMessage(ui, error);
+  if (fileActionMessage !== undefined) {
+    return fileActionMessage;
+  }
   if (error instanceof StudioActionError) {
     switch (error.reason) {
       case "screen_permission_required":
@@ -159,8 +164,7 @@ export function mapStudioActionErrorMessage(ui: StudioMessages, error: unknown):
     error instanceof BridgeInvocationError ||
     error instanceof ContractDecodeError ||
     error instanceof EngineClientError ||
-    error instanceof JsonParseError ||
-    error instanceof PathPickerError
+    error instanceof JsonParseError
   ) {
     return error.message;
   }
@@ -325,20 +329,45 @@ export function useStudioController() {
     seconds: number;
     width: number;
     height: number;
+    embeddedAudioTrackCount: number | null;
   } | null>(null);
   const recordingMediaDuration = mediaDuration?.source === recordingURL ? mediaDuration.seconds : 0;
   const setRecordingMediaDurationSeconds = useCallback(
-    (seconds: number, size?: { width: number; height: number }) => {
+    (
+      seconds: number,
+      size?: { width: number; height: number },
+      embeddedAudioTrackCount: number | null = null,
+    ) => {
       if (Number.isFinite(seconds) && seconds > 0) {
         setMediaDuration({
           source: recordingURL,
           seconds,
           width: size && Number.isFinite(size.width) ? Math.max(0, size.width) : 0,
           height: size && Number.isFinite(size.height) ? Math.max(0, size.height) : 0,
+          embeddedAudioTrackCount:
+            embeddedAudioTrackCount !== null &&
+            Number.isInteger(embeddedAudioTrackCount) &&
+            embeddedAudioTrackCount >= 0
+              ? embeddedAudioTrackCount
+              : null,
         });
       }
     },
     [recordingURL],
+  );
+
+  // Preview listening preferences are session UI state, never saved/exported edits.
+  const [previewAudio, setPreviewAudio] = useState({ volume: 1, muted: false });
+  const setPreviewVolume = useCallback((volume: number) => {
+    if (!Number.isFinite(volume)) {
+      return;
+    }
+    const bounded = Math.min(1, Math.max(0, volume));
+    setPreviewAudio({ volume: bounded, muted: bounded === 0 });
+  }, []);
+  const togglePreviewMuted = useCallback(
+    () => setPreviewAudio((current) => ({ ...current, muted: !current.muted })),
+    [],
   );
 
   const baselineTimelineDocument = useMemo<TimelineDocument>(() => {
@@ -509,6 +538,8 @@ export function useStudioController() {
     activeMode,
     recordingURL,
     recordingDurationSeconds: captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+    embeddedAudioTrackCount:
+      mediaDuration?.source === recordingURL ? mediaDuration.embeddedAudioTrackCount : null,
     timelineDocument,
     timelineFrameRate,
     timelineEvents,
@@ -519,6 +550,7 @@ export function useStudioController() {
     },
   });
   const {
+    sourceAudioPresentation,
     audioMixer,
     nudgePlayheadSeconds,
     playbackStore,
@@ -882,6 +914,7 @@ export function useStudioController() {
     [],
   );
 
+  const replacementConfirmation = useReplacementConfirmation();
   const {
     exportMutation,
     isRefreshing,
@@ -911,6 +944,8 @@ export function useStudioController() {
     recordingURL,
     timelineDocument,
     hasUnsavedProjectEdits,
+    requestReplacementConfirmation: replacementConfirmation.request,
+    onProjectOpened: documentHistory.reset,
     onRecordingStarted: documentHistory.reset,
     onProjectSaved: (project) => {
       documentHistory.markSaved(
@@ -1245,6 +1280,7 @@ export function useStudioController() {
       : ui.labels.idle;
 
   return {
+    replacementConfirmation,
     clearNotice,
     recordingMediaSize:
       mediaDuration?.source === recordingURL && mediaDuration.width > 0 && mediaDuration.height > 0
@@ -1253,6 +1289,8 @@ export function useStudioController() {
     setRecordingMediaDurationSeconds,
     canUndoTimeline: Boolean(recordingURL) && currentHistory.past.length > 0,
     canRedoTimeline: Boolean(recordingURL) && currentHistory.future.length > 0,
+    beginVisualEdit: documentHistory.beginVisualEdit,
+    commitVisualEdit: documentHistory.commitVisualEdit,
     undoTimeline,
     redoTimeline,
     hasUnsavedProjectEdits,
@@ -1272,6 +1310,11 @@ export function useStudioController() {
     inputMonitoringDenied,
     isRefreshing,
     isRunningAction,
+    sourceAudioPresentation,
+    timelineFrameRate,
+    previewAudio,
+    setPreviewVolume,
+    togglePreviewMuted,
     audioMixer,
     activeMode,
     locale,
