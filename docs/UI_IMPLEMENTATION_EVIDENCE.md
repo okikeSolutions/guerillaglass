@@ -4,7 +4,7 @@ Implementation and verification on 2026-11-08 and 2026-11-09. Comparison baselin
 
 ## Review gate
 
-The user requires three independent reviewers, each rating the complete change **strictly above 9.5/10**, before preparing a PR. The gate passed for frozen commit `57a47cae10441f75f6f32459ba34cd97071c4c5c` against main `45245daf360d0bd352f28da39b5ddec6978931c1`. Correctness, standards/Effect and product/visual reviewers each rated it **9.6/10**. These are independent agent assessments, not release certification or a user study. Final report archival and this gate record change documentation only.
+The user requires three independent reviewers, each rating the complete change **strictly above 9.5/10**, before preparing a PR. The gate passed for frozen commit `57a47cae10441f75f6f32459ba34cd97071c4c5c` against main `45245daf360d0bd352f28da39b5ddec6978931c1`. Correctness, standards/Effect and product/visual reviewers each rated it **9.6/10**. These are independent agent assessments, not release certification or a user study. The post-filing CI dependency/format update at `c04c2b2a3ceaa17bd1882b210cbd840f4a1af037` was independently reassessed at 9.6/10 by each reviewer as well. Report archival and gate records change documentation only.
 
 | Frozen commit | Correctness | Standards/Effect | Product/visual | Gate |
 | --- | --- | --- | --- | --- |
@@ -14,6 +14,7 @@ The user requires three independent reviewers, each rating the complete change *
 | `a7c5357` | [9.6](audits/2026-11-09-ui-round4-correctness-review.md) | [9.4](audits/2026-11-09-ui-round4-standards-review.md) | [9.6](audits/2026-11-09-ui-round4-product-review.md) | Failed |
 | `aaa61bc` | [9.6](audits/2026-11-09-ui-round5-correctness-review.md) | [9.6](audits/2026-11-09-ui-round5-standards-review.md) | [9.5](audits/2026-11-09-ui-round5-product-review.md) | Failed, exactly 9.5 is insufficient |
 | `57a47ca` | [9.6](audits/2026-11-09-ui-round6-correctness-review.md) | [9.6](audits/2026-11-09-ui-round6-standards-review.md) | [9.6](audits/2026-11-09-ui-round6-product-review.md) | Passed |
+| `c04c2b2`, CI maintenance | [9.6](audits/2026-11-09-ui-ci-correctness-review.md) | [9.6](audits/2026-11-09-ui-ci-standards-review.md) | [9.6](audits/2026-11-09-ui-ci-product-review.md) | Passed |
 
 Initial moving-tree reviews scored 6.8, 7.0 and 7.1 and also failed. Historical reports and corrections remain below. The remaining P3 localization-facade consolidation is tracked under UI-039. All 40 ledger entries retain their specific acceptance limits rather than becoming Verified through this overall score.
 
