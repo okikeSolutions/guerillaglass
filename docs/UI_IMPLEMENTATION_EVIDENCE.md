@@ -78,6 +78,14 @@ The fifth frozen review found two remaining macOS 13 labels in SPEC’s producti
 
 These corrections do not change the historical ratings or mark any finding Verified. The acceptance matrix below retains the remaining limits.
 
+## Post-filing CI maintenance
+
+PR #190's first CI head `01444dc` passed Rust, protocol determinism and all three parity platforms. TypeScript stopped before tests because the repository requires current workspace dependencies; SwiftLint rejected the 218-character asset URL array in a test helper.
+
+The bounded update changes desktop Hotkeys to 0.22.3, Resizable Panels to 4.21.0 in desktop/shared UI, and the corresponding Bun lock entries. Upstream [Hotkeys 0.22.3](https://github.com/TanStack/hotkeys/releases/tag/%40tanstack/react-hotkeys%400.22.3) changes recorder Tab cancellation and missing element targets. This app's hotkey registrations omit target, and its preference recorder is locally owned. [Panels 4.21.0](https://github.com/bvaughn/react-resizable-panels/releases/tag/4.21.0) adds workspace controls and fixes fractional-size preservation; the app retains its existing Group/Panel APIs. The Swift test helper now names its four resolved URLs separately, preserving call order and behavior.
+
+With those installed versions, dependency freshness and frozen install pass; desktop/shared UI typechecks, 32 shortcut/layout units, all 124 browser tests, packaged runtime acceptance and 12 native project/store tests pass. CI's pinned SwiftFormat 0.62.1 and SwiftLint 0.65.1 accept the changed test file. Native interaction verifies B selects Blade, the project rail collapses to zero, and its named restoration action restores the prior width. The test tool and layout were restored before clean quit. These receipts are retained under `.tmp/ui-research/ci-update-*`; [the native pane state](evidence/ui-pass/dependency-layout-check.png) is committed. Remote CI still needs to run for the updated head.
+
 ## Demonstration provenance
 
 The website sample is a real 12-second native render of a browser-recorded FAQ interaction. Engine Screen Recording permission was unavailable, so it is explicitly not evidence of native capture. A storyboard agent and editing agent produced the editable project and a reviewed revision through the existing agent workflow. No time-saving benchmark or user study is claimed.

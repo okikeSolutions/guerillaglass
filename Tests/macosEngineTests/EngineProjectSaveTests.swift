@@ -195,7 +195,11 @@ final class EngineProjectSaveTests: XCTestCase {
     }
 
     private func assetData(for project: ProjectStore.SavedProject, store: ProjectStore) throws -> [Data] {
-        let urls = try [store.resolveRecordingURL(for: project), XCTUnwrap(store.resolveSystemAudioURL(for: project)), XCTUnwrap(store.resolveMicAudioURL(for: project)), XCTUnwrap(store.resolveEventsURL(for: project))]
+        let recordingURL = try store.resolveRecordingURL(for: project)
+        let systemAudioURL = try XCTUnwrap(store.resolveSystemAudioURL(for: project))
+        let micAudioURL = try XCTUnwrap(store.resolveMicAudioURL(for: project))
+        let eventsURL = try XCTUnwrap(store.resolveEventsURL(for: project))
+        let urls = [recordingURL, systemAudioURL, micAudioURL, eventsURL]
         return try urls.map { try Data(contentsOf: $0) }
     }
 
