@@ -8,6 +8,56 @@ import XCTest
 
 final class EngineProjectSaveTests: XCTestCase {
     @MainActor
+    func testEmptyProjectCanSaveInPlaceAndSaveAsWithoutInventingRecording() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("Empty.gglassproj", isDirectory: true)
+        let target = directory.appendingPathComponent("EmptyCopy.gglassproj", isDirectory: true)
+        let service = EngineService(projectLibraryStore: ProjectLibraryStore(indexURL: directory.appendingPathComponent("recents.json")))
+        guard case .ok = try await service.project_period_projectOpen(.init(body: .json(.init(projectPath: source.path)))) else {
+            return XCTFail("Opening a new package must create an empty project")
+        }
+        let projectID = service.currentProjectDocument.project.id
+        for destination in [source, target] {
+            guard case .ok = try await service.project_period_projectSave(.init(body: .json(.init(projectPath: destination.path)))) else {
+                return XCTFail("A metadata-only project must remain saveable")
+            }
+            let saved = try ProjectStore().loadProject(at: destination)
+            XCTAssertEqual(saved.document.project.id, projectID)
+            XCTAssertTrue(saved.document.project.timeline.items.isEmpty)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: ProjectStore().resolveRecordingURL(for: saved).path))
+        }
+    }
+
+    @MainActor
+    func testMissingRecordingWithCaptureMetadataFailsBeforeReplacingDestination() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("MissingMedia.gglassproj", isDirectory: true)
+        let target = directory.appendingPathComponent("Existing.gglassproj", isDirectory: true)
+        var document = ProjectDocument()
+        document.project.captureMetadata = CaptureMetadata(
+            source: .display,
+            contentRect: CaptureRect(originX: 0, originY: 0, width: 1920, height: 1080),
+            pixelScale: 1
+        )
+        let store = ProjectStore()
+        _ = try store.writeProject(document: document, assets: .init(), to: source)
+        _ = try store.writeProject(document: ProjectDocument(), assets: .init(), to: target)
+        let targetJSON = target.appendingPathComponent(ProjectFile.projectJSON)
+        let original = try Data(contentsOf: targetJSON)
+        let service = EngineService(projectLibraryStore: ProjectLibraryStore(indexURL: directory.appendingPathComponent("recents.json")))
+        guard case .ok = try await service.project_period_projectOpen(.init(body: .json(.init(projectPath: source.path)))) else {
+            return XCTFail("Fixture must open")
+        }
+        guard case .badRequest = try await service.project_period_projectSave(.init(body: .json(.init(projectPath: target.path)))) else {
+            return XCTFail("A recorded project with missing media must fail Save As")
+        }
+        XCTAssertEqual(service.currentProjectURL, source)
+        XCTAssertEqual(try Data(contentsOf: targetJSON), original)
+    }
+
+    @MainActor
     func testReopenedProjectSaveAsCopiesEveryAssetAndSurvivesSourceRemoval() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

@@ -1,0 +1,17 @@
+# PR #190 current standards and Effect review
+
+Reviewed base `45245daf360d0bd352f28da39b5ddec6978931c1` against head `6ecb35e3f23527601168d193accbabcce2afa3a4`. Overall PR readiness from this review axis is **9.6/10**. Standards/Effect review passes. I found no actionable hard repository-rule breach and no additional Fowler smell substantial enough to request a revision.
+
+I read the pinned commit list, changed production code and related regression coverage against root/subsystem AGENTS.md, REVIEW.md, ARCHITECTURE.md, EFFECT_PRACTICES.md, CHANGE_MAP verification selection, the Effect skill and the complete Fowler baseline. I also checked the UI ledger, inventory, research, implementation evidence, SPEC and ROADMAP. I did not open historical scored reviewer reports or peers' reports. Repository rules took precedence over heuristic smells.
+
+The host keeps the existing runtime and service ownership. `requestHandlers.ts` remains transport adaptation. Export completion authority is recorded only after path validation and successful export in `apps/desktop-electrobun/src/bun/bridge/HostBridgeService.ts:363`. Open/Reveal accepts an action against that host-owned output rather than a renderer-supplied file path. The native Save and Folder adapters use named effects, scoped child processes and argument arrays, as seen in `src/bun/path/nativeSaveDialog.ts:15`. They add no direct Node filesystem/path/crypto dependency or independent runtime. Media CORS remains behind the origin guard and token authorization, with negative-origin, missing-token, method and range coverage.
+
+Editor ownership is explicit. `src/mainview/app/studio/hooks/timeline/useEditorDocumentHistory.ts:51` distinguishes saved snapshots, generated-source refinement and new document identity. Pure commands remain in domain modules. Tests cover interleaved visual/timeline history, copied-source Save As, native refresh, replacement and stale inspector selection. Native save tests exercise asset independence after deleting the original package and preserve an existing destination when a declared source is missing. No contract or generated-binding change requires regeneration.
+
+New copy uses shared message sources in both locales. Proposal failures map native codes to localized recovery at `src/mainview/app/studio/panels/AgentProposalPanel.tsx:56`. Shared dialog labels are caller supplied. Pane collapse uses inertness, restoration controls are named, and transport/range controls expose keyboard and state semantics. Public rendering removes the auth prerequisite and isolates server locale per request. Manifest and Bun lock changes agree.
+
+The documentation preserves incomplete acceptance instead of certifying all 40 findings. Granted native capture/audio, VoiceOver and the later performance/accessibility gate remain explicit release work. UI-039 already tracks optional localization-facade consolidation; direct generated-message imports still use the required shared source and are not a hard breach. These remaining verification limits explain the score below 10.
+
+This was a read-only review. No applications or test/build suites were launched. `git diff --check BASE...HEAD` passed. All seven CI checks are green according to the supplied current PR status; I did not independently rerun them. Merge still requires the repository's unresolved-review-thread gate.
+
+PR https://github.com/okikeSolutions/guerillaglass/pull/190, head 6ecb35e, checks green, standards/Effect review passed with no actionable findings.

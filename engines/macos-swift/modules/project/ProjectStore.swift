@@ -102,6 +102,29 @@ public final class ProjectStore {
         project.url.appendingPathComponent(project.document.recordingFileName)
     }
 
+    /// Legacy metadata-only packages reserve recording.mov without creating it.
+    /// Missing media in a project with recorded content must still fail Save.
+    public func resolveRecordingAssetForSave(for project: SavedProject, saving document: ProjectDocument) throws -> URL? {
+        let recordingURL = resolveRecordingURL(for: project)
+        try rejectSymlinkComponents(in: recordingURL)
+        if fileManager.fileExists(atPath: recordingURL.path) {
+            return recordingURL
+        }
+        for candidate in [project.document, document] {
+            guard candidate.recordingFileName == ProjectFile.recordingMov,
+                  candidate.project.timeline.items.isEmpty,
+                  candidate.project.captureMetadata == nil,
+                  candidate.project.lastRecordingTelemetry == nil,
+                  candidate.systemAudioFileName == nil,
+                  candidate.micAudioFileName == nil,
+                  candidate.eventsFileName == nil
+            else {
+                throw StoreError.invalidRecordingURL
+            }
+        }
+        return nil
+    }
+
     public func resolveSystemAudioURL(for project: SavedProject) -> URL? {
         guard let fileName = project.document.systemAudioFileName else { return nil }
         return project.url.appendingPathComponent(fileName)

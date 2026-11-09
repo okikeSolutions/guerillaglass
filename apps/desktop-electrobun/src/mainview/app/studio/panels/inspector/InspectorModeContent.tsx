@@ -21,6 +21,7 @@ type InspectorModeStudio = Pick<
   | "audioMixer"
   | "backgroundFramingSupported"
   | "captureStatusQuery"
+  | "isRunningAction"
   | "exportForm"
   | "formatAspectRatio"
   | "formatDecimal"
@@ -176,6 +177,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
 }
 
 export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudio }) {
+  const captureSettingsLocked =
+    Boolean(studio.captureStatusQuery.data?.isRunning) || studio.isRunningAction;
   const captureSource = studio.settingsForm.state.values.captureSource;
   const telemetry = studio.captureStatusQuery.data?.telemetry;
   const telemetryPresentation = buildCaptureTelemetryPresentation(telemetry, {
@@ -189,6 +192,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
         <studio.settingsForm.Field name="micEnabled">
           {(field) => (
             <InspectorToggleField
+              disabled={captureSettingsLocked}
               icon={<Mic className="h-4 w-4" />}
               label={studio.ui.labels.includeMic}
               checked={field.state.value}
@@ -200,6 +204,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
         <studio.settingsForm.Field name="trackInputEvents">
           {(field) => (
             <InspectorToggleField
+              disabled={captureSettingsLocked}
               icon={<MousePointer className="h-4 w-4" />}
               label={studio.ui.labels.trackInput}
               checked={field.state.value}
@@ -211,6 +216,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
         <studio.settingsForm.Field name="captureFps">
           {(field) => (
             <InspectorSelectField
+              disabled={captureSettingsLocked}
               label={studio.ui.labels.captureFrameRate}
               value={String(field.state.value)}
               options={studio.supportedCaptureFrameRates.map((fps) => ({

@@ -99,12 +99,23 @@ function installMockBridge() {
   bridgeWindow.ggEngineRequestInputMonitoringPermission = async () => ({ success: true });
   bridgeWindow.ggEngineOpenInputMonitoringSettings = async () => ({ success: true });
   bridgeWindow.ggEngineListSources = async () => ({ displays: [], windows: [] });
-  bridgeWindow.ggEngineCaptureStatus = async () => ({
+  const idleCaptureStatus = {
     isRunning: false,
     isRecording: false,
     recordingDurationSeconds: 4,
     recordingURL: "/tmp/recording.mov",
     telemetry: {},
+  };
+  bridgeWindow.ggEngineCaptureStatus = async () => idleCaptureStatus;
+  bridgeWindow.ggEngineStopCapture = async () => idleCaptureStatus;
+  bridgeWindow.ggEngineStartDisplayCapture = async () => ({
+    ...idleCaptureStatus,
+    isRunning: true,
+  });
+  bridgeWindow.ggEngineStartWindowCapture = async () => ({ ...idleCaptureStatus, isRunning: true });
+  bridgeWindow.ggEngineStartCurrentWindowCapture = async () => ({
+    ...idleCaptureStatus,
+    isRunning: true,
   });
   bridgeWindow.ggEngineCapturePreviewFrame = async () => ({});
   bridgeWindow.ggEngineExportInfo = async () => ({
@@ -1566,6 +1577,114 @@ async function prepareCapture() {
 }
 
 describe("recording transition reconciliation", () => {
+  test("Record replaces a running preview with the requested source, microphone and FPS", async () => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    await setInspectorMode("capture");
+    const bridge = window as unknown as Record<string, unknown>;
+    const calls: string[] = [];
+    const idle = {
+      isRunning: false,
+      isRecording: false,
+      recordingDurationSeconds: 0,
+      telemetry: {},
+    };
+    let status = idle;
+    bridge.ggEngineStopCapture = async () => {
+      calls.push("stop-preview");
+      status = idle;
+      return status;
+    };
+    bridge.ggEngineStartCurrentWindowCapture = async (enableMic: boolean, captureFps: number) => {
+      calls.push("start-window");
+      expect(enableMic).toBe(true);
+      expect(captureFps).toBe(60);
+      status = { ...idle, isRunning: true };
+      return status;
+    };
+    bridge.ggEngineStartRecording = async () => {
+      calls.push("record");
+      status = { ...idle, isRunning: true, isRecording: true };
+      return status;
+    };
+    bridge.ggEngineCaptureStatus = async () => status;
+    await applyStudioAction((studio) => {
+      studio.settingsForm.setFieldValue("micEnabled", true);
+      studio.settingsForm.setFieldValue("captureFps", 60);
+    });
+    await act(async () => {
+      queryClient?.setQueryData(studioQueryKeys.captureStatus(), { ...idle, isRunning: true });
+    });
+    await waitFor(() => expect(currentStudio().captureStatusQuery.data?.isRunning).toBe(true));
+    await applyStudioAction(async (studio) => {
+      await studio.toggleRecordingMutation.mutateAsync({
+        captureSourceOverride: "window",
+        preferCurrentWindow: true,
+      });
+    });
+    expect(calls).toEqual(["stop-preview", "start-window", "record"]);
+  });
+
+  test.each([false, true])("active capture locks setup, recording=%s", async (isRecording) => {
+    await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+    await setInspectorMode("capture");
+    const idle = {
+      ...currentStudio().captureStatusQuery.data!,
+      isRunning: false,
+      isRecording: false,
+    };
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggEngineCaptureStatus = async () => idle;
+    bridge.ggEngineStopCapture = async () => idle;
+    await act(async () => {
+      queryClient?.setQueryData(studioQueryKeys.captureStatus(), {
+        ...idle,
+        isRunning: true,
+        isRecording,
+      });
+      updatePreviewRoute?.("capture");
+    });
+    await expect
+      .element(page.getByRole("radio", { name: currentStudio().ui.labels.window, exact: true }))
+      .toBeDisabled();
+    await expect
+      .element(
+        page.getByRole("checkbox", { name: currentStudio().ui.labels.includeMic, exact: true }),
+      )
+      .toBeDisabled();
+    await expect
+      .element(
+        page.getByRole("checkbox", { name: currentStudio().ui.labels.trackInput, exact: true }),
+      )
+      .toBeDisabled();
+    await expect
+      .element(
+        page.getByRole("combobox", {
+          name: currentStudio().ui.labels.captureFrameRate,
+          exact: true,
+        }),
+      )
+      .toBeDisabled();
+    if (!isRecording) {
+      await page
+        .getByRole("button", { name: currentStudio().ui.actions.stopPreview, exact: true })
+        .click();
+      await expect
+        .element(page.getByRole("radio", { name: currentStudio().ui.labels.window, exact: true }))
+        .toBeEnabled();
+      await expect
+        .element(
+          page.getByRole("checkbox", { name: currentStudio().ui.labels.includeMic, exact: true }),
+        )
+        .toBeEnabled();
+    } else {
+      await expect
+        .element(
+          page.getByRole("button", { name: currentStudio().ui.actions.stopPreview, exact: true }),
+        )
+        .not.toBeInTheDocument();
+    }
+  });
+
   test("successful native start retires the old project even if both follow-up queries fail", async () => {
     await prepareCapture();
     await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());

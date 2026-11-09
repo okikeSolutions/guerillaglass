@@ -1,0 +1,17 @@
+# PR #190 correctness review
+
+Overall PR readiness: **9.0/10**. The strictly-above-9.5 gate does not pass. Two P2 correctness defects remain. This rating assesses the pinned implementation, without adopting earlier reviewers' scores.
+
+Compared base `45245daf360d0bd352f28da39b5ddec6978931c1` with head `6ecb35e3f23527601168d193accbabcce2afa3a4`, including the complete commit history and accumulated changes rather than only the last commit. Read the root/subsystem agent guides, REVIEW.md, and required UI scope/evidence documents. Prior scored reports and peer reports were not opened.
+
+## Findings
+
+1. **P2, native Save rejects an empty project accepted by Open.** `engines/macos-swift/EngineService+Project.swift:118`. Call the public native project-open endpoint with a new package path, then save that package or Save As with appearance settings. Open explicitly writes `ProjectDocument()` with no assets. Save now unconditionally passes `resolveRecordingURL`, whose nonoptional result is the default `recording.mov` path, into the asset preflight. That nonexistent file makes the save return a bad request. The base implementation passed no recording when no capture existed, so this is a regression. The desktop currently blocks saving an empty timeline earlier; the clearest affected caller is the public engine API. Preserve a backward-compatible distinction for truly source-free projects. Do not simply ignore missing recordings on ordinary projects. Empty timeline alone is insufficient because legacy recorded projects can also have empty timelines. Add Open-new-package followed by in-place Save and Save As coverage, retaining the existing missing-media tests.
+
+2. **P2, a queued source-ended event can restart media after Pause or scrubbing.** `apps/desktop-electrobun/src/mainview/app/studio/hooks/useVideoPlaybackSync.ts:382`. When an earlier scene reaches source EOF, pause or seek before its queued `ended` event is delivered. The handler resolves the current program position, advances to a following clip and calls `playMedia` without checking whether the program is still playing or the event belongs to the current command. This PR removes the native play-event synchronization, so actual media can run while the transport remains paused and its program-clock loop is stopped. Guard ended processing against the current playback state and stale command ownership. Add a late-ended-after-pause/scrub regression. The existing contiguous-clips test dispatches `ended` while paused and asserts a play call, so it currently preserves the defect.
+
+## Coverage and limits
+
+Source inspection covered document history/replacement, save/recording reconciliation, proposal application, playback/camera, thumbnail/audio decoding, scoped media authorization/CORS, export-result authority, native pickers/quit, and web SSR/localization/theme/auth fallback. Relevant existing controller/browser/native tests were inspected for missing cases. No security-boundary regression was confirmed.
+
+No app, browser, build or test suite was launched in this review. Green CI and retained native/browser evidence were supplied context, not independently rerun proof. This was a source review of the full revision range with deeper inspection of correctness-critical paths, not exhaustive runtime verification of all 203 changed files. Native granted capture/audio, VoiceOver and platform acceptance limits remain as recorded in the evidence document.

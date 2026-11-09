@@ -469,6 +469,7 @@
   "ui_project_opened_status_unavailable": "Project opened. Capture status could not refresh. Use Refresh to try again.",
   "ui_preview_go_capture": "Go to Capture",
   "ui_capture_finished_preview_failed": "Recording finished. The live preview could not stop. Select Stop preview to try again.",
+  "ui_capture_settings_locked": "Stop preview or recording to change capture settings.",
   "ui_replace_project_title": "Replace unsaved work?",
   "ui_replace_project_body": "Opening a project replaces the current draft. Keep editing to save your unsaved changes first.",
   "ui_replace_recording_title": "Start a new recording?",

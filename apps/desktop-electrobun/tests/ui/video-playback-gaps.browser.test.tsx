@@ -31,6 +31,25 @@ const timelineItems = compileTimelineItems({
   ],
 });
 const timelineDuration = 4;
+const contiguousItems = compileTimelineItems({
+  version: 2,
+  items: [
+    {
+      kind: "clip",
+      id: segmentId("source-ending"),
+      sourceAssetId: "recording",
+      sourceStartSeconds: 1,
+      sourceEndSeconds: 2,
+    },
+    {
+      kind: "clip",
+      id: segmentId("following"),
+      sourceAssetId: "recording",
+      sourceStartSeconds: 0,
+      sourceEndSeconds: 1,
+    },
+  ],
+});
 
 let root: Root | undefined;
 let now = 0;
@@ -241,7 +260,11 @@ describe("timeline preview across gaps", () => {
 
   test("native source ended enters a remaining gap instead of ending the program", () => {
     const media = document.querySelector("video")!;
-    act(() => playbackStore.seek(1.49));
+    act(() => {
+      playbackStore.seek(1.49);
+      playbackStore.play();
+    });
+    vi.spyOn(media, "ended", "get").mockReturnValue(true);
 
     act(() => media.dispatchEvent(new Event("ended")));
 
@@ -272,36 +295,63 @@ describe("timeline preview across gaps", () => {
   });
 
   test("native source ended seeks a following clip when no gap separates it", () => {
-    const directItems = compileTimelineItems({
-      version: 2,
-      items: [
-        {
-          kind: "clip",
-          id: segmentId("source-ending"),
-          sourceAssetId: "recording",
-          sourceStartSeconds: 1,
-          sourceEndSeconds: 2,
-        },
-        {
-          kind: "clip",
-          id: segmentId("following"),
-          sourceAssetId: "recording",
-          sourceStartSeconds: 0,
-          sourceEndSeconds: 1,
-        },
-      ],
-    });
     playbackStore.updateConfig({ durationSeconds: 2, frameRate: 30 });
-    act(() => root?.render(<Harness items={directItems} duration={2} />));
+    act(() => root?.render(<Harness items={contiguousItems} duration={2} />));
     const media = document.querySelector("video")!;
+    act(() => {
+      playbackStore.seek(0.99);
+      playbackStore.play();
+    });
     media.currentTime = 2;
-    act(() => playbackStore.seek(1));
+    vi.spyOn(media, "ended", "get").mockReturnValue(true);
 
     act(() => media.dispatchEvent(new Event("ended")));
 
     expect(playbackStore.getSnapshot().playheadSeconds).toBe(1);
     expect(media.currentTime).toBe(0);
     expect(media.play).toHaveBeenCalled();
+  });
+
+  test.each(["pause", "scrub"] as const)(
+    "a late ended event after %s preserves the paused frame and transport",
+    (command) => {
+      playbackStore.updateConfig({ durationSeconds: 2, frameRate: 30 });
+      act(() => root?.render(<Harness items={contiguousItems} duration={2} />));
+      const media = document.querySelector("video")!;
+      act(() => {
+        playbackStore.seek(0.9);
+        playbackStore.play();
+        playbackStore.pause();
+        if (command === "scrub") {
+          playbackStore.seek(0.25);
+        }
+      });
+      const playhead = playbackStore.getSnapshot().playheadSeconds;
+      const sourceTime = media.currentTime;
+      vi.mocked(media.play).mockClear();
+      vi.spyOn(media, "ended", "get").mockReturnValue(true);
+      act(() => media.dispatchEvent(new Event("ended")));
+      expect(playbackStore.getSnapshot().isPlaying).toBe(false);
+      expect(playbackStore.getSnapshot().playheadSeconds).toBe(playhead);
+      expect(media.currentTime).toBe(sourceTime);
+      expect(media.play).not.toHaveBeenCalled();
+    },
+  );
+
+  test("an ended event overtaken by a new playing seek cannot advance that seek", () => {
+    playbackStore.updateConfig({ durationSeconds: 2, frameRate: 30 });
+    act(() => root?.render(<Harness items={contiguousItems} duration={2} />));
+    const media = document.querySelector("video")!;
+    act(() => {
+      playbackStore.play();
+      playbackStore.seek(0.25);
+    });
+    vi.spyOn(media, "ended", "get").mockReturnValue(false);
+    vi.mocked(media.play).mockClear();
+    act(() => media.dispatchEvent(new Event("ended")));
+    expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+    expect(playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(0.25);
+    expect(media.play).not.toHaveBeenCalled();
   });
 
   test("a reordered timeline seeks paused preview through the recompiled source mapping", () => {

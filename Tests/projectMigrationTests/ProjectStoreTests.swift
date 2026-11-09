@@ -2,6 +2,18 @@
 import XCTest
 
 final class ProjectStoreTests: XCTestCase {
+    func testMetadataOnlySaveCannotIntroduceTimelineReferencesWithoutRecording() throws {
+        let directory = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = ProjectStore()
+        _ = try store.writeProject(document: ProjectDocument(), assets: .init(), to: directory)
+        let source = try store.loadProject(at: directory)
+        XCTAssertNil(try store.resolveRecordingAssetForSave(for: source, saving: source.document))
+        var proposed = source.document
+        proposed.project.timeline = .singleSegment(recordingDuration: 1)
+        XCTAssertThrowsError(try store.resolveRecordingAssetForSave(for: source, saving: proposed))
+    }
+
     func testMissingSaveAsSidecarPreservesExistingTarget() throws {
         let directory = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

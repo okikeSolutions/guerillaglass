@@ -44,12 +44,14 @@ export function InspectorToggleField({
   checked,
   onCheckedChange,
   description,
+  disabled,
 }: {
   icon?: ReactNode;
   label: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   description?: string;
+  disabled?: boolean;
 }) {
   return (
     <InspectorOptionCard>
@@ -60,6 +62,7 @@ export function InspectorToggleField({
             <span className="gg-copy-strong">{label}</span>
           </span>
           <Checkbox
+            disabled={disabled}
             checked={checked}
             onCheckedChange={(nextChecked) => onCheckedChange(nextChecked === true)}
           />
@@ -133,12 +136,14 @@ export function InspectorSelectField({
   options,
   onValueChange,
   description,
+  disabled,
 }: {
   label: string;
   value: string;
   options: Array<{ label: string; value: string }>;
   onValueChange: (value: string | null) => void;
   description?: string;
+  disabled?: boolean;
 }) {
   const selectId = useId();
 
@@ -152,7 +157,7 @@ export function InspectorSelectField({
           <FieldDescription className="gg-copy-meta pt-1">{description}</FieldDescription>
         ) : null}
         <FieldContent>
-          <Select value={value} onValueChange={onValueChange}>
+          <Select disabled={disabled} value={value} onValueChange={onValueChange}>
             <SelectTrigger id={selectId} className="w-full">
               <SelectValue />
             </SelectTrigger>

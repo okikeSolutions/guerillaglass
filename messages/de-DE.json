@@ -469,6 +469,7 @@
   "ui_project_opened_status_unavailable": "Projekt geöffnet. Der Aufnahmestatus konnte nicht aktualisiert werden. Verwende Aktualisieren, um es erneut zu versuchen.",
   "ui_preview_go_capture": "Zur Aufnahme",
   "ui_capture_finished_preview_failed": "Aufnahme beendet. Die Live-Vorschau konnte nicht gestoppt werden. Wähle Vorschau stoppen, um es erneut zu versuchen.",
+  "ui_capture_settings_locked": "Beende die Vorschau oder Aufnahme, um die Aufnahmeeinstellungen zu ändern.",
   "ui_replace_project_title": "Ungespeicherte Arbeit ersetzen?",
   "ui_replace_project_body": "Das Öffnen eines Projekts ersetzt den aktuellen Entwurf. Arbeite weiter, um ungespeicherte Änderungen zuerst zu speichern.",
   "ui_replace_recording_title": "Neue Aufnahme starten?",

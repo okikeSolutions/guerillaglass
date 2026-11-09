@@ -76,6 +76,7 @@ export function CaptureRoute() {
     ? { width: studio.selectedPreset.width, height: studio.selectedPreset.height }
     : { width: 1920, height: 1080 };
   const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
+  const captureSettingsLocked = isCaptureRunning || studio.isRunningAction;
   const captureSessionId = isCaptureRunning
     ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
     : null;
@@ -186,12 +187,30 @@ export function CaptureRoute() {
             </DesktopPanelSection>
 
             <DesktopPanelSection defaultOpen title={studio.ui.labels.captureSource}>
+              {isCaptureRunning ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {m.ui_capture_settings_locked(undefined, { locale: studio.locale })}
+                  </p>
+                  {!studio.captureStatusQuery.data?.isRecording ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={studio.isRunningAction}
+                      onClick={() => void studio.stopPreviewMutation.mutateAsync()}
+                    >
+                      {studio.ui.actions.stopPreview}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
                   <Field>
                     <FieldLabel>{studio.ui.labels.captureSource}</FieldLabel>
                     <FieldContent>
                       <RadioGroup
+                        disabled={captureSettingsLocked}
                         aria-label={studio.ui.labels.captureSource}
                         className="flex gap-3"
                         value={field.state.value}
@@ -241,6 +260,7 @@ export function CaptureRoute() {
                       <FieldLabel>{studio.ui.labels.window}</FieldLabel>
                       <FieldContent>
                         <NativeSelect
+                          disabled={captureSettingsLocked}
                           aria-label={studio.ui.labels.window}
                           value={String(studio.selectedWindowId)}
                           onChange={(event) => {
@@ -286,7 +306,7 @@ export function CaptureRoute() {
                         <NativeSelect
                           aria-label={studio.ui.labels.display}
                           value={String(studio.selectedDisplayId)}
-                          disabled={studio.displayChoices.length <= 1}
+                          disabled={captureSettingsLocked || studio.displayChoices.length <= 1}
                           onChange={(event) => {
                             field.handleChange(Number(event.target.value));
                           }}

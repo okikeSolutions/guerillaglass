@@ -114,8 +114,8 @@ extension EngineService {
             let assets: ProjectStore.ProjectAssetURLs
             if let sourceURL = currentProjectURL {
                 let source = try projectStore.loadProject(at: sourceURL)
-                assets = .init(
-                    recordingURL: projectStore.resolveRecordingURL(for: source),
+                assets = try .init(
+                    recordingURL: projectStore.resolveRecordingAssetForSave(for: source, saving: document),
                     systemAudioURL: projectStore.resolveSystemAudioURL(for: source),
                     micAudioURL: projectStore.resolveMicAudioURL(for: source),
                     eventsURL: projectStore.resolveEventsURL(for: source)

@@ -774,3 +774,13 @@ Frozen commit `57a47cae10441f75f6f32459ba34cd97071c4c5c` passed the user's PR-pr
 PR #190 initially passed five checks and failed dependency freshness plus one Swift test-line limit. The bounded remediation updates Hotkeys/Resizable Panels and formats the test helper. The existing UI behavior was rechecked with 124 browser cases, 32 focused shortcut/layout units, packaged acceptance, native pane/shortcut interaction and 12 native project/store cases. Remote checks remain required on the updated head. No new ledger item or completed release acceptance is inferred from dependency updates.
 
 The CI-maintenance freeze `c04c2b2a3ceaa17bd1882b210cbd840f4a1af037` was independently reassessed against the original main baseline. [Correctness](audits/2026-11-09-ui-ci-correctness-review.md), [standards/Effect](audits/2026-11-09-ui-ci-standards-review.md) and [product/visual](audits/2026-11-09-ui-ci-product-review.md) each rated the complete updated change 9.6/10. No new blocking finding was reported. Report archival changes documentation only; new-head remote CI remains required.
+
+## Fresh review of PR #190
+
+The user requested a new three-reviewer assessment of live head `6ecb35e3f23527601168d193accbabcce2afa3a4` against main `45245daf360d0bd352f28da39b5ddec6978931c1`. [Correctness](audits/2026-11-09-ui-pr190-round1-correctness-review.md) scored 9.0, [standards/Effect](audits/2026-11-09-ui-pr190-round1-standards-review.md) 9.6 and [product/visual](audits/2026-11-09-ui-pr190-round1-product-review.md) 9.3. This round failed the strict gate despite green CI.
+
+- UI-006: preserve native Save and Save As for media-free packages created by Open. A reserved default recording filename alone is not proof that a recording exists. Missing recording with timeline/capture metadata or declared sidecars still fails before destination replacement.
+- UI-011: ignore delayed media-ended events after Pause or a newer seek. Only an active program transport and a currently ended source can advance to the next scene.
+- UI-002/UI-004: lock source, microphone, frame rate and input-tracking controls during an active capture, with localized explanation and an explicit Stop preview action. Before starting a recording, replace any live preview with the requested capture configuration, including header source shortcuts.
+
+These corrections have focused native/browser regression coverage. A fresh frozen-head review by all three reviewers is required. Existing release-verification limits remain unchanged.

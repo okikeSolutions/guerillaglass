@@ -344,6 +344,11 @@ export function useVideoPlaybackSync({
     // pause/seeked events can belong to a previous clip or gap and must not
     // overwrite a newer explicit command.
     const handleEnded = () => {
+      // A pause or seek can overtake the queued event. A newer seek clears
+      // `ended`; neither that event nor a paused transport owns another play.
+      if (!isTimelinePlayingRef.current || !media.ended) {
+        return;
+      }
       const resolution = resolveTimelinePlaybackAtProgramTime(
         timelineItems,
         playheadSecondsRef.current,

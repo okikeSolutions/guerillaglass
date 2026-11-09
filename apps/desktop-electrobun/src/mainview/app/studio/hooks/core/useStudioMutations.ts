@@ -487,7 +487,14 @@ export function useStudioMutations({
           autoZoom: settingsForm.getValues().autoZoom,
           backgroundFraming: settingsForm.getValues().backgroundFraming,
         };
-        if (!status?.isRunning) {
+        if (!status?.isRecording) {
+          // Preview configuration is immutable in the native engine. Record
+          // must acquire the requested source/audio setup, including header
+          // shortcuts that choose another source while preview is running.
+          if (status?.isRunning) {
+            status = await engineApi.stopCapture();
+            queryClient.setQueryData(studioQueryKeys.captureStatus(), status);
+          }
           status = await startCaptureInternal({
             captureSourceOverride: options?.captureSourceOverride,
             preferWindowPicker:
