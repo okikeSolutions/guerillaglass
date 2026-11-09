@@ -66,6 +66,27 @@ export function ProgramPreviewControls({
             aria-label={studio.ui.labels.playhead}
             value={Math.min(playhead, studio.timelineDuration)}
             disabled={!available}
+            onPointerDown={() => studio.setTimelinePlaybackActive(false)}
+            onKeyDown={(event) => {
+              if (
+                [
+                  "Home",
+                  "End",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "ArrowUp",
+                  "ArrowDown",
+                  "PageUp",
+                  "PageDown",
+                ].includes(event.key)
+              ) {
+                studio.setTimelinePlaybackActive(false);
+              }
+              if (event.key === "Home" || event.key === "End") {
+                event.preventDefault();
+                studio.setPlayheadSeconds(event.key === "Home" ? 0 : studio.timelineDuration);
+              }
+            }}
             onChange={(event) => studio.setPlayheadSeconds(Number(event.target.value))}
             className="min-w-0 flex-1"
           />

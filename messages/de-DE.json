@@ -41,7 +41,7 @@
   "studio_actions_requestScreen": "Bildschirm anfragen",
   "studio_actions_requestMic": "Mikrofon anfragen",
   "studio_actions_requestInput": "Eingabe anfragen",
-  "studio_actions_openSettings": "Einstellungen öffnen",
+  "studio_actions_openSettings": "Einstellungen für Eingabeüberwachung öffnen",
   "studio_actions_startPreview": "Vorschau starten",
   "studio_actions_stopPreview": "Vorschau stoppen",
   "studio_actions_startRecording": "Aufzeichnung starten",
@@ -474,5 +474,16 @@
   "ui_replace_recording_title": "Neue Aufnahme starten?",
   "ui_replace_recording_body": "Eine neue Aufnahme ersetzt die aktuelle Aufnahme und Zeitleiste. Deine Darstellungseinstellungen bleiben erhalten. Arbeite weiter, um deine aktuelle Arbeit zuerst zu speichern.",
   "ui_replace_open": "Änderungen verwerfen und öffnen",
-  "ui_replace_record": "Neue Aufnahme starten"
+  "ui_replace_record": "Neue Aufnahme starten",
+  "ui_permission_recovery_help": "Bleiben Bildschirm oder Mikrofon nach der Anfrage ohne Zugriff, öffne Systemeinstellungen → Datenschutz & Sicherheit → Bildschirmaufnahme oder Mikrofon und erlaube Guerilla Glass. Starte die App neu, falls macOS dazu auffordert.",
+  "ui_storyboard_json": "Ungültiges JSON. Korrigiere die JSON-Syntax und prüfe erneut.",
+  "ui_storyboard_version": "Nicht unterstützte Storyboard-Version. Bitte deinen Bearbeitungsagenten um Version 1.",
+  "ui_storyboard_duplicate": "Szene {scene} wiederholt die ID von Szene {previous}. Gib jeder Szene eine eindeutige item.id.",
+  "ui_storyboard_missing": "Pflichtfeld fehlt: {field}. Ergänze es und prüfe erneut.",
+  "ui_storyboard_value": "Ungültiger Wert bei {field}. Prüfe Typ, erlaubte Werte und Bereich.",
+  "ui_storyboard_too_large": "Das Storyboard überschreitet die Grenze von 2 MiB. Verkleinere die JSON-Datei und importiere sie erneut.",
+  "ui_storyboard_read_failed": "Die Storyboard-Datei konnte nicht gelesen werden. Wähle eine zugängliche JSON-Datei und versuche es erneut.",
+  "ui_restore_project_panel": "Projektbereich anzeigen",
+  "ui_restore_inspector": "Inspektor anzeigen",
+  "ui_restore_timeline": "Zeitleiste anzeigen"
 }

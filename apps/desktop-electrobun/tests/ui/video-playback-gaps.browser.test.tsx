@@ -179,9 +179,9 @@ describe("timeline preview across gaps", () => {
       media.currentTime = 0;
       act(() => media.dispatchEvent(new Event("loadedmetadata")));
       expect(media.currentTime).toBeCloseTo(0.25);
-      act(() => media.dispatchEvent(new Event("play")));
+      act(() => playbackStore.play());
       expect(playbackStore.getSnapshot().isPlaying).toBe(true);
-      act(() => media.dispatchEvent(new Event("pause")));
+      act(() => playbackStore.pause());
       expect(playbackStore.getSnapshot().isPlaying).toBe(false);
     }
   });
@@ -250,14 +250,15 @@ describe("timeline preview across gaps", () => {
     expect(media.style.visibility).toBe("hidden");
   });
 
-  test("pausing the native controls inside a clip stops the program clock", () => {
+  test("pausing the program transport inside a clip pauses its media", () => {
     const media = document.querySelector("video")!;
     act(() => {
       playbackStore.seek(0.75);
       playbackStore.play();
-      media.dispatchEvent(new Event("pause"));
+      playbackStore.pause();
     });
     expect(playbackStore.getSnapshot().isPlaying).toBe(false);
+    expect(media.pause).toHaveBeenCalled();
   });
 
   test("a queued native ended event at an exact gap boundary does not end the program", () => {

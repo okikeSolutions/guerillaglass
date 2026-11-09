@@ -244,6 +244,12 @@ describe("studio shell browser smoke", () => {
     await expect
       .element(page.getByRole("button", { name: "Check permission again" }))
       .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Open Input Monitoring Settings", exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByText(/Privacy & Security → Screen Recording or Microphone/))
+      .toBeVisible();
   });
 
   test("route toolbars reserve recording for Capture and group utilities under View", async () => {
@@ -348,4 +354,21 @@ describe("studio shell browser smoke", () => {
       .toHaveAttribute("aria-current");
     await page.screenshot({ path: "../../test-results/screenshots/acceptance-deliver.png" });
   });
+});
+
+test("collapsed panes have labeled edge restoration controls", async () => {
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  for (const [toggle, restore] of [
+    ["Toggle Left Pane", "Show project panel"],
+    ["Toggle Inspector", "Show inspector"],
+    ["Toggle Timeline", "Show timeline"],
+  ]) {
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("menuitem", { name: toggle, exact: true }).click();
+    await expect.element(page.getByRole("button", { name: restore, exact: true })).toBeVisible();
+    await page.getByRole("button", { name: restore, exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: restore, exact: true }))
+      .not.toBeInTheDocument();
+  }
 });

@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Button } from "@guerillaglass/ui/components/button";
+import * as m from "../../../../paraglide/messages.js";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -47,9 +49,28 @@ export function EditorWorkspace({
   } = useEditorWorkspaceLayout();
 
   return (
-    <div ref={verticalGroupContainerRef} className="h-full min-h-0 overflow-hidden">
+    <div ref={verticalGroupContainerRef} className="flex h-full min-h-0 flex-col overflow-hidden">
+      {layout.leftCollapsed || layout.rightCollapsed ? (
+        <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+          {layout.leftCollapsed ? (
+            <Button size="sm" variant="outline" onClick={studio.toggleLeftPaneCollapsed}>
+              {m.ui_restore_project_panel(undefined, { locale: studio.locale })}
+            </Button>
+          ) : null}
+          {layout.rightCollapsed ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={studio.toggleRightPaneCollapsed}
+            >
+              {m.ui_restore_inspector(undefined, { locale: studio.locale })}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <ResizablePanelGroup
-        className="h-full min-h-0 overflow-hidden"
+        className="min-h-0 flex-1 overflow-hidden"
         orientation="vertical"
         onLayoutChanged={commitTimelinePanelLayout}
       >
@@ -74,6 +95,7 @@ export function EditorWorkspace({
               maxSize={toPxSize(studioLayoutBounds.leftPaneMaxWidthPx)}
               collapsible
               collapsedSize="0px"
+              inert={layout.leftCollapsed}
               className="flex min-h-0 min-w-0 overflow-hidden"
             >
               {leftPane}
@@ -114,6 +136,7 @@ export function EditorWorkspace({
               maxSize={toPxSize(studioLayoutBounds.rightPaneMaxWidthPx)}
               collapsible
               collapsedSize="0px"
+              inert={layout.rightCollapsed}
               className="flex min-h-0 min-w-0 overflow-hidden"
             >
               {rightPane}
@@ -143,6 +166,7 @@ export function EditorWorkspace({
               maxSize={toPxSize(timelineHeightBounds.maxPx)}
               collapsible
               collapsedSize="0px"
+              inert={layout.timelineCollapsed}
               className="min-h-0 overflow-hidden"
             >
               {bottomPane}
@@ -150,6 +174,13 @@ export function EditorWorkspace({
           </>
         ) : null}
       </ResizablePanelGroup>
+      {bottomPane && layout.timelineCollapsed ? (
+        <div className="flex shrink-0 justify-center border-t px-3 py-2">
+          <Button size="sm" variant="outline" onClick={studio.toggleTimelineCollapsed}>
+            {m.ui_restore_timeline(undefined, { locale: studio.locale })}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

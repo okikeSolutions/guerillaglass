@@ -30,6 +30,7 @@ import { StudioProvider } from "../../src/mainview/app/studio/state/StudioProvid
 import { StudioPreferences } from "../../src/mainview/app/studio/layout/StudioShellHeader";
 import { InspectorPanel } from "../../src/mainview/app/studio/panels/InspectorPanel";
 import { CaptureRoute } from "../../src/mainview/app/studio/routes/CaptureRoute";
+import { DeliverRoute } from "../../src/mainview/app/studio/routes/DeliverRoute";
 import { ProgramPreview } from "../../src/mainview/app/studio/routes/ProgramPreview";
 const healthyMediaSource = new URL("../fixtures/timeline-red.mp4", import.meta.url).href;
 
@@ -50,7 +51,7 @@ let root: Root | undefined;
 let queryClient: QueryClient | undefined;
 let latestStudio: StudioController | null = null;
 let updateInspectorMode: ((mode: StudioMode) => void) | null = null;
-let updatePreviewRoute: ((route: "capture" | "edit" | null) => void) | null = null;
+let updatePreviewRoute: ((route: "capture" | "edit" | "deliver" | null) => void) | null = null;
 let capturedExportParams: unknown = null;
 let capturedSaveParams: unknown = null;
 let replacementDecision: "discard" | "keep" | null = null;
@@ -197,7 +198,7 @@ function capturedExportTimeline(): TimelineDocument {
 function StudioHarness({ onStudio }: { onStudio: (studio: StudioController) => void }) {
   const studio = useStudioController();
   const [mode, setMode] = useState<StudioMode>("deliver");
-  const [previewRoute, setPreviewRoute] = useState<"capture" | "edit" | null>(null);
+  const [previewRoute, setPreviewRoute] = useState<"capture" | "edit" | "deliver" | null>(null);
   useEffect(() => {
     updatePreviewRoute = setPreviewRoute;
     return () => {
@@ -220,6 +221,8 @@ function StudioHarness({ onStudio }: { onStudio: (studio: StudioController) => v
         <StudioPreferences />
         {previewRoute === "capture" ? (
           <CaptureRoute />
+        ) : previewRoute === "deliver" ? (
+          <DeliverRoute />
         ) : previewRoute === "edit" ? (
           <ProgramPreview />
         ) : (
@@ -1565,6 +1568,8 @@ async function prepareCapture() {
 describe("recording transition reconciliation", () => {
   test("successful native start retires the old project even if both follow-up queries fail", async () => {
     await prepareCapture();
+    await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
+    expect(currentStudio().exportMutation.data?.status).toBe("succeeded");
     const bridge = window as unknown as Record<string, unknown>;
     bridge.ggEngineStartRecording = async () => ({
       isRunning: true,
@@ -1587,6 +1592,7 @@ describe("recording transition reconciliation", () => {
       });
       await waitFor(() => {
         expect(currentStudio().recordingURL).toBe("/tmp/refresh-failed.mov");
+        expect(currentStudio().exportMutation.data).toBeUndefined();
         expect(currentStudio().projectQuery.data?.projectPath).toBeUndefined();
         expect(currentStudio().captureStatusQuery.data?.isRecording).toBe(true);
         expect(currentStudio().canUndoTimeline).toBe(false);
@@ -1988,3 +1994,156 @@ test("unmounting a pending replacement cancels before native project IO", async 
   expect(await pending).toBeNull();
   expect(picks).toBe(0);
 });
+
+for (const openKind of ["open", "recent"] as const) {
+  test(`export result remains on cancelled/failed open and clears after committed ${openKind}`, async () => {
+    await waitFor(() => expect(currentStudio().recordingURL).toBeTruthy());
+    await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
+    await act(async () => updatePreviewRoute?.("deliver"));
+    await expect
+      .element(page.getByRole("button", { name: "Open video", exact: true }))
+      .toBeVisible();
+    const saved = currentStudio().projectQuery.data!;
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggPickPath = async () => null;
+    await applyStudioAction(async (studio) => studio.openProjectMutation.mutateAsync());
+    expect(currentStudio().exportMutation.data?.status).toBe("succeeded");
+    bridge.ggPickPath = async () => "/tmp/project-b.gglassproj";
+    bridge.ggEngineProjectOpen = async () => {
+      throw new Error("Open failed");
+    };
+    await expect(
+      applyStudioAction(async (studio) => studio.openProjectMutation.mutateAsync()),
+    ).rejects.toThrow();
+    expect(currentStudio().exportMutation.data?.status).toBe("succeeded");
+    bridge.ggEngineProjectOpen = async () => ({
+      ...saved,
+      projectPath: "/tmp/project-b.gglassproj",
+    });
+    await applyStudioAction(async (studio) =>
+      openKind === "open"
+        ? studio.openProjectMutation.mutateAsync()
+        : studio.openRecentProjectMutation.mutateAsync("/tmp/project-b.gglassproj"),
+    );
+    await expect
+      .element(page.getByRole("button", { name: "Open video", exact: true }))
+      .not.toBeInTheDocument();
+    expect(currentStudio().exportMutation.data).toBeUndefined();
+  });
+}
+
+for (const target of [0.8, 0.5]) {
+  test(`active preview scrubbing pauses and retains requested program position ${target}`, async () => {
+    await waitFor(() => expect(currentStudio().recordingURL).toBeTruthy());
+    const clip = initialTimeline.items[0]!;
+    if (clip.kind !== "clip") {
+      throw new Error("Expected clip");
+    }
+    const timeline: TimelineDocument = {
+      version: 2,
+      items: [
+        { ...clip, sourceStartSeconds: 0.5, sourceEndSeconds: 0.9 },
+        { kind: "gap", id: timelineSegmentIdSchema.make("scrub-gap"), durationSeconds: 0.2 },
+        {
+          ...clip,
+          id: timelineSegmentIdSchema.make("scrub-second"),
+          sourceStartSeconds: 0,
+          sourceEndSeconds: 0.4,
+        },
+      ],
+    };
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggResolveMediaSourceURL = async () =>
+      new URL("../fixtures/timeline-seek.mp4", import.meta.url).href;
+    await act(async () => {
+      queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
+        ...currentStudio().projectQuery.data,
+        timeline,
+      });
+      updatePreviewRoute?.("edit");
+    });
+    await waitFor(
+      () => expect(document.querySelector("video")?.readyState).toBeGreaterThanOrEqual(2),
+      5000,
+    );
+    await page.getByRole("button", { name: "Play preview", exact: true }).click();
+    await waitFor(() => {
+      expect(currentStudio().playbackStore.getSnapshot().isPlaying).toBe(true);
+      expect(document.querySelector("video")?.paused).toBe(false);
+    });
+    const slider = document.querySelector<HTMLInputElement>('input[aria-label="Playhead"]')!;
+    slider.focus();
+    await userEvent.keyboard("{Home}");
+    await userEvent.keyboard("{ArrowRight}".repeat(target * 30));
+    await waitFor(() => {
+      expect(currentStudio().playbackStore.getSnapshot().isPlaying).toBe(false);
+      expect(currentStudio().playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(target, 4);
+      if (target === 0.8) {
+        expect(document.querySelector("video")?.currentTime).toBeCloseTo(0.2, 2);
+      } else {
+        expect(document.querySelector("video")?.style.visibility).toBe("hidden");
+      }
+    });
+  });
+}
+
+for (const trailingGap of [false, true]) {
+  test(`Play restarts a completed program with trailing gap ${trailingGap}`, async () => {
+    await waitFor(() => expect(currentStudio().recordingURL).toBeTruthy());
+    const clip = initialTimeline.items[0]!;
+    if (clip.kind !== "clip") {
+      throw new Error("Expected clip");
+    }
+    const timeline: TimelineDocument = {
+      version: 2,
+      items: [
+        { ...clip, sourceStartSeconds: 0, sourceEndSeconds: 0.4 },
+        ...(trailingGap
+          ? [
+              {
+                kind: "gap" as const,
+                id: timelineSegmentIdSchema.make("replay-gap"),
+                durationSeconds: 0.2,
+              },
+            ]
+          : []),
+      ],
+    };
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge.ggResolveMediaSourceURL = async () =>
+      new URL(healthyMediaSource, window.location.href).href;
+    await act(async () => {
+      queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
+        ...currentStudio().projectQuery.data,
+        timeline,
+      });
+      updatePreviewRoute?.("edit");
+    });
+    await waitFor(
+      () => expect(document.querySelector("video")?.readyState).toBeGreaterThanOrEqual(2),
+      5000,
+    );
+    for (const completion of ["seek", "natural"] as const) {
+      if (completion === "seek") {
+        await applyStudioAction((studio) => studio.setPlayheadSeconds(studio.timelineDuration));
+      } else {
+        await page.getByRole("button", { name: "Play preview", exact: true }).click();
+        await waitFor(
+          () => expect(currentStudio().playbackStore.getSnapshot().isPlaying).toBe(false),
+          3000,
+        );
+      }
+      expect(currentStudio().playbackStore.getSnapshot().playheadSeconds).toBeCloseTo(
+        currentStudio().timelineDuration,
+        4,
+      );
+      await page.getByRole("button", { name: "Play preview", exact: true }).click();
+      await waitFor(() => {
+        expect(currentStudio().playbackStore.getSnapshot().isPlaying).toBe(true);
+        expect(currentStudio().playbackStore.getSnapshot().playheadSeconds).toBeLessThan(0.4);
+        expect(document.querySelector("video")?.paused).toBe(false);
+      });
+      await page.getByRole("button", { name: "Pause preview", exact: true }).click();
+    }
+  });
+}

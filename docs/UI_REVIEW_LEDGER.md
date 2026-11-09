@@ -748,3 +748,7 @@ The contiguous preview/timeline/inspector layout is a useful base. Shared contro
 ## Validation of this audit
 
 `bun run repo:check`, `bun run docs:check` and `git diff --check` passed. A separate coverage/link check confirmed all 85 inventoried modules, 40 unique finding IDs and the linked evidence files. No application code changed, so application builds, packaged acceptance and regression suites were not rerun. Live app observations are evidence for findings, not a substitute for regression tests when implementing fixes.
+
+### Second frozen review follow-up
+
+Commit `8bdd37b` failed all three independent ratings at 9.2, 9.3 and 9.1. [Correctness](audits/2026-11-09-ui-round2-correctness-review.md), [standards](audits/2026-11-09-ui-round2-standards-review.md) and [product](audits/2026-11-09-ui-round2-product-review.md) reports remain available. The next revision addresses UI-003 edge restoration, UI-004 accurate permission recovery, UI-011 playing seeks/EOF replay, UI-013 narrow scene identity, UI-018 export result ownership, UI-021 actionable schema diagnostics and UI-025 keyboard Blade activation. Findings remain Ready for verification; fresh ratings must each exceed 9.5 before PR preparation.

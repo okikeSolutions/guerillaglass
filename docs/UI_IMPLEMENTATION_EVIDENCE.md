@@ -4,7 +4,7 @@ Implementation and verification on 2026-11-08 and 2026-11-09. Comparison baselin
 
 ## Review gate
 
-The user requires three independent reviewers, each rating the complete change **strictly above 9.5/10**, before preparing a PR. Initial reviews of the moving tree scored 6.8, 7.0 and 7.1. Frozen commit `0131236` subsequently scored [8.7 for correctness](audits/2026-11-09-ui-correctness-review.md), [9.0 for standards](audits/2026-11-09-ui-standards-review.md) and [8.4 for product](audits/2026-11-09-ui-product-review.md). All failed the gate. These reports remain historical evidence, including the defects they identified. Follow-up changes require fresh independent reviews of a frozen commit and its evidence. No earlier score authorizes PR preparation. Reviewers must report unresolved findings without rounding a failing score up.
+The user requires three independent reviewers, each rating the complete change **strictly above 9.5/10**, before preparing a PR. Initial reviews of the moving tree scored 6.8, 7.0 and 7.1. Frozen commit `0131236` subsequently scored [8.7 for correctness](audits/2026-11-09-ui-correctness-review.md), [9.0 for standards](audits/2026-11-09-ui-standards-review.md) and [8.4 for product](audits/2026-11-09-ui-product-review.md). All failed the gate. Commit `8bdd37b` then failed at [9.2 correctness](audits/2026-11-09-ui-round2-correctness-review.md), [9.3 standards](audits/2026-11-09-ui-round2-standards-review.md) and [9.1 product](audits/2026-11-09-ui-round2-product-review.md). These reports remain historical evidence, including the defects they identified. Follow-up changes require fresh independent reviews of a frozen commit and its evidence. No earlier score authorizes PR preparation. Reviewers must report unresolved findings without rounding a failing score up.
 
 ## Current workflows
 
@@ -29,6 +29,7 @@ The development app was rebuilt through `bun run desktop:acceptance`. The permis
 | Small desktop window | At 1100x760, Edit controls and two-row clock fit. Deliver shows all three lanes and its fixed Export footer. The timeline has a source-level overflow path; manual Events-lane scrolling was not established because the UI driver failed to target the wheel event. |
 | Same-package replacement | With unsaved Auto zoom enabled, Escape cancels the application confirmation and preserves the draft. Explicit Discard changes followed by native Open of the same Website package restores saved Auto zoom disabled, Saved state, disabled Undo and Full program range 0..12. No window.confirm is used. |
 | Fullscreen and preview audio controls | The actual native wrapper enters/exits 1920x1080 fullscreen with the camera composition and controls. Preview volume/mute state survives Edit to Deliver while the project remains Saved. The source has no audio, so this is control-state proof, not audible playback proof. |
+| Second-review native follow-up | At exact 12-second EOF, Play preview restarts at 0.13 seconds. Scrubbing pauses at 6 seconds. Show project panel restores the collapsed rail through a reserved row without overlapping the stage; collapsed content is inert. Missing-field storyboard `{}` reports version specifically. The original demo remains Saved. Native Home/End key targeting was not established by the UI driver; real browser keyboard coverage supplies that proof. |
 | Audio-free source | Native WebKit reports zero embedded tracks and the lane says No audio. Unknown, failed and silent decode states have separate source/browser coverage. |
 | Proposal import/review | Imported through native file picker. Source and saved revision validated; 12-second current program compared with an 11-second proposal. Scene camera/timing differences are readable. |
 | Isolated scene playback | Native Scene 1 preview stops at 2.00/2.00 without changing the main program transport. The preview identifies its scene and Before/Proposed version; selected rows and focus movement have browser coverage. The proposal was not applied to the original demonstration project. |
@@ -54,6 +55,8 @@ The reports above describe `0131236`, not the later source. Follow-up changes ad
 | Toolbar duplication and proposal orientation | File commands have one header home, route-specific actions replace unrelated recording controls, and Deliver owns Export. Proposal titles, selected rows and predictable preview focus restore context. | First-time-user observation and long-project usability remain open. |
 | Slider gestures flooded history | A visual-edit gesture groups intermediate form changes into one history entry, with browser drag/history regressions. | Full assistive-technology interaction remains unverified. |
 
+The second frozen review found six further interaction defects. The follow-up makes explicit scrubbing pause and seek the source, restarts completed programs including fractional durations/trailing gaps, and keeps queued native pause/seek notifications from overriding newer program commands. Play request failures are tied to their current generation. Successful Open/Recent/new recording clears the previous export result; cancelled or failed replacement preserves it. Permission recovery names Input Monitoring precisely and explains the separate Screen/Microphone settings categories. Local storyboard diagnostics distinguish JSON syntax, unsupported version, missing/invalid field paths, duplicate scene positions and the 2 MiB import limit. Blade keyboard activation cuts at the playhead while pointer cuts retain their location. Labeled edge buttons restore collapsed panes, and narrow clips hide secondary duration/camera counts before losing scene identity. Focused browser regressions cover these paths.
+
 These corrections do not change the historical ratings or mark any finding Verified. The acceptance matrix below retains the remaining limits.
 
 ## Demonstration provenance
@@ -65,7 +68,7 @@ The 36-second source becomes three scenes at source 15.5..17.5, 18..23 and 29..3
 - Project revision `0b4248b2ac05be85e7828bc9e9f07c1c57549348e6febbc3c5c526ae5cec371b`.
 - Source revision `adc04388a1fa8be4433d01fa76d12dd9a77aaff756f52197f57058e6b25420ef`.
 - Render ID `09fad41e-685d-47f7-9e8a-b089daf21328`.
-- Committed output [demo.mp4](../apps/web/public/demo.mp4), 1,530,691 bytes. The output poster is a decoded frame at 3.5 seconds. The [website screenshot](../apps/web/public/studio-preview.png) is a packaged-app capture of the same real editor project.
+- Committed output [demo.mp4](../apps/web/public/demo.mp4), 1,530,691 bytes. The output poster is a decoded frame at 3.5 seconds. The [website screenshot](../apps/web/public/studio-preview.png) is the latest packaged-app capture of the same real editor project.
 
 ## Browser verification
 
@@ -73,7 +76,7 @@ The actual built TanStack application ran at localhost with the configured auth 
 
 - Root, About and missing-route content render independently of auth. The missing route returns HTTP 404 intentionally and fills the viewport.
 - English and German requests return their own locale and copy. Concurrent request checks did not leak locale. Responses vary on Cookie and Accept-Language; an explicit locale cookie takes precedence over the language header.
-- Auto appearance follows live system changes; an explicit stored preference takes precedence. German mobile dark, About light and missing-route light screenshots are retained.
+- Auto appearance follows live system changes; an explicit stored preference takes precedence. German mobile dark, About light and missing-route light screenshots are retained. The retained mobile-home capture predates the latest editor illustration; the current website image is identical to the current packaged editor capture. The earlier built-home screenshot proves page layout, not that later asset revision.
 - Modal navigation focuses its close action on open, wraps Tab/Shift+Tab, closes with Escape and returns focus to its trigger. FAQ expansion keeps focus beside the answer. No horizontal overflow at 390 px.
 - Actual composited light text contrast ratios were 14.71 for primary, 6.30 for secondary and 7.30 for CTA text. Dark ratios were 16.73, 8.77 and 7.45. Public content has no active CSS entrance animation or WebGL dependency. Reduced-motion rules were inspected in source, not emulated in the native system.
 
@@ -126,13 +129,14 @@ Ready for verification means implementation and the cited checks exist. It does 
 
 ## Selected checks
 
-The listed checks passed on the implementation stages they cover. The integrated acceptance and unit rows reflect the follow-up after the failed frozen reviews. Logs are retained under ignored `.tmp/ui-research`; screenshots below are committed so review does not depend on that directory. Follow-up edits must rerun affected checks.
+The listed checks passed on the implementation stages they cover. The integrated acceptance row reflects the second-review follow-up, including the six reproduced interaction defects. The focused unit rows identify their tested stages. Logs are retained under ignored `.tmp/ui-research`; screenshots below are committed so review does not depend on that directory. Follow-up edits must rerun affected checks.
 
 | Check | Result |
 | --- | --- |
 | `bun run desktop:typecheck` | Passed. |
-| `bun run desktop:acceptance` | 10 browser files, 103 tests passed; packaged runtime smoke passed with fatal-pattern/process cleanup checks. |
+| `bun run desktop:acceptance` | 10 browser files, 115 tests passed; packaged runtime smoke passed with fatal-pattern/process cleanup checks. |
 | Focused desktop unit selection | 27 files, 159 tests passed covering menus, source/media security, host dialogs, history/session transitions, localized file errors, layout, inspector, export authority and shutdown. |
+| Second-review transport and diagnostics units | 2 files, 10 tests passed; overlap earlier transport coverage and are not summed as unique tests. |
 | Replacement dialog/controller/shell follow-up | 61 selected browser cases passed, including actual application dialog behavior. These overlap acceptance and are not added as unique tests. |
 | Bridge disposal/graceful quit/engine API follow-up | 3 files, 20 tests passed. Counts overlap the focused selection and are not summed as unique tests. |
 | `bun run gate:swift:fast` | Engine product compiled. |
@@ -155,6 +159,8 @@ These are native-window captures or actual built-site captures. They contain tes
 | Application replacement confirmation | [replacement-confirmation.png](evidence/ui-pass/replacement-confirmation.png) |
 | Smaller Deliver with all lanes and Export footer | [desktop-deliver-small.png](evidence/ui-pass/desktop-deliver-small.png) |
 | Permission-denied Capture | [desktop-capture-denied.png](evidence/ui-pass/desktop-capture-denied.png) |
+| Labeled collapsed-pane recovery | [restore-panel.png](evidence/ui-pass/restore-panel.png) |
+| Actionable storyboard diagnostic | [proposal-diagnostic.png](evidence/ui-pass/proposal-diagnostic.png) |
 | Readable proposal comparison | [proposal-review.png](evidence/ui-pass/proposal-review.png) |
 | Isolated scene preview | [proposal-preview.png](evidence/ui-pass/proposal-preview.png) |
 | Delivery with composition preview | [desktop-deliver.png](evidence/ui-pass/desktop-deliver.png) |

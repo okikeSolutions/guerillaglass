@@ -537,6 +537,7 @@ export function useStudioMutations({
         // The successful native result establishes new ownership. Commit it
         // before any status/project reconciliation can fail or block.
         if (!finished) {
+          exportMutation.reset();
           queryClient.setQueryData<ProjectState>(studioQueryKeys.projectCurrent(), {
             ...(nextStatus.recordingURL ? { recordingURL: nextStatus.recordingURL } : {}),
             ...(nextStatus.eventsURL ? { eventsURL: nextStatus.eventsURL } : {}),
@@ -649,6 +650,7 @@ export function useStudioMutations({
         return;
       }
       onProjectOpened?.();
+      exportMutation.reset();
       exportForm.setRangeMode("full");
       exportForm.setTrimStartSeconds(0);
       exportForm.setTrimEndSeconds(0);
@@ -691,6 +693,7 @@ export function useStudioMutations({
         return;
       }
       onProjectOpened?.();
+      exportMutation.reset();
       exportForm.setRangeMode("full");
       exportForm.setTrimStartSeconds(0);
       exportForm.setTrimEndSeconds(0);

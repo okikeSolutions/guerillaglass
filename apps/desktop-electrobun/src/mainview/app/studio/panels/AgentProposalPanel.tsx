@@ -2,9 +2,9 @@ import { editorStateSignature, timelineContentSignature } from "../domain/editor
 import { useRef, useState, type ReactNode } from "react";
 import { useStore } from "@tanstack/react-form";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { Schema, Result } from "effect";
+import { Result } from "effect";
 import {
-  EditStoryboard,
+  type EditStoryboard,
   compileStoryboard,
   describeSceneChanges,
   type EditProposalBaseline,
@@ -27,8 +27,7 @@ import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import { ProposalScenePreview } from "./ProposalScenePreview";
 import { useStudio } from "../state/StudioProvider";
 import { studioQueryKeys } from "../hooks/core/useStudioDataQueries";
-
-const decodeStoryboard = Schema.decodeUnknownResult(Schema.fromJsonString(EditStoryboard));
+import { decodeStoryboardForReview } from "../view-model/storyboardDiagnostic";
 
 type ProposalReviewProps = {
   locale?: StudioLocale;
@@ -133,12 +132,23 @@ export function AgentProposalReview({
     setValidation(null);
     setConfirmed(false);
     if (new TextEncoder().encode(text).length > 2 * 1024 * 1024) {
-      setNotice(labels.invalid);
+      setNotice(m.ui_storyboard_too_large(undefined, options));
       return;
     }
-    const decoded = decodeStoryboard(text);
+    const decoded = decodeStoryboardForReview(text);
     if (Result.isFailure(decoded)) {
-      setNotice(labels.invalid);
+      const diagnostic = decoded.failure;
+      setNotice(
+        diagnostic.kind === "json"
+          ? m.ui_storyboard_json(undefined, options)
+          : diagnostic.kind === "version"
+            ? m.ui_storyboard_version(undefined, options)
+            : diagnostic.kind === "duplicate"
+              ? m.ui_storyboard_duplicate(diagnostic, options)
+              : diagnostic.kind === "missing"
+                ? m.ui_storyboard_missing(diagnostic, options)
+                : m.ui_storyboard_value(diagnostic, options),
+      );
       return;
     }
     operation.current = true;
@@ -242,13 +252,13 @@ export function AgentProposalReview({
                 setConfirmed(false);
                 setNotice(null);
                 if (file.size > 2 * 1024 * 1024) {
-                  setNotice(labels.invalid);
+                  setNotice(m.ui_storyboard_too_large(undefined, options));
                   return;
                 }
                 void file
                   .text()
                   .then((contents) => setText(contents))
-                  .catch(() => setNotice(labels.invalid));
+                  .catch(() => setNotice(m.ui_storyboard_read_failed(undefined, options)));
               }}
             />
           </div>

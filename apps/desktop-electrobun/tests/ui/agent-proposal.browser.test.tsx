@@ -115,11 +115,7 @@ test("invalid JSON and native validation errors cannot apply", async () => {
   await page.getByRole("textbox", { name: "Storyboard JSON" }).fill("{}");
   await page.getByRole("button", { name: "Validate proposal", exact: true }).click();
   await expect
-    .element(
-      page.getByText(
-        "Invalid storyboard. Check its version, scene IDs, ranges and required fields.",
-      ),
-    )
+    .element(page.getByText("Missing required field: version. Add it and validate again."))
     .toBeVisible();
   expect(validate).not.toHaveBeenCalled();
   await page.getByRole("textbox", { name: "Storyboard JSON" }).fill(JSON.stringify(storyboard));
@@ -159,3 +155,28 @@ test("scene preview names the selected scene and version and receives keyboard f
     .poll(() => document.activeElement?.getAttribute("aria-label"))
     .toBe("Result · Proposed");
 });
+
+for (const [value, message] of [
+  ["{", "Invalid JSON. Fix the JSON syntax before validating again."],
+  [
+    JSON.stringify({ ...storyboard, version: 2 }),
+    "Unsupported storyboard version. Ask your editing agent for version 1.",
+  ],
+  [
+    JSON.stringify({ ...storyboard, scenes: [storyboard.scenes[0], storyboard.scenes[0]] }),
+    "Scene 2 repeats the ID of scene 1. Give each scene a unique item.id.",
+  ],
+  [
+    "x".repeat(2 * 1024 * 1024 + 1),
+    "Storyboard exceeds the 2 MiB limit. Reduce the JSON file size and import again.",
+  ],
+] as const) {
+  test(`storyboard diagnostics explain ${message}`, async () => {
+    const { validate, apply } = await mount();
+    await page.getByRole("textbox", { name: "Storyboard JSON" }).fill(value);
+    await page.getByRole("button", { name: "Validate proposal", exact: true }).click();
+    await expect.element(page.getByText(message, { exact: true })).toBeVisible();
+    expect(validate).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+  });
+}

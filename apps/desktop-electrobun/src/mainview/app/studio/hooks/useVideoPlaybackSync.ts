@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { recordStudioPlaybackActive, recordStudioPlaybackTick } from "@lib/studioDiagnostics";
 import type { CompiledTimelineItem } from "../domain/timelineDomainModel";
 import { timelineDurationSeconds } from "../domain/timelineDomainModel";
@@ -34,6 +34,23 @@ export function useVideoPlaybackSync({
   const playheadSecondsRef = useRef(playbackStore.getSnapshot().playheadSeconds);
   const playbackRateRef = useRef(playbackStore.getSnapshot().playbackRate);
   const isTimelinePlayingRef = useRef(playbackStore.getSnapshot().isPlaying);
+  const playGeneration = useRef(0);
+  const playMedia = useCallback(
+    (media: HTMLVideoElement) => {
+      const generation = ++playGeneration.current;
+      void media.play().catch(() => {
+        // A gap or newer command can abort an older play request asynchronously.
+        if (playGeneration.current === generation) {
+          setTimelinePlaybackActive(false);
+        }
+      });
+    },
+    [setTimelinePlaybackActive],
+  );
+  const pauseMedia = useCallback((media: HTMLVideoElement) => {
+    playGeneration.current += 1;
+    media.pause();
+  }, []);
 
   useEffect(() => {
     const updateRefs = () => {
@@ -91,7 +108,7 @@ export function useVideoPlaybackSync({
         if (Math.abs(media.currentTime - resolution.sourceSeconds) > 0.08) {
           media.currentTime = resolution.sourceSeconds;
         }
-        void media.play().catch(() => setTimelinePlaybackActive(false));
+        playMedia(media);
       } catch {
         setTimelinePlaybackActive(false);
       }
@@ -106,16 +123,24 @@ export function useVideoPlaybackSync({
         playCurrentClip();
         return;
       }
-      media.pause();
+      pauseMedia(media);
     };
 
     if (lastIsPlaying) {
       playCurrentClip();
     } else {
-      media.pause();
+      pauseMedia(media);
     }
     return playbackStore.subscribe(syncPlaybackActive);
-  }, [mediaRef, playbackStore, recordingMediaSource, setTimelinePlaybackActive, timelineItems]);
+  }, [
+    mediaRef,
+    playbackStore,
+    recordingMediaSource,
+    setTimelinePlaybackActive,
+    timelineItems,
+    playMedia,
+    pauseMedia,
+  ]);
 
   useEffect(() => {
     const media = mediaRef.current;
@@ -137,7 +162,7 @@ export function useVideoPlaybackSync({
       }
 
       const targetMediaSeconds = resolution.sourceSeconds;
-      if (Math.abs(media.currentTime - targetMediaSeconds) <= 0.08) {
+      if (Math.abs(media.currentTime - targetMediaSeconds) <= 0.000001) {
         return;
       }
 
@@ -180,7 +205,7 @@ export function useVideoPlaybackSync({
       setSourceVisibility(media, sourceCardRef, !isGap);
 
       if (isGap) {
-        media.pause();
+        pauseMedia(media);
         const now = performance.now();
         const nextPlayhead = playbackStore.advance(now - lastFrameTimeMs);
         lastFrameTimeMs = now;
@@ -192,7 +217,7 @@ export function useVideoPlaybackSync({
         if (nextResolution.kind === "clip") {
           try {
             media.currentTime = nextResolution.sourceSeconds;
-            void media.play().catch(() => setTimelinePlaybackActive(false));
+            playMedia(media);
           } catch {
             setTimelinePlaybackActive(false);
             return false;
@@ -203,9 +228,8 @@ export function useVideoPlaybackSync({
 
       lastFrameTimeMs = performance.now();
       if (resolution.kind !== "clip") {
-        recordStudioPlaybackTick(media.currentTime);
-        setDisplayPlayheadSecondsFromMedia(playheadSecondsRef.current);
-        return true;
+        setTimelinePlaybackActive(false);
+        return false;
       }
 
       const activeClip = resolution.item;
@@ -216,7 +240,7 @@ export function useVideoPlaybackSync({
           boundarySeconds,
         );
         if (boundaryResolution.kind === "gap") {
-          media.pause();
+          pauseMedia(media);
           setSourceVisibility(media, sourceCardRef, false);
           setPlayheadSecondsFromMedia(boundarySeconds);
           return true;
@@ -300,6 +324,8 @@ export function useVideoPlaybackSync({
   }, [
     mediaRef,
     playbackStore,
+    playMedia,
+    pauseMedia,
     recordingMediaSource,
     setDisplayPlayheadSecondsFromMedia,
     setPlayheadSecondsFromMedia,
@@ -314,52 +340,16 @@ export function useVideoPlaybackSync({
       return;
     }
 
-    const handlePlay = () => setTimelinePlaybackActive(true);
-    const handlePause = () => {
-      const resolution = resolveTimelinePlaybackAtProgramTime(
-        timelineItems,
-        playheadSecondsRef.current,
-      );
-      // Gaps pause the source while the program clock keeps running. Native
-      // source-end pauses are handled by handleEnded, which may queue a clip.
-      if (resolution.kind === "clip" && media.paused && !media.ended) {
-        setTimelinePlaybackActive(false);
-      }
-    };
-    const handleSeeked = () => {
-      const duration = timelineDurationSeconds(timelineItems);
-      const pausedAtEnd = !isTimelinePlayingRef.current && playheadSecondsRef.current >= duration;
-      const resolution = resolveTimelinePlaybackAtProgramTime(
-        timelineItems,
-        isTimelinePlayingRef.current
-          ? playheadSecondsRef.current
-          : pausedDisplayTime(playheadSecondsRef.current, duration),
-      );
-      const isGap = resolution.kind === "gap";
-      setSourceVisibility(media, sourceCardRef, !isGap);
-      if (resolution.kind !== "clip" || pausedAtEnd) {
-        // Seeking the final display frame must not move the program clock back
-        // from its exact endpoint into the epsilon used only for rendering.
-        return;
-      }
-
-      const nextProgramSeconds =
-        resolution.item.programStartSeconds +
-        (media.currentTime - resolution.item.sourceStartSeconds);
-      setPlayheadSecondsFromMedia(
-        Math.max(
-          resolution.item.programStartSeconds,
-          Math.min(nextProgramSeconds, resolution.item.programEndSeconds),
-        ),
-      );
-    };
+    // The external program transport owns play/pause and seeking. Queued native
+    // pause/seeked events can belong to a previous clip or gap and must not
+    // overwrite a newer explicit command.
     const handleEnded = () => {
       const resolution = resolveTimelinePlaybackAtProgramTime(
         timelineItems,
         playheadSecondsRef.current,
       );
       if (resolution.kind === "gap") {
-        media.pause();
+        pauseMedia(media);
         setSourceVisibility(media, sourceCardRef, false);
         return;
       }
@@ -377,7 +367,7 @@ export function useVideoPlaybackSync({
           boundarySeconds,
         );
         if (boundaryResolution.kind === "gap") {
-          media.pause();
+          pauseMedia(media);
           setSourceVisibility(media, sourceCardRef, false);
           setPlayheadSecondsFromMedia(boundarySeconds);
           return;
@@ -389,7 +379,7 @@ export function useVideoPlaybackSync({
             media.currentTime = nextClip.sourceStartSeconds;
             setSourceVisibility(media, sourceCardRef, true);
             setPlayheadSecondsFromMedia(nextClip.programStartSeconds);
-            void media.play().catch(() => setTimelinePlaybackActive(false));
+            playMedia(media);
             return;
           } catch {
             setTimelinePlaybackActive(false);
@@ -421,21 +411,17 @@ export function useVideoPlaybackSync({
       }
     };
 
-    media.addEventListener("play", handlePlay);
-    media.addEventListener("pause", handlePause);
-    media.addEventListener("seeked", handleSeeked);
     media.addEventListener("ended", handleEnded);
     media.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
-      media.removeEventListener("play", handlePlay);
-      media.removeEventListener("pause", handlePause);
-      media.removeEventListener("seeked", handleSeeked);
       media.removeEventListener("ended", handleEnded);
       media.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
   }, [
     mediaRef,
+    playMedia,
+    pauseMedia,
     recordingMediaSource,
     setPlayheadSecondsFromMedia,
     setTimelinePlaybackActive,

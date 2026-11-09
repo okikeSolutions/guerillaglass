@@ -262,6 +262,7 @@ export function useStudioTimeline({
         0,
         timelineDuration,
       );
+      playbackTransport.pause();
       playbackTransport.seek(next);
     },
     [normalizedFrameRate, playbackTransport, timelineDuration, timelineSnapEnabled],
@@ -308,6 +309,7 @@ export function useStudioTimeline({
 
   const setPlayheadSeconds = useCallback(
     (seconds: number) => {
+      playbackTransport.pause();
       playbackTransport.seek(clamp(seconds, 0, timelineDuration));
     },
     [playbackTransport, timelineDuration],
@@ -325,6 +327,7 @@ export function useStudioTimeline({
         0,
         timelineDuration,
       );
+      playbackTransport.pause();
       playbackTransport.seek(next);
     },
     [normalizedFrameRate, playbackTransport, timelineDuration, timelineSnapEnabled],

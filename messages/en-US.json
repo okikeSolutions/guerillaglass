@@ -41,7 +41,7 @@
   "studio_actions_requestScreen": "Request Screen",
   "studio_actions_requestMic": "Request Mic",
   "studio_actions_requestInput": "Request Input",
-  "studio_actions_openSettings": "Open Settings",
+  "studio_actions_openSettings": "Open Input Monitoring Settings",
   "studio_actions_startPreview": "Start Preview",
   "studio_actions_stopPreview": "Stop Preview",
   "studio_actions_startRecording": "Start Recording",
@@ -474,5 +474,16 @@
   "ui_replace_recording_title": "Start a new recording?",
   "ui_replace_recording_body": "A new recording replaces the current take and timeline. Your appearance settings will carry over. Keep editing to save your current work first.",
   "ui_replace_open": "Discard edits and open",
-  "ui_replace_record": "Start new recording"
+  "ui_replace_record": "Start new recording",
+  "ui_permission_recovery_help": "If Screen or Microphone stays not granted after requesting access, open System Settings → Privacy & Security → Screen Recording or Microphone and allow Guerilla Glass. Restart the app if macOS asks.",
+  "ui_storyboard_json": "Invalid JSON. Fix the JSON syntax before validating again.",
+  "ui_storyboard_version": "Unsupported storyboard version. Ask your editing agent for version 1.",
+  "ui_storyboard_duplicate": "Scene {scene} repeats the ID of scene {previous}. Give each scene a unique item.id.",
+  "ui_storyboard_missing": "Missing required field: {field}. Add it and validate again.",
+  "ui_storyboard_value": "Invalid value at {field}. Check its type, allowed values and range.",
+  "ui_storyboard_too_large": "Storyboard exceeds the 2 MiB limit. Reduce the JSON file size and import again.",
+  "ui_storyboard_read_failed": "The storyboard file could not be read. Choose an accessible JSON file and try again.",
+  "ui_restore_project_panel": "Show project panel",
+  "ui_restore_inspector": "Show inspector",
+  "ui_restore_timeline": "Show timeline"
 }

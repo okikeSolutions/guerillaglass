@@ -136,6 +136,9 @@ export function CaptureRoute() {
                       },
                     ]}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {m.ui_permission_recovery_help(undefined, { locale: studio.locale })}
+                  </p>
                 </>
               )}
               {studio.permissionsQuery.isSuccess ? (
@@ -168,6 +171,12 @@ export function CaptureRoute() {
                     size="sm"
                     variant="ghost"
                     className="gg-left-rail-action"
+                    style={{
+                      height: "auto",
+                      minHeight: "2rem",
+                      whiteSpace: "normal",
+                      textAlign: "left",
+                    }}
                     onClick={() => void engineApi.openInputMonitoringSettings()}
                   >
                     {studio.ui.actions.openSettings}

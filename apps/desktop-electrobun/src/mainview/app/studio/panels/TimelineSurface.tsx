@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -120,6 +121,7 @@ type TimelineClipDropTarget =
 type TrimDragMode = Exclude<DragMode, "playhead">;
 
 type TimelineLanesLayerProps = {
+  readPlayheadSeconds: () => number;
   audioStatusText?: string;
   audioScopeText?: string;
   thumbnails: ReadonlyMap<string, string>;
@@ -791,6 +793,7 @@ function TimelineOverlay({
 }
 
 const TimelineLanesLayer = memo(function TimelineLanesLayer({
+  readPlayheadSeconds,
   audioStatusText,
   audioScopeText,
   thumbnails,
@@ -903,6 +906,7 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                         left: `${left}%`,
                         width: `${Math.max(width, 0)}%`,
                         overflow: "hidden",
+                        containerType: "inline-size",
                       }}
                       aria-label={
                         clip.semantic === "gap"
@@ -964,6 +968,10 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                           return;
                         }
                         if (timelineTool === "blade" && onBladeClipAtSeconds) {
+                          if (event.detail === 0) {
+                            onBladeClipAtSeconds(readPlayheadSeconds());
+                            return;
+                          }
                           const rect = event.currentTarget.getBoundingClientRect();
                           const pointerRatio =
                             rect.width > 0
@@ -1028,7 +1036,7 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                                   `${lane.label} ${sceneNumbers.get(clip.id) ?? 1}`)}
                             </span>
                           </span>
-                          <span className="gg-timeline-clip-duration gg-numeric flex items-center gap-1">
+                          <span className="gg-timeline-clip-duration gg-numeric">
                             {lane.id === "video" && clip.hasCameraOverride ? (
                               <span
                                 className="inline-flex items-center gap-0.5"
@@ -1189,6 +1197,11 @@ export function TimelineSurface({
   onSelectClip,
   onSelectMarker,
 }: TimelineSurfaceProps) {
+  const playheadSecondsRef = useRef(playheadSeconds);
+  useEffect(() => {
+    playheadSecondsRef.current = playheadSeconds;
+  }, [playheadSeconds]);
+  const readPlayheadSeconds = useCallback(() => playheadSecondsRef.current, []);
   const videoClips = useMemo(() => lanes.find((lane) => lane.id === "video")?.clips ?? [], [lanes]);
   const thumbnails = useTimelineThumbnails(mediaSource, videoClips);
   const trackOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -1289,6 +1302,7 @@ export function TimelineSurface({
             onPointerCancel={onSurfacePointerCancel}
           >
             <TimelineLanesLayer
+              readPlayheadSeconds={readPlayheadSeconds}
               audioStatusText={audioStatusText}
               audioScopeText={audioScopeText}
               thumbnails={thumbnails}
