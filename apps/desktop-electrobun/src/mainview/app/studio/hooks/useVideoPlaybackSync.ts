@@ -131,7 +131,13 @@ export function useVideoPlaybackSync({
     } else {
       pauseMedia(media);
     }
-    return playbackStore.subscribe(syncPlaybackActive);
+    const unsubscribe = playbackStore.subscribe(syncPlaybackActive);
+    return () => {
+      unsubscribe();
+      // Retire pending play requests before another route or source owns the
+      // shared transport. Their later rejection must not pause its replacement.
+      pauseMedia(media);
+    };
   }, [
     mediaRef,
     playbackStore,

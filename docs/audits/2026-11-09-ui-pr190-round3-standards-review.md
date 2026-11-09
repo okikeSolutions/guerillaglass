@@ -1,0 +1,17 @@
+# PR #190 final standards and Effect review
+
+Original base `45245daf360d0bd352f28da39b5ddec6978931c1`; reviewed head `ec789ab17b1a9ba2de24e0bba6702b579f7c2f25`. **Overall PR readiness from the standards/Effect axis: 9.6/10. Pass, with zero actionable hard-rule breaches and zero substantial new Fowler findings.** New-head CI remains required before merge.
+
+This assessment combines the prior full-PR review and the complete production/test/evidence delta after `7d78ff3`. It follows root/subsystem AGENTS.md, REVIEW.md, ARCHITECTURE.md, EFFECT_PRACTICES.md, CHANGE_MAP verification selection, the Effect skill and all twelve Fowler heuristics. Repository standards override heuristic smells. I did not open peers' new reports or historical scored review reports.
+
+The EOF correction stays inside the existing renderer playback owner. At `apps/desktop-electrobun/src/mainview/app/studio/hooks/useVideoPlaybackSync.ts:256`, the animation-frame transition seeks the following contiguous scene and calls the existing generation-aware `playMedia` operation when physical EOF has paused the element. It adds no second clock, independent runtime, transport rule or persisted edit. The existing pause/seek guard continues to reject stale ended events. The regression at `apps/desktop-electrobun/tests/ui/video-playback-gaps.browser.test.tsx:341` schedules the frame before ended, checks resumed media and program position, then confirms the delayed event cannot advance twice. This satisfies REVIEW.md's interrupted/boundary-state and externally meaningful regression expectations.
+
+The camera fixture correction follows the authoritative contract rather than weakening it. `apps/desktop-electrobun/tests/ui/editor-export-timeline.browser.test.tsx:37` decodes a single static keyframe through `sceneCameraSchema`, whose existing minimum length is one. Both tests now exercise accepted data; the inspector case asserts the actual zoom value, reset and Undo restoration. No camera schema or production inspector behavior changed. There is no generated-consumer work for this correction.
+
+The full PR still preserves thin typed bridge adapters, one scoped host runtime, Effect IO services, guarded tokenized media, host-owned export-result actions, shared English/German messages and local operation without hosted dependencies. The preceding missing-media Save and capture-configuration corrections remain intact. No new duplication, speculative abstraction or ownership drift warrants a revision.
+
+I read the acceptance log showing 131 browser tests across ten files and packaged smoke passing with a visible window, process cleanup and zero fatal matches. Retained native accessibility receipts show the separate EOF project progressing from the first scene into the second. The evidence correctly distinguishes native continuation from deterministic event-order proof. Granted capture/audio, VoiceOver, broader accessibility/performance work and UI-039 facade consolidation remain explicit follow-ups. They explain why this is not a 10/10 release certification.
+
+I ran no applications or test/build suites. `git diff --check` passes for the pinned full PR. Prior native Swift proof remains applicable because this delta changes no native implementation. Seven green CI checks cover the older `6ecb35e` head, not this local freeze. Require new-head CI and zero unresolved review threads before merge.
+
+PR https://github.com/okikeSolutions/guerillaglass/pull/190 head ec789ab local pass/new CI pending, standards/Effect review passed with no actionable findings.

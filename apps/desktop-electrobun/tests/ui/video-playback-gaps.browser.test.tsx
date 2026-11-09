@@ -378,6 +378,27 @@ describe("timeline preview across gaps", () => {
     expect(media.play).not.toHaveBeenCalled();
   });
 
+  test("a rejected play request from an unmounted preview cannot pause its replacement", async () => {
+    const media = document.querySelector("video")!;
+    let rejectOldPlay: ((reason: Error) => void) | undefined;
+    vi.mocked(media.play).mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectOldPlay = reject;
+        }),
+    );
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    act(() => {
+      playbackStore.seek(0.75);
+      playbackStore.play();
+    });
+    act(() => root?.render(<Harness key="replacement-route" />));
+    expect(document.querySelector("video")).not.toBe(media);
+    expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+    await act(async () => rejectOldPlay?.(new Error("Old preview removed")));
+    expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+  });
+
   test("a reordered timeline seeks paused preview through the recompiled source mapping", () => {
     const reorderedItems = compileTimelineItems({
       version: 2,
