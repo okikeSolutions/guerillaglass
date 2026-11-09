@@ -764,3 +764,7 @@ Commit `a7c5357` received 9.6 correctness, 9.4 standards and 9.6 product. Standa
 ### Fifth frozen review follow-up
 
 Commit `aaa61bc` received 9.6 correctness, 9.6 standards and 9.5 product. Exactly 9.5 fails the strict gate. [Correctness](audits/2026-11-09-ui-round5-correctness-review.md), [standards](audits/2026-11-09-ui-round5-standards-review.md) and [product](audits/2026-11-09-ui-round5-product-review.md) reports are retained. The remaining SPEC capability-matrix OS claims are corrected and covered by the manifest consistency test. The accessibility guide now names global Preferences. App behavior is unchanged from the fifth freeze. UI-039 retains optional consolidation of direct generated-message imports through the desktop localization facade; translations themselves work in both locales.
+
+### Final independent gate
+
+Frozen commit `57a47cae10441f75f6f32459ba34cd97071c4c5c` passed the user's PR-preparation gate. [Correctness](audits/2026-11-09-ui-round6-correctness-review.md), [standards/Effect](audits/2026-11-09-ui-round6-standards-review.md) and [product/visual](audits/2026-11-09-ui-round6-product-review.md) each scored 9.6/10, strictly above 9.5. The final documentation archival does not change reviewed production code. UI-039's localization-facade consolidation remains a nonblocking P3 maintenance follow-up. The detailed release-verification limits and Ready for verification statuses remain; the overall gate does not certify every acceptance clause.
