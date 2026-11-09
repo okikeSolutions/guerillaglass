@@ -13,6 +13,7 @@ import { page, userEvent } from "vitest/browser";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   defaultBackgroundFramingSettings,
+  sceneCameraSchema,
   type TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
 import {
@@ -33,6 +34,11 @@ import { CaptureRoute } from "../../src/mainview/app/studio/routes/CaptureRoute"
 import { DeliverRoute } from "../../src/mainview/app/studio/routes/DeliverRoute";
 import { ProgramPreview } from "../../src/mainview/app/studio/routes/ProgramPreview";
 const healthyMediaSource = new URL("../fixtures/timeline-red.mp4", import.meta.url).href;
+const staticCamera = decodeUnknownWithSchemaSync(
+  sceneCameraSchema,
+  [{ timeSeconds: 0, centerX: 0.5, centerY: 0.5, zoom: 1 }],
+  "static scene camera fixture",
+);
 
 const initialTimeline: TimelineDocument = {
   version: 2,
@@ -385,7 +391,7 @@ describe("editor timeline export integration", () => {
     }
     const cameraTimeline: TimelineDocument = {
       ...initialTimeline,
-      items: [{ ...first, camera: [] }],
+      items: [{ ...first, camera: staticCamera }],
     };
     await act(async () => {
       queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
@@ -1521,7 +1527,7 @@ test("a successful project open adopts the saved document even when capture stat
   }
 });
 
-test("an explicit static scene camera is named and can return to project settings through the inspector", async () => {
+test("an explicit static scene camera exposes its values and can return to project settings", async () => {
   await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
   await setInspectorMode("edit");
   const first = initialTimeline.items[0]!;
@@ -1530,7 +1536,7 @@ test("an explicit static scene camera is named and can return to project setting
   }
   const staticTimeline: TimelineDocument = {
     ...initialTimeline,
-    items: [{ ...first, camera: [] }],
+    items: [{ ...first, camera: staticCamera }],
   };
   await act(async () => {
     queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
@@ -1547,7 +1553,7 @@ test("an explicit static scene camera is named and can return to project setting
     }),
   );
   await expect
-    .element(page.getByText("Static scene camera override", { exact: true }))
+    .element(page.getByText(`${currentStudio().formatDecimal(1)}×`, { exact: true }))
     .toBeVisible();
   await expect
     .element(page.getByText("Uses project camera settings", { exact: true }))
@@ -1558,7 +1564,7 @@ test("an explicit static scene camera is named and can return to project setting
     .toBeVisible();
   await applyStudioAction((studio) => studio.undoTimeline());
   await expect
-    .element(page.getByText("Static scene camera override", { exact: true }))
+    .element(page.getByText(`${currentStudio().formatDecimal(1)}×`, { exact: true }))
     .toBeVisible();
 });
 

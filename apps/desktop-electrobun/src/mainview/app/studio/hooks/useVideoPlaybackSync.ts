@@ -255,6 +255,11 @@ export function useVideoPlaybackSync({
 
         try {
           media.currentTime = nextClip.sourceStartSeconds;
+          // Source EOF can pause the element before its queued ended event.
+          // This frame already owns the transition, including resuming media.
+          if (media.paused) {
+            playMedia(media);
+          }
         } catch {
           setTimelinePlaybackActive(false);
           return false;

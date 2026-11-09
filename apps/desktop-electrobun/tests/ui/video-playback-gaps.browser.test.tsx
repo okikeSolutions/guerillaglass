@@ -338,6 +338,30 @@ describe("timeline preview across gaps", () => {
     },
   );
 
+  test("RAF before a queued source-ended event resumes the following scene", () => {
+    playbackStore.updateConfig({ durationSeconds: 2, frameRate: 30 });
+    act(() => root?.render(<Harness items={contiguousItems} duration={2} />));
+    const media = document.querySelector("video")!;
+    act(() => {
+      playbackStore.seek(0.99);
+      playbackStore.play();
+    });
+    // Native EOF pauses before dispatching ended. Seeking to the next scene
+    // clears ended, so the RAF transition must resume without that event.
+    media.currentTime = 2;
+    vi.spyOn(media, "paused", "get").mockReturnValue(true);
+    vi.spyOn(media, "ended", "get").mockImplementation(() => media.currentTime >= 2);
+    vi.mocked(media.play).mockClear();
+    runFrame(20);
+    expect(media.currentTime).toBe(0);
+    expect(media.play).toHaveBeenCalledOnce();
+    expect(playbackStore.getSnapshot().isPlaying).toBe(true);
+    expect(playbackStore.getSnapshot().playheadSeconds).toBe(1);
+    act(() => media.dispatchEvent(new Event("ended")));
+    expect(media.play).toHaveBeenCalledOnce();
+    expect(playbackStore.getSnapshot().playheadSeconds).toBe(1);
+  });
+
   test("an ended event overtaken by a new playing seek cannot advance that seek", () => {
     playbackStore.updateConfig({ durationSeconds: 2, frameRate: 30 });
     act(() => root?.render(<Harness items={contiguousItems} duration={2} />));
