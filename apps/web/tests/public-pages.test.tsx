@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import nativeManifest from "../../../Package.swift?raw";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { Hero } from "../src/components/Hero";
 import { getRouter } from "../src/router";
+import * as m from "../src/paraglide/messages.js";
 
 // Native modal focus containment is verified in the browser. The DOM environment
 // supplies the modal lifecycle here so this test can exercise link dismissal.
@@ -42,6 +44,13 @@ afterEach(() => {
 });
 
 describe("public website", () => {
+  it("keeps both public platform answers aligned with the native deployment target", () => {
+    const minimum = nativeManifest.match(/\.macOS\(\.v(\d+)\)/)?.[1];
+    expect(minimum).toBeDefined();
+    for (const locale of ["en-US", "de-DE"] as const) {
+      expect(m.web_ui_faq_platform_a(undefined, { locale })).toContain(`macOS ${minimum}`);
+    }
+  });
   it("loads the real home route without a configured hosted service or auth request", async () => {
     vi.stubEnv("VITE_CONVEX_URL", "");
     vi.stubGlobal("scrollTo", vi.fn());

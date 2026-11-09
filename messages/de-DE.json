@@ -346,7 +346,7 @@
   "web_ui_issues": "Problem melden",
   "web_ui_faq_title": "Vor dem Start",
   "web_ui_faq_platform_q": "Welche Plattformen funktionieren heute?",
-  "web_ui_faq_platform_a": "Native Aufnahme und Export sind für macOS 13 und neuer ausgelegt. Windows- und Linux-Engines sind experimentelle Grundlagen und keine gleichwertigen Aufnahme-Apps.",
+  "web_ui_faq_platform_a": "Native Aufnahme und Export sind für macOS 14 und neuer ausgelegt. Windows- und Linux-Engines sind experimentelle Grundlagen und keine gleichwertigen Aufnahme-Apps.",
   "web_ui_faq_start_q": "Wie bekomme ich die App?",
   "web_ui_faq_start_a": "Es gibt noch keine fertige Veröffentlichung. Die Installationsanleitung erklärt Voraussetzungen und wie du die macOS-App aus dem Quellcode baust und startest.",
   "web_ui_faq_account_q": "Brauche ich ein Konto?",
@@ -485,5 +485,8 @@
   "ui_storyboard_read_failed": "Die Storyboard-Datei konnte nicht gelesen werden. Wähle eine zugängliche JSON-Datei und versuche es erneut.",
   "ui_restore_project_panel": "Projektbereich anzeigen",
   "ui_restore_inspector": "Inspektor anzeigen",
-  "ui_restore_timeline": "Zeitleiste anzeigen"
+  "ui_restore_timeline": "Zeitleiste anzeigen",
+  "agent_proposal_stale": "Das gespeicherte Projekt oder die Quelle wurde geändert. Speichere oder öffne es erneut. Bitte deinen Schnittagenten anschließend, dieses Storyboard zu prüfen und auf den aktuellen Stand zu bringen.",
+  "agent_proposal_invalid_native": "Die Engine konnte dieses Storyboard nicht mit der Quelle prüfen. Prüfe die Szenenbereiche und die Verfügbarkeit der Aufnahme. Prüfe den Vorschlag anschließend erneut.",
+  "agent_proposal_apply_invalid_native": "Die Engine konnte diesen Vorschlag nicht prüfen oder speichern. Prüfe die Quellbereiche und die Schreibrechte des Projekts. Prüfe den Vorschlag anschließend erneut."
 }

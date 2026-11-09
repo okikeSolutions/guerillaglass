@@ -53,6 +53,22 @@ const totalDuration = (items: readonly TimelineItem[]) =>
     )
     .toFixed(2);
 
+function proposalFailureMessage(
+  error: unknown,
+  task: "validate" | "apply",
+  labels: ReturnType<typeof getAgentProposalMessages>,
+): string {
+  if (error instanceof EngineResponseError) {
+    if (error.code === "project_mismatch") {
+      return labels.stale;
+    }
+    if (error.code === "invalid_params") {
+      return task === "validate" ? labels.invalid_native : labels.apply_invalid_native;
+    }
+  }
+  return task === "validate" ? labels.failed : labels.apply_failed;
+}
+
 /** Proposal review keeps validation tied to the exact editor and text snapshot. */
 export function AgentProposalReview({
   available,
@@ -157,11 +173,7 @@ export function AgentProposalReview({
       const baseline = await validate(decoded.success);
       setValidation({ storyboard: decoded.success, baseline, text, signature: editorSignature });
     } catch (error) {
-      setNotice(
-        error instanceof EngineResponseError
-          ? `${labels.failed} ${error.description}`
-          : labels.failed,
-      );
+      setNotice(proposalFailureMessage(error, "validate", labels));
     } finally {
       operation.current = false;
       setPending(null);
@@ -179,11 +191,7 @@ export function AgentProposalReview({
       await apply(validation.storyboard);
       setNotice(labels.applied);
     } catch (error) {
-      setNotice(
-        error instanceof EngineResponseError
-          ? `${labels.apply_failed} ${error.description}`
-          : labels.apply_failed,
-      );
+      setNotice(proposalFailureMessage(error, "apply", labels));
     } finally {
       setValidation(null);
       setConfirmed(false);

@@ -346,7 +346,7 @@
   "web_ui_issues": "Report an issue",
   "web_ui_faq_title": "Before you get started",
   "web_ui_faq_platform_q": "Which platforms work today?",
-  "web_ui_faq_platform_a": "The native recording and export path targets macOS 13 and later. Windows and Linux engines are experimental foundations, not equivalent recording apps.",
+  "web_ui_faq_platform_a": "The native recording and export path targets macOS 14 and later. Windows and Linux engines are experimental foundations, not equivalent recording apps.",
   "web_ui_faq_start_q": "How do I get the app?",
   "web_ui_faq_start_a": "There is no packaged release yet. The setup guide explains prerequisites and how to build and run the macOS app from source.",
   "web_ui_faq_account_q": "Do I need an account?",
@@ -485,5 +485,8 @@
   "ui_storyboard_read_failed": "The storyboard file could not be read. Choose an accessible JSON file and try again.",
   "ui_restore_project_panel": "Show project panel",
   "ui_restore_inspector": "Show inspector",
-  "ui_restore_timeline": "Show timeline"
+  "ui_restore_timeline": "Show timeline",
+  "agent_proposal_stale": "The saved project or source changed. Save or reopen it, then ask your editing agent to review and rebase this storyboard.",
+  "agent_proposal_invalid_native": "The engine could not validate this storyboard against the source. Check scene ranges and that the recording is available, then validate again.",
+  "agent_proposal_apply_invalid_native": "The engine could not validate or save this proposal. Check source ranges and project write access, then validate again."
 }

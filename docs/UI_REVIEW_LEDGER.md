@@ -756,3 +756,7 @@ Commit `8bdd37b` failed all three independent ratings at 9.2, 9.3 and 9.1. [Corr
 ### Third frozen review follow-up
 
 Commit `7adcc9b` received 9.3 correctness, 9.6 standards and 9.4 product. Only standards passed individually; the combined gate failed. [Correctness](audits/2026-11-09-ui-round3-correctness-review.md), [standards](audits/2026-11-09-ui-round3-standards-review.md) and [product](audits/2026-11-09-ui-round3-product-review.md) reports are retained. UI-006/UI-007 now preserve generated-source drafts and history during passive refresh, and UI-014/UI-015 derive selection and timing from current lanes through Undo/Redo. Fresh ratings must all exceed 9.5 before PR preparation.
+
+### Fourth frozen review follow-up
+
+Commit `a7c5357` received 9.6 correctness, 9.4 standards and 9.6 product. Standards failed, so PR preparation remained blocked by the user's gate. [Correctness](audits/2026-11-09-ui-round4-correctness-review.md), [standards](audits/2026-11-09-ui-round4-standards-review.md) and [product](audits/2026-11-09-ui-round4-product-review.md) reports are retained. UI-031/UI-032 now match the native macOS 14 deployment target with a drift regression; UI-021/UI-039 use localized task/code-based proposal recovery without raw English engine descriptions in normal notices. Fresh ratings must all exceed 9.5 before PR preparation.

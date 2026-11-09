@@ -35,7 +35,7 @@ Important boundaries:
 - Swift 5.10+ for macOS native engine work
 - SwiftFormat 0.62.1 and SwiftLint for the full local gate
 - Java for OpenAPI binding generation
-- macOS 13+ for the full macOS capture/export path and `bun run gate`
+- macOS 14+ for the full macOS capture/export path and `bun run gate`
 
 ## Quick Start
 

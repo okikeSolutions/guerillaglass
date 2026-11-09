@@ -35,7 +35,7 @@ Guerilla Glass should feel like a professional creator tool:
 
 - **ScreenCaptureKit was introduced in macOS 12.3.**
 - **ScreenCaptureKit (WWDC22) supports high-performance capture and can deliver both screen frames and audio sample buffers via SCStream outputs.**
-- **Apple’s ScreenCaptureKit sample app (WWDC22) requires macOS 13+ to run.** Use macOS 13+ as the **v1 baseline**, and gate system/audio features accordingly.
+- **The current native deployment baseline is macOS 14+.** `Package.swift` owns this target. The earlier macOS 13+ ScreenCaptureKit sample does not establish this application's compatibility. Gate newer system/audio features accordingly.
 - **macOS Sonoma adds the system Screen Capture picker (`SCContentSharingPicker`).** Presenter overlay and screenshot APIs are also covered in WWDC23 ScreenCaptureKit updates. Optional for v1.
 
 ### Input tracking permissions
@@ -99,7 +99,7 @@ Guerilla Glass should feel like a professional creator tool:
   - Windows: Rust sidecar foundation (`engines/windows-native`) with protocol parity handlers
   - Linux: Rust sidecar foundation (`engines/linux-native`) with protocol parity handlers
   - Stubs: protocol-compatible Windows/Linux stubs for parallel shell/protocol iteration
-- **Current feature baseline:** macOS 13.0+ for full native capture/export path
+- **Current feature baseline:** macOS 14.0+ for full native capture/export path
   - Stretch: validate whether **12.3+ video-only** support is feasible for engine-only paths.
 - **Development environment:** Cursor IDE + SweetPad (no Xcode project workflow).
 - **Build system:** SwiftPM (`Package.swift` is the source of truth; no `.xcodeproj`).
