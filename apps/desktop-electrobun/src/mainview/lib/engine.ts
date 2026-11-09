@@ -1,3 +1,4 @@
+import { getLocale } from "../../paraglide/runtime.js";
 import type {
   EditStoryboard,
   EditProposalBaseline,
@@ -307,12 +308,18 @@ export const engineApi = {
 };
 
 export const desktopApi = {
+  async openExportResult(action: "open" | "reveal"): Promise<boolean> {
+    return await invokeBridgeContract("ggOpenExportResult", "export result action", action);
+  },
   async pickPath(params: {
     mode: HostPathPickerMode;
     startingFolder?: string;
   }): Promise<string | null> {
     try {
-      return await invokeBridgeContract("ggPickPath", "host path picker result", params);
+      return await invokeBridgeContract("ggPickPath", "host path picker result", {
+        ...params,
+        locale: getLocale(),
+      });
     } catch (error) {
       if (error instanceof BridgeUnavailableError || error instanceof BridgeInvocationError) {
         throw new PathPickerError({

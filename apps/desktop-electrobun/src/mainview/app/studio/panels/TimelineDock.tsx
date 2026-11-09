@@ -30,6 +30,7 @@ import { normalizeShortcutDisplayPlatform, studioShortcutDisplayTokens } from "@
 import { useStudio, useStudioPlaybackValue } from "../state/StudioProvider";
 import { studioToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 import { TimelineSurface } from "./TimelineSurface";
+import { useRecordingMediaSourceLease } from "../hooks/useRecordingMediaSource";
 
 function TimelineIconAction({
   label,
@@ -84,10 +85,16 @@ function TimelinePlayheadReadout({ label, className }: { label: string; classNam
 
 export function TimelineDock() {
   const studio = useStudio();
+  const { source: thumbnailSource } = useRecordingMediaSourceLease(studio.recordingURL);
   const playbackRate = useStudioPlaybackValue((snapshot) => snapshot.playbackRate);
   const playheadSeconds = useStudioPlaybackValue((snapshot) => snapshot.playheadSeconds);
   useStudioRenderDiagnostics("TimelineDock");
-  const trimEnabled = studio.activeMode === "deliver";
+  const trimEnabled = studio.activeMode !== "capture" && Boolean(studio.recordingURL);
+  const rangeIsSelected = studio.exportForm.state.values.rangeMode === "selected";
+  const trimStart = rangeIsSelected ? studio.exportForm.state.values.trimStartSeconds : 0;
+  const trimEnd = rangeIsSelected
+    ? studio.exportForm.state.values.trimEndSeconds
+    : (studio.timelineItems.slice(-1)[0]?.programEndSeconds ?? 0);
   const recordingActionDisabledReason = studio.recordingURL
     ? undefined
     : studio.recordingRequiredNotice;
@@ -135,6 +142,7 @@ export function TimelineDock() {
             <ButtonGroup className="shrink-0 gap-1">
               <TimelineIconAction
                 label={studio.ui.actions.timelineToolSelect}
+                aria-pressed={studio.timelineTool === "select"}
                 tone={studio.timelineTool === "select" ? "selected" : "neutral"}
                 onClick={() => studio.setTimelineTool("select")}
               >
@@ -143,6 +151,7 @@ export function TimelineDock() {
               {trimEnabled ? (
                 <TimelineIconAction
                   label={studio.ui.actions.timelineToolTrim}
+                  aria-pressed={studio.timelineTool === "trim"}
                   tone={studio.timelineTool === "trim" ? "selected" : "neutral"}
                   onClick={() => studio.setTimelineTool("trim")}
                 >
@@ -155,6 +164,7 @@ export function TimelineDock() {
                   platform: shortcutPlatform,
                   overrides: studio.shortcutOverrides,
                 })}
+                aria-pressed={studio.timelineTool === "blade"}
                 tone={studio.timelineTool === "blade" ? "selected" : "neutral"}
                 onClick={() => studio.setTimelineTool("blade")}
               >
@@ -165,6 +175,7 @@ export function TimelineDock() {
             <ButtonGroup className="shrink-0 gap-1">
               <TimelineIconAction
                 label={studio.ui.labels.timelineSnap}
+                aria-pressed={studio.timelineSnapEnabled}
                 tone={studio.timelineSnapEnabled ? "selectedAlt" : "neutral"}
                 onClick={studio.toggleTimelineSnap}
               >
@@ -172,6 +183,7 @@ export function TimelineDock() {
               </TimelineIconAction>
               <TimelineIconAction
                 label={studio.ui.labels.timelineRipple}
+                aria-pressed={studio.timelineRippleEnabled}
                 tone={studio.timelineRippleEnabled ? "selectedAlt" : "neutral"}
                 onClick={studio.toggleTimelineRipple}
               >
@@ -243,17 +255,14 @@ export function TimelineDock() {
               ))}
             </NativeSelect>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-auto">
             <TimelineSurface
+              mediaSource={thumbnailSource}
               durationSeconds={studio.timelineDuration}
               playheadSeconds={playheadSeconds}
               trimEnabled={trimEnabled}
-              trimStartSeconds={
-                trimEnabled ? studio.exportForm.state.values.trimStartSeconds : undefined
-              }
-              trimEndSeconds={
-                trimEnabled ? studio.exportForm.state.values.trimEndSeconds : undefined
-              }
+              trimStartSeconds={trimEnabled ? trimStart : undefined}
+              trimEndSeconds={trimEnabled ? trimEnd : undefined}
               lanes={studio.timelineLanes}
               laneControls={studio.timelineLaneControlState}
               labels={studio.ui.labels}
@@ -268,8 +277,6 @@ export function TimelineDock() {
               onBladeClipAtSeconds={studio.splitTimelineClipAtSeconds}
               onMoveClipDrop={studio.moveTimelineClipByDrop}
               onToggleLaneLocked={(laneId) => studio.toggleLaneControl(laneId, "locked")}
-              onToggleLaneMuted={(laneId) => studio.toggleLaneControl(laneId, "muted")}
-              onToggleLaneSolo={(laneId) => studio.toggleLaneControl(laneId, "solo")}
               onClearSelection={studio.clearInspectorSelection}
               selectedClip={
                 studio.inspectorSelection.kind === "timelineClip" ? studio.inspectorSelection : null
@@ -285,9 +292,9 @@ export function TimelineDock() {
           </div>
           {trimEnabled ? (
             <div className="gg-copy-meta gg-numeric mt-2 grid shrink-0 grid-cols-3">
-              <span>{`${studio.ui.labels.trimInSeconds}: ${studio.exportForm.state.values.trimStartSeconds.toFixed(2)}`}</span>
+              <span>{`${studio.ui.labels.trimInSeconds}: ${trimStart.toFixed(2)}`}</span>
               <TimelinePlayheadReadout label={studio.ui.labels.playhead} className="text-center" />
-              <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${studio.exportForm.state.values.trimEndSeconds.toFixed(2)}`}</span>
+              <span className="text-right">{`${studio.ui.labels.trimOutSeconds}: ${trimEnd.toFixed(2)}`}</span>
             </div>
           ) : (
             <div className="gg-copy-meta gg-numeric mt-2 shrink-0 text-center">

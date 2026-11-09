@@ -128,7 +128,7 @@ export function useVideoPlaybackSync({
         return;
       }
 
-      const boundedPlayhead = Math.max(0, Math.min(playheadSecondsRef.current, timelineDuration));
+      const boundedPlayhead = pausedDisplayTime(playheadSecondsRef.current, timelineDuration);
       const resolution = resolveTimelinePlaybackAtProgramTime(timelineItems, boundedPlayhead);
       const isGap = resolution.kind === "gap";
       setSourceVisibility(media, sourceCardRef, !isGap);
@@ -327,13 +327,19 @@ export function useVideoPlaybackSync({
       }
     };
     const handleSeeked = () => {
+      const duration = timelineDurationSeconds(timelineItems);
+      const pausedAtEnd = !isTimelinePlayingRef.current && playheadSecondsRef.current >= duration;
       const resolution = resolveTimelinePlaybackAtProgramTime(
         timelineItems,
-        playheadSecondsRef.current,
+        isTimelinePlayingRef.current
+          ? playheadSecondsRef.current
+          : pausedDisplayTime(playheadSecondsRef.current, duration),
       );
       const isGap = resolution.kind === "gap";
       setSourceVisibility(media, sourceCardRef, !isGap);
-      if (resolution.kind !== "clip") {
+      if (resolution.kind !== "clip" || pausedAtEnd) {
+        // Seeking the final display frame must not move the program clock back
+        // from its exact endpoint into the epsilon used only for rendering.
         return;
       }
 
@@ -403,12 +409,15 @@ export function useVideoPlaybackSync({
       if (duration > 0) {
         setPlayheadSecondsFromMedia(Math.min(playheadSecondsRef.current, duration));
       }
-      const resolution = resolveTimelinePlaybackAtProgramTime(
-        timelineItems,
-        playheadSecondsRef.current,
-      );
-      if (!isTimelinePlayingRef.current && resolution.kind === "clip") {
-        media.currentTime = resolution.sourceSeconds;
+      if (!isTimelinePlayingRef.current) {
+        const resolution = resolveTimelinePlaybackAtProgramTime(
+          timelineItems,
+          pausedDisplayTime(playheadSecondsRef.current, duration),
+        );
+        setSourceVisibility(media, sourceCardRef, resolution.kind !== "gap");
+        if (resolution.kind === "clip") {
+          media.currentTime = resolution.sourceSeconds;
+        }
       }
     };
 
@@ -433,6 +442,11 @@ export function useVideoPlaybackSync({
     sourceCardRef,
     timelineItems,
   ]);
+}
+
+/** The program clock keeps EOF exact; paused rendering samples the final item. */
+function pausedDisplayTime(playheadSeconds: number, durationSeconds: number): number {
+  return Math.min(Math.max(0, playheadSeconds), Math.max(0, durationSeconds - 0.000001));
 }
 
 function setSourceVisibility(

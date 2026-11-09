@@ -30,7 +30,7 @@ final class EngineService: APIProtocol {
     let captureEngine = CaptureEngine()
     let exportPipeline = ExportPipeline()
     let projectStore = ProjectStore()
-    let projectLibraryStore = ProjectLibraryStore()
+    let projectLibraryStore: ProjectLibraryStore
     let agentArtifactStore = AgentArtifactStore()
     let inputPermissionManager = InputPermissionManager()
     let inputSession = InputEventSession()
@@ -50,4 +50,8 @@ final class EngineService: APIProtocol {
     var latestExportJobId: String?
     var latestExportOutputURL: URL?
     var latestExportBackgroundFraming: BackgroundFramingSettings?
+
+    init(projectLibraryStore: ProjectLibraryStore = ProjectLibraryStore()) {
+        self.projectLibraryStore = projectLibraryStore
+    }
 }

@@ -109,6 +109,20 @@ extension EngineService {
             }
         }
         do {
+            // An opened project owns its media independently of the live capture
+            // session. Resolve all declared assets before switching to Save As.
+            let assets: ProjectStore.ProjectAssetURLs
+            if let sourceURL = currentProjectURL {
+                let source = try projectStore.loadProject(at: sourceURL)
+                assets = .init(
+                    recordingURL: projectStore.resolveRecordingURL(for: source),
+                    systemAudioURL: projectStore.resolveSystemAudioURL(for: source),
+                    micAudioURL: projectStore.resolveMicAudioURL(for: source),
+                    eventsURL: projectStore.resolveEventsURL(for: source)
+                )
+            } else {
+                assets = .init(recordingURL: captureEngine.recordingURL, eventsURL: currentEventsURL)
+            }
             let quarantinedAnalysis = isSaveAs
                 ? try agentArtifactStore.quarantineLatest(projectURL: projectURL)
                 : nil
@@ -116,10 +130,7 @@ extension EngineService {
             do {
                 savedDocument = try projectStore.writeProject(
                     document: document,
-                    assets: .init(
-                        recordingURL: captureEngine.recordingURL,
-                        eventsURL: currentEventsURL
-                    ),
+                    assets: assets,
                     to: projectURL
                 )
             } catch {

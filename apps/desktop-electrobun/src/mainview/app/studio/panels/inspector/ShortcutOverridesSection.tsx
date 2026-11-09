@@ -1,3 +1,4 @@
+import * as m from "../../../../../paraglide/messages.js";
 import { Keyboard, RotateCcw } from "lucide-react";
 import { useHotkeyRecorder } from "@tanstack/react-hotkeys";
 import { useState } from "react";
@@ -20,6 +21,10 @@ function shortcutLabelFor(
   studio: ReturnType<typeof useStudio>,
 ): string {
   switch (shortcutId) {
+    case "undo":
+      return m.ui_safety_undo(undefined, { locale: studio.locale });
+    case "redo":
+      return m.ui_safety_redo(undefined, { locale: studio.locale });
     case "playPause":
       return studio.ui.actions.playPause;
     case "record":
@@ -97,74 +102,81 @@ function ShortcutOverrideRow({ shortcutId }: { shortcutId: StudioShortcutId }) {
       });
 
   return (
-    <InspectorOptionCard className="space-y-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2">
-            <Keyboard className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="gg-copy-strong">{label}</span>
+    <div role="group" aria-label={label}>
+      <InspectorOptionCard className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <div className="flex items-center gap-2">
+              <Keyboard className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="gg-copy-strong">{label}</span>
+            </div>
+            <p className="gg-copy-meta">
+              {isCustomized
+                ? studio.ui.helper.shortcutCustomized(activeTokens.join("+"))
+                : studio.ui.helper.shortcutDefault(defaultTokens.join("+"))}
+            </p>
           </div>
-          <p className="gg-copy-meta">
-            {isCustomized
-              ? studio.ui.helper.shortcutCustomized(defaultTokens.join("+"))
-              : studio.ui.helper.shortcutDefault(defaultTokens.join("+"))}
-          </p>
-        </div>
-        <Badge variant="outline">
-          {recorder.isRecording
-            ? studio.ui.labels.shortcutRecording
-            : isCustomized
-              ? studio.ui.labels.shortcutCustom
-              : studio.ui.labels.shortcutDefault}
-        </Badge>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ShortcutTokenGroup tokens={activeTokens} />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={recorder.isRecording ? "secondary" : "outline"}
-            onClick={() => {
-              setErrorMessage(null);
-              if (recorder.isRecording) {
-                recorder.cancelRecording();
-                return;
-              }
-              recorder.startRecording();
-            }}
-          >
+          <Badge variant="outline">
             {recorder.isRecording
-              ? studio.ui.actions.cancelShortcutRecording
-              : studio.ui.actions.recordShortcut}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={!isCustomized}
-            onClick={() => {
-              setErrorMessage(null);
-              recorder.cancelRecording();
-              studio.resetShortcutOverride(shortcutId);
-            }}
-          >
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            {studio.ui.actions.resetShortcut}
-          </Button>
+              ? studio.ui.labels.shortcutRecording
+              : isCustomized
+                ? studio.ui.labels.shortcutCustom
+                : studio.ui.labels.shortcutDefault}
+          </Badge>
         </div>
-      </div>
 
-      <p
-        className={cn("gg-copy-meta", errorMessage ? "text-destructive" : "text-muted-foreground")}
-      >
-        {errorMessage ??
-          (recorder.isRecording
-            ? studio.ui.helper.shortcutRecording
-            : studio.ui.helper.shortcutCustomization)}
-      </p>
-    </InspectorOptionCard>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ShortcutTokenGroup tokens={activeTokens} />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={recorder.isRecording ? "secondary" : "outline"}
+              onClick={() => {
+                setErrorMessage(null);
+                if (recorder.isRecording) {
+                  recorder.cancelRecording();
+                  return;
+                }
+                recorder.startRecording();
+              }}
+            >
+              {recorder.isRecording
+                ? studio.ui.actions.cancelShortcutRecording
+                : studio.ui.actions.recordShortcut}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={!isCustomized}
+              onClick={() => {
+                setErrorMessage(null);
+                recorder.cancelRecording();
+                studio.resetShortcutOverride(shortcutId);
+              }}
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              {studio.ui.actions.resetShortcut}
+            </Button>
+          </div>
+        </div>
+
+        {errorMessage || recorder.isRecording ? (
+          <p
+            className={cn(
+              "gg-copy-meta",
+              errorMessage ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {errorMessage ??
+              (recorder.isRecording
+                ? studio.ui.helper.shortcutRecording
+                : studio.ui.helper.shortcutCustomization)}
+          </p>
+        ) : null}
+      </InspectorOptionCard>
+    </div>
   );
 }
 

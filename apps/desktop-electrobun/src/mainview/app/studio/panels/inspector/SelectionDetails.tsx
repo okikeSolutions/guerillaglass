@@ -1,3 +1,4 @@
+import * as m from "../../../../../paraglide/messages.js";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import type { InspectorSelection } from "../../domain/inspectorSelectionModel";
 import { Button } from "@guerillaglass/ui/components/button";
@@ -13,6 +14,9 @@ type SelectionDetailsStudio = Pick<
   | "setPlayheadSeconds"
   | "splitSelectedTimelineClipAtPlayhead"
   | "timelineRippleEnabled"
+  | "timelineDocument"
+  | "resetSelectedSceneCamera"
+  | "locale"
   | "ui"
 >;
 
@@ -48,9 +52,32 @@ export function SelectionDetailsTimelineClip({
   selection: TimelineClipSelection;
   studio: SelectionDetailsStudio;
 }) {
+  const clip = studio.timelineDocument.items.find((item) => item.id === selection.clipId);
+  const camera = clip?.kind === "clip" ? clip.camera : undefined;
+  const sceneIndex = studio.timelineDocument.items
+    .filter((item) => item.kind === "clip")
+    .findIndex((item) => item.id === selection.clipId);
   return (
-    <InspectorSection title={studio.ui.inspector.cards.selectedClip} defaultOpen>
+    <InspectorSection
+      title={
+        sceneIndex >= 0
+          ? m.ui_timeline_scene({ index: sceneIndex + 1 }, { locale: studio.locale })
+          : studio.ui.inspector.cards.selectedClip
+      }
+      defaultOpen
+    >
       <div className="space-y-2">
+        {clip?.kind === "clip" ? (
+          <p className="text-muted-foreground gg-numeric">
+            {m.ui_timeline_source_range(
+              {
+                start: studio.formatDecimal(clip.sourceStartSeconds),
+                end: studio.formatDecimal(clip.sourceEndSeconds),
+              },
+              { locale: studio.locale },
+            )}
+          </p>
+        ) : null}
         <InspectorDetailRows
           rows={[
             {
@@ -71,6 +98,47 @@ export function SelectionDetailsTimelineClip({
             },
           ]}
         />
+        <section
+          className="space-y-2"
+          aria-label={m.ui_workflow_camera(undefined, { locale: studio.locale })}
+        >
+          <h4 className="font-medium">
+            {m.ui_workflow_camera(undefined, { locale: studio.locale })}
+          </h4>
+          {camera?.length ? (
+            <ul className="space-y-2">
+              {camera.map((key) => (
+                <li key={key.timeSeconds} className="border-b pb-2">
+                  <InspectorDetailRows
+                    rows={[
+                      {
+                        label: m.ui_workflow_camera_time(undefined, { locale: studio.locale }),
+                        value: `${studio.formatDecimal(key.timeSeconds)}s`,
+                      },
+                      {
+                        label: m.ui_workflow_camera_zoom(undefined, { locale: studio.locale }),
+                        value: `${studio.formatDecimal(key.zoom)}×`,
+                      },
+                      {
+                        label: m.ui_workflow_camera_center(undefined, { locale: studio.locale }),
+                        value: `${studio.formatDecimal(key.centerX)} / ${studio.formatDecimal(key.centerY)}`,
+                      },
+                    ]}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">
+              {m.ui_workflow_camera_none(undefined, { locale: studio.locale })}
+            </p>
+          )}
+          {camera?.length ? (
+            <Button size="sm" variant="outline" onClick={() => studio.resetSelectedSceneCamera()}>
+              {m.ui_workflow_reset_scene_camera(undefined, { locale: studio.locale })}
+            </Button>
+          ) : null}
+        </section>
         <div className="flex flex-wrap gap-1.5">
           <Button
             size="sm"

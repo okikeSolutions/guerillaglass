@@ -207,15 +207,19 @@ export function InspectorNumericField({
   onValueChange: (value: number) => void;
   description?: string;
 }) {
+  const inputId = useId();
   return (
     <InspectorOptionCard className="space-y-3">
       <Field>
-        <FieldLabel className="border-0 px-0 py-0 gg-copy-strong">{label}</FieldLabel>
+        <FieldLabel htmlFor={inputId} className="border-0 px-0 py-0 gg-copy-strong">
+          {label}
+        </FieldLabel>
         {description ? (
           <FieldDescription className="gg-copy-meta pt-1">{description}</FieldDescription>
         ) : null}
         <FieldContent>
           <Input
+            id={inputId}
             type="number"
             min={min}
             step={step}

@@ -1,3 +1,4 @@
+import * as m from "../../../../paraglide/messages.js";
 import { useState } from "react";
 import { ScreenShare, ShieldCheck } from "lucide-react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
@@ -44,8 +45,13 @@ function displayOptionLabel(
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
-  const { source: recordingMediaSource, refresh: refreshRecordingMediaSource } =
-    useRecordingMediaSourceLease(studio.recordingURL);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const {
+    source: recordingMediaSource,
+    refresh: refreshRecordingMediaSource,
+    error: mediaError,
+    isPending: mediaPending,
+  } = useRecordingMediaSourceLease(studio.recordingURL);
   const handleMediaError = useRecordingMediaSourceErrorRecovery(
     recordingMediaSource,
     refreshRecordingMediaSource,
@@ -69,28 +75,36 @@ export function CaptureRoute() {
             <StudioPaneTitle className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" /> {studio.ui.sections.leftRail}
             </StudioPaneTitle>
-            <StudioPaneSubtitle>{studio.ui.labels.inputMonitoring}</StudioPaneSubtitle>
+            <StudioPaneSubtitle>{studio.ui.helper.captureSetup}</StudioPaneSubtitle>
           </StudioPaneHeader>
           <StudioPaneBody className="gg-copy-compact gg-inspector-pane-body">
-            <DesktopPanelSection title={studio.ui.labels.inputMonitoring}>
+            <DesktopPanelSection defaultOpen title={studio.ui.labels.permissions}>
               <DesktopPanelDetailRows
                 rows={[
                   {
                     label: studio.ui.labels.screen,
-                    value: studio.permissionsQuery.data?.screenRecordingGranted
-                      ? studio.ui.values.granted
-                      : studio.ui.values.notGranted,
+                    value: !studio.permissionsQuery.data
+                      ? studio.ui.values.unknown
+                      : studio.permissionsQuery.data.screenRecordingGranted
+                        ? studio.ui.values.granted
+                        : studio.ui.values.notGranted,
                   },
                   {
                     label: studio.ui.labels.microphone,
-                    value: studio.permissionsQuery.data?.microphoneGranted
-                      ? studio.ui.values.granted
-                      : studio.ui.values.notGranted,
+                    value: !studio.permissionsQuery.data
+                      ? studio.ui.values.unknown
+                      : studio.permissionsQuery.data.microphoneGranted
+                        ? studio.ui.values.granted
+                        : studio.ui.values.notGranted,
                   },
                   {
                     label: studio.ui.labels.inputMonitoring,
                     value:
-                      studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown,
+                      studio.permissionsQuery.data?.inputMonitoring === "granted"
+                        ? studio.ui.values.granted
+                        : studio.permissionsQuery.data?.inputMonitoring === "denied"
+                          ? studio.ui.values.notGranted
+                          : studio.ui.values.unknown,
                   },
                 ]}
               />
@@ -131,13 +145,14 @@ export function CaptureRoute() {
               </div>
             </DesktopPanelSection>
 
-            <DesktopPanelSection title={studio.ui.labels.captureSource}>
+            <DesktopPanelSection defaultOpen title={studio.ui.labels.captureSource}>
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
                   <Field>
                     <FieldLabel>{studio.ui.labels.captureSource}</FieldLabel>
                     <FieldContent>
                       <RadioGroup
+                        aria-label={studio.ui.labels.captureSource}
                         className="flex gap-3"
                         value={field.state.value}
                         onValueChange={(nextValue) => {
@@ -186,6 +201,7 @@ export function CaptureRoute() {
                       <FieldLabel>{studio.ui.labels.window}</FieldLabel>
                       <FieldContent>
                         <NativeSelect
+                          aria-label={studio.ui.labels.window}
                           value={String(studio.selectedWindowId)}
                           onChange={(event) => {
                             const windowId = Number(event.target.value);
@@ -228,6 +244,7 @@ export function CaptureRoute() {
                       <FieldLabel>{studio.ui.labels.display}</FieldLabel>
                       <FieldContent>
                         <NativeSelect
+                          aria-label={studio.ui.labels.display}
                           value={String(studio.selectedDisplayId)}
                           disabled={studio.displayChoices.length <= 1}
                           onChange={(event) => {
@@ -325,6 +342,34 @@ export function CaptureRoute() {
                                     </div>
                                   ) : null}
                                 </div>
+                              ) : studio.recordingURL &&
+                                (mediaError ||
+                                  (failedSource !== null &&
+                                    failedSource === recordingMediaSource)) ? (
+                                <div className="flex flex-col gap-3 p-6 text-center" role="alert">
+                                  <p>
+                                    {m.ui_workflow_media_failed(undefined, {
+                                      locale: studio.locale,
+                                    })}
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setFailedSource(null);
+                                      void refreshRecordingMediaSource().catch(() =>
+                                        setFailedSource(recordingMediaSource),
+                                      );
+                                    }}
+                                  >
+                                    {m.ui_workflow_retry(undefined, { locale: studio.locale })}
+                                  </Button>
+                                </div>
+                              ) : studio.recordingURL && mediaPending ? (
+                                <p role="status">
+                                  {m.ui_workflow_loading_media(undefined, {
+                                    locale: studio.locale,
+                                  })}
+                                </p>
                               ) : recordingMediaSource ? (
                                 <video
                                   key={recordingMediaSource}
@@ -334,7 +379,12 @@ export function CaptureRoute() {
                                   controls
                                   playsInline
                                   onLoadedMetadata={(event) => {
+                                    setFailedSource(null);
                                     const video = event.currentTarget;
+                                    studio.setRecordingMediaDurationSeconds(video.duration, {
+                                      width: video.videoWidth,
+                                      height: video.videoHeight,
+                                    });
                                     if (video.videoWidth > 0 && video.videoHeight > 0) {
                                       setSourceSize({
                                         width: video.videoWidth,
@@ -342,16 +392,23 @@ export function CaptureRoute() {
                                       });
                                     }
                                   }}
-                                  onError={handleMediaError}
+                                  onError={() => {
+                                    setFailedSource(recordingMediaSource);
+                                    handleMediaError();
+                                  }}
                                 />
                               ) : (
                                 <Empty className="h-full border-0 bg-transparent p-6">
                                   <EmptyHeader>
                                     <EmptyTitle className="text-sm">
-                                      {studio.ui.helper.emptyPreviewTitle}
+                                      {studio.permissionsQuery.data?.screenRecordingGranted === true
+                                        ? studio.ui.helper.emptyPreviewTitle
+                                        : studio.ui.helper.capturePermissionTitle}
                                     </EmptyTitle>
                                     <EmptyDescription>
-                                      {studio.ui.helper.emptyPreviewBody}
+                                      {studio.permissionsQuery.data?.screenRecordingGranted === true
+                                        ? studio.ui.helper.emptyPreviewBody
+                                        : studio.ui.helper.capturePermissionBody}
                                     </EmptyDescription>
                                   </EmptyHeader>
                                 </Empty>

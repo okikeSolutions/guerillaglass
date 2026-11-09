@@ -93,6 +93,7 @@ function renderSurface(
   timelineRippleEnabled: boolean,
   options?: {
     laneLocked?: boolean;
+    zoomPercent?: number;
     timelineTool?: "select" | "trim" | "blade";
     lanes?: TimelineLane[];
     onClearSelection?: () => void;
@@ -104,7 +105,7 @@ function renderSurface(
       <TimelineSurface
         durationSeconds={3}
         playheadSeconds={0}
-        zoomPercent={100}
+        zoomPercent={options?.zoomPercent ?? 100}
         timelineTool={options?.timelineTool ?? "select"}
         timelineSnapEnabled={true}
         timelineRippleEnabled={timelineRippleEnabled}
@@ -117,8 +118,6 @@ function renderSurface(
         onSetPlayheadSeconds={() => {}}
         onNudgePlayheadSeconds={() => {}}
         onToggleLaneLocked={() => {}}
-        onToggleLaneMuted={() => {}}
-        onToggleLaneSolo={() => {}}
         onClearSelection={options?.onClearSelection ?? (() => {})}
         onMoveClipDrop={(params) => {
           receivedDrop = params;
@@ -187,6 +186,40 @@ afterEach(() => {
 });
 
 describe("timeline clip drag move", () => {
+  test("ruler and tracks retain one time origin while zooming and scrolling", () => {
+    Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    const host = document.getElementById("root")!;
+    host.style.width = "900px";
+    renderSurface(true, { zoomPercent: 200 });
+    const ruler = host.querySelector(".gg-timeline-ruler")!;
+    const track = host.querySelector(".gg-timeline-lane-track")!;
+    const overlay = host.querySelector(".gg-timeline-track-overlay")!;
+    const scroll = host.querySelector(".gg-timeline-scroll")!;
+    expect(
+      Math.abs(ruler.getBoundingClientRect().left - track.getBoundingClientRect().left),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(overlay.getBoundingClientRect().left - track.getBoundingClientRect().left),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(overlay.getBoundingClientRect().width - track.getBoundingClientRect().width),
+    ).toBeLessThan(1);
+    const before = ruler.getBoundingClientRect().left;
+    scroll.scrollLeft = 200;
+    expect(ruler.getBoundingClientRect().left).toBeCloseTo(before - 200);
+    expect(
+      Math.abs(ruler.getBoundingClientRect().left - track.getBoundingClientRect().left),
+    ).toBeLessThan(1);
+  });
+
+  test("unsupported mute and solo controls are absent and lane locks have context", () => {
+    renderSurface(true);
+    const names = [...document.querySelectorAll(".gg-timeline-lane-toggle")].map((node) =>
+      node.getAttribute("aria-label"),
+    );
+    expect(names).toEqual(["Video: Lock lane", "Audio: Lock lane"]);
+  });
+
   test("ripple drag resolves an insertion destination index", () => {
     renderSurface(true);
 

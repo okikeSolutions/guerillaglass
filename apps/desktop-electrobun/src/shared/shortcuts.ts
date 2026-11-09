@@ -33,6 +33,8 @@ export const studioShortcutIds = [
   "saveAs",
   "export",
   "timelineBlade",
+  "undo",
+  "redo",
 ] as const;
 
 export const studioShortcutIdSchema = Schema.Literals(studioShortcutIds);
@@ -59,6 +61,8 @@ export const studioShortcutOverridesSchema = Schema.Struct({
   saveAs: Schema.optional(studioHotkeySchema),
   export: Schema.optional(studioHotkeySchema),
   timelineBlade: Schema.optional(studioHotkeySchema),
+  undo: Schema.optional(studioHotkeySchema),
+  redo: Schema.optional(studioHotkeySchema),
 });
 export type StudioShortcutOverrides = Partial<Record<StudioShortcutId, StudioHotkey>>;
 
@@ -112,6 +116,8 @@ const studioShortcutDefinitions: Record<StudioShortcutId, StudioShortcutDefiniti
       linux: "Control+E",
     },
   },
+  undo: { hotkeys: { mac: "Meta+Z", windows: "Control+Z", linux: "Control+Z" } },
+  redo: { hotkeys: { mac: "Meta+Shift+Z", windows: "Control+Shift+Z", linux: "Control+Shift+Z" } },
   timelineBlade: {
     hotkeys: {
       mac: "B",

@@ -1,6 +1,7 @@
-import { useForm } from "@tanstack/react-form";
-import { useQueryClient, useIsMutating } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { editorStateSignature, timelineContentSignature } from "../../domain/editorStateSignature";
+import { useForm, useStore } from "@tanstack/react-form";
+import { useQueryClient, useIsMutating, useMutation } from "@tanstack/react-query";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type ExportPreset } from "@guerillaglass/engine-contract/domains/export";
 import {
   defaultCaptureFrameRate,
@@ -55,6 +56,7 @@ import {
   liftTimelineItems,
   moveTimelineItems,
   splitTimelineClipAtProgramTime,
+  resetTimelineClipCamera,
 } from "../../domain/timelineCommands";
 import {
   normalizeTimelineFrameRate,
@@ -72,6 +74,11 @@ import { useStudioMutations, type ExportFormApi, type SettingsFormApi } from "./
 import { studioRecentsLimit, useStudioDataQueries, studioQueryKeys } from "./useStudioDataQueries";
 import { useStudioTimeline } from "../timeline/useStudioTimeline";
 
+import {
+  useEditorDocumentHistory,
+  type EditorSettingsAdapter,
+} from "../timeline/useEditorDocumentHistory";
+
 export type CaptureSourceMode = "display" | "window";
 export type Notice = { kind: "error" | "success" | "info"; message: string } | null;
 
@@ -86,7 +93,8 @@ export const defaultBackgroundFraming: BackgroundFramingSettings = {
 };
 
 export function formatDuration(seconds: number): string {
-  const clamped = Math.max(0, Math.floor(seconds));
+  const millis = Math.round(Math.max(0, Number.isFinite(seconds) ? seconds : 0) * 1000);
+  const clamped = Math.floor(millis / 1000);
   const hours = Math.floor(clamped / 3600)
     .toString()
     .padStart(2, "0");
@@ -94,7 +102,7 @@ export function formatDuration(seconds: number): string {
     .toString()
     .padStart(2, "0");
   const remainder = (clamped % 60).toString().padStart(2, "0");
-  return `${hours}:${minutes}:${remainder}`;
+  return `${hours}:${minutes}:${remainder}${millis % 1000 ? `.${String(millis % 1000).padStart(3, "0")}` : ""}`;
 }
 
 export function formatAspectRatio(width: number, height: number): string {
@@ -255,10 +263,14 @@ export function useStudioController() {
     defaultValues: {
       presetId: "",
       fileName: "guerillaglass-export",
+      rangeMode: "full" as "full" | "selected",
       trimStartSeconds: 0,
       trimEndSeconds: 0,
     },
   });
+
+  const settingsValues = useStore(settingsForm.store, (state) => state.values);
+  const exportValues = useStore(exportForm.store, (state) => state.values);
 
   const settingsFormApi = useMemo<SettingsFormApi>(
     () => ({
@@ -271,6 +283,7 @@ export function useStudioController() {
   const exportFormApi = useMemo<ExportFormApi>(
     () => ({
       getValues: () => exportForm.state.values,
+      setRangeMode: (value) => exportForm.setFieldValue("rangeMode", value),
       setTrimStartSeconds: (value) => exportForm.setFieldValue("trimStartSeconds", value),
       setTrimEndSeconds: (value) => exportForm.setFieldValue("trimEndSeconds", value),
     }),
@@ -298,8 +311,6 @@ export function useStudioController() {
   });
   const recentsLimit = studioRecentsLimit;
 
-  const lastHydratedProjectAutoZoomSignatureRef = useRef<string | null>(null);
-  const lastHydratedBackgroundFramingSignatureRef = useRef<string | null>(null);
   const diagnosticsRenderSignatureRef = useRef<Record<
     string,
     string | number | boolean | null
@@ -309,41 +320,33 @@ export function useStudioController() {
     saveStudioShortcutOverrides(shortcutOverrides, shortcutPlatform);
   }, [shortcutOverrides, shortcutPlatform]);
 
-  useEffect(() => {
-    const projectAutoZoom = projectQuery.data?.autoZoom;
-    if (!projectAutoZoom) {
-      return;
-    }
-    const nextSignature = JSON.stringify({
-      projectPath: projectQuery.data?.projectPath ?? null,
-      settings: projectAutoZoom,
-    });
-    if (nextSignature === lastHydratedProjectAutoZoomSignatureRef.current) {
-      return;
-    }
-    lastHydratedProjectAutoZoomSignatureRef.current = nextSignature;
-    settingsForm.setFieldValue("autoZoom", projectAutoZoom);
-  }, [projectQuery.data?.autoZoom, projectQuery.data?.projectPath, settingsForm]);
-
-  useEffect(() => {
-    const projectBackgroundFraming = projectQuery.data?.backgroundFraming;
-    if (!projectBackgroundFraming) {
-      return;
-    }
-    const nextSignature = JSON.stringify({
-      projectPath: projectQuery.data?.projectPath ?? null,
-      settings: projectBackgroundFraming,
-    });
-    if (nextSignature === lastHydratedBackgroundFramingSignatureRef.current) {
-      return;
-    }
-    lastHydratedBackgroundFramingSignatureRef.current = nextSignature;
-    settingsForm.setFieldValue("backgroundFraming", projectBackgroundFraming);
-  }, [projectQuery.data?.backgroundFraming, projectQuery.data?.projectPath, settingsForm]);
+  const [mediaDuration, setMediaDuration] = useState<{
+    source: string | null;
+    seconds: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const recordingMediaDuration = mediaDuration?.source === recordingURL ? mediaDuration.seconds : 0;
+  const setRecordingMediaDurationSeconds = useCallback(
+    (seconds: number, size?: { width: number; height: number }) => {
+      if (Number.isFinite(seconds) && seconds > 0) {
+        setMediaDuration({
+          source: recordingURL,
+          seconds,
+          width: size && Number.isFinite(size.width) ? Math.max(0, size.width) : 0,
+          height: size && Number.isFinite(size.height) ? Math.max(0, size.height) : 0,
+        });
+      }
+    },
+    [recordingURL],
+  );
 
   const baselineTimelineDocument = useMemo<TimelineDocument>(() => {
     const projectTimeline = projectQuery.data?.timeline;
-    const recordingDurationSeconds = captureStatusQuery.data?.recordingDurationSeconds ?? 0;
+    const recordingDurationSeconds =
+      recordingMediaDuration ||
+      (projectQuery.data?.projectPath ? 0 : captureStatusQuery.data?.recordingDurationSeconds) ||
+      0;
     if (projectTimeline && projectTimeline.items.length > 0) {
       return projectTimeline;
     }
@@ -354,44 +357,107 @@ export function useStudioController() {
 
     return createEmptyTimelineDocument();
   }, [
+    recordingMediaDuration,
     captureStatusQuery.data?.recordingDurationSeconds,
     projectQuery.data?.timeline,
+    projectQuery.data?.projectPath,
     recordingURL,
   ]);
   const baselineTimelineSignature = useMemo(
-    () => JSON.stringify(baselineTimelineDocument),
+    () => timelineContentSignature(baselineTimelineDocument),
     [baselineTimelineDocument],
   );
-  const [timelineDraftState, setTimelineDraftState] = useState<{
-    draft: TimelineDocument;
-    sourceSignature: string;
-  } | null>(null);
-  const timelineDocument =
-    timelineDraftState?.sourceSignature === baselineTimelineSignature
-      ? timelineDraftState.draft
-      : baselineTimelineDocument;
+  const projectIdentity = editorStateSignature([projectQuery.data?.projectPath, recordingURL]);
+  const editorSettings = useMemo<EditorSettingsAdapter>(
+    () => ({
+      getValues: () => settingsForm.state.values,
+      restore: (settings) => {
+        settingsForm.setFieldValue("autoZoom", settings.autoZoom);
+        settingsForm.setFieldValue("backgroundFraming", settings.backgroundFraming);
+      },
+      subscribe: (listener) => {
+        const subscription = settingsForm.store.subscribe(listener);
+        return () => subscription.unsubscribe();
+      },
+    }),
+    [settingsForm],
+  );
+  const canEditDocument = useCallback(
+    () =>
+      queryClient.isMutating() === 0 &&
+      !(
+        queryClient.getQueryData<NonNullable<typeof captureStatusQuery.data>>(
+          studioQueryKeys.captureStatus(),
+        ) ?? captureStatusQuery.data
+      )?.isRecording,
+    [queryClient, captureStatusQuery.data],
+  );
+  const documentHistory = useEditorDocumentHistory({
+    baseline: {
+      timeline: baselineTimelineDocument,
+      autoZoom: projectQuery.data?.autoZoom ?? defaultAutoZoom,
+      backgroundFraming: projectQuery.data?.backgroundFraming ?? defaultBackgroundFraming,
+    },
+    projectIdentity,
+    generatedTimeline: !projectQuery.data?.timeline?.items.length,
+    settings: editorSettings,
+    canEdit: canEditDocument,
+  });
+  const { currentHistory, timelineDocument, updateTimelineDocument, undoTimeline, redoTimeline } =
+    documentHistory;
   const timelineDocumentRef = useRef(timelineDocument);
-  useEffect(() => {
+  useLayoutEffect(() => {
     timelineDocumentRef.current = timelineDocument;
   }, [timelineDocument]);
-  const updateTimelineDocument = useCallback(
-    (updater: (currentTimeline: TimelineDocument) => TimelineDocument) => {
-      const nextTimeline = updater(timelineDocumentRef.current);
-      timelineDocumentRef.current = nextTimeline;
-      setTimelineDraftState({
-        draft: nextTimeline,
-        sourceSignature: baselineTimelineSignature,
-      });
-    },
-    [baselineTimelineSignature],
-  );
+  const currentTimelineSignature = timelineContentSignature(timelineDocument);
+  const timelineChanged = currentTimelineSignature !== baselineTimelineSignature;
+  const autoZoomChanged =
+    editorStateSignature(settingsValues.autoZoom) !==
+    editorStateSignature(projectQuery.data?.autoZoom ?? defaultAutoZoom);
+  const backgroundChanged =
+    editorStateSignature(settingsValues.backgroundFraming) !==
+    editorStateSignature(projectQuery.data?.backgroundFraming ?? defaultBackgroundFraming);
+  const hasSavedProject = Boolean(projectQuery.data?.projectPath);
+  const hasUnsavedProjectEdits =
+    (Boolean(recordingURL) && !hasSavedProject) ||
+    timelineChanged ||
+    autoZoomChanged ||
+    backgroundChanged;
+  const sourceIdentityMatches = recordingURL === (projectQuery.data?.recordingURL ?? null);
+  const currentItemCount = timelineDocument.items.length;
+  const baselineItemCount = baselineTimelineDocument.items.length;
+  const currentSignatureLength = currentTimelineSignature.length;
+  const baselineSignatureLength = baselineTimelineSignature.length;
+  useEffect(() => {
+    recordStudioDiagnosticsEvent("editor dirty state", {
+      timelineChanged,
+      autoZoomChanged,
+      backgroundChanged,
+      hasSavedProject,
+      sourceIdentityMatches,
+      currentItemCount,
+      baselineItemCount,
+      currentSignatureLength,
+      baselineSignatureLength,
+    });
+  }, [
+    timelineChanged,
+    autoZoomChanged,
+    backgroundChanged,
+    hasSavedProject,
+    sourceIdentityMatches,
+    currentItemCount,
+    baselineItemCount,
+    currentSignatureLength,
+    baselineSignatureLength,
+  ]);
 
   const selectedDisplayId = useMemo(() => {
-    return resolveSelectedDisplayId(displayChoices, settingsForm.state.values.selectedDisplayId);
-  }, [displayChoices, settingsForm.state.values.selectedDisplayId]);
+    return resolveSelectedDisplayId(displayChoices, settingsValues.selectedDisplayId);
+  }, [displayChoices, settingsValues.selectedDisplayId]);
   const selectedWindowId = useMemo(() => {
-    return resolveSelectedWindowId(windowChoices, settingsForm.state.values.selectedWindowId);
-  }, [settingsForm.state.values.selectedWindowId, windowChoices]);
+    return resolveSelectedWindowId(windowChoices, settingsValues.selectedWindowId);
+  }, [settingsValues.selectedWindowId, windowChoices]);
   const selectedDisplaySource = useMemo(
     () => displayChoices.find((displayItem) => displayItem.id === selectedDisplayId) ?? null,
     [displayChoices, selectedDisplayId],
@@ -401,11 +467,9 @@ export function useStudioController() {
   }, [selectedWindowId, windowChoices]);
   const supportedCaptureFrameRates = useMemo<ReadonlyArray<CaptureFrameRate>>(() => {
     const source =
-      settingsForm.state.values.captureSource === "display"
-        ? selectedDisplaySource
-        : selectedWindowSource;
+      settingsValues.captureSource === "display" ? selectedDisplaySource : selectedWindowSource;
     return source?.supportedCaptureFrameRates ?? [];
-  }, [selectedDisplaySource, selectedWindowSource, settingsForm.state.values.captureSource]);
+  }, [selectedDisplaySource, selectedWindowSource, settingsValues.captureSource]);
   const preferredSupportedCaptureFrameRate = useMemo(() => {
     if (supportedCaptureFrameRates.length === 0) {
       return null;
@@ -421,7 +485,7 @@ export function useStudioController() {
     if (supportedCaptureFrameRates.length === 0 || preferredSupportedCaptureFrameRate == null) {
       return;
     }
-    const currentCaptureFrameRate = settingsForm.state.values.captureFps;
+    const currentCaptureFrameRate = settingsValues.captureFps;
     if (supportedCaptureFrameRates.includes(currentCaptureFrameRate)) {
       return;
     }
@@ -429,24 +493,17 @@ export function useStudioController() {
   }, [
     preferredSupportedCaptureFrameRate,
     settingsForm,
-    settingsForm.state.values.captureFps,
+    settingsValues.captureFps,
     supportedCaptureFrameRates,
   ]);
 
-  const timelineFrameRate = useMemo(() => {
-    const metadataFrameRate =
-      captureStatusQuery.data?.captureMetadata?.fps ??
-      projectQuery.data?.captureMetadata?.fps ??
-      null;
-    if (metadataFrameRate && Number.isFinite(metadataFrameRate) && metadataFrameRate > 0) {
-      return metadataFrameRate;
-    }
-    return settingsForm.state.values.captureFps;
-  }, [
-    captureStatusQuery.data?.captureMetadata?.fps,
-    projectQuery.data?.captureMetadata?.fps,
-    settingsForm.state.values.captureFps,
-  ]);
+  const metadataFrameRate = projectQuery.data?.projectPath
+    ? projectQuery.data.captureMetadata?.fps
+    : (captureStatusQuery.data?.captureMetadata?.fps ?? projectQuery.data?.captureMetadata?.fps);
+  const timelineFrameRate =
+    metadataFrameRate && Number.isFinite(metadataFrameRate) && metadataFrameRate > 0
+      ? metadataFrameRate
+      : settingsValues.captureFps;
 
   const timeline = useStudioTimeline({
     activeMode,
@@ -540,65 +597,68 @@ export function useStudioController() {
     });
   }, undefined);
 
+  const setExportRangeMode = useCallback(
+    (mode: "full" | "selected") => {
+      if (mode === "selected" && exportForm.state.values.rangeMode === "full") {
+        exportForm.setFieldValue("trimStartSeconds", 0);
+        exportForm.setFieldValue(
+          "trimEndSeconds",
+          timelineItems.slice(-1)[0]?.programEndSeconds ?? 0,
+        );
+      }
+      exportForm.setFieldValue("rangeMode", mode);
+    },
+    [exportForm, timelineItems],
+  );
+
   const setTrimStartSeconds = useCallback(
     (seconds: number) => {
-      const nextTrimStart = Math.min(
-        Math.max(
-          timelineSnapEnabled
-            ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
-            : seconds,
-          0,
-        ),
-        timelineDuration,
-      );
-      exportForm.setFieldValue("trimStartSeconds", nextTrimStart);
-      if (
-        exportForm.state.values.trimEndSeconds > 0 &&
-        nextTrimStart > exportForm.state.values.trimEndSeconds
-      ) {
-        exportForm.setFieldValue("trimEndSeconds", nextTrimStart);
+      if (!Number.isFinite(seconds)) {
+        return;
       }
+      setExportRangeMode("selected");
+      const duration = timelineItems.slice(-1)[0]?.programEndSeconds ?? 0;
+      const next = timelineSnapEnabled
+        ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
+        : seconds;
+      exportForm.setFieldValue("trimStartSeconds", Math.min(Math.max(next, 0), duration));
     },
-    [exportForm, timelineDuration, timelineFrameRate, timelineSnapEnabled],
+    [exportForm, setExportRangeMode, timelineItems, timelineFrameRate, timelineSnapEnabled],
   );
 
   const setTrimEndSeconds = useCallback(
     (seconds: number) => {
-      const nextTrimEnd = Math.min(
-        Math.max(
-          timelineSnapEnabled
-            ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
-            : seconds,
-          0,
-        ),
-        timelineDuration,
-      );
-      exportForm.setFieldValue("trimEndSeconds", nextTrimEnd);
-      if (exportForm.state.values.trimStartSeconds > nextTrimEnd) {
-        exportForm.setFieldValue("trimStartSeconds", nextTrimEnd);
+      if (!Number.isFinite(seconds)) {
+        return;
       }
+      setExportRangeMode("selected");
+      const duration = timelineItems.slice(-1)[0]?.programEndSeconds ?? 0;
+      const next = timelineSnapEnabled
+        ? quantizeSecondsToFrame(seconds, normalizeTimelineFrameRate(timelineFrameRate))
+        : seconds;
+      exportForm.setFieldValue("trimEndSeconds", Math.min(Math.max(next, 0), duration));
     },
-    [exportForm, timelineDuration, timelineFrameRate, timelineSnapEnabled],
+    [exportForm, setExportRangeMode, timelineItems, timelineFrameRate, timelineSnapEnabled],
   );
 
   const setTrimInFromPlayhead = useCallback(() => {
-    if (activeMode !== "deliver") {
+    if (activeMode === "capture") {
       return;
     }
     setTrimStartSeconds(playbackStore.getSnapshot().playheadSeconds);
   }, [activeMode, playbackStore, setTrimStartSeconds]);
 
   const setTrimOutFromPlayhead = useCallback(() => {
-    if (activeMode !== "deliver") {
+    if (activeMode === "capture") {
       return;
     }
     setTrimEndSeconds(playbackStore.getSnapshot().playheadSeconds);
   }, [activeMode, playbackStore, setTrimEndSeconds]);
 
   const selectedPreset = useMemo<ExportPreset | undefined>(() => {
-    const selected = presets.find((preset) => preset.id === exportForm.state.values.presetId);
+    const selected = presets.find((preset) => preset.id === exportValues.presetId);
     return selected ?? presets[0];
-  }, [exportForm.state.values.presetId, presets]);
+  }, [exportValues.presetId, presets]);
   const selectedPresetId = selectedPreset?.id ?? "";
 
   const inputMonitoringDenied = permissionsQuery.data?.inputMonitoring === "denied";
@@ -611,6 +671,15 @@ export function useStudioController() {
   const clearInspectorSelection = useCallback(() => {
     setRawInspectorSelection(emptyInspectorSelection);
   }, []);
+
+  const resetSelectedSceneCamera = useCallback(() => {
+    if (!selectedTimelineClip) {
+      return;
+    }
+    updateTimelineDocument(
+      (timeline) => resetTimelineClipCamera(timeline, selectedTimelineClip.clipId).timeline,
+    );
+  }, [selectedTimelineClip, updateTimelineDocument]);
 
   const splitSelectedTimelineClipAtPlayhead = useCallback(() => {
     if (!selectedTimelineClip) {
@@ -827,6 +896,7 @@ export function useStudioController() {
     stopPreviewMutation,
     toggleRecordingMutation,
   } = useStudioMutations({
+    locale,
     queryClient,
     ui,
     mapActionErrorMessage,
@@ -840,6 +910,19 @@ export function useStudioController() {
     inputMonitoringDenied,
     recordingURL,
     timelineDocument,
+    hasUnsavedProjectEdits,
+    onRecordingStarted: documentHistory.reset,
+    onProjectSaved: (project) => {
+      documentHistory.markSaved(
+        editorStateSignature([project.projectPath, project.recordingURL ?? null]),
+        {
+          timeline: project.timeline ?? timelineDocumentRef.current,
+          autoZoom: project.autoZoom ?? settingsForm.state.values.autoZoom,
+          backgroundFraming:
+            project.backgroundFraming ?? settingsForm.state.values.backgroundFraming,
+        },
+      );
+    },
     selectedPreset,
     recentsLimit,
     settingsForm: settingsFormApi,
@@ -852,6 +935,11 @@ export function useStudioController() {
     projectQuery,
     projectRecentsQuery,
     eventsQuery,
+  });
+
+  const exportResultAction = useMutation({
+    mutationFn: (action: "open" | "reveal") => desktopApi.openExportResult(action),
+    onError: (error) => setNotice({ kind: "error", message: mapActionErrorMessage(error) }),
   });
 
   const proposalActionCount = useIsMutating({ mutationKey: studioQueryKeys.agentProposal() });
@@ -921,8 +1009,8 @@ export function useStudioController() {
     [presets],
   );
 
-  const runHostCommandUncoordinated = useMemo(
-    () =>
+  const runHostCommandUncoordinated = useCallback(
+    (command: HostMenuCommand) => {
       createHostCommandRunnerFromHandlers({
         appRefresh: () => {
           void refreshMutation.mutateAsync();
@@ -942,17 +1030,33 @@ export function useStudioController() {
         captureStopPreview: () => {
           void stopPreviewMutation.mutateAsync();
         },
+        editUndo: () => {
+          const focused = document.activeElement;
+          if (focused?.matches("input,textarea,[contenteditable]:not([contenteditable='false'])")) {
+            document.execCommand("undo");
+          } else {
+            undoTimeline();
+          }
+        },
+        editRedo: () => {
+          const focused = document.activeElement;
+          if (focused?.matches("input,textarea,[contenteditable]:not([contenteditable='false'])")) {
+            document.execCommand("redo");
+          } else {
+            redoTimeline();
+          }
+        },
         timelinePlayPause: () => {
           toggleTimelinePlayback();
         },
         timelineTrimIn: () => {
-          if (activeMode !== "deliver") {
+          if (activeMode === "capture") {
             return;
           }
           setTrimInFromPlayhead();
         },
         timelineTrimOut: () => {
-          if (activeMode !== "deliver") {
+          if (activeMode === "capture") {
             return;
           }
           setTrimOutFromPlayhead();
@@ -981,8 +1085,11 @@ export function useStudioController() {
         fileExport: () => {
           void exportMutation.mutateAsync();
         },
-      }),
+      })(command);
+    },
     [
+      undoTimeline,
+      redoTimeline,
       exportMutation,
       openProjectMutation,
       refreshMutation,
@@ -1009,6 +1116,18 @@ export function useStudioController() {
     },
     [queryClient, runHostCommandUncoordinated],
   );
+
+  useEffect(() => {
+    if (!hasUnsavedProjectEdits) {
+      return;
+    }
+    const protectDraft = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", protectDraft);
+    return () => window.removeEventListener("beforeunload", protectDraft);
+  }, [hasUnsavedProjectEdits]);
 
   const clearNotice = useCallback(() => {
     setNotice(null);
@@ -1054,10 +1173,14 @@ export function useStudioController() {
   );
 
   useStudioHotkeys({
+    undoTimeline,
+    redoTimeline,
+    canChangeTimelineHistory:
+      Boolean(recordingURL) && !isRunningAction && !captureStatusQuery.data?.isRecording,
     runHostCommand,
-    canTrimTimeline: activeMode === "deliver" && Boolean(recordingURL),
+    canTrimTimeline: activeMode !== "capture" && Boolean(recordingURL),
     canEditSelectedTimelineClip: activeMode === "edit" && selectedTimelineClip != null,
-    singleKeyShortcutsEnabled: settingsForm.state.values.singleKeyShortcutsEnabled,
+    singleKeyShortcutsEnabled: settingsValues.singleKeyShortcutsEnabled,
     shortcutOverrides,
     shortcutPlatform,
     clearInspectorSelection,
@@ -1069,9 +1192,10 @@ export function useStudioController() {
 
   useEffect(() => {
     sendHostMenuState({
+      hasUnsavedProjectEdits,
       canSave: !isRunningAction && Boolean(recordingURL),
       canExport: !isRunningAction && Boolean(recordingURL),
-      canTrimTimeline: activeMode === "deliver" && !isRunningAction && Boolean(recordingURL),
+      canTrimTimeline: activeMode !== "capture" && !isRunningAction && Boolean(recordingURL),
       canToggleTimeline: activeMode !== "capture",
       isRecording: Boolean(captureStatusQuery.data?.isRecording),
       recordingURL,
@@ -1083,6 +1207,7 @@ export function useStudioController() {
     captureStatusQuery.data?.isRecording,
     activeMode,
     isRunningAction,
+    hasUnsavedProjectEdits,
     layout.densityMode,
     locale,
     recordingURL,
@@ -1090,7 +1215,7 @@ export function useStudioController() {
   ]);
 
   useEffect(() => {
-    if (activeMode !== "deliver" && timelineTool === "trim") {
+    if (activeMode === "capture" && timelineTool === "trim") {
       setTimelineTool("select");
     }
   }, [activeMode, setTimelineTool, timelineTool]);
@@ -1120,12 +1245,24 @@ export function useStudioController() {
       : ui.labels.idle;
 
   return {
+    clearNotice,
+    recordingMediaSize:
+      mediaDuration?.source === recordingURL && mediaDuration.width > 0 && mediaDuration.height > 0
+        ? { width: mediaDuration.width, height: mediaDuration.height }
+        : null,
+    setRecordingMediaDurationSeconds,
+    canUndoTimeline: Boolean(recordingURL) && currentHistory.past.length > 0,
+    canRedoTimeline: Boolean(recordingURL) && currentHistory.future.length > 0,
+    undoTimeline,
+    redoTimeline,
+    hasUnsavedProjectEdits,
     backgroundFramingSupported: capabilitiesQuery.data?.export.backgroundFraming === true,
     capabilitiesQuery,
     captureStatusLabel,
     captureStatusQuery,
     exportForm,
     exportMutation,
+    exportResultAction,
     exportPresets: presets,
     formatAspectRatio,
     formatDateTime,
@@ -1174,6 +1311,7 @@ export function useStudioController() {
     setTimelinePlaybackActive,
     splitTimelineClipAtSeconds,
     splitSelectedTimelineClipAtPlayhead,
+    resetSelectedSceneCamera,
     setTimelineTool,
     setTimelineZoom,
     setLocale,
@@ -1185,6 +1323,7 @@ export function useStudioController() {
     setRightPaneCollapsed,
     setTimelineHeight,
     setTimelineCollapsed,
+    setExportRangeMode,
     setTrimEndSeconds,
     setTrimInFromPlayhead,
     setTrimStartSeconds,
@@ -1221,7 +1360,8 @@ export function useStudioController() {
     timelineDuration,
     timelineLanes,
     timelineDocument,
-    hasUnsavedTimelineEdits: JSON.stringify(timelineDocument) !== baselineTimelineSignature,
+    hasUnsavedTimelineEdits:
+      timelineContentSignature(timelineDocument) !== baselineTimelineSignature,
     timelineItems,
     timelineSegments,
     toggleRecordingMutation,

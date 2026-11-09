@@ -12,14 +12,26 @@ import {
 } from "./shortcuts";
 
 type HostCommandLabelKey = keyof DesktopMenuMessages | "recordingToggle";
-type HostCommandEnablement = "canSave" | "canExport" | "canTrimTimeline" | "canToggleTimeline";
+type HostCommandEnablement =
+  | "canUndo"
+  | "canRedo"
+  | "canSave"
+  | "canExport"
+  | "canTrimTimeline"
+  | "canToggleTimeline";
 type HostCommandCheckedState =
   | "locale.en-US"
   | "locale.de-DE"
   | "density.comfortable"
   | "density.compact";
 
-export type HostCommandAppSection = "file" | "capture" | "timeline" | "language" | "density";
+export type HostCommandAppSection =
+  | "file"
+  | "edit"
+  | "capture"
+  | "timeline"
+  | "language"
+  | "density";
 export type HostCommandHandlerKey =
   | "appRefresh"
   | "appLocaleEnUS"
@@ -27,6 +39,8 @@ export type HostCommandHandlerKey =
   | "captureToggleRecording"
   | "captureStartPreview"
   | "captureStopPreview"
+  | "editUndo"
+  | "editRedo"
   | "timelinePlayPause"
   | "timelineTrimIn"
   | "timelineTrimOut"
@@ -57,6 +71,18 @@ export type HostCommandDefinition = {
 };
 
 export const hostCommandDefinitions: HostCommandDefinition[] = [
+  {
+    id: hostMenuCommands.editUndo,
+    handler: "editUndo",
+    shortcut: "undo",
+    menu: { appSection: "edit", appGroup: 0, labelKey: "undo" },
+  },
+  {
+    id: hostMenuCommands.editRedo,
+    handler: "editRedo",
+    shortcut: "redo",
+    menu: { appSection: "edit", appGroup: 0, labelKey: "redo" },
+  },
   {
     id: hostMenuCommands.appRefresh,
     handler: "appRefresh",

@@ -39,6 +39,12 @@ function originIsAllowed(origin: string | undefined): boolean {
   if (!origin || origin === "null") {
     return true;
   }
+  // The privileged bundled renderer is configured at views://mainview/index.html.
+  // Native WebKit sends this exact origin for CORS media reads. Other views://
+  // authorities, paths, ports and lookalikes receive no additional trust.
+  if (origin === "views://mainview") {
+    return true;
+  }
   try {
     const url = new URL(origin);
     return url.protocol === "http:" && isLoopbackHost(url.hostname);

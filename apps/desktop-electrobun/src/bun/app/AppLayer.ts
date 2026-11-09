@@ -1,3 +1,4 @@
+import type { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import type * as SecureRandom from "effect/crypto/SecureRandom";
 import * as NodeHttpClient from "@effect/platform-node/NodeHttpClient";
@@ -51,7 +52,7 @@ export type DesktopAppLayerOptions = {
   projectSessionLayer: Layer.Layer<
     ProjectSession,
     never,
-    AppConfig | DesktopTempDirectory | NoFollowFileIO
+    AppConfig | DesktopTempDirectory | NoFollowFileIO | ChildProcessSpawner
   >;
   desktopTempDirectoryLayer: Layer.Layer<DesktopTempDirectory, unknown, never>;
   enableCaptureStatusPolling?: boolean;

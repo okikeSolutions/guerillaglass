@@ -1,3 +1,5 @@
+import { Button } from "@guerillaglass/ui/components/button";
+import * as m from "../../../../paraglide/messages.js";
 import { MonitorCog } from "lucide-react";
 import { useMemo } from "react";
 import { useStudio } from "../state/StudioProvider";
@@ -87,6 +89,16 @@ export function InspectorPanel({ mode }: InspectorPanelProps) {
           <MonitorCog className="h-4 w-4" /> {viewText.title}
         </StudioPaneTitle>
         <StudioPaneSubtitle>{viewText.subtitle}</StudioPaneSubtitle>
+        {selection.kind !== "none" ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mt-2 justify-start"
+            onClick={studio.clearInspectorSelection}
+          >
+            {m.ui_workflow_project_settings(undefined, { locale: studio.locale })}
+          </Button>
+        ) : null}
       </StudioPaneHeader>
       <StudioPaneBody className="gg-inspector-pane-body gg-copy-compact">
         {renderInspectorContent({ view, selection, studio })}

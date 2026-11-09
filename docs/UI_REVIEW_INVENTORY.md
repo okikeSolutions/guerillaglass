@@ -186,3 +186,11 @@ All desktop screenshots are native-window captures from this audit. Web componen
 - Check documented minimum native window size, all pane combinations, keyboard-only editing, VoiceOver, German, light/dark, contrast preferences and reduced motion.
 - Run the public routes with healthy and unavailable auth, then test mobile/desktop and a deterministic no-WebGL/no-remote-image fallback.
 - Attach before/after native or web evidence to the fixing PR. Run the affected checks from [Change map](CHANGE_MAP.md#verification-selection), including packaged acceptance for desktop UI changes.
+
+## Fixing pass, 2026-11-09
+
+The tables above preserve the original 2026-11-08 audit. Their defects and evidence limitations describe the baseline, not the current implementation. The [implementation evidence](UI_IMPLEMENTATION_EVIDENCE.md) maps every ledger ID to its fixes, selected tests, current native/built-site screenshots and remaining checks.
+
+New authored UI modules are ProgramPreview, ProposalScenePreview and the timeline thumbnail hook. Supporting additions cover canonical editor signatures/history, native filename/folder dialogs, safe completed-export actions, host shutdown, web appearance and request-scoped SSR locale handling. Changed shared controls remain included in the original 43-module source inventory. The fixing pass did not introduce a new uninspected product screen.
+
+Current native proof includes real source thumbnails, copied project media and a clean Saved header after Save As, selected scene cameras, readable proposal comparison and bounded isolated playback, a five-second native export and Open/Reveal, and a smaller 1100x760 window. Current web proof uses the actual built routes with auth offline, both languages and themes, modal keyboard navigation, inline FAQ, About and recovery. The demo source was recorded in a browser; native capture permission remains denied. VoiceOver listening and full granted capture/audio verification remain outstanding release checks. No baseline screenshot is relabeled as current evidence.

@@ -1,7 +1,6 @@
 {
   "name": "guerillaglass",
   "version": "1.0.0",
-  "packageManager": "bun@1.4.1",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -26,7 +25,7 @@
     "js:lint:react-effects": "bun ./Scripts/lint_no_state_updates_in_effect.mjs",
     "i18n:compile": "bun ./Scripts/compile_i18n.ts",
     "i18n:compile:desktop": "paraglide-js compile --project ./project.inlang --outdir ./apps/desktop-electrobun/src/paraglide --strategy localStorage baseLocale --emit-ts-declarations --no-emit-git-ignore",
-    "i18n:compile:web": "paraglide-js compile --project ./project.inlang --outdir ./apps/web/src/paraglide --strategy localStorage baseLocale --emit-ts-declarations --no-emit-git-ignore",
+    "i18n:compile:web": "paraglide-js compile --project ./project.inlang --outdir ./apps/web/src/paraglide --strategy cookie preferredLanguage baseLocale --emit-ts-declarations --no-emit-git-ignore",
     "desktop:dev": "cd apps/desktop-electrobun && bun run dev",
     "desktop:dev:hmr": "cd apps/desktop-electrobun && bun run dev:hmr",
     "desktop:build": "cd apps/desktop-electrobun && bun run build",
@@ -91,5 +90,6 @@
     "minimatch": "11.0.4",
     "postcss-selector-parser": "7.1.7",
     "seroval": "1.7.7"
-  }
+  },
+  "packageManager": "bun@1.4.1"
 }

@@ -117,6 +117,8 @@ export const hostMenuCommands = {
   captureToggleRecording: "capture.toggleRecording",
   captureStartPreview: "capture.startPreview",
   captureStopPreview: "capture.stopPreview",
+  editUndo: "edit.undo",
+  editRedo: "edit.redo",
   timelinePlayPause: "timeline.playPause",
   timelineTrimIn: "timeline.trimIn",
   timelineTrimOut: "timeline.trimOut",
@@ -140,6 +142,9 @@ export type HostMenuCommand = (typeof hostMenuCommands)[keyof typeof hostMenuCom
 export const hostMenuCommandList = Object.values(hostMenuCommands);
 
 export const hostMenuStateSchema = Schema.Struct({
+  hasUnsavedProjectEdits: Schema.optional(Schema.Boolean),
+  canUndo: Schema.optional(Schema.Boolean),
+  canRedo: Schema.optional(Schema.Boolean),
   canSave: Schema.Boolean,
   canExport: Schema.Boolean,
   canTrimTimeline: Schema.Boolean,
@@ -163,6 +168,7 @@ export type HostPathPickerMode = "openProject" | "saveProjectAs" | "export";
 export const hostPathPickerModeSchema = Schema.Literals(["openProject", "saveProjectAs", "export"]);
 export const pickPathRequestSchema = Schema.Struct({
   mode: hostPathPickerModeSchema,
+  locale: Schema.optional(Schema.Literals(["en-US", "de-DE"])),
   startingFolder: Schema.optional(Schema.String),
 });
 export const pickPathResponseSchema = Schema.NullOr(Schema.String);
@@ -766,10 +772,19 @@ export const bridgeRequestDefinitions = {
     reviewSetWorkflowStatusBridgeParamsSchema,
     reviewSetWorkflowStatusResponseSchema,
   ),
+  ggOpenExportResult: defineValidatedBridgeRequest<
+    { action: "open" | "reveal" },
+    boolean,
+    [action: "open" | "reveal"]
+  >(
+    (action) => ({ action }),
+    Schema.Struct({ action: Schema.Literals(["open", "reveal"]) }),
+    Schema.Boolean,
+  ),
   ggPickPath: defineValidatedBridgeRequest<
-    { mode: HostPathPickerMode; startingFolder?: string },
+    { mode: HostPathPickerMode; startingFolder?: string; locale?: "en-US" | "de-DE" },
     string | null,
-    [params: { mode: HostPathPickerMode; startingFolder?: string }]
+    [params: { mode: HostPathPickerMode; startingFolder?: string; locale?: "en-US" | "de-DE" }]
   >((params) => params, pickPathRequestSchema, pickPathResponseSchema),
   ggReadTextFile: defineValidatedBridgeRequest<{ filePath: FilePath }, string, [filePath: string]>(
     (filePath) => ({

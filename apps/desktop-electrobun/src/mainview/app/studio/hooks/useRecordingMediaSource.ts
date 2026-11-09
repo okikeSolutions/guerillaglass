@@ -10,6 +10,8 @@ const mediaSourceLeaseStaleMs = 45_000;
 
 type RecordingMediaSourceLease = {
   readonly source: string | null;
+  readonly error: Error | null;
+  readonly isPending: boolean;
   readonly refresh: () => Promise<void>;
 };
 
@@ -40,11 +42,7 @@ export function useRecordingMediaSourceLease(
       if (!recordingURL || !hasDesktopResolver) {
         return null;
       }
-      try {
-        return await desktopApi.resolveMediaSourceURL(recordingURL);
-      } catch {
-        return null;
-      }
+      return await desktopApi.resolveMediaSourceURL(recordingURL);
     },
     staleTime: mediaSourceLeaseStaleMs,
     gcTime: mediaSourceLeaseStaleMs,
@@ -63,6 +61,8 @@ export function useRecordingMediaSourceLease(
 
   return {
     source: bridgeResolvedSource ?? fallbackSource,
+    error: bridgeResolvedSourceQuery.error,
+    isPending: Boolean(recordingURL) && hasDesktopResolver && bridgeResolvedSourceQuery.isPending,
     refresh,
   };
 }

@@ -2,6 +2,7 @@ import Capture
 import CoreGraphics
 import EngineProtocol
 import Foundation
+import Project
 
 extension EngineService {
     private func resolvedFrameRate(_ value: Double?) -> Int? {
@@ -131,11 +132,34 @@ extension EngineService {
         _: Operations.recording_period_recordingStart.Input
     ) async throws -> Operations.recording_period_recordingStart.Output {
         do {
+            let wasAlreadyRecording = captureEngine.isRecording
             try await captureEngine.startRecording()
+            beginProjectForRecording(wasAlreadyRecording: wasAlreadyRecording)
             return .ok(.init(body: .json(captureStatus())))
         } catch {
             return .badRequest(.init(body: .json(badRequest(.invalid_request, error.localizedDescription))))
         }
+    }
+
+    /// Commits the project transition only after the native recording starts.
+    /// An idempotent start must preserve the current recording's edit session.
+    func beginProjectForRecording(wasAlreadyRecording: Bool) {
+        guard !wasAlreadyRecording else { return }
+        currentProjectLease = nil
+        currentProjectURL = nil
+        currentProjectDocument = ProjectDocument()
+        projectSessionID = UUID()
+        currentEventsURL = nil
+        _ = inputSession.stop()
+        hasUnsavedProjectChanges = true
+        preflightSessions.removeAll()
+        agentRuns.removeAll()
+        agentRecoveryFailureJobId = nil
+        latestAgentJobId = nil
+        latestAgentUpdatedAt = nil
+        latestExportJobId = nil
+        latestExportOutputURL = nil
+        latestExportBackgroundFraming = nil
     }
 
     func recording_period_recordingStop(

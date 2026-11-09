@@ -52,6 +52,12 @@ export function normalizeInspectorSelection(
   mode: StudioMode,
   selection: InspectorSelection,
 ): InspectorSelection {
+  if (
+    mode === "capture" &&
+    (selection.kind === "timelineClip" || selection.kind === "timelineMarker")
+  ) {
+    return emptyInspectorSelection;
+  }
   if (selection.kind === "captureWindow" && mode !== "capture") {
     return emptyInspectorSelection;
   }

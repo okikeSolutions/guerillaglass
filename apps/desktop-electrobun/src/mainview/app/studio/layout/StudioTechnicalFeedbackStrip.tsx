@@ -1,3 +1,4 @@
+import * as m from "../../../../paraglide/messages.js";
 import { useMemo } from "react";
 import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
 import { useStudio } from "../state/StudioProvider";
@@ -48,10 +49,13 @@ export function StudioTechnicalFeedbackStrip() {
   }
 
   return (
-    <section
+    <details
       className="gg-technical-feedback-strip px-4 py-1.5"
       aria-label={studio.ui.labels.technicalFeedback}
     >
+      <summary className="text-xs text-muted-foreground">
+        {m.ui_workflow_diagnostics(undefined, { locale: studio.locale })}
+      </summary>
       <ul className="gg-technical-feedback-list gg-copy-meta">
         {metrics.map((metric) => (
           <li
@@ -63,6 +67,6 @@ export function StudioTechnicalFeedbackStrip() {
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   );
 }

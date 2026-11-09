@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { defaultBackgroundFramingSettings } from "@guerillaglass/engine-contract/shared/valueObjects";
 import App from "../../src/mainview/App";
+import { appRouter } from "../../src/mainview/app/navigation/router";
 
 let backgroundFramingSupported = true;
 
@@ -11,9 +12,7 @@ const captureStatus = {
   isRunning: false,
   isRecording: false,
   recordingDurationSeconds: 0,
-  recordingURL: null,
-  eventsURL: null,
-  lastError: null,
+  telemetry: {},
 };
 
 function installMockBridge() {
@@ -36,7 +35,7 @@ function installMockBridge() {
   windowWithBridge.ggEngineGetPermissions = async () => ({
     screenRecordingGranted: true,
     microphoneGranted: true,
-    inputMonitoring: "authorized",
+    inputMonitoring: "granted",
   });
   windowWithBridge.ggEngineRequestScreenRecordingPermission = async () => ({ success: true });
   windowWithBridge.ggEngineRequestMicrophonePermission = async () => ({ success: true });
@@ -88,7 +87,7 @@ function installMockBridge() {
   });
   windowWithBridge.ggEngineStopRecording = async () => ({ ...captureStatus, isRunning: true });
   windowWithBridge.ggEngineCaptureStatus = async () => captureStatus;
-  windowWithBridge.ggEngineCapturePreviewFrame = async () => ({ previewFrameURL: null });
+  windowWithBridge.ggEngineCapturePreviewFrame = async () => ({});
   windowWithBridge.ggEngineExportInfo = async () => ({
     presets: [
       {
@@ -118,7 +117,6 @@ function installMockBridge() {
     outputURL: "/tmp/export-cut.mp4",
   });
   windowWithBridge.ggEngineProjectCurrent = async () => ({
-    projectPath: null,
     autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
     backgroundFraming: {
       ...defaultBackgroundFramingSettings,
@@ -152,14 +150,14 @@ function installMockBridge() {
 
 let root: Root | undefined;
 
-beforeEach(() => {
+beforeEach(async () => {
   backgroundFramingSupported = true;
   localStorage.clear();
-  window.history.replaceState({}, "", "/capture");
   installMockBridge();
   document.body.innerHTML = '<div id="root"></div>';
   root = createRoot(document.getElementById("root")!);
   root.render(<App />);
+  await appRouter.navigate({ to: "/$locale/capture", params: { locale: "en-US" }, replace: true });
 });
 
 afterEach(() => {
@@ -171,7 +169,6 @@ afterEach(() => {
 describe("studio shell browser smoke", () => {
   test("background framing controls update the real preview stage", async () => {
     await expect.element(page.getByTestId("background-framing-stage")).toBeVisible();
-    await page.getByRole("button", { name: "EFFECTS" }).click();
     const framingToggle = page.getByRole("checkbox", { name: "Background framing" });
     await expect.element(framingToggle).toBeVisible();
     await framingToggle.click();
@@ -196,8 +193,7 @@ describe("studio shell browser smoke", () => {
   test("vertical presets switch the auto-zoom preview to a portrait viewport", async () => {
     await page.getByRole("link", { name: "Deliver" }).click();
     await page
-      .getByTestId("editor-center-pane")
-      .getByRole("combobox")
+      .getByRole("combobox", { name: "Preset", exact: true })
       .selectOptions("preset-vertical");
     await page.getByRole("link", { name: "Edit" }).click();
     await expect.element(page.getByTestId("background-framing-card")).toBeVisible();
@@ -223,7 +219,6 @@ describe("studio shell browser smoke", () => {
     root.render(<App />);
 
     await expect.element(page.getByTestId("background-framing-stage")).toBeVisible();
-    await page.getByRole("button", { name: "EFFECTS" }).click();
     await expect
       .element(page.getByTestId("background-framing-stage"))
       .toHaveAttribute("data-framing-enabled", "false");
@@ -233,9 +228,7 @@ describe("studio shell browser smoke", () => {
   });
 
   test("renders shell and navigates capture/edit modes", async () => {
-    await expect
-      .element(page.getByRole("heading", { level: 1, name: "Guerillaglass" }))
-      .toBeVisible();
+    await expect.element(page.getByRole("heading", { level: 1, name: "(untitled)" })).toBeVisible();
     await expect.element(page.getByRole("link", { name: "Capture" })).toBeVisible();
     await expect.element(page.getByRole("link", { name: "Edit" })).toBeVisible();
     await expect.element(page.getByRole("link", { name: "Deliver" })).toBeVisible();

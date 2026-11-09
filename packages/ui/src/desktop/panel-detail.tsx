@@ -1,14 +1,9 @@
 import type { ReactNode } from "react";
 
-import { Card } from "../components/card";
 import { cn } from "../lib/utils";
 
 function DesktopPanelCard({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <Card size="sm" className={cn("gg-inspector-option-card py-3 shadow-none", className)}>
-      {children}
-    </Card>
-  );
+  return <div className={cn("gg-inspector-option-card py-3", className)}>{children}</div>;
 }
 
 function DesktopPanelCardHeader({

@@ -25,6 +25,8 @@ export type TimelineClip = {
   sourceEndSeconds: number;
   semantic: TimelineClipSemantic;
   waveform: TimelineWaveform | null;
+  cameraKeyCount?: number;
+  hasCameraOverride?: boolean;
 };
 
 export type CompiledTimelineSegment = TimelineSegment & {
@@ -399,8 +401,7 @@ export function buildTimelineLanes(params: {
     events: "Events",
   };
   const remappedEvents = remapInputEventsToProgramTime(params.events, compiledSegments);
-  const fallbackWaveform =
-    params.audioWaveform ?? buildEventWaveform(remappedEvents, duration) ?? null;
+  const fallbackWaveform = params.audioWaveform?.source === "decoded" ? params.audioWaveform : null;
 
   return [
     {
@@ -423,6 +424,8 @@ export function buildTimelineLanes(params: {
               endSeconds: item.programEndSeconds,
               sourceStartSeconds: item.sourceStartSeconds,
               sourceEndSeconds: item.sourceEndSeconds,
+              cameraKeyCount: item.camera?.length ?? 0,
+              hasCameraOverride: item.camera !== undefined,
               semantic: "screen" as const,
               waveform: null,
             },

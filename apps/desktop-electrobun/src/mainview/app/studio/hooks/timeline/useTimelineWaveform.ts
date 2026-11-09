@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { desktopApi } from "@lib/engine";
 import { toMediaSourceURL } from "../../domain/mediaSourceUrl";
-import { buildEventWaveform, type TimelineWaveform } from "../../domain/timelineDomainModel";
+import type { TimelineWaveform } from "../../domain/timelineDomainModel";
 
 type AudioContextConstructor = typeof AudioContext;
 
@@ -148,8 +147,6 @@ async function loadDecodedWaveform(
 
 export function useTimelineWaveform({
   recordingURL,
-  recordingDurationSeconds,
-  timelineEvents,
 }: UseTimelineWaveformOptions): TimelineWaveform | null {
   const decodedWaveformQuery = useQuery<TimelineWaveform | null>({
     queryKey: timelineWaveformQueryKey(recordingURL),
@@ -168,10 +165,6 @@ export function useTimelineWaveform({
     retry: false,
   });
 
-  return useMemo(() => {
-    if (decodedWaveformQuery.data) {
-      return decodedWaveformQuery.data;
-    }
-    return buildEventWaveform(timelineEvents, recordingDurationSeconds);
-  }, [decodedWaveformQuery.data, recordingDurationSeconds, timelineEvents]);
+  // Mouse/click activity is not audio. A missing decode must stay unavailable.
+  return decodedWaveformQuery.data ?? null;
 }

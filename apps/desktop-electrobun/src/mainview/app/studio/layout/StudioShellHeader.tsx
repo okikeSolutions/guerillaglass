@@ -1,5 +1,18 @@
+import { NativeSelect, NativeSelectOption } from "@guerillaglass/ui/components/native-select";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@guerillaglass/ui/components/dialog";
+import { Checkbox } from "@guerillaglass/ui/components/checkbox";
+import { ShortcutOverridesSection } from "../panels/inspector/ShortcutOverridesSection";
 import {
   AlertTriangle,
+  Settings,
+  Undo2,
+  Redo2,
   ChevronDown,
   HardDriveDownload,
   LayoutPanelTop,
@@ -15,6 +28,7 @@ import {
   SplitSquareVertical,
   Video,
 } from "lucide-react";
+import * as m from "../../../../paraglide/messages.js";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Badge } from "@guerillaglass/ui/components/badge";
@@ -69,6 +83,7 @@ type HeaderIconButtonModel = {
 type HeaderStudio = {
   readonly ui: Pick<ReturnType<typeof useStudio>["ui"], "modes" | "actions">;
   readonly recordingURL: string | null;
+  readonly timelineDocument?: { readonly items: readonly unknown[] };
   readonly recordingRequiredNotice: string;
   readonly isRunningAction: boolean;
   readonly isRefreshing: boolean;
@@ -84,8 +99,8 @@ type HeaderStudio = {
 
 function modeIconClass(isActive: boolean): string {
   return isActive
-    ? "gg-button-tone gg-tone-selected inline-flex size-7 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/80"
-    : "gg-button-tone gg-tone-neutral inline-flex size-7 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/80";
+    ? "gg-button-tone gg-tone-selected inline-flex h-8 items-center justify-center gap-1.5 px-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/80"
+    : "gg-button-tone gg-tone-neutral inline-flex h-8 items-center justify-center gap-1.5 px-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/80";
 }
 
 function resolveShortcutPlatform(): ShortcutDisplayPlatform | undefined {
@@ -102,6 +117,7 @@ function HeaderIconButton({
   srLabel,
   tooltip,
   icon,
+  showLabel = false,
 }: {
   onClick: () => void;
   disabled?: boolean;
@@ -109,13 +125,14 @@ function HeaderIconButton({
   srLabel: string;
   tooltip: ReactNode;
   icon: ReactNode;
+  showLabel?: boolean;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <Button
-            size="icon-sm"
+            size={showLabel ? "sm" : "icon-sm"}
             variant="outline"
             className={`gg-header-icon-button ${studioButtonToneClass("neutral")}`}
             onClick={onClick}
@@ -125,7 +142,7 @@ function HeaderIconButton({
         }
       >
         {icon}
-        <span className="sr-only">{srLabel}</span>
+        <span className={showLabel ? undefined : "sr-only"}>{srLabel}</span>
       </TooltipTrigger>
       <TooltipContent>{tooltip}</TooltipContent>
     </Tooltip>
@@ -196,7 +213,10 @@ export function buildUtilityActions(
     {
       id: "export",
       onClick: () => void studio.exportMutation.mutateAsync(),
-      disabled: studio.isRunningAction || !studio.recordingURL,
+      disabled:
+        studio.isRunningAction ||
+        !studio.recordingURL ||
+        studio.timelineDocument?.items.length === 0,
       title: recordingActionDisabledReason,
       srLabel: studio.ui.actions.exportNow,
       tooltip: (
@@ -248,20 +268,9 @@ export function buildUtilityActions(
 
 export function resolveConfiguredRecordingOptions(captureSource: "display" | "window"): {
   captureSourceOverride: "display" | "window";
-  preferCurrentWindow?: true;
 } {
-  if (captureSource === "window") {
-    return {
-      captureSourceOverride: "window",
-      preferCurrentWindow: true,
-    };
-  }
-
-  return {
-    captureSourceOverride: "display",
-  };
+  return { captureSourceOverride: captureSource };
 }
-
 export function StudioShellHeader({
   activeLocale,
   activeRoute,
@@ -278,7 +287,16 @@ export function StudioShellHeader({
   const utilityActions = buildUtilityActions(studio, shortcutPlatform, activeRoute);
   const isTimelinePlaying = useStudioPlaybackValue((snapshot) => snapshot.isPlaying);
   const isRecording = Boolean(studio.captureStatusQuery.data?.isRecording);
-  const permissionTone = studio.permissionsQuery.data?.screenRecordingGranted ? "live" : "error";
+  const permissionTone = !studio.permissionsQuery.data
+    ? "neutral"
+    : studio.permissionsQuery.data.screenRecordingGranted
+      ? "live"
+      : "error";
+  const permissionLabel = !studio.permissionsQuery.data
+    ? studio.ui.values.unknown
+    : studio.permissionsQuery.data.screenRecordingGranted
+      ? studio.ui.labels.permissionReady
+      : studio.ui.labels.permissionRequired;
   const isCaptureActionDisabled = studio.isRunningAction;
   const activeCaptureSourceLabel =
     studio.settingsForm.state.values.captureSource === "display"
@@ -315,10 +333,28 @@ export function StudioShellHeader({
 
   return (
     <header className="gg-shell-header px-4 py-2">
-      <TooltipProvider delay={120}>
-        <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center">
-          <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-start">
-            <h1 className="mr-2 text-sm font-semibold tracking-tight">{studio.ui.app.title}</h1>
+      <TooltipProvider delay={500}>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="mr-2 min-w-0 max-w-52">
+              <h1
+                className="truncate text-sm font-medium"
+                title={studio.projectQuery.data?.projectPath ?? undefined}
+              >
+                {studio.projectQuery.data?.projectPath
+                  ?.split(/[\\/]/)
+                  .filter(Boolean)
+                  .pop()
+                  ?.replace(/\.gglassproj$/i, "") || studio.ui.values.untitled}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {studio.hasUnsavedProjectEdits
+                  ? m.ui_workflow_unsaved(undefined, { locale: studio.locale })
+                  : studio.projectQuery.data?.projectPath
+                    ? m.ui_workflow_saved(undefined, { locale: studio.locale })
+                    : studio.ui.labels.notSaved}
+              </p>
+            </div>
             <ButtonGroup className="gg-toolbar-group gap-1 rounded-lg border p-1">
               {modeItems.map((item) => (
                 <Tooltip key={item.route}>
@@ -336,7 +372,7 @@ export function StudioShellHeader({
                     <item.icon
                       className={`h-3.5 w-3.5 ${studioIconToneClass(item.active ? "selected" : "neutral")}`}
                     />
-                    <span className="sr-only">{item.label}</span>
+                    <span>{item.label}</span>
                   </TooltipTrigger>
                   <TooltipContent>{item.label}</TooltipContent>
                 </Tooltip>
@@ -344,7 +380,7 @@ export function StudioShellHeader({
             </ButtonGroup>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 lg:justify-self-center">
+          <div className="flex shrink-0 items-center gap-1.5">
             <ButtonGroup className="gg-capture-button-group gg-toolbar-group gap-1 rounded-lg border p-1">
               <Tooltip>
                 <TooltipTrigger
@@ -354,7 +390,11 @@ export function StudioShellHeader({
                       variant="outline"
                       className={studioButtonToneClass("neutral")}
                       onClick={studio.toggleTimelinePlayback}
-                      disabled={studio.timelineDuration <= 0}
+                      disabled={
+                        !studio.recordingURL ||
+                        studio.timelineDuration <= 0 ||
+                        studio.isRunningAction
+                      }
                     />
                   }
                 >
@@ -382,7 +422,7 @@ export function StudioShellHeader({
                   <TooltipTrigger
                     render={
                       <Button
-                        size="icon-sm"
+                        size="sm"
                         variant="outline"
                         className={studioButtonToneClass("record")}
                         onClick={() => studio.toggleRecordingMutation.mutate(undefined)}
@@ -391,7 +431,12 @@ export function StudioShellHeader({
                     }
                   >
                     <Video className={`h-4 w-4 ${studioIconToneClass("record")}`} />
-                    <span className="sr-only">{studio.ui.actions.stopRecording}</span>
+                    <span>{studio.ui.actions.stopRecording}</span>
+                    <span className="gg-numeric">
+                      {studio.formatDuration(
+                        studio.captureStatusQuery.data?.recordingDurationSeconds ?? 0,
+                      )}
+                    </span>
                   </TooltipTrigger>
                   <TooltipContent>
                     <ShortcutHint
@@ -419,7 +464,7 @@ export function StudioShellHeader({
                       }
                     >
                       <Video className={`h-4 w-4 ${studioIconToneClass("neutral")}`} />
-                      <span>{activeCaptureSourceLabel}</span>
+                      <span>{studio.ui.actions.startRecording}</span>
                       <span className="sr-only">{studio.ui.actions.startRecording}</span>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -488,13 +533,9 @@ export function StudioShellHeader({
                 ) : (
                   <ShieldAlert className={`h-3.5 w-3.5 ${studioIconToneClass(permissionTone)}`} />
                 )}
-                <span className="sr-only">{studio.ui.labels.permissionReady}</span>
+                <span className="sr-only">{permissionLabel}</span>
               </TooltipTrigger>
-              <TooltipContent>
-                {studio.permissionsQuery.data?.screenRecordingGranted
-                  ? studio.ui.labels.permissionReady
-                  : studio.ui.labels.permissionRequired}
-              </TooltipContent>
+              <TooltipContent>{permissionLabel}</TooltipContent>
             </Tooltip>
 
             {studio.inputMonitoringDenied && studio.settingsForm.state.values.trackInputEvents ? (
@@ -514,9 +555,47 @@ export function StudioShellHeader({
               </Tooltip>
             ) : null}
 
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={studio.isRunningAction}
+              onClick={() => void studio.openProjectMutation.mutateAsync()}
+            >
+              {studio.ui.actions.openProject}
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={m.ui_workflow_undo(undefined, { locale: studio.locale })}
+              title={m.ui_workflow_undo(undefined, { locale: studio.locale })}
+              disabled={
+                !studio.canUndoTimeline ||
+                studio.isRunningAction ||
+                Boolean(studio.captureStatusQuery.data?.isRecording)
+              }
+              onClick={studio.undoTimeline}
+            >
+              <Undo2 className="size-4" />
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={m.ui_workflow_redo(undefined, { locale: studio.locale })}
+              title={m.ui_workflow_redo(undefined, { locale: studio.locale })}
+              disabled={
+                !studio.canRedoTimeline ||
+                studio.isRunningAction ||
+                Boolean(studio.captureStatusQuery.data?.isRecording)
+              }
+              onClick={studio.redoTimeline}
+            >
+              <Redo2 className="size-4" />
+            </Button>
+            <StudioPreferences />
             {utilityActions.map((action) => (
               <HeaderIconButton
                 key={action.id}
+                showLabel={action.id === "save" || action.id === "export"}
                 onClick={action.onClick}
                 disabled={action.disabled}
                 title={action.title}
@@ -529,5 +608,72 @@ export function StudioShellHeader({
         </div>
       </TooltipProvider>
     </header>
+  );
+}
+
+export function StudioPreferences() {
+  const studio = useStudio();
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={m.ui_workflow_preferences(undefined, { locale: studio.locale })}
+          />
+        }
+      >
+        <Settings className="size-4" />
+      </DialogTrigger>
+      <DialogContent
+        showCloseButton
+        closeLabel={m.ui_workflow_close(undefined, { locale: studio.locale })}
+        className="max-h-[80svh] overflow-y-auto sm:max-w-xl"
+      >
+        <DialogTitle>{m.ui_workflow_preferences(undefined, { locale: studio.locale })}</DialogTitle>
+        <label className="flex items-center gap-2">
+          <Checkbox
+            checked={studio.settingsForm.state.values.singleKeyShortcutsEnabled}
+            onCheckedChange={(checked) =>
+              studio.settingsForm.setFieldValue("singleKeyShortcutsEnabled", checked === true)
+            }
+          />
+          {studio.ui.labels.singleKeyShortcuts}
+        </label>
+        <label className="grid gap-2">
+          {studio.ui.labels.language}
+          <NativeSelect
+            value={studio.locale}
+            onChange={(event) =>
+              studio.setLocale(event.target.value === "de-DE" ? "de-DE" : "en-US")
+            }
+          >
+            <NativeSelectOption value="en-US">{studio.ui.labels.localeEnglish}</NativeSelectOption>
+            <NativeSelectOption value="de-DE">{studio.ui.labels.localeGerman}</NativeSelectOption>
+          </NativeSelect>
+        </label>
+        <label className="grid gap-2">
+          {studio.ui.labels.density}
+          <NativeSelect
+            value={studio.densityMode}
+            onChange={(event) =>
+              studio.setDensityMode(event.target.value === "compact" ? "compact" : "comfortable")
+            }
+          >
+            <NativeSelectOption value="comfortable">
+              {studio.ui.labels.densityComfortable}
+            </NativeSelectOption>
+            <NativeSelectOption value="compact">
+              {studio.ui.labels.densityCompact}
+            </NativeSelectOption>
+          </NativeSelect>
+        </label>
+        <ShortcutOverridesSection />
+        <DialogClose render={<Button variant="outline" />}>
+          {m.ui_workflow_close(undefined, { locale: studio.locale })}
+        </DialogClose>
+      </DialogContent>
+    </Dialog>
   );
 }

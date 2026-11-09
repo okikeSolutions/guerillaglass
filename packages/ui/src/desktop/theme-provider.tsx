@@ -13,12 +13,7 @@ type ThemeProviderState = {
   setTheme: (theme: Theme) => void;
 };
 
-const initialState: ThemeProviderState = {
-  theme: "system",
-  setTheme: () => null,
-};
-
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
+const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
 
 /**
  * Applies a persisted desktop theme preference to the document root and exposes it via context.
@@ -32,25 +27,24 @@ export function ThemeProvider({
   storageKey = "vite-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
-  );
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = localStorage.getItem(storageKey);
+    return stored === "light" || stored === "dark" || stored === "system" ? stored : defaultTheme;
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
-
-    root.classList.remove("light", "dark");
-
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-
-      root.classList.add(systemTheme);
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const applyTheme = () => {
+      root.classList.remove("light", "dark");
+      root.classList.add(theme === "system" ? (query.matches ? "dark" : "light") : theme);
+    };
+    applyTheme();
+    if (theme !== "system") {
       return;
     }
-
-    root.classList.add(theme);
+    query.addEventListener("change", applyTheme);
+    return () => query.removeEventListener("change", applyTheme);
   }, [theme]);
 
   const value = {

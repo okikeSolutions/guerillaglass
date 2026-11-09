@@ -1,6 +1,7 @@
+import { Button } from "@guerillaglass/ui/components/button";
+import * as m from "../../../../paraglide/messages.js";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Alert, AlertDescription } from "@guerillaglass/ui/components/alert";
 import { useStudioRenderDiagnostics } from "@lib/studioDiagnostics";
 import { useStudio } from "../state/StudioProvider";
 import {
@@ -67,17 +68,39 @@ export function StudioShellLayout() {
         <StudioShellHeader activeLocale={activeLocale} activeRoute={activeRoute} />
         <StudioTechnicalFeedbackStrip />
 
-        {studio.notice ? (
-          <Alert
-            variant={studio.notice.kind === "error" ? "destructive" : "default"}
-            className="rounded-none border-x-0 border-t-0 border-b px-4 py-3 text-sm"
-          >
-            <AlertDescription>{studio.notice.message}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div
+          className="flex-1 min-h-0 overflow-hidden"
+          inert={studio.isRunningAction || Boolean(studio.captureStatusQuery.data?.isRecording)}
+        >
           <Outlet />
+        </div>
+        <div className="h-12 shrink-0 border-t px-4 flex items-center gap-3" aria-live="polite">
+          {studio.exportMutation.isPending ? (
+            <span className="text-xs text-muted-foreground">
+              {m.ui_io_export_pending(undefined, { locale: studio.locale })}
+            </span>
+          ) : studio.notice ? (
+            <>
+              <p
+                className={
+                  studio.notice.kind === "error"
+                    ? "min-w-0 flex-1 overflow-y-auto max-h-10 text-xs text-destructive"
+                    : "min-w-0 flex-1 truncate text-xs text-muted-foreground"
+                }
+              >
+                {studio.notice.message}
+              </p>
+              <Button size="sm" variant="ghost" onClick={studio.clearNotice}>
+                {m.ui_workflow_dismiss(undefined, { locale: studio.locale })}
+              </Button>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              {studio.exportMutation.isPending
+                ? m.ui_io_export_pending(undefined, { locale: studio.locale })
+                : studio.captureStatusLabel}
+            </span>
+          )}
         </div>
       </div>
     </div>

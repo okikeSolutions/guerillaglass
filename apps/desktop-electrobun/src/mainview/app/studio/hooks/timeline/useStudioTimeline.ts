@@ -98,7 +98,7 @@ export function useStudioTimeline({
     useState<TimelineLaneControlStateByLane>(defaultTimelineLaneControlState);
   const [audioMixer, setAudioMixer] = useState<AudioMixerState>(defaultAudioMixerState);
 
-  const usesMediaPlaybackClock = activeMode === "edit" && Boolean(recordingURL);
+  const usesMediaPlaybackClock = activeMode !== "capture" && Boolean(recordingURL);
   const normalizedFrameRate = useMemo(
     () => normalizeTimelineFrameRate(timelineFrameRate),
     [timelineFrameRate],
@@ -116,7 +116,7 @@ export function useStudioTimeline({
     [compiledTimelineItems],
   );
   const timelineDuration = useMemo(
-    () => Math.max(compiledTimelineDurationSeconds, 1),
+    () => Math.max(compiledTimelineDurationSeconds, 0),
     [compiledTimelineDurationSeconds],
   );
   const playbackTransport = usePlaybackTransport({

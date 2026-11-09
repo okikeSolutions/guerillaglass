@@ -77,11 +77,55 @@ describe("timeline model", () => {
       sourceStartSeconds: 0,
       sourceEndSeconds: 5,
       semantic: "screen",
+      cameraKeyCount: 0,
+      hasCameraOverride: false,
       waveform: null,
     });
     expect(lanes[1]?.clips[0]?.id).toBe("segment-0");
-    expect(lanes[1]?.clips[0]?.waveform?.source).toBe("events");
+    expect(lanes[1]?.clips[0]?.waveform).toBeNull();
     expect(lanes[2]?.markers.length).toBe(1);
+  });
+
+  test("audio lanes accept decoded audio and reject mouse activity as sound", () => {
+    const decoded = {
+      peaks: [0, 0.4, 1],
+      bucketSeconds: 1,
+      durationSeconds: 3,
+      source: "decoded" as const,
+    };
+    const timeline = createSingleSegmentTimelineDocument(3);
+    expect(
+      buildTimelineLanes({ timeline, events: [], audioWaveform: decoded })[1]?.clips[0]?.waveform,
+    ).toBe(decoded);
+    expect(
+      buildTimelineLanes({
+        timeline,
+        events: [],
+        audioWaveform: { ...decoded, source: "events" },
+      })[1]?.clips[0]?.waveform,
+    ).toBeNull();
+  });
+
+  test("scene camera indicators reflect explicit overrides, including static overrides", () => {
+    const scene: TimelineClipItem = {
+      kind: "clip",
+      id: timelineSegmentIdSchema.make("camera-scene"),
+      sourceAssetId: "recording",
+      sourceStartSeconds: 0,
+      sourceEndSeconds: 1,
+      camera: [{ timeSeconds: 0, zoom: 2, centerX: 0.5, centerY: 0.5 }],
+    };
+    const clips = buildTimelineLanes({
+      timeline: {
+        version: 2,
+        items: [scene, { ...scene, id: timelineSegmentIdSchema.make("static-scene"), camera: [] }],
+      },
+      events: [],
+    })[0]?.clips;
+    expect(clips?.map((clip) => [clip.hasCameraOverride, clip.cameraKeyCount])).toEqual([
+      [true, 1],
+      [true, 0],
+    ]);
   });
 
   test("builds event-derived waveform with normalized peaks", () => {

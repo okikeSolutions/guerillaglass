@@ -142,9 +142,19 @@ public final class ProjectStore {
         assets: ProjectAssetURLs,
         to directoryURL: URL
     ) throws -> ProjectDocument {
-        try createDirectoryNoSymlink(at: directoryURL)
-
         var writtenDocument = try validatedDocument(document)
+        // Discover missing declared sources before replacing any destination
+        // media. In particular, failed Save As must preserve an existing target.
+        for sourceURL in [assets.recordingURL, assets.systemAudioURL, assets.micAudioURL, assets.eventsURL].compactMap({ $0 }) {
+            try rejectSymlinkComponents(in: sourceURL)
+            guard fileManager.fileExists(atPath: sourceURL.path) else {
+                if sourceURL == assets.recordingURL {
+                    throw StoreError.invalidRecordingURL
+                }
+                throw CocoaError(.fileNoSuchFile)
+            }
+        }
+        try createDirectoryNoSymlink(at: directoryURL)
 
         if let recordingURL = assets.recordingURL {
             guard fileManager.fileExists(atPath: recordingURL.path) else {
@@ -212,6 +222,13 @@ public final class ProjectStore {
     private func copyItemReplacingIfNeeded(from sourceURL: URL, to destinationURL: URL) throws {
         try rejectSymlinkComponents(in: sourceURL)
         try rejectSymlinkComponents(in: destinationURL)
+        // Saving an opened package in place must not delete its own source.
+        if sourceURL.standardizedFileURL == destinationURL.standardizedFileURL {
+            guard fileManager.fileExists(atPath: sourceURL.path) else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            return
+        }
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }

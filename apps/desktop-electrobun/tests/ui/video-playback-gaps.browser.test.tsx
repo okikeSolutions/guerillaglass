@@ -111,6 +111,59 @@ afterEach(() => {
 });
 
 describe("timeline preview across gaps", () => {
+  test("remounting at EOF displays the last clip frame without changing exact program time", () => {
+    const endingClip = compileTimelineItems({
+      version: 2,
+      items: [
+        {
+          kind: "clip",
+          id: segmentId("last-frame"),
+          sourceAssetId: "recording",
+          sourceStartSeconds: 5,
+          sourceEndSeconds: 6,
+        },
+      ],
+    });
+    playbackStore.updateConfig({ durationSeconds: 1, frameRate: 30 });
+    act(() => {
+      playbackStore.seek(1);
+      root?.render(
+        <Harness items={endingClip} duration={1} recordingMediaSource="remounted-at-end" />,
+      );
+    });
+    const media = document.querySelector("video")!;
+    expect(media.currentTime).toBeCloseTo(6, 4);
+    expect(media.style.visibility).toBe("");
+    expect(playbackStore.getSnapshot().playheadSeconds).toBe(1);
+    // Loading the new source can reset the early paused seek. Metadata restores
+    // the display frame; its queued seeked event must preserve exact program EOF.
+    media.currentTime = 0;
+    act(() => media.dispatchEvent(new Event("loadedmetadata")));
+    expect(media.currentTime).toBeCloseTo(6, 4);
+    act(() => media.dispatchEvent(new Event("seeked")));
+    expect(playbackStore.getSnapshot().playheadSeconds).toBe(1);
+    expect(media.style.visibility).toBe("");
+  });
+
+  test("remounting at EOF inside a trailing gap keeps the source hidden", () => {
+    act(() => {
+      playbackStore.seek(timelineDuration);
+      root?.render(<Harness recordingMediaSource="remounted-after-gap" />);
+    });
+    const media = document.querySelector("video")!;
+    media.currentTime = 0.25;
+    expect(media.style.visibility).toBe("hidden");
+    act(() => media.dispatchEvent(new Event("loadedmetadata")));
+    expect(media.currentTime).toBe(0.25);
+    expect(media.style.visibility).toBe("hidden");
+    act(() => media.dispatchEvent(new Event("seeked")));
+    expect(media.style.visibility).toBe("hidden");
+    expect(
+      document.querySelector<HTMLElement>("[data-testid='source-card']")?.style.visibility,
+    ).toBe("hidden");
+    expect(playbackStore.getSnapshot().playheadSeconds).toBe(timelineDuration);
+  });
+
   test("async source arrival and token refresh rebind native media events", () => {
     act(() => {
       root?.render(<Harness recordingMediaSource={null} />);

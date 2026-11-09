@@ -365,12 +365,16 @@ export const layerHostBridgeService = Layer.effect(
           bridgeDefinitionsByName.ggEngineRunExport.paramsSchema,
         )(raw);
         const outputURL = yield* pathPolicy.validateExportOutputPath(params.outputURL);
-        return yield* exportService.run({
+        const result = yield* exportService.run({
           ...params,
           outputURL: yield* outputUrlSchema
             .makeEffect(outputURL)
             .pipe(Effect.mapError((issue) => new Schema.SchemaError(issue))),
         });
+        if (result.status === "succeeded") {
+          yield* session.rememberExportOutput(outputURL);
+        }
+        return result;
       }),
       ggEngineRunCutPlanExport: Effect.fn("HostBridge.ggEngineRunCutPlanExport")(function* (
         raw: unknown,
@@ -379,12 +383,16 @@ export const layerHostBridgeService = Layer.effect(
           bridgeDefinitionsByName.ggEngineRunCutPlanExport.paramsSchema,
         )(raw);
         const outputURL = yield* pathPolicy.validateExportOutputPath(params.outputURL);
-        return yield* exportService.runCutPlan({
+        const result = yield* exportService.runCutPlan({
           ...params,
           outputURL: yield* outputUrlSchema
             .makeEffect(outputURL)
             .pipe(Effect.mapError((issue) => new Schema.SchemaError(issue))),
         });
+        if (result.status === "succeeded") {
+          yield* session.rememberExportOutput(outputURL);
+        }
+        return result;
       }),
       ggEngineProjectCurrent: Effect.fn("HostBridge.ggEngineProjectCurrent")(function* (
         raw: unknown,
@@ -488,6 +496,12 @@ export const layerHostBridgeService = Layer.effect(
         const response = yield* reviewGateway.setWorkflowStatus(params);
         yield* shell.publishReviewEvent(reviewWorkflowChanged(response));
         return response;
+      }),
+      ggOpenExportResult: Effect.fn("HostBridge.ggOpenExportResult")(function* (raw: unknown) {
+        const params = yield* Schema.decodeUnknownEffect(
+          bridgeDefinitionsByName.ggOpenExportResult.paramsSchema,
+        )(raw);
+        return yield* session.openExportResult(params.action);
       }),
       ggPickPath: Effect.fn("HostBridge.ggPickPath")(function* (raw: unknown) {
         const params = yield* Schema.decodeUnknownEffect(

@@ -2,10 +2,13 @@ import { describe, expect, test } from "vitest";
 import { captureStatusResultSchema } from "@guerillaglass/engine-contract/domains/capture";
 import {
   captureSessionIdSchema,
+  projectPathSchema,
+  eventsUrlSchema,
   recordingUrlSchema,
 } from "@guerillaglass/engine-contract/schema-primitives";
 import {
   captureStatusResultsEqual,
+  resolveStudioMediaSources,
   parseCaptureStatusEvent,
 } from "@studio/hooks/core/useStudioDataQueries";
 
@@ -96,5 +99,34 @@ describe("studio capture status stream events", () => {
         },
       }),
     ).toBe(false);
+  });
+});
+
+describe("workspace media identity", () => {
+  const staleCapture = {
+    recordingURL: recordingUrlSchema.make("/tmp/old.mov"),
+    eventsURL: eventsUrlSchema.make("/tmp/old.events"),
+  };
+  test("saved project sources take precedence over old capture state", () => {
+    const project = {
+      projectPath: projectPathSchema.make("/tmp/saved.gglassproj"),
+      recordingURL: recordingUrlSchema.make("/tmp/saved.mov"),
+      eventsURL: eventsUrlSchema.make("/tmp/saved.events"),
+    };
+    expect(resolveStudioMediaSources(project, staleCapture)).toEqual({
+      recordingURL: project.recordingURL,
+      eventsURL: project.eventsURL,
+    });
+  });
+  test("missing saved sources do not fall back to another recording", () => {
+    expect(
+      resolveStudioMediaSources(
+        { projectPath: projectPathSchema.make("/tmp/import.gglassproj") },
+        staleCapture,
+      ),
+    ).toEqual({ recordingURL: null, eventsURL: null });
+  });
+  test("unsaved captures use the active recording", () => {
+    expect(resolveStudioMediaSources(undefined, staleCapture)).toEqual(staleCapture);
   });
 });

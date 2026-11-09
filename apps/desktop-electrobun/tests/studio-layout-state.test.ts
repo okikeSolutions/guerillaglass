@@ -8,6 +8,8 @@ import {
   normalizeStudioLayoutRoute,
   parseStudioLayoutState,
   rebalanceStudioHorizontalPanesForViewport,
+  requiredLayoutPresetVersionForRoute,
+  studioCenterPaneMinWidthPx,
   resolveStudioCenterPaneMinWidthForViewport,
   resolveStudioLocation,
   routeForStudioMode,
@@ -68,13 +70,14 @@ describe("studio layout state", () => {
         timelineHeightPx: 999,
         timelineCollapsed: true,
         lastRoute: "/edit/deep-link",
+        presetVersionByRoute: { "/edit": requiredLayoutPresetVersionForRoute("/edit") },
         densityMode: "ultra-compact",
       }),
     );
 
-    expect(layout.leftPaneWidthPx).toBeGreaterThanOrEqual(studioLayoutBounds.leftPaneMinWidthPx);
-    expect(layout.rightPaneWidthPx).toBeLessThanOrEqual(studioLayoutBounds.rightPaneMaxWidthPx);
-    expect(layout.timelineHeightPx).toBeLessThanOrEqual(studioLayoutBounds.timelineMaxHeightPx);
+    expect(layout.leftPaneWidthPx).toBe(studioLayoutBounds.leftPaneMinWidthPx);
+    expect(layout.rightPaneWidthPx).toBe(studioLayoutBounds.rightPaneMaxWidthPx);
+    expect(layout.timelineHeightPx).toBe(studioLayoutBounds.timelineMaxHeightPx);
     expect(layout.leftCollapsed).toBe(true);
     expect(layout.timelineCollapsed).toBe(true);
     expect(layout.lastRoute).toBe("/edit");
@@ -111,7 +114,7 @@ describe("studio layout state", () => {
     expect(layout.presetRoutesApplied).toEqual(["/deliver"]);
   });
 
-  test("upgrades persisted capture layouts to the latest preview-first preset", () => {
+  test("upgrades old capture layouts to expose essential setup at readable pane widths", () => {
     const layout = parseStudioLayoutState(
       JSON.stringify({
         leftPaneWidthPx: 420,
@@ -129,28 +132,32 @@ describe("studio layout state", () => {
       ...dominantLayoutPresetForRoute("/capture"),
       lastRoute: "/capture",
     });
-    expect(layout.presetVersionByRoute["/capture"]).toBeGreaterThanOrEqual(3);
+    expect(layout.presetVersionByRoute["/capture"]).toBe(
+      requiredLayoutPresetVersionForRoute("/capture"),
+    );
+    expect(layout.leftCollapsed).toBe(false);
+    expect(layout.leftPaneWidthPx).toBeGreaterThanOrEqual(studioLayoutBounds.leftPaneMinWidthPx);
+    expect(layout.rightPaneWidthPx).toBeGreaterThanOrEqual(studioLayoutBounds.rightPaneMinWidthPx);
   });
 
-  test("keeps persisted capture layouts once current preset revision is applied", () => {
+  test("keeps readable custom capture layouts once current preset revision is applied", () => {
     const layout = parseStudioLayoutState(
       JSON.stringify({
-        leftPaneWidthPx: 180,
-        rightPaneWidthPx: 260,
-        leftCollapsed: false,
+        leftPaneWidthPx: 320,
+        rightPaneWidthPx: 360,
+        leftCollapsed: true,
         rightCollapsed: false,
-        timelineHeightPx: 240,
+        timelineHeightPx: 300,
         timelineCollapsed: false,
         lastRoute: "/capture",
         presetRoutesApplied: ["/capture"],
-        presetVersionByRoute: { "/capture": 3 },
+        presetVersionByRoute: { "/capture": requiredLayoutPresetVersionForRoute("/capture") },
       }),
     );
-
-    expect(layout.leftPaneWidthPx).toBe(180);
-    expect(layout.rightPaneWidthPx).toBe(260);
-    expect(layout.timelineHeightPx).toBe(240);
-    expect(layout.leftCollapsed).toBe(false);
+    expect(layout.leftPaneWidthPx).toBe(320);
+    expect(layout.rightPaneWidthPx).toBe(360);
+    expect(layout.timelineHeightPx).toBe(300);
+    expect(layout.leftCollapsed).toBe(true);
   });
 
   test("resolves locale and route from pathname", () => {
@@ -200,9 +207,11 @@ describe("studio layout state", () => {
     const maxSideTotal =
       studioLayoutBounds.leftPaneMinWidthPx + studioLayoutBounds.rightPaneMinWidthPx;
     expect(sideTotal).toBeLessThanOrEqual(maxSideTotal);
-    expect(viewportWidthPx - sideTotal - 2).toBeGreaterThanOrEqual(
-      Math.round(viewportWidthPx * 0.69),
-    );
+    // At this viewport 70% would leave less than the readable side-pane
+    // minimums. Allocate the largest feasible center instead of clipping them.
+    expect(sideTotal).toBe(maxSideTotal);
+    expect(viewportWidthPx - sideTotal - 2).toBe(678);
+    expect(viewportWidthPx - sideTotal - 2).toBeGreaterThanOrEqual(studioCenterPaneMinWidthPx);
     expect(rebalanced.leftPaneWidthPx).toBeGreaterThanOrEqual(
       studioLayoutBounds.leftPaneMinWidthPx,
     );
@@ -211,25 +220,31 @@ describe("studio layout state", () => {
     );
   });
 
-  test("does not change side pane widths when center has enough room", () => {
+  test("does not change readable custom side widths when the center has enough room", () => {
     const rebalanced = rebalanceStudioHorizontalPanesForViewport(
       {
-        leftPaneWidthPx: 180,
-        rightPaneWidthPx: 260,
+        leftPaneWidthPx: 260,
+        rightPaneWidthPx: 300,
         leftCollapsed: false,
         rightCollapsed: false,
       },
-      1600,
+      1920,
     );
-
-    expect(rebalanced).toEqual({
-      leftPaneWidthPx: 180,
-      rightPaneWidthPx: 260,
-    });
+    expect(rebalanced).toEqual({ leftPaneWidthPx: 260, rightPaneWidthPx: 300 });
+    expect(
+      1920 - rebalanced.leftPaneWidthPx - rebalanced.rightPaneWidthPx - 2,
+    ).toBeGreaterThanOrEqual(Math.round(1920 * 0.7));
   });
 
-  test("resolves center pane minimum width for wide viewports", () => {
-    expect(resolveStudioCenterPaneMinWidthForViewport(1600)).toBe(Math.round(1600 * 0.7));
+  test("resolves the requested center ratio when wide viewports can fit readable side panes", () => {
+    expect(resolveStudioCenterPaneMinWidthForViewport(1920)).toBe(Math.round(1920 * 0.7));
+  });
+
+  test("caps center width at the room left by readable side panes", () => {
+    expect(resolveStudioCenterPaneMinWidthForViewport(1600)).toBe(1078);
+    expect(
+      1078 + studioLayoutBounds.leftPaneMinWidthPx + studioLayoutBounds.rightPaneMinWidthPx + 2,
+    ).toBe(1600);
   });
 
   test("scales center pane minimum width down on narrow viewports", () => {

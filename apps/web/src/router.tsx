@@ -6,34 +6,27 @@ import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
   const convexUrl = import.meta.env.VITE_CONVEX_URL;
-  if (!convexUrl) {
-    throw new Error("Missing VITE_CONVEX_URL.");
-  }
-  const convexQueryClient = new ConvexQueryClient(convexUrl, {
-    expectAuth: true,
+  // Public pages work without a configured or reachable hosted service.
+  const convexQueryClient = convexUrl
+    ? new ConvexQueryClient(convexUrl, { expectAuth: true })
+    : undefined;
+  const queryClient = new QueryClient({
+    defaultOptions: convexQueryClient
+      ? {
+          queries: {
+            queryKeyHashFn: convexQueryClient.hashFn(),
+            queryFn: convexQueryClient.queryFn(),
+          },
+        }
+      : undefined,
   });
-
-  const queryClient: QueryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        queryKeyHashFn: convexQueryClient.hashFn(),
-        queryFn: convexQueryClient.queryFn(),
-      },
-    },
-  });
-  convexQueryClient.connect(queryClient);
-
+  convexQueryClient?.connect(queryClient);
   const router = createRouter({
     routeTree,
     defaultPreload: "intent",
     context: { queryClient, convexQueryClient },
     scrollRestoration: true,
   });
-
-  setupRouterSsrQueryIntegration({
-    router,
-    queryClient,
-  });
-
+  setupRouterSsrQueryIntegration({ router, queryClient });
   return router;
 }

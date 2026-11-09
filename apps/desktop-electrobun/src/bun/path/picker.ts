@@ -14,7 +14,11 @@ type OpenFileDialogOptions = {
   allowedFileTypes?: string;
 };
 
+type SaveDialogOptions = { startingFolder: string; defaultName: string };
+
 type FileDialogDependencies = {
+  folderDialog?: (options: { startingFolder: string }) => Promise<string | null>;
+  saveFileDialog?: (options: SaveDialogOptions) => Promise<string | null>;
   currentProjectPath?: string | null;
   startingFolder?: string;
   defaultFolder: string;
@@ -24,6 +28,10 @@ type FileDialogDependencies = {
 };
 
 type FileDialogEffectDependencies = {
+  folderDialog?: (options: {
+    startingFolder: string;
+  }) => Effect.Effect<string | null, PathPickerError>;
+  saveFileDialog?: (options: SaveDialogOptions) => Effect.Effect<string | null, unknown>;
   currentProjectPath?: string | null;
   startingFolder?: string;
   defaultFolder: string;
@@ -261,6 +269,19 @@ export async function pickPathForMode(
   }
 
   if (mode === "saveProjectAs") {
+    if (dependencies.saveFileDialog) {
+      const selected = await dependencies.saveFileDialog({
+        startingFolder,
+        defaultName: buildProjectPackageName(dependencies.currentProjectPath),
+      });
+      if (!selected) {
+        return null;
+      }
+      const target = selected.toLowerCase().endsWith(projectPackageExtension)
+        ? selected
+        : `${selected}${projectPackageExtension}`;
+      return (await confirmOverwriteIfNeeded(target, dependencies)) ? target : null;
+    }
     const selectedPath = resolveFirstPath(
       await openFileDialogSafely(dependencies, {
         startingFolder,
@@ -283,6 +304,20 @@ export async function pickPathForMode(
     }
 
     return saveTargetPath;
+  }
+
+  if (dependencies.folderDialog) {
+    try {
+      return await dependencies.folderDialog({ startingFolder });
+    } catch (error) {
+      throw error instanceof PathPickerError
+        ? error
+        : new PathPickerError({
+            code: "PATH_PICKER_OPEN_DIALOG_FAILED",
+            description: "Folder dialog failed.",
+            cause: error,
+          });
+    }
   }
 
   const selectedPath = resolveFirstPath(
@@ -327,6 +362,31 @@ export const pickPathForModeEffect = Effect.fn("picker.pickPathForModeEffect")(f
     }
 
     if (mode === "saveProjectAs") {
+      if (dependencies.saveFileDialog) {
+        const selected = yield* dependencies
+          .saveFileDialog({
+            startingFolder,
+            defaultName: buildProjectPackageName(dependencies.currentProjectPath),
+          })
+          .pipe(
+            Effect.mapError((cause) =>
+              cause instanceof PathPickerError
+                ? cause
+                : new PathPickerError({
+                    code: "PATH_PICKER_SAVE_DIALOG_FAILED",
+                    description: "Save dialog failed.",
+                    cause,
+                  }),
+            ),
+          );
+        if (!selected) {
+          return null;
+        }
+        const target = selected.toLowerCase().endsWith(projectPackageExtension)
+          ? selected
+          : `${selected}${projectPackageExtension}`;
+        return (yield* confirmOverwriteIfNeededEffect(target, dependencies)) ? target : null;
+      }
       const selectedPath = resolveFirstPath(
         yield* openFileDialogSafelyEffect(dependencies, {
           startingFolder,
@@ -349,6 +409,10 @@ export const pickPathForModeEffect = Effect.fn("picker.pickPathForModeEffect")(f
       }
 
       return saveTargetPath;
+    }
+
+    if (dependencies.folderDialog) {
+      return yield* dependencies.folderDialog({ startingFolder });
     }
 
     return resolveFirstPath(

@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { editorStateSignature, timelineContentSignature } from "../domain/editorStateSignature";
+import { useRef, useState, type ReactNode } from "react";
 import { useStore } from "@tanstack/react-form";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Schema, Result } from "effect";
@@ -19,14 +20,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@guerillaglass/ui/components/dialog";
-import { getAgentProposalMessages } from "@shared/localization";
+import { getAgentProposalMessages, type StudioLocale } from "@shared/localization";
 import { engineApi } from "@lib/engine";
+import * as m from "../../../../paraglide/messages.js";
+import { EngineResponseError } from "@guerillaglass/engine-client/errors";
+import { ProposalScenePreview } from "./ProposalScenePreview";
 import { useStudio } from "../state/StudioProvider";
 import { studioQueryKeys } from "../hooks/core/useStudioDataQueries";
 
 const decodeStoryboard = Schema.decodeUnknownResult(Schema.fromJsonString(EditStoryboard));
 
 type ProposalReviewProps = {
+  locale?: StudioLocale;
   available: boolean;
   unavailableMessage?: string;
   busy: boolean;
@@ -34,19 +39,37 @@ type ProposalReviewProps = {
   editorSignature: string;
   validate: (storyboard: EditStoryboard) => Promise<EditProposalBaseline>;
   apply: (storyboard: EditStoryboard) => Promise<void>;
+  renderScenePreview?: (item: TimelineItem) => ReactNode;
 };
+
+const totalDuration = (items: readonly TimelineItem[]) =>
+  items
+    .reduce(
+      (sum, item) =>
+        sum +
+        (item.kind === "gap"
+          ? item.durationSeconds
+          : item.sourceEndSeconds - item.sourceStartSeconds),
+      0,
+    )
+    .toFixed(2);
 
 /** Proposal review keeps validation tied to the exact editor and text snapshot. */
 export function AgentProposalReview({
   available,
+  locale,
   unavailableMessage,
   busy,
   dirty,
   editorSignature,
   validate,
   apply,
+  renderScenePreview,
 }: ProposalReviewProps) {
-  const labels = getAgentProposalMessages();
+  const labels = getAgentProposalMessages(locale);
+  const options = { locale: locale ?? "en-US" };
+  const [previewId, setPreviewId] = useState<TimelineItem["id"] | null>(null);
+  const [previewVersion, setPreviewVersion] = useState<"before" | "after">("after");
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [pending, setPending] = useState<"validate" | "apply" | null>(null);
@@ -122,8 +145,12 @@ export function AgentProposalReview({
     try {
       const baseline = await validate(decoded.success);
       setValidation({ storyboard: decoded.success, baseline, text, signature: editorSignature });
-    } catch {
-      setNotice(labels.failed);
+    } catch (error) {
+      setNotice(
+        error instanceof EngineResponseError
+          ? `${labels.failed} ${error.description}`
+          : labels.failed,
+      );
     } finally {
       operation.current = false;
       setPending(null);
@@ -140,8 +167,12 @@ export function AgentProposalReview({
     try {
       await apply(validation.storyboard);
       setNotice(labels.applied);
-    } catch {
-      setNotice(labels.apply_failed);
+    } catch (error) {
+      setNotice(
+        error instanceof EngineResponseError
+          ? `${labels.apply_failed} ${error.description}`
+          : labels.apply_failed,
+      );
     } finally {
       setValidation(null);
       setConfirmed(false);
@@ -150,6 +181,11 @@ export function AgentProposalReview({
     }
   }
 
+  const previewItem = previewId
+    ? previewVersion === "before"
+      ? previous.get(previewId)
+      : scenes.get(previewId)?.item
+    : undefined;
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
@@ -164,7 +200,11 @@ export function AgentProposalReview({
           }
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+        <DialogContent
+          showCloseButton
+          closeLabel={labels.close}
+          className="max-h-[85vh] overflow-y-auto sm:max-w-4xl"
+        >
           <DialogHeader>
             <DialogTitle>{labels.entry}</DialogTitle>
             <DialogDescription>{labels.help}</DialogDescription>
@@ -241,6 +281,36 @@ export function AgentProposalReview({
                 <h3 className="font-medium">{labels.brief}</h3>
                 <p className="whitespace-pre-wrap">{validation.storyboard.brief}</p>
               </div>
+              <p className="text-sm tabular-nums">
+                {m.ui_agent_duration(undefined, options)}:{" "}
+                {totalDuration(validation.baseline.timeline.items)} s →{" "}
+                {totalDuration(compileStoryboard(validation.storyboard).timeline.items)} s
+              </p>
+              {previewItem && renderScenePreview ? (
+                <section className="grid gap-3" aria-label={m.ui_agent_preview(undefined, options)}>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      aria-pressed={previewVersion === "before"}
+                      disabled={!previewId || !previous.has(previewId)}
+                      onClick={() => setPreviewVersion("before")}
+                    >
+                      {labels.before}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      aria-pressed={previewVersion === "after"}
+                      disabled={!previewId || !scenes.has(previewId)}
+                      onClick={() => setPreviewVersion("after")}
+                    >
+                      {labels.after}
+                    </Button>
+                  </div>
+                  <div key={`${previewId}-${previewVersion}`}>
+                    {renderScenePreview(previewItem)}
+                  </div>
+                </section>
+              ) : null}
               <div className="overflow-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
@@ -268,7 +338,22 @@ export function AgentProposalReview({
                         <tr key={change.id}>
                           <td className="max-w-64 border-b p-2">
                             <div className="font-medium">{scene?.title ?? change.id}</div>
-                            <div>{change.id}</div>
+                            <details>
+                              <summary className="text-muted-foreground">{labels.scene}</summary>
+                              {change.id}
+                            </details>
+                            {renderScenePreview ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPreviewId(change.id);
+                                  setPreviewVersion(scene ? "after" : "before");
+                                }}
+                              >
+                                {m.ui_agent_preview(undefined, options)}
+                              </Button>
+                            ) : null}
                             <p>{scene?.purpose}</p>
                           </td>
                           <td className="border-b p-2">{renderItem(previous.get(change.id))}</td>
@@ -348,21 +433,16 @@ export function AgentProposalPanel() {
   });
 
   const project = studio.projectQuery.data;
-  const dirty = Boolean(
-    project &&
-    (studio.hasUnsavedTimelineEdits ||
-      (project.autoZoom && JSON.stringify(values.autoZoom) !== JSON.stringify(project.autoZoom)) ||
-      (project.backgroundFraming &&
-        JSON.stringify(values.backgroundFraming) !== JSON.stringify(project.backgroundFraming))),
-  );
-  const editorSignature = JSON.stringify([
+  const dirty = studio.hasUnsavedProjectEdits;
+  const editorSignature = editorStateSignature([
     project?.projectPath,
-    studio.timelineDocument,
+    timelineContentSignature(studio.timelineDocument),
     values.autoZoom,
     values.backgroundFraming,
   ]);
   return (
     <AgentProposalReview
+      locale={studio.locale}
       available={Boolean(
         project?.projectPath &&
         studio.recordingURL &&
@@ -370,16 +450,36 @@ export function AgentProposalPanel() {
       )}
       unavailableMessage={
         !project?.projectPath
-          ? getAgentProposalMessages().no_project
+          ? getAgentProposalMessages(studio.locale).no_project
           : !studio.recordingURL
-            ? getAgentProposalMessages().no_source
-            : getAgentProposalMessages().unsupported
+            ? getAgentProposalMessages(studio.locale).no_source
+            : getAgentProposalMessages(studio.locale).unsupported
       }
       busy={studio.isRunningAction || Boolean(studio.captureStatusQuery.data?.isRecording)}
       dirty={dirty}
       editorSignature={editorSignature}
       validate={validateMutation.mutateAsync}
       apply={applyMutation.mutateAsync}
+      renderScenePreview={(item) =>
+        studio.recordingURL ? (
+          <ProposalScenePreview
+            locale={studio.locale}
+            item={item}
+            recordingURL={studio.recordingURL}
+            framing={
+              studio.backgroundFramingSupported
+                ? values.backgroundFraming
+                : { ...values.backgroundFraming, enabled: false }
+            }
+            cameraReframeEnabled={values.autoZoom.isEnabled}
+            outputSize={
+              studio.selectedPreset
+                ? { width: studio.selectedPreset.width, height: studio.selectedPreset.height }
+                : { width: 1920, height: 1080 }
+            }
+          />
+        ) : null
+      }
     />
   );
 }

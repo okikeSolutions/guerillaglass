@@ -2,6 +2,28 @@
 import XCTest
 
 final class ProjectStoreTests: XCTestCase {
+    func testMissingSaveAsSidecarPreservesExistingTarget() throws {
+        let directory = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let oldMovie = directory.appendingPathComponent("old.mov")
+        let newMovie = directory.appendingPathComponent("new.mov")
+        try Data("old video".utf8).write(to: oldMovie)
+        try Data("new video".utf8).write(to: newMovie)
+        let target = directory.appendingPathComponent("Existing.gglassproj", isDirectory: true)
+        let store = ProjectStore()
+        _ = try store.writeProject(document: ProjectDocument(), assets: .init(recordingURL: oldMovie), to: target)
+        let originalDocumentBytes = try Data(contentsOf: target.appendingPathComponent(ProjectFile.projectJSON))
+        XCTAssertThrowsError(try store.writeProject(
+            document: ProjectDocument(),
+            assets: .init(recordingURL: newMovie, micAudioURL: directory.appendingPathComponent("missing.m4a")),
+            to: target
+        ))
+        let loaded = try store.loadProject(at: target)
+        XCTAssertEqual(try Data(contentsOf: target.appendingPathComponent(ProjectFile.projectJSON)), originalDocumentBytes)
+        XCTAssertEqual(try Data(contentsOf: store.resolveRecordingURL(for: loaded)), Data("old video".utf8))
+    }
+
     func testSaveAndLoadProject() throws {
         let fileManager = FileManager.default
         let baseURL = canonicalTemporaryDirectory().appendingPathComponent(UUID().uuidString, isDirectory: true)

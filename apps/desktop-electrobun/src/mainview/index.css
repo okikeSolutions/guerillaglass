@@ -243,7 +243,7 @@
   }
 
   .gg-pane-subtitle {
-    @apply truncate text-muted-foreground;
+    @apply text-muted-foreground;
     font-size: var(--gg-font-copy-meta);
     line-height: var(--gg-line-copy-meta);
     min-height: 0.9rem;
@@ -329,16 +329,16 @@
   .gg-inspector-section-header {
     @apply border-b pb-1 text-muted-foreground;
     border-color: color-mix(in oklab, var(--gg-border-subtle) 85%, transparent);
-    font-size: 0.625rem;
+    font-size: var(--gg-font-copy-meta);
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: normal;
     line-height: 1rem;
-    text-transform: uppercase;
+    text-transform: none;
   }
 
   .gg-inspector-pane-body {
     @apply space-y-1.5;
-    font-size: 0.74rem;
+    font-size: var(--gg-font-copy-compact);
     line-height: 1rem;
   }
 
@@ -378,15 +378,16 @@
   }
 
   .gg-inspector-option-card {
-    @apply rounded-md px-3 py-3;
-    border: 1px solid color-mix(in oklab, var(--gg-border-subtle) 85%, transparent);
-    background-color: color-mix(in oklab, var(--gg-surface-1) 42%, transparent);
+    @apply py-3;
+    border: 0;
+    border-bottom: 1px solid var(--gg-border-subtle);
+    background-color: transparent;
   }
 
   .gg-inspector-detail-list {
     @apply space-y-0.5 text-muted-foreground;
-    font-size: 0.72rem;
-    line-height: 0.95rem;
+    font-size: var(--gg-font-copy-meta);
+    line-height: 1.25rem;
   }
 
   .gg-inspector-detail-row {
@@ -496,7 +497,7 @@
 
   .gg-timeline-toolbar-row {
     @apply overflow-x-auto overflow-y-hidden;
-    scrollbar-width: none;
+    scrollbar-width: thin;
   }
 
   .gg-timeline-toolbar-row::-webkit-scrollbar {
@@ -504,16 +505,18 @@
   }
 
   .gg-timeline-wrapper {
+    --gg-timeline-lane-label-width: 152px;
+    --gg-timeline-lane-column-gap: 0.5rem;
     @apply space-y-2;
   }
 
   .gg-timeline-scroll {
     @apply overflow-x-auto overflow-y-hidden;
-    scrollbar-width: none;
+    scrollbar-width: thin;
   }
 
   .gg-timeline-scroll::-webkit-scrollbar {
-    display: none;
+    height: 8px;
   }
 
   .gg-timeline-ruler {
@@ -553,8 +556,6 @@
     background-color: color-mix(in oklab, var(--gg-surface-0) 72%, transparent);
     touch-action: none;
     user-select: none;
-    --gg-timeline-lane-label-width: 152px;
-    --gg-timeline-lane-column-gap: 0.5rem;
   }
 
   .gg-timeline-lanes {
@@ -612,7 +613,7 @@
   }
 
   .gg-timeline-lane-track {
-    @apply relative h-12 rounded-[3px] border-0;
+    @apply relative h-14 rounded-[3px] border-0;
     background-image: linear-gradient(
       to right,
       color-mix(in oklab, var(--foreground) 6%, transparent) 1px,
@@ -694,9 +695,7 @@
   }
 
   .gg-timeline-clip-semantic {
-    @apply inline-flex min-w-0 items-center gap-1 rounded-sm border px-1.5 py-[1px] font-medium text-[10px] tracking-wide uppercase;
-    border-color: color-mix(in oklab, var(--foreground) 18%, transparent);
-    background-color: color-mix(in oklab, var(--gg-surface-0) 24%, transparent);
+    @apply inline-flex min-w-0 items-center gap-1 font-medium text-xs;
   }
 
   .gg-timeline-clip-semantic svg {
@@ -708,7 +707,7 @@
   }
 
   .gg-timeline-clip-duration {
-    @apply shrink-0 text-[10px] font-medium text-foreground/82;
+    @apply shrink-0 text-xs font-medium text-foreground/82;
   }
 
   .gg-timeline-clip-duration::after {

@@ -73,7 +73,6 @@ describe("studio shell header builders", () => {
   it("uses current-window capture for the main window quick-record action", () => {
     expect(resolveConfiguredRecordingOptions("window")).toEqual({
       captureSourceOverride: "window",
-      preferCurrentWindow: true,
     });
     expect(resolveConfiguredRecordingOptions("display")).toEqual({
       captureSourceOverride: "display",

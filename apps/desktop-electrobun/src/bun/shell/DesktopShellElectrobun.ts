@@ -10,6 +10,9 @@ import { Effect, Layer, Option, Ref, Schedule, Schema } from "effect";
 import { HttpClient } from "effect/http";
 import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
 import type { ReviewBridgeEvent } from "@guerillaglass/review-protocol";
+import { makeGracefulQuit } from "./gracefulQuit";
+import { makeQuitGuard } from "./quitGuard";
+import { getDesktopQuitMessages } from "../../shared/localization";
 import { AppConfig } from "../app/AppConfig";
 import { createEngineBridgeHandlers } from "../bridge/requestHandlers";
 import {
@@ -50,6 +53,7 @@ type MainWindow = BrowserWindow<BunRPC>;
 const maxElectrobunRequestTimeMs = 31 * 60 * 1000;
 
 const initialHostMenuState: HostMenuState = {
+  hasUnsavedProjectEdits: false,
   canSave: false,
   canExport: false,
   canTrimTimeline: false,
@@ -75,6 +79,7 @@ function logStudioDiagnostics(entry: StudioDiagnosticsEntry) {
 
 function menuStateChanged(previous: HostMenuState, next: HostMenuState): boolean {
   return (
+    previous.hasUnsavedProjectEdits !== next.hasUnsavedProjectEdits ||
     previous.canSave !== next.canSave ||
     previous.canExport !== next.canExport ||
     previous.canTrimTimeline !== next.canTrimTimeline ||
@@ -111,6 +116,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const mainWindowRef = yield* Ref.make(Option.none<MainWindow>());
         const linuxTrayRef = yield* Ref.make(Option.none<Tray>());
         const hostMenuStateRef = yield* Ref.make(initialHostMenuState);
+        const nativeRecordingRef = yield* Ref.make(false);
         const hasStartedRef = yield* Ref.make(false);
         const runtimeFlags = makeDesktopRuntimeFlags(options);
         const captureBenchmarkEnabled = runtimeFlags.captureBenchmarkEnabled;
@@ -118,6 +124,16 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const devServerPort = options.devServerPort ?? DEFAULT_DEV_SERVER_PORT;
         const devURL = devServerURL(devServerPort);
         let runShellEffect = ignoreDesktopShellEffectBeforeRuntimeStart;
+        let requestQuit: (() => Promise<void>) | undefined;
+        let quitGuard: ReturnType<typeof makeQuitGuard> | undefined;
+        const quitGracefully = () => {
+          if (!requestQuit) {
+            return;
+          }
+          const pending = quitGuard ? quitGuard.request() : requestQuit();
+          void pending.catch((error) => console.warn("Desktop cleanup failed during quit", error));
+          return pending;
+        };
 
         const getElectrobunChannel = Effect.fn("DesktopShell.channel")(() =>
           Effect.tryPromise({
@@ -238,7 +254,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
                 openDocs: () => {
                   void Utils.openExternal("https://github.com/okikeSolutions/guerillaglass");
                 },
-                quit: () => Utils.quit(),
+                quit: quitGracefully,
               });
             }),
         );
@@ -286,8 +302,15 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
           ({ runtime, onClose }: DesktopShellStartOptions): Effect.Effect<void> =>
             Effect.gen(function* () {
               runShellEffect = <A, E>(effect: Effect.Effect<A, E, never>) => {
+                // Native focus/menu notifications can arrive during teardown.
+                // Approved quit owns disposal; it must not start more shell work.
+                if (quitGuard?.approved) {
+                  return;
+                }
                 void runtime.runPromise(effect).catch((error) => {
-                  console.warn("Desktop shell effect failed", error);
+                  if (!quitGuard?.approved) {
+                    console.warn("Desktop shell effect failed", error);
+                  }
                 });
               };
 
@@ -299,6 +322,38 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
                 return;
               }
               yield* Ref.set(hasStartedRef, true);
+              requestQuit = makeGracefulQuit(onClose, () => Utils.quit());
+              const finishQuit = requestQuit;
+              quitGuard = makeQuitGuard({
+                confirm: async () => {
+                  const state = await runtime.runPromise(Ref.get(hostMenuStateRef));
+                  const nativeRecording = await runtime.runPromise(Ref.get(nativeRecordingRef));
+                  if (!state.hasUnsavedProjectEdits && !state.isRecording && !nativeRecording) {
+                    return true;
+                  }
+                  const text = getDesktopQuitMessages(state.locale);
+                  const result = await Utils.showMessageBox({
+                    type: "warning",
+                    title: text.title,
+                    message: text.message,
+                    detail: text.detail,
+                    buttons: [text.keepEditing, text.discard],
+                    defaultId: 0,
+                    cancelId: 0,
+                  });
+                  return result.response === 1;
+                },
+                quit: finishQuit,
+              });
+              const protectNativeQuit = (event: unknown) => {
+                if (!event || typeof event !== "object" || !("response" in event) || !quitGuard) {
+                  return;
+                }
+                if (quitGuard.vetoNativeQuit(event)) {
+                  void quitGracefully();
+                }
+              };
+              Electrobun.events.on("before-quit", protectNativeQuit);
 
               const rpc = BrowserView.defineRPC<DesktopBridgeRPC>({
                 maxRequestTime: maxElectrobunRequestTimeMs,
@@ -356,7 +411,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
               const channel = yield* getElectrobunChannel();
               const url = yield* getMainViewURL(channel);
               const window = new BrowserWindow({
-                title: captureBenchmarkEnabled ? captureBenchmarkWindowTitle : "Guerillaglass",
+                title: captureBenchmarkEnabled ? captureBenchmarkWindowTitle : "Guerilla Glass",
                 url,
                 preload: `window.__ggDesktopRuntimeFlags = ${JSON.stringify(runtimeFlags)};`,
                 rpc,
@@ -394,13 +449,8 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
                 runShellEffect(handleShellAction(action));
               });
 
-              window.on("close", async () => {
-                try {
-                  await onClose();
-                } finally {
-                  Utils.quit();
-                }
-              });
+              window.on("will-close", protectNativeQuit);
+              window.on("close", quitGracefully);
 
               window.on("focus", () => {
                 runShellEffect(applyShellMenus.pipe(Effect.andThen(dispatchDesktopRuntimeFlags)));
@@ -411,6 +461,7 @@ export function makeLayerDesktopShell(options: DesktopShellLayerOptions = {}) {
         const publishCaptureStatus = Effect.fn("DesktopShellElectrobun.publishCaptureStatus")(
           (captureStatus: CaptureStatusResult): Effect.Effect<void> =>
             Effect.gen(function* () {
+              yield* Ref.set(nativeRecordingRef, captureStatus.isRecording);
               Option.getOrNull(yield* Ref.get(mainWindowRef))?.webview.rpc?.send.hostCaptureStatus({
                 captureStatus,
               });
