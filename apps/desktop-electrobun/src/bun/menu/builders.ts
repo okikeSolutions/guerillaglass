@@ -20,7 +20,7 @@ function prefixedCheckLabel(label: string, checked: boolean): string {
 }
 
 function buildAppSectionCommands(
-  section: "file" | "capture" | "timeline" | "language" | "density",
+  section: "file" | "edit" | "capture" | "timeline" | "language" | "density",
   state: HostMenuState,
   platform: NodeJS.Platform,
   locale?: string,
@@ -142,8 +142,7 @@ export function buildApplicationMenu(
       label: labels.edit,
       action: "menu.edit",
       submenu: [
-        { role: "undo" },
-        { role: "redo" },
+        ...buildAppSectionCommands("edit", state, platform, locale),
         separator,
         { role: "cut" },
         { role: "copy" },

@@ -106,6 +106,73 @@ describe("media HTTP routes", () => {
     }),
   );
 
+  livePlatformTest(
+    "CORS enables authorized renderer media reads without granting cross-origin token access",
+    () =>
+      Effect.gen(function* () {
+        const fixture = yield* Effect.promise(() => createTempFile("cors.mov", "0123456789"));
+        const { registry, handler, dispose } = yield* makeHarness;
+        try {
+          const token = yield* registry.registerMediaFile(fixture.filePath);
+          for (const origin of [
+            "null",
+            "views://mainview",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+          ]) {
+            for (const method of ["GET", "HEAD"]) {
+              const response = yield* Effect.promise(() =>
+                dispatch(handler, mediaURL(token), { method, headers: { origin } }),
+              );
+              expect(response.status).toBe(200);
+              expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+              expect(response.headers.get("vary")).toBe("Origin");
+              expect(yield* Effect.promise(() => response.text())).toBe(
+                method === "HEAD" ? "" : "0123456789",
+              );
+            }
+            const range = yield* Effect.promise(() =>
+              dispatch(handler, mediaURL(token), { headers: { origin, range: "bytes=2-5" } }),
+            );
+            expect(range.status).toBe(206);
+            expect(range.headers.get("access-control-allow-origin")).toBe(origin);
+            expect(yield* Effect.promise(() => range.text())).toBe("2345");
+          }
+          for (const origin of [
+            "https://untrusted.example",
+            "views://evil",
+            "views://mainview.evil",
+            "views://mainview:5173",
+            "views://mainview/path",
+          ]) {
+            const rejected = yield* Effect.promise(() =>
+              dispatch(handler, mediaURL(token), { headers: { origin } }),
+            );
+            expect(rejected.status).toBe(403);
+            expect(rejected.headers.get("access-control-allow-origin")).toBeNull();
+          }
+          for (const token of ["12345678-1234-4234-8234-123456789abc", "bad-token"]) {
+            const missing = yield* Effect.promise(() =>
+              dispatch(handler, mediaURL(token), { headers: { origin: "views://mainview" } }),
+            );
+            expect(missing.status).toBe(404);
+            expect(missing.headers.get("access-control-allow-origin")).toBeNull();
+          }
+          const unsupportedMethod = yield* Effect.promise(() =>
+            dispatch(handler, mediaURL(token), {
+              method: "POST",
+              headers: { origin: "views://mainview" },
+            }),
+          );
+          expect(unsupportedMethod.status).toBe(405);
+          expect(unsupportedMethod.headers.get("access-control-allow-origin")).toBeNull();
+        } finally {
+          yield* Effect.promise(() => dispose());
+          yield* Effect.promise(() => fixture.cleanup());
+        }
+      }),
+  );
+
   livePlatformTest("supports HEAD, serves first segment for multi-range, and returns 416", () =>
     Effect.gen(function* () {
       const fixture = yield* Effect.promise(() => createTempFile("head.mov", "0123456789"));

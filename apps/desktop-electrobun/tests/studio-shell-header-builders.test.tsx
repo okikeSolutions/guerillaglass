@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { ShortcutDisplayPlatform } from "@shared/shortcuts";
 import { enUS } from "@shared/localization";
 import {
   buildModeItems,
@@ -44,36 +43,31 @@ describe("studio shell header builders", () => {
     expect(items.find((item) => item.route === "/capture")?.active).toBe(false);
   });
 
-  it("builds utility actions with disabled states based on recording availability", () => {
+  it("keeps file commands out of View utilities and disables pending refresh", () => {
     const studio = createStudioStub();
-    const actions = buildUtilityActions(studio, "mac" satisfies ShortcutDisplayPlatform, "/edit");
-
-    const saveAction = actions.find((action) => action.id === "save");
-    const exportAction = actions.find((action) => action.id === "export");
-    const timelineAction = actions.find((action) => action.id === "toggle-timeline");
-
-    expect(saveAction?.disabled).toBe(true);
-    expect(exportAction?.disabled).toBe(true);
-    expect(timelineAction).toBeDefined();
-    expect(saveAction?.title).toBe("Recording required");
-    expect(exportAction?.title).toBe("Recording required");
+    const refreshing = { ...studio, isRefreshing: true };
+    const actions = buildUtilityActions(refreshing, "/edit");
+    expect(actions.map((action) => action.id)).toEqual([
+      "refresh",
+      "toggle-left-pane",
+      "toggle-right-pane",
+      "toggle-timeline",
+      "reset-layout",
+    ]);
+    expect(actions.find((action) => action.id === "refresh")?.disabled).toBe(true);
+    expect(actions.some((action) => action.id === "save" || action.id === "export")).toBe(false);
   });
 
   it("omits the timeline action on capture route", () => {
     const studio = createStudioStub();
-    const actions = buildUtilityActions(
-      studio,
-      "mac" satisfies ShortcutDisplayPlatform,
-      "/capture",
-    );
+    const actions = buildUtilityActions(studio, "/capture");
 
     expect(actions.find((action) => action.id === "toggle-timeline")).toBeUndefined();
   });
 
-  it("uses current-window capture for the main window quick-record action", () => {
+  it("respects the configured source without silently preferring the current window", () => {
     expect(resolveConfiguredRecordingOptions("window")).toEqual({
       captureSourceOverride: "window",
-      preferCurrentWindow: true,
     });
     expect(resolveConfiguredRecordingOptions("display")).toEqual({
       captureSourceOverride: "display",

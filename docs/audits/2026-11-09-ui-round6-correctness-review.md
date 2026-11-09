@@ -1,0 +1,29 @@
+# Independent correctness review, round 6
+
+Reviewed on 2026-11-09.
+
+- Baseline: `45245daf360d0bd352f28da39b5ddec6978931c1`.
+- Frozen HEAD: `57a47cae10441f75f6f32459ba34cd97071c4c5c`.
+- Full comparison: `git diff 45245daf360d0bd352f28da39b5ddec6978931c1...57a47cae10441f75f6f32459ba34cd97071c4c5c`.
+- Overall rating: **9.6/10**.
+- Strict individual gate: **PASS**. 9.6 is strictly greater than 9.5. This is a fresh overall baseline-to-head assessment. It is not an average, rounded score, score for the documentation patch alone or approval inferred from another reviewer.
+
+I found no actionable correctness defect requiring a fix in this frozen change. There are no P0, P1 or P2 findings with a concrete reproduction. The remaining verification limits below still matter before release and merge.
+
+I checked the full changed-file inventory and the exact delta since my previous source review at `aaa61bcb9f8500253783987a15b228843206eb65`. An independent `git diff --exit-code` confirmed that desktop production source and tests, web production source/assets, packages, engines, localization sources, manifests and lockfile are unchanged between the two freezes. The new changes are documentation, archival of the completed reviews and the expanded web consistency test. That means the earlier production source analysis and retained browser/native evidence apply to these same application bytes.
+
+The complete correctness assessment still covers document identity, dirty-state and replacement safety; generated-source history refinement, visual gesture grouping, Save As rebasing, Undo/Redo and current selection; recording success/failure, duplicate starts and authoritative transitions before reconciliation; Open/Recent cancellation and commit; empty-save protection and native media copying. It also covers program/source mapping, gaps, seeking and fractional EOF replay, camera/framing composition, isolated proposal preview, audio truth and preview listening state, real thumbnails, explicit export endpoints and host-owned completion actions. I found no new evidence that invalidates the previously checked fixes in those paths.
+
+The host/native assessment retains its checks of typed bridge adapters, safe disposal envelopes, exact custom-scheme origin acceptance after token authorization, picker argv handling, scoped process cleanup, quit protection, native recording-session retirement and project IO. The web/shared assessment retains public rendering without hosted auth, request-scoped localization, appearance changes, modal navigation, adjacent FAQ answers, recovery routes, localized dialog labels and truthful availability copy. No engine contract or generated binding changed. The optional consolidation of direct generated-message imports through the desktop localization facade remains UI-039 maintenance work; it does not demonstrate untranslated UI or a broken runtime path.
+
+The new delta corrects two real contradictions in authoritative guidance. `docs/SPEC.md:133` and `:134` now say Production 14+ for display/window capture, matching `Package.swift:7`, the SPEC baseline, README and both FAQ locales. `apps/web/tests/public-pages.test.tsx:49` now compares the manifest target with all those locations and requires exactly two capture rows. This test would fail against the previous two Production 13+ labels. `docs/DESKTOP_ACCESSIBILITY.md:74` now directs users to global Preferences, matching the existing `StudioPreferences` component. Historical review and roadmap updates preserve the failed strict gate and do not claim the work has merged or that acceptance limits disappeared.
+
+For this reassessment I independently ran the literal baseline-to-head `git diff --check`, which passed, and the production-byte equality check above. A lightweight Bun probe read the current files and verified the manifest, README, SPEC baseline, both capture rows, both FAQ locale sources and global Preferences guidance. I inspected the round-6 logs for nine passing web tests across three files, web localization/typecheck, type-aware lint, repository invariants, documentation coverage and formatting. No heavy suite was rerun.
+
+The retained evidence is still applicable: round-5 acceptance reports 124 browser cases across 10 files and successful packaged runtime smoke with process cleanup and zero fatal matches; the earlier focused selection reports 159 unit cases and 12 native project/store tests plus an engine compile. These are scoped and overlapping counts, not a sum of unique coverage. The earlier review also visually inspected native stale-proposal German recovery and the inspector after Undo. I did not relaunch the application or browser for this documentation/test-only delta.
+
+Granted native capture, audible native audio and sidecars, rendered vertical-file comparison, the broader native high-zoom/pane matrix and VoiceOver remain unclaimed. Full CI and Windows/Linux runtime checks remain before merge. The future PR still needs directly attached packaged-app screenshots, and every concrete review thread must be addressed and resolved. This review does not mark ledger findings Verified or complete the later Phase 2 accessibility/performance gate.
+
+I applied unslop and the previously read root/subsystem AGENTS, REVIEW.md and verification-selection requirements. I used the current ledger, inventory, research and implementation evidence without reading peers' round-6 reports or coordinating ratings. No subagent, app/browser launch or product edit occurred. Only this report was written.
+
+The overall rating remains 9.6 after reassessing the complete implementation, its unchanged production bytes, the stronger consistency check and the explicit evidence limits. The documentation corrections improve accuracy without supplying the still-unperformed release checks needed for a higher confidence assessment.

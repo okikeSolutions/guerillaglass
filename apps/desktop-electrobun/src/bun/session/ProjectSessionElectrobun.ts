@@ -2,6 +2,11 @@ import { Effect, FileSystem, Layer, Path, Option, Ref, Schema } from "effect";
 import { Utils } from "electrobun/bun";
 import { ProjectService } from "@guerillaglass/engine-client/services/ProjectService";
 import { projectStateSchema } from "@guerillaglass/engine-contract/domains/project";
+import { nativeFolderDialog } from "../path/nativeFolderDialog";
+import { nativeSaveDialog } from "../path/nativeSaveDialog";
+import { makeExportResultActions } from "./exportResultActions";
+import * as m from "../../paraglide/messages.js";
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner";
 import { pickPathForModeEffect } from "../path/picker";
 import { DesktopTempDirectory } from "../security/DesktopTempDirectory";
 import { readAllowedTextFile, resolveAllowedMediaFilePath } from "../security/fileAccess";
@@ -63,6 +68,31 @@ export const layerProjectSession = Layer.effect(
   ProjectSession,
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const spawner = yield* ChildProcessSpawner;
+    const exportActions = yield* makeExportResultActions({
+      open: (path) =>
+        Effect.try({
+          try: () => Utils.openPath(path),
+          catch: (cause) =>
+            new PathPickerError({
+              code: "EXPORT_RESULT_OPEN_FAILED",
+              description: "Unable to open the exported file.",
+              cause,
+            }),
+        }),
+      reveal: (path) =>
+        Effect.try({
+          try: () => {
+            Utils.showItemInFolder(path);
+          },
+          catch: (cause) =>
+            new PathPickerError({
+              code: "EXPORT_RESULT_REVEAL_FAILED",
+              description: "Unable to reveal the exported file.",
+              cause,
+            }),
+        }),
+    });
     const path = yield* Path.Path;
     const io = yield* NoFollowFileIO;
     const tempDirectory = yield* DesktopTempDirectory;
@@ -117,13 +147,30 @@ export const layerProjectSession = Layer.effect(
     );
 
     const pickPath = Effect.fn("ProjectSessionElectrobun.pickPath")(
-      (params: { mode: HostPathPickerMode; startingFolder?: string }) =>
+      (params: { mode: HostPathPickerMode; startingFolder?: string; locale?: "en-US" | "de-DE" }) =>
         Effect.gen(function* () {
           const defaultPickerFolder = Utils.paths.videos ?? Utils.paths.documents;
           const currentProjectPathForPicker = Option.getOrNull(
             yield* Ref.get(currentProjectPathRef),
           );
           return yield* pickPathForModeEffect(params.mode, {
+            ...(process.platform === "darwin"
+              ? {
+                  folderDialog: (options: { startingFolder: string }) =>
+                    nativeFolderDialog({
+                      ...options,
+                      prompt: m.ui_io_export_folder_prompt(
+                        {},
+                        { locale: params.locale ?? "en-US" },
+                      ),
+                    }).pipe(Effect.provideService(ChildProcessSpawner, spawner)),
+                  saveFileDialog: (options: { startingFolder: string; defaultName: string }) =>
+                    nativeSaveDialog({
+                      ...options,
+                      prompt: m.ui_io_save_project_prompt({}, { locale: params.locale ?? "en-US" }),
+                    }).pipe(Effect.provideService(ChildProcessSpawner, spawner)),
+                }
+              : {}),
             currentProjectPath: currentProjectPathForPicker,
             startingFolder: params.startingFolder,
             defaultFolder: defaultPickerFolder,
@@ -143,16 +190,19 @@ export const layerProjectSession = Layer.effect(
                 try: () =>
                   Utils.showMessageBox({
                     type: "question",
-                    title: "Replace Project?",
-                    message: "A project already exists at this location.",
+                    title: m.ui_io_replace_title({}, { locale: params.locale ?? "en-US" }),
+                    message: m.ui_io_replace_body({}, { locale: params.locale ?? "en-US" }),
                     detail: filePath,
-                    buttons: ["Replace", "Cancel"],
+                    buttons: [
+                      m.ui_io_replace({}, { locale: params.locale ?? "en-US" }),
+                      m.ui_io_cancel({}, { locale: params.locale ?? "en-US" }),
+                    ],
                     defaultId: 1,
                     cancelId: 1,
                   }),
                 catch: (error) =>
                   new PathPickerError({
-                    code: "PATH_PICKER_OPEN_DIALOG_FAILED",
+                    code: "PATH_PICKER_OVERWRITE_FAILED",
                     description: "Overwrite confirmation failed.",
                     cause: error,
                   }),
@@ -193,6 +243,20 @@ export const layerProjectSession = Layer.effect(
 
     return ProjectSession.of({
       currentProjectPath,
+      rememberExportOutput: exportActions.remember,
+      openExportResult: (action) =>
+        exportActions.act(action).pipe(
+          Effect.mapError((cause) =>
+            cause instanceof PathPickerError
+              ? cause
+              : new PathPickerError({
+                  code:
+                    action === "open" ? "EXPORT_RESULT_OPEN_FAILED" : "EXPORT_RESULT_REVEAL_FAILED",
+                  description: "Unable to open the exported file.",
+                  cause,
+                }),
+          ),
+        ),
       setCurrentProjectPath,
       loadInitialProject,
       projectCurrent,

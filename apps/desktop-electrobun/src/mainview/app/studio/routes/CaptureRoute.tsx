@@ -1,3 +1,5 @@
+import { capturePermissionState } from "../view-model/capturePermissionState";
+import * as m from "../../../../paraglide/messages.js";
 import { useState } from "react";
 import { ScreenShare, ShieldCheck } from "lucide-react";
 import { AspectRatio } from "@guerillaglass/ui/components/aspect-ratio";
@@ -19,6 +21,7 @@ import { cn } from "@guerillaglass/ui";
 import { useStudio } from "../state/StudioProvider";
 import { EditorWorkspace } from "../layout/EditorWorkspace";
 import { InspectorPanel } from "../panels/InspectorPanel";
+import { readEmbeddedAudioTrackCount } from "../domain/sourceAudioPresentation";
 import { BackgroundFramingPreview } from "../panels/BackgroundFramingPreview";
 import { useLiveCapturePreview } from "../hooks/useLiveCapturePreview";
 import {
@@ -44,8 +47,26 @@ function displayOptionLabel(
 export function CaptureRoute() {
   const studio = useStudio();
   const settingsValues = studio.settingsForm.state.values;
-  const { source: recordingMediaSource, refresh: refreshRecordingMediaSource } =
-    useRecordingMediaSourceLease(studio.recordingURL);
+  const permissionState = capturePermissionState(studio.permissionsQuery);
+  const permissionChecking = permissionState === "checking";
+  const permissionFailed = permissionState === "failed";
+  const retryPermission = (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={studio.permissionsQuery.isFetching}
+      onClick={() => void studio.permissionsQuery.refetch()}
+    >
+      {m.ui_capture_retry_permission(undefined, { locale: studio.locale })}
+    </Button>
+  );
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const {
+    source: recordingMediaSource,
+    refresh: refreshRecordingMediaSource,
+    error: mediaError,
+    isPending: mediaPending,
+  } = useRecordingMediaSourceLease(studio.recordingURL);
   const handleMediaError = useRecordingMediaSourceErrorRecovery(
     recordingMediaSource,
     refreshRecordingMediaSource,
@@ -55,6 +76,7 @@ export function CaptureRoute() {
     ? { width: studio.selectedPreset.width, height: studio.selectedPreset.height }
     : { width: 1920, height: 1080 };
   const isCaptureRunning = Boolean(studio.captureStatusQuery.data?.isRunning);
+  const captureSettingsLocked = isCaptureRunning || studio.isRunningAction;
   const captureSessionId = isCaptureRunning
     ? (studio.captureStatusQuery.data?.captureSessionId ?? null)
     : null;
@@ -69,75 +91,127 @@ export function CaptureRoute() {
             <StudioPaneTitle className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" /> {studio.ui.sections.leftRail}
             </StudioPaneTitle>
-            <StudioPaneSubtitle>{studio.ui.labels.inputMonitoring}</StudioPaneSubtitle>
+            <StudioPaneSubtitle>{studio.ui.helper.captureSetup}</StudioPaneSubtitle>
           </StudioPaneHeader>
           <StudioPaneBody className="gg-copy-compact gg-inspector-pane-body">
-            <DesktopPanelSection title={studio.ui.labels.inputMonitoring}>
-              <DesktopPanelDetailRows
-                rows={[
-                  {
-                    label: studio.ui.labels.screen,
-                    value: studio.permissionsQuery.data?.screenRecordingGranted
-                      ? studio.ui.values.granted
-                      : studio.ui.values.notGranted,
-                  },
-                  {
-                    label: studio.ui.labels.microphone,
-                    value: studio.permissionsQuery.data?.microphoneGranted
-                      ? studio.ui.values.granted
-                      : studio.ui.values.notGranted,
-                  },
-                  {
-                    label: studio.ui.labels.inputMonitoring,
-                    value:
-                      studio.permissionsQuery.data?.inputMonitoring ?? studio.ui.values.unknown,
-                  },
-                ]}
-              />
-
-              <div className="gg-left-rail-actions pt-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gg-left-rail-action"
-                  onClick={() => void studio.requestPermissionMutation.mutateAsync("screen")}
-                >
-                  {studio.ui.actions.requestScreen}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gg-left-rail-action"
-                  onClick={() => void studio.requestPermissionMutation.mutateAsync("mic")}
-                >
-                  {studio.ui.actions.requestMic}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gg-left-rail-action"
-                  onClick={() => void studio.requestPermissionMutation.mutateAsync("input")}
-                >
-                  {studio.ui.actions.requestInput}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gg-left-rail-action"
-                  onClick={() => void engineApi.openInputMonitoringSettings()}
-                >
-                  {studio.ui.actions.openSettings}
-                </Button>
-              </div>
+            <DesktopPanelSection defaultOpen title={studio.ui.labels.permissions}>
+              {permissionChecking ? (
+                <p role="status">
+                  {m.ui_capture_permission_checking(undefined, { locale: studio.locale })}
+                </p>
+              ) : permissionFailed ? (
+                <div role="alert" className="space-y-2">
+                  <p>
+                    {m.ui_capture_permission_check_failed(undefined, { locale: studio.locale })}
+                  </p>
+                  {retryPermission}
+                </div>
+              ) : (
+                <>
+                  <DesktopPanelDetailRows
+                    rows={[
+                      {
+                        label: studio.ui.labels.screen,
+                        value: !studio.permissionsQuery.data
+                          ? studio.ui.values.unknown
+                          : studio.permissionsQuery.data.screenRecordingGranted
+                            ? studio.ui.values.granted
+                            : studio.ui.values.notGranted,
+                      },
+                      {
+                        label: studio.ui.labels.microphone,
+                        value: !studio.permissionsQuery.data
+                          ? studio.ui.values.unknown
+                          : studio.permissionsQuery.data.microphoneGranted
+                            ? studio.ui.values.granted
+                            : studio.ui.values.notGranted,
+                      },
+                      {
+                        label: studio.ui.labels.inputMonitoring,
+                        value:
+                          studio.permissionsQuery.data?.inputMonitoring === "granted"
+                            ? studio.ui.values.granted
+                            : studio.permissionsQuery.data?.inputMonitoring === "denied"
+                              ? studio.ui.values.notGranted
+                              : studio.ui.values.unknown,
+                      },
+                    ]}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {m.ui_permission_recovery_help(undefined, { locale: studio.locale })}
+                  </p>
+                </>
+              )}
+              {studio.permissionsQuery.isSuccess ? (
+                <div className="gg-left-rail-actions pt-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gg-left-rail-action"
+                    onClick={() => void studio.requestPermissionMutation.mutateAsync("screen")}
+                  >
+                    {studio.ui.actions.requestScreen}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gg-left-rail-action"
+                    onClick={() => void studio.requestPermissionMutation.mutateAsync("mic")}
+                  >
+                    {studio.ui.actions.requestMic}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gg-left-rail-action"
+                    onClick={() => void studio.requestPermissionMutation.mutateAsync("input")}
+                  >
+                    {studio.ui.actions.requestInput}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gg-left-rail-action"
+                    style={{
+                      height: "auto",
+                      minHeight: "2rem",
+                      whiteSpace: "normal",
+                      textAlign: "left",
+                    }}
+                    onClick={() => void engineApi.openInputMonitoringSettings()}
+                  >
+                    {studio.ui.actions.openSettings}
+                  </Button>
+                </div>
+              ) : null}
             </DesktopPanelSection>
 
-            <DesktopPanelSection title={studio.ui.labels.captureSource}>
+            <DesktopPanelSection defaultOpen title={studio.ui.labels.captureSource}>
+              {isCaptureRunning ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    {m.ui_capture_settings_locked(undefined, { locale: studio.locale })}
+                  </p>
+                  {!studio.captureStatusQuery.data?.isRecording ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={studio.isRunningAction}
+                      onClick={() => void studio.stopPreviewMutation.mutateAsync()}
+                    >
+                      {studio.ui.actions.stopPreview}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
               <studio.settingsForm.Field name="captureSource">
                 {(field) => (
                   <Field>
                     <FieldLabel>{studio.ui.labels.captureSource}</FieldLabel>
                     <FieldContent>
                       <RadioGroup
+                        disabled={captureSettingsLocked}
+                        aria-label={studio.ui.labels.captureSource}
                         className="flex gap-3"
                         value={field.state.value}
                         onValueChange={(nextValue) => {
@@ -186,6 +260,8 @@ export function CaptureRoute() {
                       <FieldLabel>{studio.ui.labels.window}</FieldLabel>
                       <FieldContent>
                         <NativeSelect
+                          disabled={captureSettingsLocked}
+                          aria-label={studio.ui.labels.window}
                           value={String(studio.selectedWindowId)}
                           onChange={(event) => {
                             const windowId = Number(event.target.value);
@@ -228,8 +304,9 @@ export function CaptureRoute() {
                       <FieldLabel>{studio.ui.labels.display}</FieldLabel>
                       <FieldContent>
                         <NativeSelect
+                          aria-label={studio.ui.labels.display}
                           value={String(studio.selectedDisplayId)}
-                          disabled={studio.displayChoices.length <= 1}
+                          disabled={captureSettingsLocked || studio.displayChoices.length <= 1}
                           onChange={(event) => {
                             field.handleChange(Number(event.target.value));
                           }}
@@ -325,6 +402,34 @@ export function CaptureRoute() {
                                     </div>
                                   ) : null}
                                 </div>
+                              ) : studio.recordingURL &&
+                                (mediaError ||
+                                  (failedSource !== null &&
+                                    failedSource === recordingMediaSource)) ? (
+                                <div className="flex flex-col gap-3 p-6 text-center" role="alert">
+                                  <p>
+                                    {m.ui_workflow_media_failed(undefined, {
+                                      locale: studio.locale,
+                                    })}
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                      setFailedSource(null);
+                                      void refreshRecordingMediaSource().catch(() =>
+                                        setFailedSource(recordingMediaSource),
+                                      );
+                                    }}
+                                  >
+                                    {m.ui_workflow_retry(undefined, { locale: studio.locale })}
+                                  </Button>
+                                </div>
+                              ) : studio.recordingURL && mediaPending ? (
+                                <p role="status">
+                                  {m.ui_workflow_loading_media(undefined, {
+                                    locale: studio.locale,
+                                  })}
+                                </p>
                               ) : recordingMediaSource ? (
                                 <video
                                   key={recordingMediaSource}
@@ -334,7 +439,16 @@ export function CaptureRoute() {
                                   controls
                                   playsInline
                                   onLoadedMetadata={(event) => {
+                                    setFailedSource(null);
                                     const video = event.currentTarget;
+                                    studio.setRecordingMediaDurationSeconds(
+                                      video.duration,
+                                      {
+                                        width: video.videoWidth,
+                                        height: video.videoHeight,
+                                      },
+                                      readEmbeddedAudioTrackCount(video),
+                                    );
                                     if (video.videoWidth > 0 && video.videoHeight > 0) {
                                       setSourceSize({
                                         width: video.videoWidth,
@@ -342,18 +456,42 @@ export function CaptureRoute() {
                                       });
                                     }
                                   }}
-                                  onError={handleMediaError}
+                                  onError={() => {
+                                    setFailedSource(recordingMediaSource);
+                                    handleMediaError();
+                                  }}
                                 />
                               ) : (
                                 <Empty className="h-full border-0 bg-transparent p-6">
                                   <EmptyHeader>
                                     <EmptyTitle className="text-sm">
-                                      {studio.ui.helper.emptyPreviewTitle}
+                                      {permissionChecking
+                                        ? m.ui_capture_permission_checking(undefined, {
+                                            locale: studio.locale,
+                                          })
+                                        : permissionFailed
+                                          ? m.ui_capture_permission_check_failed(undefined, {
+                                              locale: studio.locale,
+                                            })
+                                          : permissionState === "granted"
+                                            ? studio.ui.helper.emptyPreviewTitle
+                                            : permissionState === "denied"
+                                              ? studio.ui.helper.capturePermissionTitle
+                                              : m.ui_capture_permission_unknown(undefined, {
+                                                  locale: studio.locale,
+                                                })}
                                     </EmptyTitle>
                                     <EmptyDescription>
-                                      {studio.ui.helper.emptyPreviewBody}
+                                      {permissionState === "granted"
+                                        ? studio.ui.helper.emptyPreviewBody
+                                        : permissionState === "denied"
+                                          ? studio.ui.helper.capturePermissionBody
+                                          : studio.ui.helper.captureSetup}
                                     </EmptyDescription>
                                   </EmptyHeader>
+                                  {permissionFailed || permissionState === "unknown"
+                                    ? retryPermission
+                                    : null}
                                 </Empty>
                               )}
                             </BackgroundFramingPreview>

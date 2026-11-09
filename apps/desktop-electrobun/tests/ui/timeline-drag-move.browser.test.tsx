@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import type { TimelineLane } from "../../src/mainview/app/studio/domain/timelineDomainModel";
 import { TimelineSurface } from "../../src/mainview/app/studio/panels/TimelineSurface";
 
@@ -93,6 +94,9 @@ function renderSurface(
   timelineRippleEnabled: boolean,
   options?: {
     laneLocked?: boolean;
+    playheadSeconds?: number;
+    onBlade?: (seconds: number) => void;
+    zoomPercent?: number;
     timelineTool?: "select" | "trim" | "blade";
     lanes?: TimelineLane[];
     onClearSelection?: () => void;
@@ -103,8 +107,8 @@ function renderSurface(
     root?.render(
       <TimelineSurface
         durationSeconds={3}
-        playheadSeconds={0}
-        zoomPercent={100}
+        playheadSeconds={options?.playheadSeconds ?? 0}
+        zoomPercent={options?.zoomPercent ?? 100}
         timelineTool={options?.timelineTool ?? "select"}
         timelineSnapEnabled={true}
         timelineRippleEnabled={timelineRippleEnabled}
@@ -117,9 +121,8 @@ function renderSurface(
         onSetPlayheadSeconds={() => {}}
         onNudgePlayheadSeconds={() => {}}
         onToggleLaneLocked={() => {}}
-        onToggleLaneMuted={() => {}}
-        onToggleLaneSolo={() => {}}
         onClearSelection={options?.onClearSelection ?? (() => {})}
+        onBladeClipAtSeconds={options?.onBlade}
         onMoveClipDrop={(params) => {
           receivedDrop = params;
         }}
@@ -187,6 +190,40 @@ afterEach(() => {
 });
 
 describe("timeline clip drag move", () => {
+  test("ruler and tracks retain one time origin while zooming and scrolling", () => {
+    Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    const host = document.getElementById("root")!;
+    host.style.width = "900px";
+    renderSurface(true, { zoomPercent: 200 });
+    const ruler = host.querySelector(".gg-timeline-ruler")!;
+    const track = host.querySelector(".gg-timeline-lane-track")!;
+    const overlay = host.querySelector(".gg-timeline-track-overlay")!;
+    const scroll = host.querySelector(".gg-timeline-scroll")!;
+    expect(
+      Math.abs(ruler.getBoundingClientRect().left - track.getBoundingClientRect().left),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(overlay.getBoundingClientRect().left - track.getBoundingClientRect().left),
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(overlay.getBoundingClientRect().width - track.getBoundingClientRect().width),
+    ).toBeLessThan(1);
+    const before = ruler.getBoundingClientRect().left;
+    scroll.scrollLeft = 200;
+    expect(ruler.getBoundingClientRect().left).toBeCloseTo(before - 200);
+    expect(
+      Math.abs(ruler.getBoundingClientRect().left - track.getBoundingClientRect().left),
+    ).toBeLessThan(1);
+  });
+
+  test("unsupported mute and solo controls are absent and lane locks have context", () => {
+    renderSurface(true);
+    const names = [...document.querySelectorAll(".gg-timeline-lane-toggle")].map((node) =>
+      node.getAttribute("aria-label"),
+    );
+    expect(names).toEqual(["Video: Lock lane", "Audio: Lock lane"]);
+  });
+
   test("ripple drag resolves an insertion destination index", () => {
     renderSurface(true);
 
@@ -403,4 +440,25 @@ describe("timeline clip drag move", () => {
     expect(insertAffordance).not.toBeNull();
     expect(insertAffordance?.style.left).toBe("100%");
   });
+});
+
+test("Blade keyboard activation cuts at the program playhead; pointer activation uses its position", async () => {
+  const cuts: number[] = [];
+  renderSurface(true, {
+    timelineTool: "blade",
+    playheadSeconds: 0.5,
+    onBlade: (seconds) => cuts.push(seconds),
+  });
+  const { clip } = getTimelineDragElements();
+  (clip as HTMLButtonElement).focus();
+  await userEvent.keyboard("{Enter}");
+  await userEvent.keyboard(" ");
+  expect(cuts).toEqual([0.5, 0.5]);
+  const rect = clip.getBoundingClientRect();
+  act(() =>
+    clip.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1, clientX: rect.left + rect.width * 0.75 }),
+    ),
+  );
+  expect(cuts[2]).toBeCloseTo(0.75);
 });

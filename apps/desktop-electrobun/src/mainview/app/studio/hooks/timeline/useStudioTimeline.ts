@@ -71,6 +71,7 @@ type UseStudioTimelineOptions = {
   activeMode: "capture" | "edit" | "deliver";
   recordingURL: string | null;
   recordingDurationSeconds: number;
+  embeddedAudioTrackCount?: number | null;
   timelineDocument: TimelineDocument;
   timelineFrameRate?: number;
   timelineEvents: InputEvent[];
@@ -85,6 +86,7 @@ export function useStudioTimeline({
   activeMode,
   recordingURL,
   recordingDurationSeconds,
+  embeddedAudioTrackCount,
   timelineDocument,
   timelineFrameRate = defaultTimelineFrameRate,
   timelineEvents,
@@ -98,7 +100,7 @@ export function useStudioTimeline({
     useState<TimelineLaneControlStateByLane>(defaultTimelineLaneControlState);
   const [audioMixer, setAudioMixer] = useState<AudioMixerState>(defaultAudioMixerState);
 
-  const usesMediaPlaybackClock = activeMode === "edit" && Boolean(recordingURL);
+  const usesMediaPlaybackClock = activeMode !== "capture" && Boolean(recordingURL);
   const normalizedFrameRate = useMemo(
     () => normalizeTimelineFrameRate(timelineFrameRate),
     [timelineFrameRate],
@@ -116,7 +118,7 @@ export function useStudioTimeline({
     [compiledTimelineItems],
   );
   const timelineDuration = useMemo(
-    () => Math.max(compiledTimelineDurationSeconds, 1),
+    () => Math.max(compiledTimelineDurationSeconds, 0),
     [compiledTimelineDurationSeconds],
   );
   const playbackTransport = usePlaybackTransport({
@@ -129,7 +131,8 @@ export function useStudioTimeline({
     }
     return Math.max(recordingDurationSeconds, 0);
   }, [recordingDurationSeconds, recordingURL]);
-  const audioWaveform = useTimelineWaveform({
+  const sourceAudioPresentation = useTimelineWaveform({
+    embeddedAudioTrackCount,
     recordingURL,
     recordingDurationSeconds: sourceRecordingDurationSeconds,
     timelineEvents,
@@ -139,10 +142,17 @@ export function useStudioTimeline({
       buildTimelineLanes({
         timeline: timelineDocument,
         events: timelineEvents,
-        audioWaveform,
+        audioWaveform: sourceAudioPresentation.waveform,
+        audioStatus: sourceAudioPresentation.status,
         labels: laneLabels,
       }),
-    [audioWaveform, laneLabels, timelineDocument, timelineEvents],
+    [
+      sourceAudioPresentation.waveform,
+      sourceAudioPresentation.status,
+      laneLabels,
+      timelineDocument,
+      timelineEvents,
+    ],
   );
 
   useEffect(() => {
@@ -252,6 +262,7 @@ export function useStudioTimeline({
         0,
         timelineDuration,
       );
+      playbackTransport.pause();
       playbackTransport.seek(next);
     },
     [normalizedFrameRate, playbackTransport, timelineDuration, timelineSnapEnabled],
@@ -298,6 +309,7 @@ export function useStudioTimeline({
 
   const setPlayheadSeconds = useCallback(
     (seconds: number) => {
+      playbackTransport.pause();
       playbackTransport.seek(clamp(seconds, 0, timelineDuration));
     },
     [playbackTransport, timelineDuration],
@@ -315,6 +327,7 @@ export function useStudioTimeline({
         0,
         timelineDuration,
       );
+      playbackTransport.pause();
       playbackTransport.seek(next);
     },
     [normalizedFrameRate, playbackTransport, timelineDuration, timelineSnapEnabled],
@@ -325,6 +338,7 @@ export function useStudioTimeline({
   }, [playbackTransport, setTimelinePlaybackActive]);
 
   return {
+    sourceAudioPresentation,
     audioMixer,
     playbackStore: playbackTransport,
     nudgePlayheadSeconds,

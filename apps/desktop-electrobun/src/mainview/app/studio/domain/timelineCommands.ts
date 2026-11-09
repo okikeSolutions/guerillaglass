@@ -371,3 +371,28 @@ export function moveTimelineItems(
     changed: true,
   };
 }
+
+/** Remove an explicit override so this clip inherits project camera behavior. */
+export function resetTimelineClipCamera(
+  timeline: TimelineDocument,
+  clipId: string,
+): TimelineEditResult {
+  const clip = timeline.items.find((item) => item.id === clipId && item.kind === "clip");
+  if (!clip || clip.kind !== "clip" || clip.camera === undefined) {
+    return { timeline, changed: false };
+  }
+  return {
+    changed: true,
+    timeline: {
+      ...timeline,
+      items: timeline.items.map((item) => {
+        if (item.id !== clipId || item.kind !== "clip") {
+          return item;
+        }
+        const next = { ...item };
+        delete next.camera;
+        return next;
+      }),
+    },
+  };
+}

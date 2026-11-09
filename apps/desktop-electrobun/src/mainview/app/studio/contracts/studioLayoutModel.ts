@@ -18,11 +18,11 @@ import {
 export const studioLayoutStorageKey = createDesktopPreferenceStorageKey("studio.layout", 1);
 
 export const studioLayoutBounds = {
-  leftPaneMinWidthPx: 150,
+  leftPaneMinWidthPx: 240,
   leftPaneMaxWidthPx: 640,
-  rightPaneMinWidthPx: 220,
+  rightPaneMinWidthPx: 280,
   rightPaneMaxWidthPx: 760,
-  timelineMinHeightPx: 140,
+  timelineMinHeightPx: 240,
   timelineMaxHeightPx: 420,
 } as const;
 export const studioCenterPaneMinWidthPx = 560;
@@ -112,35 +112,35 @@ const legacyDefaultLayoutProfile = {
 
 const dominantLayoutPresetsByRoute: Record<StudioLayoutRoute, StudioLayoutPreset> = {
   "/capture": {
-    leftPaneWidthPx: 180,
-    rightPaneWidthPx: 220,
-    leftCollapsed: true,
+    leftPaneWidthPx: 260,
+    rightPaneWidthPx: 300,
+    leftCollapsed: false,
     rightCollapsed: false,
-    timelineHeightPx: 160,
+    timelineHeightPx: 240,
     timelineCollapsed: false,
   },
   "/edit": {
-    leftPaneWidthPx: 200,
-    rightPaneWidthPx: 260,
-    leftCollapsed: true,
+    leftPaneWidthPx: 260,
+    rightPaneWidthPx: 300,
+    leftCollapsed: false,
     rightCollapsed: false,
-    timelineHeightPx: 360,
+    timelineHeightPx: 300,
     timelineCollapsed: false,
   },
   "/deliver": {
-    leftPaneWidthPx: 220,
-    rightPaneWidthPx: 280,
-    leftCollapsed: true,
+    leftPaneWidthPx: 260,
+    rightPaneWidthPx: 320,
+    leftCollapsed: false,
     rightCollapsed: false,
-    timelineHeightPx: 340,
+    timelineHeightPx: 300,
     timelineCollapsed: false,
   },
 };
 
 const studioLayoutPresetVersionByRoute: Record<StudioLayoutRoute, number> = {
-  "/capture": 3,
-  "/edit": 0,
-  "/deliver": 0,
+  "/capture": 4,
+  "/edit": 2,
+  "/deliver": 2,
 };
 
 export function dominantLayoutPresetForRoute(route: StudioLayoutRoute): StudioLayoutPreset {

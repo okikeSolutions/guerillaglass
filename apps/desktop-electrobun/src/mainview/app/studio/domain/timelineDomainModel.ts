@@ -1,3 +1,4 @@
+import type { SourceAudioStatus } from "./sourceAudioPresentation";
 import { timelineSegmentIdSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import type {
   InputEvent,
@@ -25,6 +26,8 @@ export type TimelineClip = {
   sourceEndSeconds: number;
   semantic: TimelineClipSemantic;
   waveform: TimelineWaveform | null;
+  cameraKeyCount?: number;
+  hasCameraOverride?: boolean;
 };
 
 export type CompiledTimelineSegment = TimelineSegment & {
@@ -60,6 +63,7 @@ export type TimelineEventMarker = {
 export type TimelineLane =
   | {
       id: "video" | "audio";
+      audioStatus?: SourceAudioStatus;
       label: string;
       clips: TimelineClip[];
       markers: [];
@@ -388,6 +392,7 @@ export function buildTimelineLanes(params: {
   timeline: TimelineDocument;
   events: InputEvent[];
   audioWaveform?: TimelineWaveform | null;
+  audioStatus?: SourceAudioStatus;
   labels?: TimelineLaneLabels;
 }): TimelineLane[] {
   const compiledSegments = compileTimelineSegments(params.timeline);
@@ -399,8 +404,7 @@ export function buildTimelineLanes(params: {
     events: "Events",
   };
   const remappedEvents = remapInputEventsToProgramTime(params.events, compiledSegments);
-  const fallbackWaveform =
-    params.audioWaveform ?? buildEventWaveform(remappedEvents, duration) ?? null;
+  const fallbackWaveform = params.audioWaveform?.source === "decoded" ? params.audioWaveform : null;
 
   return [
     {
@@ -423,6 +427,8 @@ export function buildTimelineLanes(params: {
               endSeconds: item.programEndSeconds,
               sourceStartSeconds: item.sourceStartSeconds,
               sourceEndSeconds: item.sourceEndSeconds,
+              cameraKeyCount: item.camera?.length ?? 0,
+              hasCameraOverride: item.camera !== undefined,
               semantic: "screen" as const,
               waveform: null,
             },
@@ -432,7 +438,8 @@ export function buildTimelineLanes(params: {
     {
       id: "audio",
       label: labels.audio,
-      clips: compiledItems.map((item) =>
+      audioStatus: params.audioStatus ?? (fallbackWaveform ? "decoded" : "unavailable"),
+      clips: (fallbackWaveform ? compiledItems : []).map((item) =>
         item.kind === "gap"
           ? {
               id: item.id,

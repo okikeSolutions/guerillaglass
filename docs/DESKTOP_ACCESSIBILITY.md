@@ -71,7 +71,7 @@ Single-key hotkeys:
 
 Single-key safety requirements:
 
-- User-toggleable in Capture Inspector (`Enable single-key shortcuts`).
+- User-toggleable in global Preferences (`Enable single-key shortcuts`).
 - Must not fire when focus is within interactive controls (`input`, `textarea`, `select`, `button`, links, tab/menu/button-like roles, contenteditable).
 - Timeline arrow-key behavior remains local to the timeline surface and is not globalized.
 

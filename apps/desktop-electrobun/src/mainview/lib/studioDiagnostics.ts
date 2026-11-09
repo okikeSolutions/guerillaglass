@@ -1,6 +1,6 @@
 import { isoDateTimeSchema } from "@guerillaglass/engine-contract/schema-primitives";
 import { useEffect } from "react";
-import { Effect, Metric } from "effect";
+import { Effect, Metric, References } from "effect";
 import { sendHostStudioDiagnostics } from "./engine";
 import type {
   DesktopRuntimeFlags,
@@ -148,7 +148,7 @@ function runDiagnosticsEffect(effect: Effect.Effect<void, never, never>): void {
   if (!diagnosticsEnabled()) {
     return;
   }
-  Effect.runFork(effect);
+  Effect.runFork(effect.pipe(Effect.provideService(References.MinimumLogLevel, "Debug")));
 }
 
 function roundToHundredths(value: number): number {

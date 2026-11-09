@@ -26,7 +26,10 @@ type ProjectSessionService = {
   projectRecents: (
     params: BridgeRequests["ggEngineProjectRecents"]["params"],
   ) => Effect.Effect<ProjectRecentsResult, EngineClientFailure, ProjectService>;
+  rememberExportOutput: (path: string) => Effect.Effect<void>;
+  openExportResult: (action: "open" | "reveal") => Effect.Effect<boolean, PathPickerError>;
   pickPath: (params: {
+    locale?: "en-US" | "de-DE";
     mode: HostPathPickerMode;
     startingFolder?: string;
   }) => Effect.Effect<string | null, PathPickerError>;

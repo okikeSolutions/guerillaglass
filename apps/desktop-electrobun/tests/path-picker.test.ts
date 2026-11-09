@@ -1,5 +1,6 @@
+import { Effect } from "effect";
 import { describe, expect, test } from "vitest";
-import { pickPathForMode } from "../src/bun/path/picker";
+import { pickPathForMode, pickPathForModeEffect } from "../src/bun/path/picker";
 import { PathPickerError } from "@shared/errors/desktopErrors";
 
 describe("host path picker", () => {
@@ -122,5 +123,82 @@ describe("host path picker", () => {
       expect(error.code).toBe("PATH_PICKER_OPEN_DIALOG_FAILED");
       expect(error.message).toBe("open dialog unavailable");
     }
+  });
+});
+
+describe("native Save As target selection", () => {
+  test("accepts a new filename, adds the project extension and never opens the fallback picker", async () => {
+    const result = await pickPathForMode("saveProjectAs", {
+      currentProjectPath: "/projects/old.gglassproj",
+      defaultFolder: "/projects",
+      openFileDialog: async () => {
+        throw new Error("Fallback picker must not open");
+      },
+      saveFileDialog: async (options) => {
+        expect(options.defaultName).toBe("old.gglassproj");
+        expect(options.startingFolder).toBe("/projects");
+        return '/projects/new $name "demo"';
+      },
+    });
+    expect(result).toBe('/projects/new $name "demo".gglassproj');
+  });
+
+  test("cancelling the Save panel grants no target and does not confirm overwrite", async () => {
+    const result = await pickPathForMode("saveProjectAs", {
+      defaultFolder: "/projects",
+      openFileDialog: async () => [],
+      saveFileDialog: async () => null,
+      pathExists: async () => {
+        throw new Error("No selection to inspect");
+      },
+    });
+    expect(result).toBeNull();
+  });
+
+  test("extension completion still checks overwrite authority", async () => {
+    const result = await pickPathForMode("saveProjectAs", {
+      defaultFolder: "/projects",
+      openFileDialog: async () => [],
+      saveFileDialog: async () => "/projects/existing",
+      pathExists: async (path) => {
+        expect(path).toBe("/projects/existing.gglassproj");
+        return true;
+      },
+      confirmOverwritePath: async () => false,
+    });
+    expect(result).toBeNull();
+  });
+});
+
+describe("native export folder chooser", () => {
+  test("export chooses only a directory and cancellation returns no target", async () => {
+    let folder = "";
+    const result = await pickPathForMode("export", {
+      currentProjectPath: "/projects/demo.gglassproj",
+      defaultFolder: "/exports",
+      openFileDialog: async () => {
+        throw new Error("Export must use the native folder chooser");
+      },
+      folderDialog: async (options) => {
+        folder = options.startingFolder;
+        return null;
+      },
+    });
+    expect(folder).toBe("/projects");
+    expect(result).toBeNull();
+  });
+
+  test("Effect export preserves the selected directory for existing picker grants", async () => {
+    const result = await Effect.runPromise(
+      pickPathForModeEffect("export", {
+        defaultFolder: "/exports",
+        openFileDialog: () => Effect.die("Export must use the native folder chooser"),
+        folderDialog: (options) => {
+          expect(options.startingFolder).toBe("/exports");
+          return Effect.succeed('/exports/Project "demo"/');
+        },
+      }),
+    );
+    expect(result).toBe('/exports/Project "demo"/');
   });
 });

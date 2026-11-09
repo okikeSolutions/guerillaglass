@@ -15,7 +15,7 @@ describe("inspector context", () => {
     expect(resolveInspectorView("deliver", emptyInspectorSelection).id).toBe("deliverDefault");
   });
 
-  test("keeps timeline selections across modes", () => {
+  test("keeps timeline selections in editing and delivery, clearing them for capture", () => {
     const clipSelection = {
       kind: "timelineClip" as const,
       laneId: "video" as const,
@@ -23,7 +23,7 @@ describe("inspector context", () => {
       startSeconds: 0,
       endSeconds: 5,
     };
-    expect(normalizeInspectorSelection("capture", clipSelection)).toEqual(clipSelection);
+    expect(normalizeInspectorSelection("capture", clipSelection)).toEqual(emptyInspectorSelection);
     expect(normalizeInspectorSelection("edit", clipSelection)).toEqual(clipSelection);
     expect(normalizeInspectorSelection("deliver", clipSelection)).toEqual(clipSelection);
   });
@@ -52,7 +52,7 @@ describe("inspector context", () => {
     );
   });
 
-  test("resolves timeline selection views regardless of mode", () => {
+  test("resolves timeline selection views after mode normalization", () => {
     const clipSelection = {
       kind: "timelineClip" as const,
       laneId: "audio" as const,
@@ -68,8 +68,13 @@ describe("inspector context", () => {
       timestampSeconds: 6.3,
     };
 
-    expect(resolveInspectorView("capture", clipSelection).id).toBe("timelineClipAudio");
+    expect(
+      resolveInspectorView("capture", normalizeInspectorSelection("capture", clipSelection)).id,
+    ).toBe("captureDefault");
     expect(resolveInspectorView("deliver", markerSelection).id).toBe("timelineMarker");
+    expect(normalizeInspectorSelection("capture", markerSelection)).toEqual(
+      emptyInspectorSelection,
+    );
   });
 
   test("builds export preset selection from preset data", () => {

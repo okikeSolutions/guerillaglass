@@ -6,3 +6,378 @@
 @plugin "@tailwindcss/typography";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* Public product pages use a static, contrast-safe canvas in both appearances. */
+.public-site {
+  --site-bg: #f6f7f8;
+  --site-ink: #202327;
+  --site-secondary: #555c66;
+  --site-line: #d6dbe1;
+  --site-action: #174bc8;
+  --site-action-ink: #ffffff;
+  background: var(--site-bg);
+  color: var(--site-ink);
+  font-family: "Inter Variable", system-ui, sans-serif;
+  line-height: 1.6;
+  min-height: 100svh;
+}
+:root.dark .public-site {
+  --site-bg: #111214;
+  --site-ink: #f1f2f4;
+  --site-secondary: #abb2bc;
+  --site-line: #34383e;
+  --site-action: #91b5ff;
+  --site-action-ink: #10244b;
+}
+body {
+  margin: 0;
+}
+.public-site * {
+  box-sizing: border-box;
+}
+.public-site a {
+  color: inherit;
+  text-underline-offset: 0.25em;
+}
+.public-site button {
+  font: inherit;
+}
+.public-site a:focus-visible,
+.public-site button:focus-visible,
+.public-site summary:focus-visible {
+  outline: 3px solid var(--site-action);
+  outline-offset: 5px;
+}
+.site-skip {
+  position: absolute;
+  left: 20px;
+  top: 12px;
+  z-index: 10;
+  padding: 12px;
+  background: var(--site-bg);
+  transform: translateY(-160%);
+}
+.site-skip:focus {
+  transform: none;
+}
+.site-header,
+.site-footer {
+  max-width: 1280px;
+  margin-inline: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 40px;
+}
+.site-brand {
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: -0.04em;
+}
+.site-header nav,
+.site-footer nav {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.site-header nav a,
+.site-footer nav a {
+  font-size: 14px;
+  text-decoration: none;
+}
+.site-header nav a:hover,
+.site-footer nav a:hover {
+  text-decoration: underline;
+}
+.site-mobile-nav {
+  display: none;
+}
+.site-hero {
+  padding: 64px 40px 72px;
+  max-width: 1280px;
+  margin-inline: auto;
+}
+.site-hero-copy {
+  max-width: 790px;
+  margin-bottom: 44px;
+}
+.site-eyebrow {
+  color: var(--site-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+.site-hero h1 {
+  font-size: clamp(40px, 6.2vw, 72px);
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  margin: 0;
+  max-width: 800px;
+  text-wrap: balance;
+}
+.site-intro {
+  color: var(--site-secondary);
+  font-size: 19px;
+  max-width: 590px;
+  margin: 24px 0;
+}
+.site-actions {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.site-button {
+  background: var(--site-action);
+  color: var(--site-action-ink) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 0;
+  text-decoration: none;
+  font-weight: 500;
+  min-height: 48px;
+}
+.site-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  text-decoration: underline;
+}
+.site-note {
+  font-size: 13px;
+  color: var(--site-secondary);
+  margin: 16px 0 0;
+}
+.site-preview {
+  margin: 0;
+}
+.site-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--site-line);
+  border-radius: 12px;
+}
+.site-preview figcaption {
+  color: var(--site-secondary);
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+.site-section {
+  max-width: 1280px;
+  padding: 72px 40px;
+  margin-inline: auto;
+  scroll-margin-top: 24px;
+}
+.site-section h2 {
+  font-size: clamp(26px, 3.2vw, 38px);
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  margin: 0 0 32px;
+  text-wrap: balance;
+}
+.site-section h3 {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 16px 0 8px;
+}
+.site-section p {
+  color: var(--site-secondary);
+  max-width: 65ch;
+}
+.site-workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.site-workflow li {
+  border-top: 1px solid var(--site-line);
+  padding-top: 24px;
+}
+.site-step-number {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--site-secondary);
+}
+.site-workflow p {
+  margin: 0;
+}
+.site-open,
+.site-faq {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 72px;
+}
+.site-open > div > p {
+  margin-top: 0;
+}
+.site-faq details {
+  border-top: 1px solid var(--site-line);
+}
+.site-faq details:last-child {
+  border-bottom: 1px solid var(--site-line);
+}
+.site-faq summary {
+  padding: 20px 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+.site-faq details p {
+  margin: 0 0 24px;
+  padding-right: 12px;
+}
+.site-footer {
+  padding-top: 36px;
+  padding-bottom: 40px;
+  border-top: 1px solid var(--site-line);
+}
+.site-footer p {
+  color: var(--site-secondary);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+.site-prose {
+  min-height: 50svh;
+}
+.site-prose h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+}
+.site-prose p {
+  margin-block: 24px;
+}
+.site-prose .site-text-link {
+  margin-left: 24px;
+}
+.site-menu-button {
+  border: 1px solid var(--site-line);
+  background: var(--site-bg);
+  color: var(--site-ink);
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+}
+.site-menu-dialog {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--site-ink);
+}
+.site-menu-dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.site-menu-panel {
+  background: var(--site-bg);
+  width: min(340px, 100%);
+  min-height: 100%;
+  padding: 24px;
+}
+.site-menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.site-menu-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+.site-menu-panel nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.site-menu-panel nav a {
+  padding: 12px 0;
+}
+@media (max-width: 700px) {
+  .site-header {
+    padding: 16px 24px;
+  }
+  .site-desktop-nav {
+    display: none !important;
+  }
+  .site-mobile-nav {
+    display: block;
+  }
+  .site-hero {
+    padding: 40px 24px 48px;
+  }
+  .site-hero-copy {
+    margin-bottom: 32px;
+  }
+  .site-intro {
+    font-size: 17px;
+  }
+  .site-actions {
+    gap: 12px 20px;
+  }
+  .site-section {
+    padding: 48px 24px;
+  }
+  .site-workflow,
+  .site-open,
+  .site-faq {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+  .site-open h2,
+  .site-faq h2 {
+    margin-bottom: 0;
+  }
+  .site-footer {
+    padding: 32px 24px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .site-footer nav {
+    gap: 12px 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-site *,
+  .public-site *::before,
+  .public-site *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.site-demo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 24px;
+  background: var(--site-ink);
+  border-radius: 12px;
+}
+
+/* Standalone recovery routes own the whole page canvas. */
+.public-site.site-prose {
+  min-height: 100svh;
+}

@@ -36,6 +36,15 @@ function shouldBlockGlobalSingleKeyHotkey(target: EventTarget | null): boolean {
   return elementLike.closest(interactiveGlobalHotkeySelector) != null;
 }
 
+const editableTarget = (target: EventTarget | null) =>
+  Boolean(
+    target &&
+    typeof (target as Element).closest === "function" &&
+    (target as Element).closest(
+      "input,textarea,select,[contenteditable]:not([contenteditable='false'])",
+    ),
+  );
+
 type UseStudioHotkeysOptions = {
   runHostCommand: (command: HostMenuCommand) => void;
   canTrimTimeline: boolean;
@@ -48,6 +57,9 @@ type UseStudioHotkeysOptions = {
   deleteSelectedTimelineClip: () => void;
   liftSelectedTimelineClip: () => void;
   setTimelineTool: (tool: TimelineTool) => void;
+  undoTimeline?: () => void;
+  redoTimeline?: () => void;
+  canChangeTimelineHistory?: boolean;
 };
 
 function shortcutOptionsFor(
@@ -79,6 +91,9 @@ export function useStudioHotkeys({
   deleteSelectedTimelineClip,
   liftSelectedTimelineClip,
   setTimelineTool,
+  undoTimeline,
+  redoTimeline,
+  canChangeTimelineHistory = false,
 }: UseStudioHotkeysOptions): void {
   const saveShortcut = shortcutOptionsFor("save", shortcutOverrides, shortcutPlatform);
   const saveAsShortcut = shortcutOptionsFor("saveAs", shortcutOverrides, shortcutPlatform);
@@ -88,6 +103,48 @@ export function useStudioHotkeys({
   const trimInShortcut = shortcutOptionsFor("trimIn", shortcutOverrides, shortcutPlatform);
   const trimOutShortcut = shortcutOptionsFor("trimOut", shortcutOverrides, shortcutPlatform);
   const bladeShortcut = shortcutOptionsFor("timelineBlade", shortcutOverrides, shortcutPlatform);
+
+  const undoShortcut = shortcutOptionsFor("undo", shortcutOverrides, shortcutPlatform);
+  const redoShortcut = shortcutOptionsFor("redo", shortcutOverrides, shortcutPlatform);
+
+  useHotkey(
+    undoShortcut.hotkey,
+    (event) => {
+      if (
+        undoShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
+        return;
+      }
+      if (
+        !canChangeTimelineHistory ||
+        editableTarget(event.target) ||
+        (!undoShortcut.usesShift && event.shiftKey)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      undoTimeline?.();
+    },
+    { ignoreInputs: false, preventDefault: false },
+  );
+  useHotkey(
+    redoShortcut.hotkey,
+    (event) => {
+      if (
+        redoShortcut.singleKey &&
+        (!singleKeyShortcutsEnabled || shouldBlockGlobalSingleKeyHotkey(event.target))
+      ) {
+        return;
+      }
+      if (!canChangeTimelineHistory || editableTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      redoTimeline?.();
+    },
+    { ignoreInputs: false, preventDefault: false },
+  );
 
   useHotkey(
     saveShortcut.hotkey,

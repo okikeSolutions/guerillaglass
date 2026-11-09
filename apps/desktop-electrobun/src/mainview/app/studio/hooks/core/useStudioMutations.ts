@@ -1,4 +1,6 @@
-import { useCallback } from "react";
+import type { ReplacementKind } from "../useReplacementConfirmation";
+import * as m from "../../../../../paraglide/messages.js";
+import { useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import type { CaptureStatusResult } from "@guerillaglass/engine-contract/domains/capture";
@@ -18,7 +20,7 @@ import type {
   BackgroundFramingSettings,
   TimelineDocument,
 } from "@guerillaglass/engine-contract/shared/valueObjects";
-import type { StudioMessages } from "@shared/localization";
+import type { StudioMessages, StudioLocale } from "@shared/localization";
 import { engineApi } from "@lib/engine";
 import type { HostPathPickerMode } from "@shared/bridge/desktopBridgeContract";
 import {
@@ -29,6 +31,10 @@ import { EngineResponseError } from "@guerillaglass/engine-client/errors";
 import { resolveSelectedDisplayId } from "../../domain/preferredDisplaySelection";
 import { resolveSelectedWindowId } from "../../domain/preferredWindowSelection";
 import { studioQueryKeys } from "./useStudioDataQueries";
+
+import { compileTimelineItems, timelineDurationSeconds } from "../../domain/timelineDomainModel";
+
+class ExportRangeError extends Error {}
 
 const captureStatusSyncAttempts = 4;
 const captureStatusSyncDelayMs = 120;
@@ -88,9 +94,11 @@ export type ExportFormApi = {
   getValues: () => {
     presetId: string;
     fileName: string;
+    rangeMode: "full" | "selected";
     trimStartSeconds: number;
     trimEndSeconds: number;
   };
+  setRangeMode: (value: "full" | "selected") => void;
   setTrimStartSeconds: (value: number) => void;
   setTrimEndSeconds: (value: number) => void;
 };
@@ -98,6 +106,7 @@ export type ExportFormApi = {
 type UseStudioActionsOptions = {
   queryClient: QueryClient;
   ui: StudioMessages;
+  locale?: StudioLocale;
   mapActionErrorMessage: (error: unknown) => string;
   setNotice: (next: Notice) => void;
   setTimelinePlayback: (isPlaying: boolean) => void;
@@ -112,6 +121,11 @@ type UseStudioActionsOptions = {
   inputMonitoringDenied: boolean;
   recordingURL: string | null;
   timelineDocument: TimelineDocument;
+  hasUnsavedProjectEdits?: boolean;
+  requestReplacementConfirmation: (kind: ReplacementKind) => Promise<boolean>;
+  onProjectOpened?: () => void;
+  onProjectSaved?: (project: ProjectState) => void;
+  onRecordingStarted?: () => void;
   selectedPreset: ExportPreset | undefined;
   recentsLimit: number;
   settingsForm: SettingsFormApi;
@@ -143,6 +157,7 @@ export function isSelectedWindowUnavailableError(error: unknown): boolean {
 export function useStudioMutations({
   queryClient,
   ui,
+  locale = "en-US",
   mapActionErrorMessage,
   setNotice,
   setTimelinePlayback,
@@ -154,6 +169,11 @@ export function useStudioMutations({
   inputMonitoringDenied,
   recordingURL,
   timelineDocument,
+  hasUnsavedProjectEdits = false,
+  requestReplacementConfirmation,
+  onProjectOpened,
+  onProjectSaved,
+  onRecordingStarted,
   selectedPreset,
   recentsLimit,
   settingsForm,
@@ -167,6 +187,26 @@ export function useStudioMutations({
   projectRecentsQuery,
   eventsQuery,
 }: UseStudioActionsOptions) {
+  const confirmReplacement = useCallback(
+    async (kind: ReplacementKind) => {
+      if (queryClient.isMutating() > 1) {
+        return false;
+      }
+      const existingWork = Boolean(recordingURL || projectQuery.data?.projectPath);
+      if (!hasUnsavedProjectEdits || (kind === "recording" && !existingWork)) {
+        return true;
+      }
+      return await requestReplacementConfirmation(kind);
+    },
+    [
+      hasUnsavedProjectEdits,
+      recordingURL,
+      projectQuery.data?.projectPath,
+      queryClient,
+      requestReplacementConfirmation,
+    ],
+  );
+
   const reconcileSourcesAndSelection = useCallback(
     (
       nextSources: SourcesResult,
@@ -430,96 +470,159 @@ export function useStudioMutations({
     },
   });
 
+  const recordingTransitionActive = useRef(false);
   const toggleRecordingMutation = useMutation({
     mutationFn: async (options?: ToggleRecordingOptions) => {
-      let status = captureStatusQuery.data;
-      if (!status?.isRunning) {
-        status = await startCaptureInternal({
-          captureSourceOverride: options?.captureSourceOverride,
-          preferWindowPicker:
-            options?.preferWindowPicker ??
-            (settingsForm.getValues().captureSource === "window" && selectedWindowId === 0),
-          preferCurrentWindow: options?.preferCurrentWindow,
-        });
+      if (recordingTransitionActive.current) {
+        return null;
       }
-
-      if (status?.isRecording) {
-        const recordingStopStatus = await engineApi.stopRecording();
-        const stoppedStatus = mergeFinishedCaptureStatus(
-          await engineApi.stopCapture(),
-          recordingStopStatus,
-        );
-        return {
-          nextStatus: stoppedStatus,
-          recordingStopStatus,
-          finished: true,
+      recordingTransitionActive.current = true;
+      try {
+        let status = captureStatusQuery.data;
+        if (!status?.isRecording && !(await confirmReplacement("recording"))) {
+          recordingTransitionActive.current = false;
+          return null;
+        }
+        const visualSettings = {
+          autoZoom: settingsForm.getValues().autoZoom,
+          backgroundFraming: settingsForm.getValues().backgroundFraming,
         };
-      }
-
-      const recordingStatus = await engineApi.startRecording(
-        settingsForm.getValues().trackInputEvents,
-      );
-      return {
-        nextStatus: recordingStatus,
-        finished: false,
-      };
-    },
-    onSuccess: async ({ nextStatus, recordingStopStatus, finished }) => {
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
-      await syncCaptureStatus({ expectRunning: !finished });
-
-      if (finished) {
-        const refreshedProject = await engineApi.projectCurrent().catch(() => null);
-        const completedRecordingTelemetry = resolveCompletedRecordingTelemetry(
-          recordingStopStatus ?? nextStatus,
-          refreshedProject,
-        );
-        queryClient.setQueryData(
-          studioQueryKeys.projectCurrent(),
-          refreshedProject ??
-            ((current: ProjectState | undefined) => {
-              if (!current) {
-                return current;
-              }
-              return {
-                ...current,
-                recordingURL: nextStatus.recordingURL,
-                eventsURL: nextStatus.eventsURL,
-                captureMetadata: nextStatus.captureMetadata,
-                lastRecordingTelemetry: completedRecordingTelemetry,
-              };
-            }),
-        );
-        setTimelinePlayback(false);
-        clearInspectorSelection();
-        setNotice(
-          completedRecordingTelemetry
-            ? null
-            : { kind: "success", message: ui.notices.recordingFinished },
-        );
-        return;
-      }
-
-      queryClient.setQueryData(
-        studioQueryKeys.projectCurrent(),
-        (current: ProjectState | undefined) => {
-          if (!current) {
-            return current;
+        if (!status?.isRecording) {
+          // Preview configuration is immutable in the native engine. Record
+          // must acquire the requested source/audio setup, including header
+          // shortcuts that choose another source while preview is running.
+          if (status?.isRunning) {
+            status = await engineApi.stopCapture();
+            queryClient.setQueryData(studioQueryKeys.captureStatus(), status);
+          }
+          status = await startCaptureInternal({
+            captureSourceOverride: options?.captureSourceOverride,
+            preferWindowPicker:
+              options?.preferWindowPicker ??
+              (settingsForm.getValues().captureSource === "window" && selectedWindowId === 0),
+            preferCurrentWindow: options?.preferCurrentWindow,
+          });
+        }
+        if (status?.isRecording) {
+          const recordingStopStatus = await engineApi.stopRecording();
+          // The take is finished even if stopping the live preview fails.
+          queryClient.setQueryData(studioQueryKeys.captureStatus(), recordingStopStatus);
+          let stoppedStatus = recordingStopStatus;
+          let previewStopFailed = false;
+          try {
+            stoppedStatus = mergeFinishedCaptureStatus(
+              await engineApi.stopCapture(),
+              recordingStopStatus,
+            );
+          } catch {
+            previewStopFailed = true;
           }
           return {
-            ...current,
-            lastRecordingTelemetry: null,
+            nextStatus: stoppedStatus,
+            recordingStopStatus,
+            finished: true as const,
+            visualSettings,
+            previewStopFailed,
           };
-        },
-      );
-      exportForm.setTrimStartSeconds(0);
-      exportForm.setTrimEndSeconds(0);
-      resetPlayhead();
-
-      if (settingsForm.getValues().trackInputEvents && inputMonitoringDenied) {
-        setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
-      } else {
-        setNotice({ kind: "success", message: ui.notices.recordingStarted });
+        }
+        const recordingStatus = await engineApi.startRecording(
+          settingsForm.getValues().trackInputEvents,
+        );
+        return { nextStatus: recordingStatus, finished: false as const, visualSettings };
+      } catch (error) {
+        recordingTransitionActive.current = false;
+        throw error;
+      }
+    },
+    onSuccess: async (data) => {
+      if (!data) {
+        return;
+      }
+      try {
+        const { nextStatus, finished, visualSettings } = data;
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), nextStatus);
+        // The successful native result establishes new ownership. Commit it
+        // before any status/project reconciliation can fail or block.
+        if (!finished) {
+          exportMutation.reset();
+          queryClient.setQueryData<ProjectState>(studioQueryKeys.projectCurrent(), {
+            ...(nextStatus.recordingURL ? { recordingURL: nextStatus.recordingURL } : {}),
+            ...(nextStatus.eventsURL ? { eventsURL: nextStatus.eventsURL } : {}),
+            ...(nextStatus.captureMetadata ? { captureMetadata: nextStatus.captureMetadata } : {}),
+            ...visualSettings,
+            timeline: { version: 2, items: [] },
+          });
+          onRecordingStarted?.();
+          clearInspectorSelection();
+          setTimelinePlayback(false);
+          exportForm.setRangeMode("full");
+          exportForm.setTrimStartSeconds(0);
+          exportForm.setTrimEndSeconds(0);
+          resetPlayhead();
+        }
+        const [statusRefresh, projectRefresh] = await Promise.allSettled([
+          syncCaptureStatus({ expectRunning: !finished }),
+          engineApi.projectCurrent(),
+        ]);
+        const refreshedProject =
+          projectRefresh.status === "fulfilled"
+            ? { ...projectRefresh.value, ...visualSettings }
+            : null;
+        if (refreshedProject) {
+          queryClient.setQueryData(studioQueryKeys.projectCurrent(), refreshedProject);
+        }
+        if (finished) {
+          const completedRecordingTelemetry = resolveCompletedRecordingTelemetry(
+            data.recordingStopStatus ?? nextStatus,
+            refreshedProject,
+          );
+          if (!refreshedProject) {
+            queryClient.setQueryData(
+              studioQueryKeys.projectCurrent(),
+              (current: ProjectState | undefined) =>
+                current
+                  ? {
+                      ...current,
+                      ...visualSettings,
+                      recordingURL: nextStatus.recordingURL,
+                      eventsURL: nextStatus.eventsURL,
+                      captureMetadata: nextStatus.captureMetadata,
+                      lastRecordingTelemetry: completedRecordingTelemetry,
+                    }
+                  : current,
+            );
+          }
+          setTimelinePlayback(false);
+          clearInspectorSelection();
+          setNotice(
+            data.previewStopFailed
+              ? {
+                  kind: "info",
+                  message: m.ui_capture_finished_preview_failed(undefined, { locale }),
+                }
+              : statusRefresh.status === "rejected" || projectRefresh.status === "rejected"
+                ? {
+                    kind: "info",
+                    message: m.ui_capture_finished_refresh_failed(undefined, { locale }),
+                  }
+                : completedRecordingTelemetry
+                  ? null
+                  : { kind: "success", message: ui.notices.recordingFinished },
+          );
+          return;
+        }
+        if (statusRefresh.status === "rejected" || projectRefresh.status === "rejected") {
+          setNotice({
+            kind: "info",
+            message: m.ui_capture_started_refresh_failed(undefined, { locale }),
+          });
+        } else if (settingsForm.getValues().trackInputEvents && inputMonitoringDenied) {
+          setNotice({ kind: "info", message: ui.notices.inputTrackingDegraded });
+        } else {
+          setNotice({ kind: "success", message: ui.notices.recordingStarted });
+        }
+      } finally {
+        recordingTransitionActive.current = false;
       }
     },
     onError: (error) => {
@@ -529,12 +632,17 @@ export function useStudioMutations({
 
   const openProjectAtPath = useCallback(async (projectPath: string) => {
     const nextProject = await engineApi.projectOpen(projectPath);
-    const nextStatus = await engineApi.captureStatus();
+    // Project Open already committed. A failed status poll must not hide that
+    // authoritative document or leave the replaced draft attached to it.
+    const nextStatus = await engineApi.captureStatus().catch(() => null);
     return { nextProject, nextStatus };
   }, []);
 
   const openProjectMutation = useMutation({
     mutationFn: async () => {
+      if (!(await confirmReplacement("project"))) {
+        return null;
+      }
       const pickedPath = await pickPathSafely({
         mode: "openProject",
         startingFolder: projectQuery.data?.projectPath ?? undefined,
@@ -548,13 +656,29 @@ export function useStudioMutations({
       if (!data) {
         return;
       }
+      onProjectOpened?.();
+      exportMutation.reset();
+      exportForm.setRangeMode("full");
+      exportForm.setTrimStartSeconds(0);
+      exportForm.setTrimEndSeconds(0);
+      setTimelinePlayback(false);
+      resetPlayhead();
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      if (data.nextStatus) {
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      } else {
+        void queryClient.invalidateQueries({ queryKey: studioQueryKeys.captureStatus() });
+      }
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
       clearInspectorSelection();
-      setNotice({ kind: "success", message: ui.notices.projectOpened });
+      setNotice({
+        kind: data.nextStatus ? "success" : "info",
+        message: data.nextStatus
+          ? ui.notices.projectOpened
+          : m.ui_project_opened_status_unavailable(undefined, { locale }),
+      });
     },
     onError: (error) => {
       setNotice({ kind: "error", message: mapActionErrorMessage(error) });
@@ -562,15 +686,42 @@ export function useStudioMutations({
   });
 
   const openRecentProjectMutation = useMutation({
-    mutationFn: async (projectPath: string) => await openProjectAtPath(projectPath),
+    mutationFn: async (projectPath: string) => {
+      if (!(await confirmReplacement("project"))) {
+        return null;
+      }
+      // Recent metadata is not filesystem authority. A native picker must grant
+      // the package again in this host session before opening it.
+      const selected = await pickPathSafely({ mode: "openProject", startingFolder: projectPath });
+      return selected ? await openProjectAtPath(selected) : null;
+    },
     onSuccess: (data) => {
+      if (!data) {
+        return;
+      }
+      onProjectOpened?.();
+      exportMutation.reset();
+      exportForm.setRangeMode("full");
+      exportForm.setTrimStartSeconds(0);
+      exportForm.setTrimEndSeconds(0);
+      setTimelinePlayback(false);
+      resetPlayhead();
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), data.nextProject);
-      queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      if (data.nextStatus) {
+        queryClient.setQueryData(studioQueryKeys.captureStatus(), data.nextStatus);
+      } else {
+        void queryClient.invalidateQueries({ queryKey: studioQueryKeys.captureStatus() });
+      }
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
       });
       clearInspectorSelection();
-      setNotice({ kind: "success", message: ui.notices.projectOpened });
+      setNotice({
+        kind: data.nextStatus ? "success" : "info",
+        message: data.nextStatus
+          ? ui.notices.projectOpened
+          : m.ui_project_opened_status_unavailable(undefined, { locale }),
+      });
     },
     onError: (error) => {
       setNotice({ kind: "error", message: mapActionErrorMessage(error) });
@@ -579,6 +730,9 @@ export function useStudioMutations({
 
   const saveProjectMutation = useMutation({
     mutationFn: async (saveAs: boolean) => {
+      if (recordingURL && timelineDocument.items.length === 0) {
+        throw new Error(m.ui_safety_empty_save(undefined, { locale }));
+      }
       let projectPath: string | undefined = projectQuery.data?.projectPath ?? undefined;
       if (saveAs || !projectPath) {
         const pickedPath = await pickPathSafely({
@@ -606,6 +760,7 @@ export function useStudioMutations({
       if (!nextProject) {
         return;
       }
+      onProjectSaved?.(nextProject);
       queryClient.setQueryData(studioQueryKeys.projectCurrent(), nextProject);
       void queryClient.invalidateQueries({
         queryKey: studioQueryKeys.projectRecents(recentsLimit),
@@ -629,6 +784,22 @@ export function useStudioMutations({
         throw new StudioActionError({ reason: "export_missing_preset" });
       }
 
+      const values = exportForm.getValues();
+      const duration = timelineDurationSeconds(compileTimelineItems(timelineDocument));
+      const trimStart = values.rangeMode === "selected" ? values.trimStartSeconds : undefined;
+      const trimEnd = values.rangeMode === "selected" ? values.trimEndSeconds : undefined;
+      if (
+        duration <= 0 ||
+        (values.rangeMode === "selected" &&
+          (!Number.isFinite(values.trimStartSeconds) ||
+            !Number.isFinite(values.trimEndSeconds) ||
+            values.trimStartSeconds < 0 ||
+            values.trimEndSeconds <= values.trimStartSeconds ||
+            values.trimEndSeconds > duration))
+      ) {
+        throw new ExportRangeError(m.ui_workflow_invalid_range(undefined, { locale }));
+      }
+
       const targetDirectory = await pickPathSafely({
         mode: "export",
         startingFolder: projectQuery.data?.projectPath ?? undefined,
@@ -639,20 +810,9 @@ export function useStudioMutations({
 
       const extension = selectedPreset.fileType;
       const safeFileName =
-        exportForm.getValues().fileName.trim().length > 0
-          ? exportForm.getValues().fileName.trim()
-          : "guerillaglass-export";
+        values.fileName.trim().length > 0 ? values.fileName.trim() : "guerillaglass-export";
 
       const outputURL = `${targetDirectory.replace(/[\\/]$/, "")}/${safeFileName}.${extension}`;
-      const trimStart =
-        exportForm.getValues().trimStartSeconds > 0
-          ? exportForm.getValues().trimStartSeconds
-          : undefined;
-      const trimEnd =
-        exportForm.getValues().trimEndSeconds > 0
-          ? exportForm.getValues().trimEndSeconds
-          : undefined;
-
       const result = await engineApi.runExport({
         outputURL,
         presetId: selectedPreset.id,
@@ -668,10 +828,24 @@ export function useStudioMutations({
       if (!result) {
         return;
       }
-      setNotice({ kind: "success", message: ui.notices.exportComplete(result.outputURL) });
+      setNotice({
+        kind:
+          result.status === "failed" ? "error" : result.status === "succeeded" ? "success" : "info",
+        message:
+          result.status === "succeeded"
+            ? m.ui_io_export_complete(undefined, { locale })
+            : result.status === "failed"
+              ? m.ui_io_export_failed(undefined, { locale })
+              : result.status === "queued"
+                ? m.ui_io_export_queued(undefined, { locale })
+                : m.ui_io_export_running(undefined, { locale }),
+      });
     },
     onError: (error) => {
-      setNotice({ kind: "error", message: mapActionErrorMessage(error) });
+      setNotice({
+        kind: "error",
+        message: error instanceof ExportRangeError ? error.message : mapActionErrorMessage(error),
+      });
     },
   });
 

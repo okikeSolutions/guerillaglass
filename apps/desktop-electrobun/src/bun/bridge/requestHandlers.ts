@@ -16,6 +16,8 @@ import {
 } from "../app/AppMetrics";
 import { redactBridgeErrorForRendererEffect } from "../security/BridgeErrorRedaction";
 import { HostBridgeService } from "./HostBridgeService";
+import { BridgeUnavailableError } from "../../shared/errors/desktopErrors";
+import { serializeBridgeError } from "../../shared/errors/desktopErrorSerialization";
 
 type BridgeHandlerDependencies = {
   runtime: DesktopAppRuntime;
@@ -87,6 +89,7 @@ export function createEngineBridgeHandlers({
     ggGrantReviewMutationCapability: createHandler("ggGrantReviewMutationCapability"),
     ggReviewCreateComment: createHandler("ggReviewCreateComment"),
     ggReviewSetWorkflowStatus: createHandler("ggReviewSetWorkflowStatus"),
+    ggOpenExportResult: createHandler("ggOpenExportResult"),
     ggPickPath: createHandler("ggPickPath"),
     ggReadTextFile: createHandler("ggReadTextFile"),
     ggGrantMediaSourceCapability: createHandler("ggGrantMediaSourceCapability"),
@@ -98,31 +101,43 @@ export function createEngineBridgeHandlers({
     return async (
       params: BridgeRequests[K]["params"],
     ): Promise<BridgeResponseEnvelope<BridgeRequests[K]["response"]>> => {
-      const response = await handlers[name](params);
-      if (response.ok) {
-        return response;
+      try {
+        const response = await handlers[name](params);
+        if (response.ok) {
+          return response;
+        }
+        await run(
+          Effect.all(
+            [
+              Metric.update(
+                Metric.withAttributes(desktopBridgeRequestFailuresTotal, { request: name }),
+                1,
+              ),
+              Effect.logError("desktop bridge request failed").pipe(
+                Effect.annotateLogs({
+                  bridgeErrorData: response.error.data ?? null,
+                  bridgeErrorMessage: response.error.message ?? null,
+                  bridgeErrorTag: response.error.tag,
+                  bridgeRequest: name,
+                  component: "desktop-bridge",
+                }),
+              ),
+            ],
+            { discard: true },
+          ),
+        );
+        return {
+          ...response,
+          error: await run(redactBridgeErrorForRendererEffect(response.error)),
+        };
+      } catch {
+        // Runtime disposal can interrupt a request before its error instrumentation
+        // runs. Keep the RPC envelope safe without invoking that closed runtime.
+        return {
+          ok: false,
+          error: serializeBridgeError(new BridgeUnavailableError({ bridge: name })),
+        };
       }
-      await run(
-        Effect.all(
-          [
-            Metric.update(
-              Metric.withAttributes(desktopBridgeRequestFailuresTotal, { request: name }),
-              1,
-            ),
-            Effect.logError("desktop bridge request failed").pipe(
-              Effect.annotateLogs({
-                bridgeErrorData: response.error.data ?? null,
-                bridgeErrorMessage: response.error.message ?? null,
-                bridgeErrorTag: response.error.tag,
-                bridgeRequest: name,
-                component: "desktop-bridge",
-              }),
-            ),
-          ],
-          { discard: true },
-        ),
-      );
-      return { ...response, error: await run(redactBridgeErrorForRendererEffect(response.error)) };
     };
   }
   return {
@@ -163,6 +178,7 @@ export function createEngineBridgeHandlers({
     ggGrantReviewMutationCapability: instrument("ggGrantReviewMutationCapability"),
     ggReviewCreateComment: instrument("ggReviewCreateComment"),
     ggReviewSetWorkflowStatus: instrument("ggReviewSetWorkflowStatus"),
+    ggOpenExportResult: instrument("ggOpenExportResult"),
     ggPickPath: instrument("ggPickPath"),
     ggReadTextFile: instrument("ggReadTextFile"),
     ggGrantMediaSourceCapability: instrument("ggGrantMediaSourceCapability"),

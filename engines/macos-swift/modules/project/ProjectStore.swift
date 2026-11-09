@@ -102,6 +102,29 @@ public final class ProjectStore {
         project.url.appendingPathComponent(project.document.recordingFileName)
     }
 
+    /// Legacy metadata-only packages reserve recording.mov without creating it.
+    /// Missing media in a project with recorded content must still fail Save.
+    public func resolveRecordingAssetForSave(for project: SavedProject, saving document: ProjectDocument) throws -> URL? {
+        let recordingURL = resolveRecordingURL(for: project)
+        try rejectSymlinkComponents(in: recordingURL)
+        if fileManager.fileExists(atPath: recordingURL.path) {
+            return recordingURL
+        }
+        for candidate in [project.document, document] {
+            guard candidate.recordingFileName == ProjectFile.recordingMov,
+                  candidate.project.timeline.items.isEmpty,
+                  candidate.project.captureMetadata == nil,
+                  candidate.project.lastRecordingTelemetry == nil,
+                  candidate.systemAudioFileName == nil,
+                  candidate.micAudioFileName == nil,
+                  candidate.eventsFileName == nil
+            else {
+                throw StoreError.invalidRecordingURL
+            }
+        }
+        return nil
+    }
+
     public func resolveSystemAudioURL(for project: SavedProject) -> URL? {
         guard let fileName = project.document.systemAudioFileName else { return nil }
         return project.url.appendingPathComponent(fileName)
@@ -142,9 +165,19 @@ public final class ProjectStore {
         assets: ProjectAssetURLs,
         to directoryURL: URL
     ) throws -> ProjectDocument {
-        try createDirectoryNoSymlink(at: directoryURL)
-
         var writtenDocument = try validatedDocument(document)
+        // Discover missing declared sources before replacing any destination
+        // media. In particular, failed Save As must preserve an existing target.
+        for sourceURL in [assets.recordingURL, assets.systemAudioURL, assets.micAudioURL, assets.eventsURL].compactMap({ $0 }) {
+            try rejectSymlinkComponents(in: sourceURL)
+            guard fileManager.fileExists(atPath: sourceURL.path) else {
+                if sourceURL == assets.recordingURL {
+                    throw StoreError.invalidRecordingURL
+                }
+                throw CocoaError(.fileNoSuchFile)
+            }
+        }
+        try createDirectoryNoSymlink(at: directoryURL)
 
         if let recordingURL = assets.recordingURL {
             guard fileManager.fileExists(atPath: recordingURL.path) else {
@@ -212,6 +245,13 @@ public final class ProjectStore {
     private func copyItemReplacingIfNeeded(from sourceURL: URL, to destinationURL: URL) throws {
         try rejectSymlinkComponents(in: sourceURL)
         try rejectSymlinkComponents(in: destinationURL)
+        // Saving an opened package in place must not delete its own source.
+        if sourceURL.standardizedFileURL == destinationURL.standardizedFileURL {
+            guard fileManager.fileExists(atPath: sourceURL.path) else {
+                throw CocoaError(.fileNoSuchFile)
+            }
+            return
+        }
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }

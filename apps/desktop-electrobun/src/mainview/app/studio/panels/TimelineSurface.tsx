@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,7 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { useThrottler } from "@tanstack/react-pacer";
-import { AudioLines, Headphones, Lock, Video, VolumeX } from "lucide-react";
+import { AudioLines, Camera, Lock, Video } from "lucide-react";
 import { Button } from "@guerillaglass/ui/components/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@guerillaglass/ui/components/tooltip";
 import type {
@@ -19,6 +20,7 @@ import type {
   TimelineWaveform,
 } from "../domain/timelineDomainModel";
 import { clampSeconds, pixelsToSeconds } from "../domain/timelineDomainModel";
+import { useTimelineThumbnails } from "../hooks/timeline/useTimelineThumbnails";
 import { studioToggleToneClass, type StudioSemanticState } from "../view-model/studioSemanticTone";
 
 type TimelineSurfaceLabels = {
@@ -30,8 +32,11 @@ type TimelineSurfaceLabels = {
   timelineRipple: string;
   timelineZoom: string;
   timelineLaneLock: string;
-  timelineLaneMute: string;
-  timelineLaneSolo: string;
+  timelineScene?: (index: number) => string;
+  timelineCameraKeys?: (count: number) => string;
+  timelineThumbnailUnavailable?: string;
+  timelineGap?: string;
+  timelineSourceRange?: (start: number, end: number) => string;
   timelineMarkerMove: string;
   timelineMarkerClick: string;
   timelineMarkerMixed: string;
@@ -56,6 +61,9 @@ type MoveTimelineClipDropParams =
   | { clipId: string; destinationGapId: string; destinationOffsetSeconds: number };
 
 type TimelineSurfaceProps = {
+  audioStatusText?: string;
+  audioScopeText?: string;
+  mediaSource?: string | null;
   durationSeconds: number;
   playheadSeconds: number;
   trimEnabled?: boolean;
@@ -73,8 +81,6 @@ type TimelineSurfaceProps = {
   onSetTrimEndSeconds?: (seconds: number) => void;
   onNudgePlayheadSeconds: (deltaSeconds: number) => void;
   onToggleLaneLocked: (laneId: "video" | "audio") => void;
-  onToggleLaneMuted: (laneId: "video" | "audio") => void;
-  onToggleLaneSolo: (laneId: "video" | "audio") => void;
   onClearSelection: () => void;
   onBladeClipAtSeconds?: (seconds: number) => void;
   onMoveClipDrop?: (params: MoveTimelineClipDropParams) => void;
@@ -115,6 +121,10 @@ type TimelineClipDropTarget =
 type TrimDragMode = Exclude<DragMode, "playhead">;
 
 type TimelineLanesLayerProps = {
+  readPlayheadSeconds: () => number;
+  audioStatusText?: string;
+  audioScopeText?: string;
+  thumbnails: ReadonlyMap<string, string>;
   durationSeconds: number;
   lanes: TimelineLane[];
   laneControls: TimelineLaneControls;
@@ -122,8 +132,6 @@ type TimelineLanesLayerProps = {
   selectedClip: TimelineSelectedClip;
   selectedMarkerId: string | null;
   onToggleLaneLocked: (laneId: "video" | "audio") => void;
-  onToggleLaneMuted: (laneId: "video" | "audio") => void;
-  onToggleLaneSolo: (laneId: "video" | "audio") => void;
   onClearSelection: () => void;
   onSelectClip: (params: {
     laneId: "video" | "audio";
@@ -183,7 +191,7 @@ type TrimHandleProps = {
 };
 
 type LaneControlDefinition = {
-  id: keyof TimelineLaneControls["video"];
+  id: "locked";
   Icon: ComponentType;
   toneWhenActive: StudioSemanticState;
   readLabel: (labels: TimelineSurfaceLabels) => string;
@@ -195,18 +203,6 @@ const laneControlDefinitions: LaneControlDefinition[] = [
     Icon: Lock,
     toneWhenActive: "selected",
     readLabel: (labels) => labels.timelineLaneLock,
-  },
-  {
-    id: "muted",
-    Icon: VolumeX,
-    toneWhenActive: "selectedAlt",
-    readLabel: (labels) => labels.timelineLaneMute,
-  },
-  {
-    id: "solo",
-    Icon: Headphones,
-    toneWhenActive: "selected",
-    readLabel: (labels) => labels.timelineLaneSolo,
   },
 ];
 
@@ -228,9 +224,6 @@ function getLaneTrackClass(laneId: TimelineLane["id"], laneControls: TimelineLan
   if (laneId === "video" || laneId === "audio") {
     if (laneControls[laneId].locked) {
       return `${baseClass} gg-timeline-lane-track-locked`;
-    }
-    if (laneControls[laneId].muted) {
-      return `${baseClass} gg-timeline-lane-track-muted`;
     }
   }
   return baseClass;
@@ -748,7 +741,14 @@ function TimelineOverlay({
   lanes,
 }: TimelineOverlayProps) {
   return (
-    <div ref={trackOverlayRef} className="gg-timeline-track-overlay">
+    <div
+      ref={trackOverlayRef}
+      className="gg-timeline-track-overlay"
+      style={{
+        left: "calc(var(--gg-timeline-lane-label-width) + var(--gg-timeline-lane-column-gap) + 0.5rem)",
+        right: "0.5rem",
+      }}
+    >
       <TimelineClipDropAffordance
         durationSeconds={durationSeconds}
         isDragging={isClipDragging}
@@ -793,6 +793,10 @@ function TimelineOverlay({
 }
 
 const TimelineLanesLayer = memo(function TimelineLanesLayer({
+  readPlayheadSeconds,
+  audioStatusText,
+  audioScopeText,
+  thumbnails,
   durationSeconds,
   lanes,
   laneControls,
@@ -800,8 +804,6 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
   selectedClip,
   selectedMarkerId,
   onToggleLaneLocked,
-  onToggleLaneMuted,
-  onToggleLaneSolo,
   onClearSelection,
   onSelectClip,
   onSelectMarker,
@@ -810,24 +812,36 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
   shouldSuppressClipClick,
   timelineTool,
 }: TimelineLanesLayerProps) {
+  const sceneNumbers = useMemo(() => {
+    const result = new Map<string, number>();
+    const clips = lanes.find((lane) => lane.id === "video")?.clips ?? [];
+    let scene = 0;
+    for (const clip of clips) {
+      if (clip.semantic !== "gap") {
+        result.set(clip.id, ++scene);
+      }
+    }
+    return result;
+  }, [lanes]);
   return (
     <div className="gg-timeline-lanes">
       {lanes.map((lane) => (
         <div key={lane.id} className="gg-timeline-lane-row">
           <div className="gg-timeline-lane-label-group">
-            <div className="gg-timeline-lane-label">{lane.label}</div>
+            <div
+              className="gg-timeline-lane-label"
+              title={lane.id === "audio" ? audioScopeText : undefined}
+            >
+              {lane.label}
+              {lane.id === "audio" ? <span className="sr-only">{audioScopeText}</span> : null}
+            </div>
             {lane.id === "video" || lane.id === "audio" ? (
               <div className="gg-timeline-lane-controls">
                 {laneControlDefinitions.map((definition) => {
-                  const label = definition.readLabel(labels);
+                  const label = `${lane.label}: ${definition.readLabel(labels)}`;
                   const isActive = laneControls[lane.id][definition.id];
                   const tone = isActive ? definition.toneWhenActive : "neutral";
-                  const onClick =
-                    definition.id === "locked"
-                      ? () => onToggleLaneLocked(lane.id)
-                      : definition.id === "muted"
-                        ? () => onToggleLaneMuted(lane.id)
-                        : () => onToggleLaneSolo(lane.id);
+                  const onClick = () => onToggleLaneLocked(lane.id);
 
                   return (
                     <Tooltip key={`${lane.id}-${definition.id}`}>
@@ -856,6 +870,14 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
             ) : null}
           </div>
           <div className={`gg-timeline-lane-track${getLaneTrackClass(lane.id, laneControls)}`}>
+            {lane.id === "audio" && lane.clips.length === 0 ? (
+              <div
+                className="flex h-full items-center px-3 text-xs text-muted-foreground"
+                role="status"
+              >
+                {audioStatusText}
+              </div>
+            ) : null}
             {lane.id === "video" || lane.id === "audio"
               ? lane.clips.map((clip) => {
                   const left = toPercent(clip.startSeconds, durationSeconds);
@@ -879,12 +901,48 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                       variant="ghost"
                       size="sm"
                       data-timeline-selectable="true"
-                      className={`gg-timeline-clip gg-timeline-entity-button gg-timeline-clip-${lane.id} gg-timeline-clip-semantic-${clip.semantic}${isSelected ? " gg-timeline-clip-selected" : ""}`}
-                      style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
+                      className={`gg-timeline-clip h-auto transition-none gg-timeline-entity-button gg-timeline-clip-${lane.id} gg-timeline-clip-semantic-${clip.semantic}${isSelected ? " gg-timeline-clip-selected" : ""}`}
+                      style={{
+                        left: `${left}%`,
+                        width: `${Math.max(width, 0)}%`,
+                        overflow: "hidden",
+                        containerType: "inline-size",
+                      }}
                       aria-label={
                         clip.semantic === "gap"
                           ? labels.timelineGapAria(lane.label, clip.startSeconds, clip.endSeconds)
-                          : labels.timelineClipAria(lane.label, clip.startSeconds, clip.endSeconds)
+                          : [
+                              labels.timelineClipAria(
+                                lane.label,
+                                clip.startSeconds,
+                                clip.endSeconds,
+                              ),
+                              labels.timelineSourceRange?.(
+                                clip.sourceStartSeconds,
+                                clip.sourceEndSeconds,
+                              ),
+                              clip.hasCameraOverride
+                                ? labels.timelineCameraKeys?.(clip.cameraKeyCount ?? 0)
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(". ")
+                      }
+                      title={
+                        clip.semantic === "gap"
+                          ? labels.timelineGap
+                          : [
+                              clip.id,
+                              labels.timelineSourceRange?.(
+                                clip.sourceStartSeconds,
+                                clip.sourceEndSeconds,
+                              ),
+                              clip.hasCameraOverride
+                                ? labels.timelineCameraKeys?.(clip.cameraKeyCount ?? 0)
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
                       }
                       aria-pressed={isSelected}
                       disabled={laneLocked}
@@ -910,6 +968,10 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                           return;
                         }
                         if (timelineTool === "blade" && onBladeClipAtSeconds) {
+                          if (event.detail === 0) {
+                            onBladeClipAtSeconds(readPlayheadSeconds());
+                            return;
+                          }
                           const rect = event.currentTarget.getBoundingClientRect();
                           const pointerRatio =
                             rect.width > 0
@@ -930,18 +992,76 @@ const TimelineLanesLayer = memo(function TimelineLanesLayer({
                         });
                       }}
                     >
-                      <div className="gg-timeline-clip-content">
+                      <div
+                        className="gg-timeline-clip-content"
+                        style={{
+                          paddingLeft:
+                            lane.id === "video" && clip.semantic !== "gap"
+                              ? "calc(min(48px, 35%) + 8px)"
+                              : undefined,
+                        }}
+                      >
+                        {lane.id === "video" && clip.semantic !== "gap" ? (
+                          thumbnails.get(clip.id) ? (
+                            <img
+                              src={thumbnails.get(clip.id)}
+                              alt=""
+                              draggable={false}
+                              className="pointer-events-none absolute inset-y-0 left-0 h-full w-12 max-w-[35%] rounded-l-md object-cover"
+                            />
+                          ) : (
+                            <span
+                              className="pointer-events-none absolute inset-y-0 left-0 flex w-12 max-w-[35%] items-center justify-center"
+                              title={labels.timelineThumbnailUnavailable}
+                            >
+                              <Video aria-hidden="true" className="h-4 w-4 opacity-50" />
+                              <span className="sr-only">{labels.timelineThumbnailUnavailable}</span>
+                            </span>
+                          )
+                        ) : null}
                         <div className="gg-timeline-clip-header">
                           <span
                             className={`gg-timeline-clip-semantic gg-timeline-clip-semantic-${lane.id}`}
                           >
                             {lane.id === "video" ? <Video /> : <AudioLines />}
-                            <span>{lane.label}</span>
+                            <span>
+                              {clip.semantic === "gap"
+                                ? (labels.timelineGap ??
+                                  labels.timelineGapAria(
+                                    lane.label,
+                                    clip.startSeconds,
+                                    clip.endSeconds,
+                                  ))
+                                : (labels.timelineScene?.(sceneNumbers.get(clip.id) ?? 1) ??
+                                  `${lane.label} ${sceneNumbers.get(clip.id) ?? 1}`)}
+                            </span>
                           </span>
                           <span className="gg-timeline-clip-duration gg-numeric">
+                            {lane.id === "video" && clip.hasCameraOverride ? (
+                              <span
+                                className="inline-flex items-center gap-0.5"
+                                title={labels.timelineCameraKeys?.(clip.cameraKeyCount ?? 0)}
+                              >
+                                <Camera aria-hidden="true" className="h-3 w-3" />
+                                <span>{clip.cameraKeyCount}</span>
+                                <span className="sr-only">
+                                  {labels.timelineCameraKeys?.(clip.cameraKeyCount ?? 0)}
+                                </span>
+                              </span>
+                            ) : null}
                             {clipDuration.toFixed(2)}
                           </span>
                         </div>
+                        {clip.semantic !== "gap" &&
+                        (lane.id !== "audio" || waveformBars.length === 0) ? (
+                          <div className="truncate text-xs tabular-nums" title={clip.id}>
+                            {labels.timelineSourceRange?.(
+                              clip.sourceStartSeconds,
+                              clip.sourceEndSeconds,
+                            ) ??
+                              `${clip.sourceStartSeconds.toFixed(2)} → ${clip.sourceEndSeconds.toFixed(2)}`}
+                          </div>
+                        ) : null}
                         {lane.id === "audio" && waveformBars.length > 0 ? (
                           <div className="gg-timeline-waveform" aria-hidden>
                             {waveformBars.map((bar, index) => (
@@ -1043,12 +1163,15 @@ function TimelineClipDropAffordance({
     <div
       className="gg-timeline-drop-gap"
       data-testid="timeline-drop-gap"
-      style={{ left: `${left}%`, width: `${Math.max(width, 0)}%` }}
+      style={{ left: `${left}%`, width: `${Math.max(width, 0)}%`, overflow: "hidden" }}
     />
   );
 }
 
 export function TimelineSurface({
+  audioStatusText,
+  audioScopeText,
+  mediaSource = null,
   durationSeconds,
   playheadSeconds,
   trimEnabled = false,
@@ -1066,8 +1189,6 @@ export function TimelineSurface({
   onSetTrimEndSeconds,
   onNudgePlayheadSeconds,
   onToggleLaneLocked,
-  onToggleLaneMuted,
-  onToggleLaneSolo,
   onClearSelection,
   onBladeClipAtSeconds,
   onMoveClipDrop,
@@ -1076,6 +1197,13 @@ export function TimelineSurface({
   onSelectClip,
   onSelectMarker,
 }: TimelineSurfaceProps) {
+  const playheadSecondsRef = useRef(playheadSeconds);
+  useEffect(() => {
+    playheadSecondsRef.current = playheadSeconds;
+  }, [playheadSeconds]);
+  const readPlayheadSeconds = useCallback(() => playheadSecondsRef.current, []);
+  const videoClips = useMemo(() => lanes.find((lane) => lane.id === "video")?.clips ?? [], [lanes]);
+  const thumbnails = useTimelineThumbnails(mediaSource, videoClips);
   const trackOverlayRef = useRef<HTMLDivElement | null>(null);
   const {
     onSurfacePointerCancel,
@@ -1101,8 +1229,7 @@ export function TimelineSurface({
   });
 
   const effectiveTrimStart = trimEnabled ? (trimStartSeconds ?? 0) : 0;
-  const effectiveTrimEnd =
-    trimEnabled && trimEndSeconds != null && trimEndSeconds > 0 ? trimEndSeconds : durationSeconds;
+  const effectiveTrimEnd = trimEnabled && trimEndSeconds != null ? trimEndSeconds : durationSeconds;
   const clampedTrimStart = clampSeconds(effectiveTrimStart, 0, durationSeconds);
   const clampedTrimEnd = clampSeconds(effectiveTrimEnd, clampedTrimStart, durationSeconds);
 
@@ -1114,83 +1241,106 @@ export function TimelineSurface({
 
   return (
     <div className="gg-timeline-wrapper">
-      <div className="gg-timeline-ruler" aria-hidden>
-        {rulerTicks.map((tick) => (
+      <div className="gg-timeline-scroll" style={{ scrollbarWidth: "auto" }}>
+        <div style={{ minWidth: `${Math.max(100, zoomPercent)}%` }}>
           <div
-            key={tick.id}
-            className={`gg-timeline-ruler-tick${
-              tick.isMajor ? " gg-timeline-ruler-tick-major" : " gg-timeline-ruler-tick-minor"
-            }`}
-            style={{ left: `${tick.percent}%` }}
+            className="gg-timeline-ruler"
+            style={{
+              marginLeft:
+                "calc(var(--gg-timeline-lane-label-width) + var(--gg-timeline-lane-column-gap) + 0.5rem + 1px)",
+              marginRight: "calc(0.5rem + 1px)",
+              padding: 0,
+              border: 0,
+            }}
+            aria-hidden
           >
-            <span>{tick.seconds.toFixed(1)}</span>
+            {rulerTicks.map((tick) => (
+              <div
+                key={tick.id}
+                className={`gg-timeline-ruler-tick${
+                  tick.isMajor ? " gg-timeline-ruler-tick-major" : " gg-timeline-ruler-tick-minor"
+                }`}
+                style={{ left: `${tick.percent}%` }}
+              >
+                <span
+                  style={{
+                    transform:
+                      tick.percent === 0
+                        ? "none"
+                        : tick.percent === 100
+                          ? "translateX(-100%)"
+                          : undefined,
+                  }}
+                >
+                  {tick.seconds.toFixed(1)}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div className="gg-timeline-scroll">
-        <div
-          className={`gg-timeline-surface gg-timeline-tool-${timelineTool}${
-            isClipDragging && clipDropTarget.kind === "none" ? " gg-timeline-drop-invalid" : ""
-          }`}
-          style={{ minWidth: `${Math.max(100, zoomPercent)}%` }}
-          tabIndex={0}
-          role="group"
-          aria-label={labels.playhead}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowLeft") {
-              event.preventDefault();
-              onNudgePlayheadSeconds(event.shiftKey ? -1 : -0.1);
-            } else if (event.key === "ArrowRight") {
-              event.preventDefault();
-              onNudgePlayheadSeconds(event.shiftKey ? 1 : 0.1);
-            } else if (event.key === "Escape") {
-              event.preventDefault();
-              onClearSelection();
-            }
-          }}
-          onPointerDown={onSurfacePointerDown}
-          onPointerMove={onSurfacePointerMove}
-          onPointerUp={onSurfacePointerUp}
-          onPointerCancel={onSurfacePointerCancel}
-        >
-          <TimelineLanesLayer
-            durationSeconds={durationSeconds}
-            lanes={lanes}
-            laneControls={laneControls}
-            labels={labels}
-            selectedClip={selectedClip}
-            selectedMarkerId={selectedMarkerId}
-            onToggleLaneLocked={onToggleLaneLocked}
-            onToggleLaneMuted={onToggleLaneMuted}
-            onToggleLaneSolo={onToggleLaneSolo}
-            onClearSelection={onClearSelection}
-            onSelectClip={onSelectClip}
-            onSelectMarker={onSelectMarker}
-            onBladeClipAtSeconds={onBladeClipAtSeconds}
-            onClipPointerDown={onClipPointerDown}
-            shouldSuppressClipClick={shouldSuppressClipClick}
-            timelineTool={timelineTool}
-          />
-          <TimelineOverlay
-            trackOverlayRef={trackOverlayRef}
-            labels={labels}
-            timelineSnapEnabled={timelineSnapEnabled}
-            durationSeconds={durationSeconds}
-            playheadSeconds={playheadSeconds}
-            trimEnabled={trimEnabled}
-            trimStartPercent={trimEnabled ? trimStartPercent : undefined}
-            trimEndPercent={trimEnabled ? trimEndPercent : undefined}
-            trimWidthPercent={trimEnabled ? trimWidthPercent : undefined}
-            trimStartSeconds={trimStartSeconds}
-            trimEndSeconds={trimEndSeconds}
-            onSetTrimStartSeconds={onSetTrimStartSeconds}
-            onSetTrimEndSeconds={onSetTrimEndSeconds}
-            onTrimHandlePointerDown={trimEnabled ? onTrimHandlePointerDown : undefined}
-            clipDropTarget={clipDropTarget}
-            isClipDragging={isClipDragging}
-            lanes={lanes}
-          />
+          <div
+            className={`gg-timeline-surface gg-timeline-tool-${timelineTool}${
+              isClipDragging && clipDropTarget.kind === "none" ? " gg-timeline-drop-invalid" : ""
+            }`}
+            tabIndex={0}
+            role="group"
+            aria-label={labels.playhead}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                onNudgePlayheadSeconds(event.shiftKey ? -1 : -0.1);
+              } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                onNudgePlayheadSeconds(event.shiftKey ? 1 : 0.1);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                onClearSelection();
+              }
+            }}
+            onPointerDown={onSurfacePointerDown}
+            onPointerMove={onSurfacePointerMove}
+            onPointerUp={onSurfacePointerUp}
+            onPointerCancel={onSurfacePointerCancel}
+          >
+            <TimelineLanesLayer
+              readPlayheadSeconds={readPlayheadSeconds}
+              audioStatusText={audioStatusText}
+              audioScopeText={audioScopeText}
+              thumbnails={thumbnails}
+              durationSeconds={durationSeconds}
+              lanes={lanes}
+              laneControls={laneControls}
+              labels={labels}
+              selectedClip={selectedClip}
+              selectedMarkerId={selectedMarkerId}
+              onToggleLaneLocked={onToggleLaneLocked}
+              onClearSelection={onClearSelection}
+              onSelectClip={onSelectClip}
+              onSelectMarker={onSelectMarker}
+              onBladeClipAtSeconds={onBladeClipAtSeconds}
+              onClipPointerDown={onClipPointerDown}
+              shouldSuppressClipClick={shouldSuppressClipClick}
+              timelineTool={timelineTool}
+            />
+            <TimelineOverlay
+              trackOverlayRef={trackOverlayRef}
+              labels={labels}
+              timelineSnapEnabled={timelineSnapEnabled}
+              durationSeconds={durationSeconds}
+              playheadSeconds={playheadSeconds}
+              trimEnabled={trimEnabled}
+              trimStartPercent={trimEnabled ? trimStartPercent : undefined}
+              trimEndPercent={trimEnabled ? trimEndPercent : undefined}
+              trimWidthPercent={trimEnabled ? trimWidthPercent : undefined}
+              trimStartSeconds={trimStartSeconds}
+              trimEndSeconds={trimEndSeconds}
+              onSetTrimStartSeconds={onSetTrimStartSeconds}
+              onSetTrimEndSeconds={onSetTrimEndSeconds}
+              onTrimHandlePointerDown={trimEnabled ? onTrimHandlePointerDown : undefined}
+              clipDropTarget={clipDropTarget}
+              isClipDragging={isClipDragging}
+              lanes={lanes}
+            />
+          </div>
         </div>
       </div>
     </div>

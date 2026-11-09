@@ -1,29 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import type { InputEvent } from "@guerillaglass/engine-contract/shared/valueObjects";
 import { desktopApi } from "@lib/engine";
 import { toMediaSourceURL } from "../../domain/mediaSourceUrl";
-import { buildEventWaveform, type TimelineWaveform } from "../../domain/timelineDomainModel";
+import type { TimelineWaveform } from "../../domain/timelineDomainModel";
+import type { SourceAudioPresentation } from "../../domain/sourceAudioPresentation";
 
 type AudioContextConstructor = typeof AudioContext;
 
 type UseTimelineWaveformOptions = {
   recordingURL: string | null;
+  embeddedAudioTrackCount?: number | null;
   recordingDurationSeconds: number;
   timelineEvents: InputEvent[];
 };
 
-const waveformCache = new Map<string, TimelineWaveform>();
-
-const timelineWaveformQueryKey = (recordingURL: string | null) =>
-  ["studio", "timelineWaveform", recordingURL] as const;
+const timelineWaveformQueryKey = (recordingURL: string | null, trackCount: number | null) =>
+  ["studio", "timelineWaveform", recordingURL, trackCount] as const;
 
 function normalizePeaks(peaks: number[]): number[] {
   const ceiling = peaks.reduce((maximum, current) => Math.max(maximum, current), 0);
   if (ceiling <= Number.EPSILON) {
-    return peaks.map(() => 0.05);
+    return peaks.map(() => 0);
   }
-  return peaks.map((peak) => Math.min(Math.max(Math.max(peak / ceiling, 0.05), 0), 1));
+  return peaks.map((peak) => Math.min(Math.max(peak / ceiling, 0), 1));
 }
 
 function getAudioContextConstructor(): AudioContextConstructor | null {
@@ -42,12 +41,11 @@ function buildDecodedWaveform(audioBuffer: AudioBuffer): TimelineWaveform {
     audioBuffer.getChannelData(index),
   );
   const bucketCount = Math.min(Math.max(Math.round(durationSeconds * 90), 500), 2400);
-  const samplesPerBucket = Math.max(1, Math.floor(audioBuffer.length / bucketCount));
   const peaks = Array.from({ length: bucketCount }, () => 0);
 
   for (let bucketIndex = 0; bucketIndex < bucketCount; bucketIndex += 1) {
-    const start = bucketIndex * samplesPerBucket;
-    const end = Math.min(audioBuffer.length, start + samplesPerBucket);
+    const start = Math.floor((bucketIndex * audioBuffer.length) / bucketCount);
+    const end = Math.floor(((bucketIndex + 1) * audioBuffer.length) / bucketCount);
     const span = Math.max(1, end - start);
     const step = Math.max(1, Math.floor(span / 96));
     let peak = 0;
@@ -64,6 +62,18 @@ function buildDecodedWaveform(audioBuffer: AudioBuffer): TimelineWaveform {
     peaks[bucketIndex] = peak;
   }
 
+  // Only label digital silence after checking unsampled PCM too. A short
+  // transient between the bounded peak samples must not become a silence claim.
+  if (!peaks.some((peak) => peak !== 0)) {
+    for (const channel of channels) {
+      const index = channel.findIndex((sample) => sample !== 0);
+      if (index >= 0) {
+        peaks[Math.min(bucketCount - 1, Math.floor((index / audioBuffer.length) * bucketCount))] =
+          Math.abs(channel[index] ?? 0);
+        break;
+      }
+    }
+  }
   const normalizedPeaks = normalizePeaks(peaks);
   return {
     peaks: normalizedPeaks,
@@ -87,14 +97,47 @@ async function decodeWaveform(
     return null;
   }
 
-  const sourceBuffer = await response.arrayBuffer();
-  if (sourceBuffer.byteLength === 0) {
+  const declaredSize = Number(response.headers.get("content-length"));
+  const maximumAudioSourceBytes = 64 * 1024 * 1024;
+  if (declaredSize > maximumAudioSourceBytes) {
+    await response.body?.cancel();
     return null;
+  }
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return null;
+  }
+  const chunks: Uint8Array[] = [];
+  let byteCount = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) {
+        break;
+      }
+      byteCount += chunk.value.byteLength;
+      if (byteCount > maximumAudioSourceBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(chunk.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (byteCount === 0) {
+    return null;
+  }
+  const bytes = new Uint8Array(byteCount);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
   }
 
   const audioContext = new AudioContextCtor();
   try {
-    const decodedBuffer = await audioContext.decodeAudioData(sourceBuffer.slice(0));
+    const decodedBuffer = await audioContext.decodeAudioData(bytes.buffer);
     return buildDecodedWaveform(decodedBuffer);
   } finally {
     void audioContext.close().catch(() => {});
@@ -134,44 +177,45 @@ async function loadDecodedWaveform(
     return null;
   }
 
-  const cachedWaveform = waveformCache.get(mediaSourceURL);
-  if (cachedWaveform) {
-    return cachedWaveform;
-  }
-
-  const waveform = await decodeWaveform(mediaSourceURL, signal);
-  if (waveform) {
-    waveformCache.set(mediaSourceURL, waveform);
-  }
-  return waveform;
+  return await decodeWaveform(mediaSourceURL, signal);
 }
 
 export function useTimelineWaveform({
   recordingURL,
-  recordingDurationSeconds,
-  timelineEvents,
-}: UseTimelineWaveformOptions): TimelineWaveform | null {
-  const decodedWaveformQuery = useQuery<TimelineWaveform | null>({
-    queryKey: timelineWaveformQueryKey(recordingURL),
-    enabled: Boolean(recordingURL),
+  embeddedAudioTrackCount = null,
+}: UseTimelineWaveformOptions): SourceAudioPresentation {
+  const decodedWaveformQuery = useQuery<SourceAudioPresentation>({
+    queryKey: timelineWaveformQueryKey(recordingURL, embeddedAudioTrackCount),
+    enabled: Boolean(recordingURL) && embeddedAudioTrackCount !== 0,
     queryFn: async ({ signal }) => {
       if (!recordingURL) {
-        return null;
+        return { status: "idle", waveform: null };
       }
       try {
-        return await loadDecodedWaveform(recordingURL, signal);
+        const waveform = await loadDecodedWaveform(recordingURL, signal);
+        if (!waveform) {
+          return { status: "unavailable", waveform: null };
+        }
+        return waveform.peaks.every((peak) => peak === 0)
+          ? { status: "silent", waveform: null }
+          : { status: "decoded", waveform };
       } catch {
-        return null;
+        // Decoder rejection does not distinguish missing audio from an unsupported container.
+        return { status: "unavailable", waveform: null };
       }
     },
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });
 
-  return useMemo(() => {
-    if (decodedWaveformQuery.data) {
-      return decodedWaveformQuery.data;
-    }
-    return buildEventWaveform(timelineEvents, recordingDurationSeconds);
-  }, [decodedWaveformQuery.data, recordingDurationSeconds, timelineEvents]);
+  if (!recordingURL) {
+    return { status: "idle", waveform: null };
+  }
+  if (embeddedAudioTrackCount === 0) {
+    return { status: "no-audio", waveform: null };
+  }
+  if (decodedWaveformQuery.isPending) {
+    return { status: "loading", waveform: null };
+  }
+  return decodedWaveformQuery.data ?? { status: "unavailable", waveform: null };
 }

@@ -149,6 +149,12 @@ export function createPlaybackTransportStore({
       if (state.isPlaying) {
         return;
       }
+      if (state.durationSeconds <= 0) {
+        return;
+      }
+      if (state.clockTimeSeconds >= state.durationSeconds - 0.000001) {
+        state.clockTimeSeconds = 0;
+      }
       state.isPlaying = true;
       emitIfChanged();
     },

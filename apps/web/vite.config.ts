@@ -15,7 +15,7 @@ const config = defineConfig({
     paraglideVitePlugin({
       project: path.resolve(rootDirectory, "../../project.inlang"),
       outdir: path.resolve(rootDirectory, "src/paraglide"),
-      strategy: ["localStorage", "baseLocale"],
+      strategy: ["cookie", "preferredLanguage", "baseLocale"],
       emitGitIgnore: false,
     }),
     devtools(),

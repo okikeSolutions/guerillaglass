@@ -71,4 +71,15 @@ describe("playback transport", () => {
 
     unsubscribe();
   });
+
+  test("Play rewinds completed fractional programs atomically and ignores empty programs", () => {
+    const store = createPlaybackTransportStore({ durationSeconds: 0.4 + 0.2, frameRate: 30 });
+    store.seek(0.6);
+    store.play();
+    expect(store.getSnapshot()).toMatchObject({ playheadSeconds: 0, isPlaying: true });
+    store.pause();
+    store.updateConfig({ durationSeconds: 0, frameRate: 30 });
+    store.play();
+    expect(store.getSnapshot().isPlaying).toBe(false);
+  });
 });

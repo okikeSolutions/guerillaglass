@@ -1,9 +1,9 @@
-import { Keyboard, Mic, MousePointer, Sparkles } from "lucide-react";
+import * as m from "../../../../../paraglide/messages.js";
+import { Mic, MousePointer, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { buildCaptureTelemetryPresentation } from "../../view-model/captureTelemetryViewModel";
 import type { StudioController } from "../../hooks/core/useStudioController";
 import {
-  AudioMixerChannel,
   InspectorColorField,
   InspectorDetailRows,
   InspectorNumericField,
@@ -15,13 +15,13 @@ import {
   InspectorToggleField,
   parseCaptureFrameRate,
 } from "./InspectorPrimitives";
-import { ShortcutOverridesSection } from "./ShortcutOverridesSection";
 
 type InspectorModeStudio = Pick<
   StudioController,
   | "audioMixer"
   | "backgroundFramingSupported"
   | "captureStatusQuery"
+  | "isRunningAction"
   | "exportForm"
   | "formatAspectRatio"
   | "formatDecimal"
@@ -33,13 +33,16 @@ type InspectorModeStudio = Pick<
   | "supportedCaptureFrameRates"
   | "toggleAudioMixerMuted"
   | "ui"
+  | "locale"
+  | "timelineItems"
+  | "beginVisualEdit"
+  | "commitVisualEdit"
 >;
 
 type AutoZoomSectionProps = {
   studio: InspectorModeStudio;
   headingIcon?: ReactNode;
   showMinimumKeyframeInterval?: boolean;
-  showAudioMixer?: boolean;
   sliderClassName?: string;
 };
 
@@ -47,13 +50,8 @@ function AutoZoomSection({
   studio,
   headingIcon,
   showMinimumKeyframeInterval = false,
-  showAudioMixer = false,
   sliderClassName,
 }: AutoZoomSectionProps) {
-  // The capture telemetry protocol no longer exposes audio level, so keep the VU meter at zero
-  // until a replacement signal is added.
-  const unavailableVuLevel = 0;
-
   return (
     <studio.settingsForm.Field name="autoZoom">
       {(field) => (
@@ -75,6 +73,8 @@ function AutoZoomSection({
           />
 
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             icon={headingIcon}
             label={studio.ui.labels.autoZoomIntensity(
               Math.round(field.state.value.intensity * 100),
@@ -107,32 +107,6 @@ function AutoZoomSection({
               }
             />
           ) : null}
-
-          {showAudioMixer ? (
-            <div className="space-y-2 pt-1">
-              <p className="gg-utility-label">{studio.ui.labels.audioMixer}</p>
-              <AudioMixerChannel
-                label={studio.ui.labels.masterChannel}
-                value={studio.audioMixer.masterGain}
-                level={unavailableVuLevel}
-                muted={studio.audioMixer.masterMuted}
-                muteLabel={studio.ui.labels.mute}
-                unmuteLabel={studio.ui.labels.unmute}
-                onValueChange={(value) => studio.setAudioMixerGain("master", value)}
-                onToggleMuted={() => studio.toggleAudioMixerMuted("master")}
-              />
-              <AudioMixerChannel
-                label={studio.ui.labels.microphone}
-                value={studio.audioMixer.micGain}
-                level={unavailableVuLevel}
-                muted={studio.audioMixer.micMuted}
-                muteLabel={studio.ui.labels.mute}
-                unmuteLabel={studio.ui.labels.unmute}
-                onValueChange={(value) => studio.setAudioMixerGain("mic", value)}
-                onToggleMuted={() => studio.toggleAudioMixerMuted("mic")}
-              />
-            </div>
-          ) : null}
         </div>
       )}
     </studio.settingsForm.Field>
@@ -158,6 +132,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
             }
           />
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             label={studio.ui.labels.backgroundPadding}
             value={field.state.value.paddingFraction}
             displayValue={`${Math.round(field.state.value.paddingFraction * 100)}%`}
@@ -169,6 +145,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
             }
           />
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             label={studio.ui.labels.cornerRoundness}
             value={field.state.value.cornerRadiusFraction}
             displayValue={`${Math.round(field.state.value.cornerRadiusFraction * 1000) / 10}%`}
@@ -180,6 +158,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
             }
           />
           <InspectorSliderField
+            onValueChangeStart={studio.beginVisualEdit}
+            onValueCommitted={studio.commitVisualEdit}
             label={studio.ui.labels.shadowStrength}
             value={field.state.value.shadowStrength}
             displayValue={`${Math.round(field.state.value.shadowStrength * 100)}%`}
@@ -197,6 +177,8 @@ function BackgroundFramingSection({ studio }: { studio: InspectorModeStudio }) {
 }
 
 export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudio }) {
+  const captureSettingsLocked =
+    Boolean(studio.captureStatusQuery.data?.isRunning) || studio.isRunningAction;
   const captureSource = studio.settingsForm.state.values.captureSource;
   const telemetry = studio.captureStatusQuery.data?.telemetry;
   const telemetryPresentation = buildCaptureTelemetryPresentation(telemetry, {
@@ -206,10 +188,11 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
 
   return (
     <>
-      <InspectorSection title={studio.ui.inspectorTabs.capture.toUpperCase()}>
+      <InspectorSection defaultOpen title={studio.ui.inspectorTabs.capture}>
         <studio.settingsForm.Field name="micEnabled">
           {(field) => (
             <InspectorToggleField
+              disabled={captureSettingsLocked}
               icon={<Mic className="h-4 w-4" />}
               label={studio.ui.labels.includeMic}
               checked={field.state.value}
@@ -221,6 +204,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
         <studio.settingsForm.Field name="trackInputEvents">
           {(field) => (
             <InspectorToggleField
+              disabled={captureSettingsLocked}
               icon={<MousePointer className="h-4 w-4" />}
               label={studio.ui.labels.trackInput}
               checked={field.state.value}
@@ -232,6 +216,7 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
         <studio.settingsForm.Field name="captureFps">
           {(field) => (
             <InspectorSelectField
+              disabled={captureSettingsLocked}
               label={studio.ui.labels.captureFrameRate}
               value={String(field.state.value)}
               options={studio.supportedCaptureFrameRates.map((fps) => ({
@@ -248,8 +233,10 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
           )}
         </studio.settingsForm.Field>
 
-        <div className="space-y-1 px-0.5">
-          <p className="gg-utility-label">{studio.ui.labels.sourceMonitor}</p>
+        <details className="space-y-2 px-0.5">
+          <summary className="gg-utility-label">
+            {m.ui_workflow_diagnostics(undefined, { locale: studio.locale })}
+          </summary>
           <InspectorDetailRows
             rows={[
               {
@@ -297,34 +284,16 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
               },
             ]}
           />
-        </div>
+        </details>
       </InspectorSection>
 
-      <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
+      <InspectorSection defaultOpen title={studio.ui.inspectorTabs.effects}>
         <AutoZoomSection
           studio={studio}
           showMinimumKeyframeInterval
-          showAudioMixer
           sliderClassName="gg-inspector-slider"
         />
         {studio.backgroundFramingSupported ? <BackgroundFramingSection studio={studio} /> : null}
-      </InspectorSection>
-
-      <InspectorSection title={studio.ui.inspectorTabs.advanced.toUpperCase()}>
-        <studio.settingsForm.Field name="singleKeyShortcutsEnabled">
-          {(field) => (
-            <InspectorToggleField
-              icon={<Keyboard className="h-4 w-4" />}
-              label={studio.ui.labels.singleKeyShortcuts}
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
-              description={studio.ui.helper.singleKeyShortcuts}
-            />
-          )}
-        </studio.settingsForm.Field>
-        <div className="mt-4">
-          <ShortcutOverridesSection />
-        </div>
       </InspectorSection>
     </>
   );
@@ -333,16 +302,18 @@ export function CaptureInspectorContent({ studio }: { studio: InspectorModeStudi
 export function EditInspectorContent({ studio }: { studio: InspectorModeStudio }) {
   return (
     <>
-      <InspectorSection title={studio.ui.inspectorTabs.project.toUpperCase()}>
+      <InspectorSection defaultOpen title={studio.ui.inspectorTabs.project}>
         <InspectorOptionCard>
           <InspectorOptionHeader
-            title={studio.ui.helper.activePreviewTitle}
-            description={studio.ui.helper.activePreviewBody}
+            title={m.ui_workflow_project_appearance(undefined, { locale: studio.locale })}
+            description={m.ui_workflow_project_appearance_help(undefined, {
+              locale: studio.locale,
+            })}
           />
         </InspectorOptionCard>
       </InspectorSection>
 
-      <InspectorSection title={studio.ui.inspectorTabs.effects.toUpperCase()}>
+      <InspectorSection defaultOpen title={studio.ui.inspectorTabs.effects}>
         <AutoZoomSection studio={studio} headingIcon={<Sparkles className="h-3.5 w-3.5" />} />
         {studio.backgroundFramingSupported ? <BackgroundFramingSection studio={studio} /> : null}
       </InspectorSection>
@@ -378,11 +349,19 @@ export function DeliverInspectorContent({ studio }: { studio: InspectorModeStudi
           rows={[
             {
               label: studio.ui.labels.trimInSeconds,
-              value: studio.formatDecimal(studio.exportForm.state.values.trimStartSeconds),
+              value: studio.formatDecimal(
+                studio.exportForm.state.values.rangeMode === "full"
+                  ? 0
+                  : studio.exportForm.state.values.trimStartSeconds,
+              ),
             },
             {
               label: studio.ui.labels.trimOutSeconds,
-              value: studio.formatDecimal(studio.exportForm.state.values.trimEndSeconds),
+              value: studio.formatDecimal(
+                studio.exportForm.state.values.rangeMode === "full"
+                  ? (studio.timelineItems.slice(-1)[0]?.programEndSeconds ?? 0)
+                  : studio.exportForm.state.values.trimEndSeconds,
+              ),
             },
           ]}
         />

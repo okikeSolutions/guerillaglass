@@ -22,19 +22,22 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title,
+  description,
   children,
   className,
+  closeLabel,
   showCloseButton = false,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
-  title?: string;
-  description?: string;
+  title: string;
+  description: string;
   className?: string;
-  showCloseButton?: boolean;
   children: React.ReactNode;
-}) {
+} & (
+    | { showCloseButton?: false; closeLabel?: never }
+    | { showCloseButton: true; closeLabel: string }
+  )) {
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
@@ -43,7 +46,9 @@ function CommandDialog({
       </DialogHeader>
       <DialogContent
         className={cn("rounded-xl! top-1/3 translate-y-0 overflow-hidden p-0", className)}
-        showCloseButton={showCloseButton}
+        {...(showCloseButton && closeLabel
+          ? { showCloseButton: true, closeLabel }
+          : { showCloseButton: false })}
       >
         {children}
       </DialogContent>

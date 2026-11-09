@@ -44,12 +44,14 @@ export function InspectorToggleField({
   checked,
   onCheckedChange,
   description,
+  disabled,
 }: {
   icon?: ReactNode;
   label: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   description?: string;
+  disabled?: boolean;
 }) {
   return (
     <InspectorOptionCard>
@@ -60,6 +62,7 @@ export function InspectorToggleField({
             <span className="gg-copy-strong">{label}</span>
           </span>
           <Checkbox
+            disabled={disabled}
             checked={checked}
             onCheckedChange={(nextChecked) => onCheckedChange(nextChecked === true)}
           />
@@ -81,6 +84,8 @@ export function InspectorSliderField({
   max,
   step,
   onValueChange,
+  onValueChangeStart,
+  onValueCommitted,
   className,
 }: {
   icon?: ReactNode;
@@ -91,6 +96,8 @@ export function InspectorSliderField({
   max: number;
   step?: number;
   onValueChange: (value: number) => void;
+  onValueChangeStart?: () => void;
+  onValueCommitted?: () => void;
   className?: string;
 }) {
   return (
@@ -111,7 +118,11 @@ export function InspectorSliderField({
             max={max}
             step={step}
             value={[value]}
-            onValueChange={(nextValue) => onValueChange(readSliderValue(nextValue))}
+            onValueChange={(nextValue) => {
+              onValueChangeStart?.();
+              onValueChange(readSliderValue(nextValue));
+            }}
+            onValueCommitted={onValueCommitted}
           />
         </FieldContent>
       </Field>
@@ -125,12 +136,14 @@ export function InspectorSelectField({
   options,
   onValueChange,
   description,
+  disabled,
 }: {
   label: string;
   value: string;
   options: Array<{ label: string; value: string }>;
   onValueChange: (value: string | null) => void;
   description?: string;
+  disabled?: boolean;
 }) {
   const selectId = useId();
 
@@ -144,7 +157,7 @@ export function InspectorSelectField({
           <FieldDescription className="gg-copy-meta pt-1">{description}</FieldDescription>
         ) : null}
         <FieldContent>
-          <Select value={value} onValueChange={onValueChange}>
+          <Select disabled={disabled} value={value} onValueChange={onValueChange}>
             <SelectTrigger id={selectId} className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -207,15 +220,19 @@ export function InspectorNumericField({
   onValueChange: (value: number) => void;
   description?: string;
 }) {
+  const inputId = useId();
   return (
     <InspectorOptionCard className="space-y-3">
       <Field>
-        <FieldLabel className="border-0 px-0 py-0 gg-copy-strong">{label}</FieldLabel>
+        <FieldLabel htmlFor={inputId} className="border-0 px-0 py-0 gg-copy-strong">
+          {label}
+        </FieldLabel>
         {description ? (
           <FieldDescription className="gg-copy-meta pt-1">{description}</FieldDescription>
         ) : null}
         <FieldContent>
           <Input
+            id={inputId}
             type="number"
             min={min}
             step={step}

@@ -35,6 +35,19 @@ export const studioQueryKeys = {
   eventsLog: (eventsURL: string | null) => ["studio", "eventsLog", eventsURL] as const,
 };
 
+export function resolveStudioMediaSources(
+  project: Pick<ProjectState, "projectPath" | "recordingURL" | "eventsURL"> | undefined,
+  capture: Pick<CaptureStatusResult, "recordingURL" | "eventsURL"> | undefined,
+) {
+  if (project?.projectPath) {
+    return { recordingURL: project.recordingURL ?? null, eventsURL: project.eventsURL ?? null };
+  }
+  return {
+    recordingURL: capture?.recordingURL ?? project?.recordingURL ?? null,
+    eventsURL: capture?.eventsURL ?? project?.eventsURL ?? null,
+  };
+}
+
 export const studioRecentsLimit = 10;
 
 export function parseCaptureStatusEvent(event: Event): CaptureStatusResult | null {
@@ -161,9 +174,10 @@ export function useStudioDataQueries({
     retry: false,
   });
 
-  const recordingURL =
-    captureStatusQuery.data?.recordingURL ?? projectQuery.data?.recordingURL ?? null;
-  const eventsURL = captureStatusQuery.data?.eventsURL ?? projectQuery.data?.eventsURL ?? null;
+  const { recordingURL, eventsURL } = resolveStudioMediaSources(
+    projectQuery.data,
+    captureStatusQuery.data,
+  );
 
   const eventsQuery = useQuery<InputEvent[]>({
     queryKey: studioQueryKeys.eventsLog(eventsURL),

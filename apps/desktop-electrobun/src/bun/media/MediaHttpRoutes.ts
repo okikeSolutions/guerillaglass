@@ -289,6 +289,16 @@ const mediaRouteHandler = Effect.gen(function* () {
 
   const guardResult = guardMediaServerRequest(request);
   if (!guardResult.allowed) {
+    const config = yield* Effect.serviceOption(AppConfig);
+    if (Option.isSome(config) && config.value.mediaServerDebugLoggingEnabled) {
+      // Origin metadata proves custom-scheme compatibility without leaking the
+      // scoped media token, request URL, referrer or local filesystem path.
+      yield* Effect.logWarning("Media request metadata rejected", {
+        origin: request.headers.origin ?? "absent",
+        fetchSite: request.headers["sec-fetch-site"] ?? "absent",
+        method: request.method,
+      });
+    }
     return textResponse(guardResult.status, guardResult.body);
   }
 
@@ -312,10 +322,17 @@ const mediaRouteHandler = Effect.gen(function* () {
   }
 
   const entry = entryOption.value;
-  if (entry.kind === "capturePreview") {
-    return yield* handlePreviewRequest(token, entry);
-  }
-  return yield* handleFileRequest(request, token, entry);
+  const response = yield* entry.kind === "capturePreview"
+    ? handlePreviewRequest(token, entry)
+    : handleFileRequest(request, token, entry);
+  // Reflect only an origin accepted by the existing metadata guard, after token
+  // authorization. Native renderers may serialize null or the exact views origin.
+  // CORS enables source-frame canvas extraction and decoded audio; it grants no
+  // additional authority to discover media or bypass the scoped capability token.
+  return HttpServerResponse.setHeaders(response, {
+    vary: "Origin",
+    ...(request.headers.origin ? { "access-control-allow-origin": request.headers.origin } : {}),
+  });
 }).pipe(
   Effect.catch((error) => {
     const status = error instanceof MediaServerError ? statusForMediaError(error) : 500;

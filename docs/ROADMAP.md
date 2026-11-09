@@ -6,6 +6,20 @@
 - `docs/ROADMAP.md` is the execution tracker for milestone sequencing, task checklists, and implementation backlog.
 - Roadmap tasks should reference relevant spec sections when requirements context is needed.
 
+### UI review follow-up
+
+The 2026-11-08 review of the merged editor is tracked in the [UI review ledger](UI_REVIEW_LEDGER.md), with a [screen/component coverage inventory](UI_REVIEW_INVENTORY.md) and native/browser evidence. It records 40 baseline findings. The fixing pass and its [implementation evidence](UI_IMPLEMENTATION_EVIDENCE.md) cover workflow labels, editor history/recovery, truthful timeline/audio, preview/delivery, native project IO and the public website. Findings remain open for final acceptance where their verification matrix is incomplete; three independent ratings strictly above 9.5/10 are required before preparing the requested PR. Shell checkboxes below describe implementation presence; they do not certify those interactions as polished or complete.
+
+The UI implementation and selected local proof are complete in [PR #190](https://github.com/okikeSolutions/guerillaglass/pull/190). Frozen commit `57a47ca` passed independent correctness, standards/Effect and product/visual reviews at 9.6/10 each, satisfying the user's strict PR-preparation gate. The [implementation evidence](UI_IMPLEMENTATION_EVIDENCE.md#review-gate) preserves every failed round and its corrections. The post-filing CI-maintenance freeze `c04c2b2` also received three independent 9.6/10 ratings. CI and review-thread gates apply before merge.
+
+The requested fresh review of live PR head `6ecb35e` failed at 9.0 correctness, 9.6 standards and 9.3 product. Its three P2 findings and follow-up corrections for media-free Save, delayed playback events and active capture configuration are tracked in the [ledger](UI_REVIEW_LEDGER.md#fresh-review-of-pr-190). All three reviewers must reassess the corrected source before the gate can pass again.
+
+After the EOF-ordering and preview-unmount follow-ups, final production freeze `51b2748` received 9.6/10 from each of the three independent reviewers. The strict score gate passes again, with no remaining actionable review findings. Reports and all failed rounds remain in the ledger. Report archival changes documentation only; new-head CI and human review remain before merge.
+
+All 40 ledger entries retain Ready for verification status where their acceptance matrix remains incomplete. Optional desktop localization-facade consolidation is tracked under UI-039. This pass does not complete manual camera authoring, granted native capture/audio, the Phase 2 performance/accessibility gate or cross-platform media parity. Use the ledger's stable IDs for subsequent UI work.
+
+The [UI improvement research](UI_IMPROVEMENT_RESEARCH.md) adds primary-source competitor analysis, [Emil Kowalski guidance](audits/2026-11-08-emil-kowalski-ui-guidance.md), proposed screen/component behavior and five UI work slices mapped to every finding. These are recommendations for the UI pass, not completed features or a replacement for the Phase 2 feature sequence below.
+
 ---
 
 ## 2) Creator Studio shell execution tracking
