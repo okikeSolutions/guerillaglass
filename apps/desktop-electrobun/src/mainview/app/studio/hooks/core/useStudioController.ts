@@ -695,8 +695,8 @@ export function useStudioController() {
 
   const inputMonitoringDenied = permissionsQuery.data?.inputMonitoring === "denied";
   const inspectorSelection = useMemo(
-    () => normalizeInspectorSelection(activeMode, rawInspectorSelection),
-    [activeMode, rawInspectorSelection],
+    () => normalizeInspectorSelection(activeMode, rawInspectorSelection, timelineLanes),
+    [activeMode, rawInspectorSelection, timelineLanes],
   );
   const selectedTimelineClip =
     inspectorSelection.kind === "timelineClip" ? inspectorSelection : null;

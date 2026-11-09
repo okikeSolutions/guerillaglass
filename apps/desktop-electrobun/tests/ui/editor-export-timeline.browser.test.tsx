@@ -2147,3 +2147,138 @@ for (const trailingGap of [false, true]) {
     }
   });
 }
+
+test("refreshing native defaults before first Save preserves generated-source cuts and Undo", async () => {
+  await prepareCapture();
+  await applyStudioAction((studio) =>
+    studio.settingsForm.setFieldValue("autoZoom", {
+      ...studio.settingsForm.state.values.autoZoom,
+      isEnabled: false,
+    }),
+  );
+  const bridge = window as unknown as Record<string, unknown>;
+  let recording = false;
+  const status = () => ({
+    isRunning: recording,
+    isRecording: recording,
+    recordingDurationSeconds: recording ? 0 : 8,
+    recordingURL: "/tmp/fresh-history.mov",
+    telemetry: {},
+  });
+  const native = {
+    recordingURL: "/tmp/fresh-history.mov",
+    autoZoom: { isEnabled: true, intensity: 1, minimumKeyframeInterval: 1 / 30 },
+    backgroundFraming: defaultBackgroundFramingSettings,
+    timeline: { version: 2, items: [] },
+  };
+  bridge.ggEngineStartRecording = async () => {
+    recording = true;
+    return status();
+  };
+  bridge.ggEngineStopRecording = async () => {
+    recording = false;
+    return status();
+  };
+  bridge.ggEngineStopCapture = async () => status();
+  bridge.ggEngineCaptureStatus = async () => status();
+  bridge.ggEngineProjectCurrent = async () => native;
+  replacementDecision = "discard";
+  await applyStudioAction(async (studio) => studio.toggleRecordingMutation.mutateAsync(undefined));
+  await applyStudioAction(async (studio) => studio.toggleRecordingMutation.mutateAsync(undefined));
+  await setInspectorMode("edit");
+  await waitFor(() => expect(currentStudio().timelineDuration).toBe(8));
+  await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(4));
+  const first = currentTimelineClip(0);
+  await applyStudioAction((studio) => {
+    if (!studio.timelineRippleEnabled) {
+      studio.toggleTimelineRipple();
+    }
+    studio.selectTimelineClip({
+      laneId: "video",
+      clipId: first.id,
+      startSeconds: 0,
+      endSeconds: 4,
+    });
+  });
+  await applyStudioAction((studio) => studio.deleteSelectedTimelineClip());
+  const edited = currentStudio().timelineDocument;
+  expect(currentStudio().timelineDuration).toBe(4);
+  await applyStudioAction(async (studio) => studio.refreshAll());
+  expect(currentStudio().timelineDocument).toEqual(edited);
+  expect(currentStudio().settingsForm.state.values.autoZoom.isEnabled).toBe(false);
+  expect(currentStudio().canUndoTimeline).toBe(true);
+  await applyStudioAction(async (studio) => studio.exportMutation.mutateAsync());
+  expect(capturedExportTimeline()).toEqual(edited);
+  await applyStudioAction((studio) => studio.undoTimeline());
+  expect(currentStudio().timelineDuration).toBe(8);
+  await applyStudioAction((studio) => studio.redoTimeline());
+  expect(currentStudio().timelineDocument).toEqual(edited);
+  await applyStudioAction(async (studio) => studio.saveProjectMutation.mutateAsync(true));
+  expect(capturedSaveParams).toMatchObject({ timeline: edited, autoZoom: { isEnabled: false } });
+});
+
+function visibleInspectorRow(label: string) {
+  return Array.from(document.querySelectorAll(".gg-inspector-detail-row")).find(
+    (row) => row.firstElementChild?.textContent === label,
+  )?.textContent;
+}
+
+test("Undo of a selected split scene returns to the project inspector", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  await setInspectorMode("edit");
+  await applyStudioAction((studio) => studio.splitTimelineClipAtSeconds(2));
+  const right = currentTimelineClip(1);
+  await applyStudioAction((studio) =>
+    studio.selectTimelineClip({
+      laneId: "video",
+      clipId: right.id,
+      startSeconds: 2,
+      endSeconds: 4,
+    }),
+  );
+  await expect.element(page.getByRole("button", { name: "Scene 2", exact: true })).toBeVisible();
+  await applyStudioAction((studio) => studio.undoTimeline());
+  expect(currentStudio().inspectorSelection.kind).toBe("none");
+  await expect.element(page.getByText("Project appearance", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Scene 2", exact: true }))
+    .not.toBeInTheDocument();
+});
+
+test("Undo and Redo derive a surviving scene's visible inspector timing from the current timeline", async () => {
+  await waitFor(() => expect(currentStudio().timelineDocument).toEqual(initialTimeline));
+  const a = currentTimelineClip(0);
+  const b = {
+    ...a,
+    id: timelineSegmentIdSchema.make("surviving-scene"),
+    sourceStartSeconds: 4,
+    sourceEndSeconds: 10,
+  };
+  await act(async () =>
+    queryClient?.setQueryData(studioQueryKeys.projectCurrent(), {
+      ...currentStudio().projectQuery.data,
+      timeline: { version: 2, items: [a, b] },
+    }),
+  );
+  await setInspectorMode("edit");
+  await applyStudioAction((studio) => {
+    if (!studio.timelineRippleEnabled) {
+      studio.toggleTimelineRipple();
+    }
+    studio.selectTimelineClip({ laneId: "video", clipId: a.id, startSeconds: 0, endSeconds: 4 });
+  });
+  await applyStudioAction((studio) => studio.deleteSelectedTimelineClip());
+  await applyStudioAction((studio) =>
+    studio.selectTimelineClip({ laneId: "video", clipId: b.id, startSeconds: 0, endSeconds: 6 }),
+  );
+  await applyStudioAction((studio) => studio.undoTimeline());
+  await waitFor(() => {
+    expect(visibleInspectorRow("Start")).toBe("Start4.00s");
+    expect(visibleInspectorRow("End")).toBe("End10.00s");
+  });
+  await applyStudioAction((studio) => studio.redoTimeline());
+  await waitFor(() => {
+    expect(visibleInspectorRow("Start")).toBe("Start0.00s");
+    expect(visibleInspectorRow("End")).toBe("End6.00s");
+  });
+});

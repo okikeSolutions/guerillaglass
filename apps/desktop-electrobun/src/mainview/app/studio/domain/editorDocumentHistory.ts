@@ -26,6 +26,28 @@ export function editorDocumentSignature(document: EditorDocument): string {
 export function createEditorDocumentHistory(document: EditorDocument): EditorDocumentHistory {
   return { present: document, past: [], future: [] };
 }
+
+/** Refine generated source metadata only where it remains unedited. Local cuts,
+ * visual settings and both undo directions retain their ownership of the draft.
+ */
+export function rebaseGeneratedTimeline(
+  history: EditorDocumentHistory,
+  previousTimelineSignature: string,
+  timeline: TimelineDocument,
+): EditorDocumentHistory {
+  if (timelineContentSignature(timeline) === previousTimelineSignature) {
+    return history;
+  }
+  const rebase = (document: EditorDocument): EditorDocument =>
+    timelineContentSignature(document.timeline) === previousTimelineSignature
+      ? { ...document, timeline }
+      : document;
+  return {
+    present: rebase(history.present),
+    past: history.past.map(rebase),
+    future: history.future.map(rebase),
+  };
+}
 /** Native metadata and semantic no-ops preserve redo. New edits discard it. */
 export function recordEditorDocumentEdit(
   history: EditorDocumentHistory,

@@ -4,20 +4,26 @@ import {
   createEditorDocumentHistory,
   editorDocumentSignature,
   recordEditorDocumentEdit,
+  rebaseGeneratedTimeline,
   undoEditorDocumentEdit,
   redoEditorDocumentEdit,
   type EditorDocument,
   type EditorDocumentHistory,
   type EditorVisualSettings,
 } from "../../domain/editorDocumentHistory";
-import { editorStateSignature } from "../../domain/editorStateSignature";
+import { editorStateSignature, timelineContentSignature } from "../../domain/editorStateSignature";
 
 export type EditorSettingsAdapter = {
   getValues: () => EditorVisualSettings;
   restore: (settings: EditorVisualSettings) => void;
   subscribe: (listener: () => void) => () => void;
 };
-type Draft = { history: EditorDocumentHistory; sourceSignature: string; projectIdentity: string };
+type Draft = {
+  history: EditorDocumentHistory;
+  sourceSignature: string;
+  sourceTimelineSignature: string;
+  projectIdentity: string;
+};
 
 /** One undo history owns every persisted edit, including form-backed visual settings. */
 export function useEditorDocumentHistory({
@@ -34,6 +40,7 @@ export function useEditorDocumentHistory({
   canEdit: () => boolean;
 }) {
   const sourceSignature = editorDocumentSignature(baseline);
+  const sourceTimelineSignature = timelineContentSignature(baseline.timeline);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [pendingSave, setPendingSave] = useState<Draft | null>(null);
   const saved =
@@ -47,13 +54,18 @@ export function useEditorDocumentHistory({
       ? draft.sourceSignature === sourceSignature
         ? draft.history
         : generatedTimeline
-          ? createEditorDocumentHistory({ ...draft.history.present, timeline: baseline.timeline })
+          ? rebaseGeneratedTimeline(draft.history, draft.sourceTimelineSignature, baseline.timeline)
           : recordEditorDocumentEdit(draft.history, baseline)
       : createEditorDocumentHistory(baseline);
   // Reconcile native snapshots during this render; hydration below runs before
   // paint and suppresses form-store recording, never creating a second edit.
   if (draft?.projectIdentity !== projectIdentity || draft.sourceSignature !== sourceSignature) {
-    setDraft({ history: currentHistory, sourceSignature, projectIdentity });
+    setDraft({
+      history: currentHistory,
+      sourceSignature,
+      sourceTimelineSignature,
+      projectIdentity,
+    });
   }
   if (saved) {
     setPendingSave(null);
@@ -87,9 +99,9 @@ export function useEditorDocumentHistory({
     (history: EditorDocumentHistory) => {
       historyRef.current = history;
       restoreVisuals(history.present);
-      setDraft({ history, sourceSignature, projectIdentity });
+      setDraft({ history, sourceSignature, sourceTimelineSignature, projectIdentity });
     },
-    [projectIdentity, sourceSignature, restoreVisuals],
+    [projectIdentity, sourceSignature, sourceTimelineSignature, restoreVisuals],
   );
   useLayoutEffect(() => {
     historyRef.current = currentHistory;
@@ -161,6 +173,7 @@ export function useEditorDocumentHistory({
       history: historyRef.current,
       projectIdentity: identity,
       sourceSignature: editorDocumentSignature(document),
+      sourceTimelineSignature: timelineContentSignature(document.timeline),
     });
   }, []);
   const reset = useCallback(() => {

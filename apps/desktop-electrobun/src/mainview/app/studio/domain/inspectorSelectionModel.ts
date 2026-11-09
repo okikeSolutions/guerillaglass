@@ -1,5 +1,5 @@
 import type { ExportPreset } from "@guerillaglass/engine-contract/domains/export";
-import type { TimelineEventMarkerKind } from "./timelineDomainModel";
+import type { TimelineEventMarkerKind, TimelineLane } from "./timelineDomainModel";
 
 export type StudioMode = "capture" | "edit" | "deliver";
 
@@ -51,6 +51,7 @@ export const emptyInspectorSelection: InspectorSelection = { kind: "none" };
 export function normalizeInspectorSelection(
   mode: StudioMode,
   selection: InspectorSelection,
+  lanes?: ReadonlyArray<TimelineLane>,
 ): InspectorSelection {
   if (
     mode === "capture" &&
@@ -63,6 +64,34 @@ export function normalizeInspectorSelection(
   }
   if (selection.kind === "exportPreset" && mode !== "deliver") {
     return emptyInspectorSelection;
+  }
+  if (lanes && selection.kind === "timelineClip") {
+    const lane = lanes.find((candidate) => candidate.id === selection.laneId);
+    const clip =
+      lane && "clips" in lane
+        ? lane.clips.find(
+            (candidate) => candidate.id === selection.clipId && candidate.semantic !== "gap",
+          )
+        : undefined;
+    return clip
+      ? { ...selection, startSeconds: clip.startSeconds, endSeconds: clip.endSeconds }
+      : emptyInspectorSelection;
+  }
+  if (lanes && selection.kind === "timelineMarker") {
+    const lane = lanes.find((candidate) => candidate.id === "events");
+    const marker =
+      lane && "markers" in lane
+        ? lane.markers.find((candidate) => candidate.id === selection.markerId)
+        : undefined;
+    return marker
+      ? {
+          kind: "timelineMarker",
+          markerId: marker.id,
+          markerKind: marker.kind,
+          density: marker.density,
+          timestampSeconds: marker.timestampSeconds,
+        }
+      : emptyInspectorSelection;
   }
   return selection;
 }

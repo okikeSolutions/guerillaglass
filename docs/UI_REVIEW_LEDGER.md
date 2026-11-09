@@ -752,3 +752,7 @@ The contiguous preview/timeline/inspector layout is a useful base. Shared contro
 ### Second frozen review follow-up
 
 Commit `8bdd37b` failed all three independent ratings at 9.2, 9.3 and 9.1. [Correctness](audits/2026-11-09-ui-round2-correctness-review.md), [standards](audits/2026-11-09-ui-round2-standards-review.md) and [product](audits/2026-11-09-ui-round2-product-review.md) reports remain available. The next revision addresses UI-003 edge restoration, UI-004 accurate permission recovery, UI-011 playing seeks/EOF replay, UI-013 narrow scene identity, UI-018 export result ownership, UI-021 actionable schema diagnostics and UI-025 keyboard Blade activation. Findings remain Ready for verification; fresh ratings must each exceed 9.5 before PR preparation.
+
+### Third frozen review follow-up
+
+Commit `7adcc9b` received 9.3 correctness, 9.6 standards and 9.4 product. Only standards passed individually; the combined gate failed. [Correctness](audits/2026-11-09-ui-round3-correctness-review.md), [standards](audits/2026-11-09-ui-round3-standards-review.md) and [product](audits/2026-11-09-ui-round3-product-review.md) reports are retained. UI-006/UI-007 now preserve generated-source drafts and history during passive refresh, and UI-014/UI-015 derive selection and timing from current lanes through Undo/Redo. Fresh ratings must all exceed 9.5 before PR preparation.

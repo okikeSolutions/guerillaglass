@@ -6,10 +6,12 @@ import {
   editorDocumentSignature,
   createEditorDocumentHistory,
   recordEditorDocumentEdit,
+  rebaseGeneratedTimeline,
   undoEditorDocumentEdit,
   redoEditorDocumentEdit,
   type EditorDocument,
 } from "@studio/domain/editorDocumentHistory";
+import { timelineContentSignature } from "@studio/domain/editorStateSignature";
 import { resetTimelineClipCamera } from "@studio/domain/timelineCommands";
 
 describe("complete editor document history", () => {
@@ -130,4 +132,42 @@ test("history stays bounded and exhausted undo/redo preserve identity", () => {
     });
   }
   expect(history.past).toHaveLength(100);
+});
+
+test("generated duration refinement preserves cuts, visual edits and both history directions", () => {
+  const original: EditorDocument = {
+    timeline: createSingleSegmentTimelineDocument(8),
+    autoZoom: { isEnabled: false, intensity: 1, minimumKeyframeInterval: 0.1 },
+    backgroundFraming: defaultBackgroundFramingSettings,
+  };
+  const visual = {
+    ...original,
+    backgroundFraming: { ...original.backgroundFraming, enabled: true },
+  };
+  const edited = { ...visual, timeline: createSingleSegmentTimelineDocument(4) };
+  const signature = timelineContentSignature(original.timeline);
+  const history = recordEditorDocumentEdit(
+    recordEditorDocumentEdit(createEditorDocumentHistory(original), visual),
+    edited,
+  );
+  expect(rebaseGeneratedTimeline(history, signature, original.timeline)).toBe(history);
+  const refined = rebaseGeneratedTimeline(
+    history,
+    signature,
+    createSingleSegmentTimelineDocument(8.1),
+  );
+  expect(refined.present).toEqual(edited);
+  expect(refined.past).toHaveLength(2);
+  expect(undoEditorDocumentEdit(refined).present.timeline).toEqual(
+    createSingleSegmentTimelineDocument(8.1),
+  );
+  expect(redoEditorDocumentEdit(undoEditorDocumentEdit(refined)).present).toEqual(edited);
+  const undone = rebaseGeneratedTimeline(
+    undoEditorDocumentEdit(history),
+    signature,
+    createSingleSegmentTimelineDocument(8.1),
+  );
+  expect(undone.present.autoZoom.isEnabled).toBe(false);
+  expect(undone.future[0]).toEqual(edited);
+  expect(undone.present.timeline).toEqual(createSingleSegmentTimelineDocument(8.1));
 });
